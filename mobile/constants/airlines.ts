@@ -1,4 +1,4 @@
-// MVP airlines – Pegasus, Turkish Airlines, SunExpress
+// Supported airlines – Pegasus, Turkish Airlines, SunExpress, AJet
 export type Airline = {
   icao: string;
   iata: string;
@@ -6,23 +6,12 @@ export type Airline = {
   logoUrl: string;
 };
 
+// Logo base: avs.io (reliable in RN). Format: https://pics.avs.io/64/64/IATA.png
+const logoUrl = (iata: string) => `https://pics.avs.io/64/64/${iata}.png`;
+
 export const AIRLINES: Airline[] = [
-  {
-    icao: 'PGT',
-    iata: 'PC',
-    name: 'Pegasus Airlines',
-    logoUrl: 'https://images.kiwi.com/airlines/64/PC.png',
-  },
-  {
-    icao: 'THY',
-    iata: 'TK',
-    name: 'Turkish Airlines',
-    logoUrl: 'https://images.kiwi.com/airlines/64/TK.png',
-  },
-  {
-    icao: 'SXS',
-    iata: 'XQ',
-    name: 'SunExpress',
-    logoUrl: 'https://images.kiwi.com/airlines/64/XQ.png',
-  },
+  { icao: 'PGT', iata: 'PC', name: 'Pegasus Airlines', logoUrl: logoUrl('PC') },
+  { icao: 'THY', iata: 'TK', name: 'Turkish Airlines', logoUrl: logoUrl('TK') },
+  { icao: 'SXS', iata: 'XQ', name: 'SunExpress', logoUrl: logoUrl('XQ') },
+  { icao: 'TKJ', iata: 'VF', name: 'AJet', logoUrl: logoUrl('VF') },
 ];

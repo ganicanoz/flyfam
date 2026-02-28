@@ -54,6 +54,7 @@ interface FlightUpdate {
   destination_city?: string | null;
   is_delayed?: boolean | null;
   schedule_unconfirmed?: boolean | null;
+  diverted_to?: string | null;
 }
 
 Deno.serve(async (req) => {
@@ -109,6 +110,7 @@ Deno.serve(async (req) => {
     if (u.destination_city !== undefined) payloadScheduled.destination_city = u.destination_city;
     if (u.is_delayed !== undefined) payloadScheduled.is_delayed = u.is_delayed;
     if (u.schedule_unconfirmed !== undefined) payloadScheduled.schedule_unconfirmed = u.schedule_unconfirmed;
+    if (u.diverted_to !== undefined) payloadScheduled.diverted_to = u.diverted_to;
 
     const payloadActual: Record<string, unknown> = {};
     if (u.actual_departure !== undefined) payloadActual.actual_departure = u.actual_departure;

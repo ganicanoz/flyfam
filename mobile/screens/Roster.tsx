@@ -1,12 +1,12 @@
 import React, { useState, useCallback, useLayoutEffect, useRef } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, Linking } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, Linking, RefreshControl } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Swipeable } from 'react-native-gesture-handler';
 import { useNavigation, useFocusEffect, useRoute } from '@react-navigation/native';
 import { useSession } from '../contexts/SessionContext';
 import { supabase } from '../lib/supabase';
-import { formatFlightTimeLocal, formatFlightTimeUTC, getLocalDateString, getLocalDateStringPlusDays, parseFlightTimeAsUtc } from '../lib/dateUtils';
+import { formatFlightDateTr, formatFlightTimeLocal, formatFlightTimeUTC, getLocalDateString, getLocalDateStringPlusDays, parseFlightTimeAsUtc } from '../lib/dateUtils';
 import { fetchFlightByNumber, getFr24DeepLink } from '../lib/flightApi';
 import { notifyFamilyFlightEvent, notifyFamilyTodayFlights } from '../lib/notifyFamily';
 import { formatCityAndCode, getAirportDisplay } from '../constants/airports';
@@ -34,17 +34,22 @@ function isMissingColumn(errMsg: string | undefined | null, column: string): boo
   return m.includes(c) && (m.includes('could not find') || m.includes('does not exist'));
 }
 
-/** Hide landed (or parked) flights 10+ hours after scheduled_arrival (no DB deletes). Never hide flights with no scheduled time (dash). */
+/** Hide flights 10+ hours after landing (no DB deletes). Uses flight_status landed/parked OR actual_arrival so flights are hidden even if status was never updated. */
 async function removeFlightsLandedOver6hAgo<
   T extends { id: string; scheduled_arrival: string | null; actual_arrival?: string | null; flight_status?: string | null }
 >(list: T[]): Promise<T[]> {
   const now = Date.now();
   const toHide = list.filter((f) => {
     const status = (f.flight_status ?? '').toLowerCase();
-    if (status !== 'landed' && status !== 'parked') return false;
-    if (!f.scheduled_arrival || !f.scheduled_arrival.trim()) return false;
-    const arrMs = parseUtcMsStatic(f.scheduled_arrival);
-    return arrMs > 0 && now - arrMs >= LANDED_DELETE_AFTER_MS;
+    const isLandedByStatus = status === 'landed' || status === 'parked';
+    const arrMsSched = parseUtcMsStatic(f.scheduled_arrival);
+    const arrMsActual = parseUtcMsStatic(f.actual_arrival);
+    const landingMs = arrMsActual > 0 ? arrMsActual : arrMsSched;
+    if (landingMs <= 0) return false;
+    if (now - landingMs < LANDED_DELETE_AFTER_MS) return false;
+    if (isLandedByStatus) return true;
+    if (arrMsActual > 0) return true;
+    return false;
   });
   return list.filter((f) => !toHide.includes(f));
 }
@@ -76,6 +81,7 @@ export default function Roster() {
   const [liveMetricsById, setLiveMetricsById] = useState<Record<string, { gs?: number; altFt?: number; atUtc?: string }>>({});
   const [airborneSeenById, setAirborneSeenById] = useState<Record<string, boolean>>({});
   const [nextDayHintById, setNextDayHintById] = useState<Record<string, boolean>>({});
+  const [scheduleSourceHintById, setScheduleSourceHintById] = useState<Record<string, 'fr24_first_last_seen'>>({});
   const [fr24IdByFlightId, setFr24IdByFlightId] = useState<Record<string, string>>({});
   const airborneSeenRef = useRef<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
@@ -100,11 +106,10 @@ export default function Roster() {
 
   const getAutoRefreshList = useCallback((list: Flight[]) => {
     const now = Date.now();
-    const minDate = getLocalDateStringPlusDays(-1);
-    const maxAheadMs = 12 * 60 * 60 * 1000; // next 12 hours only (reduce API cost)
     const todayLocal = getLocalDateString();
+    const maxAheadMs = 12 * 60 * 60 * 1000; // next 12 hours only (reduce API cost)
     return list.filter((f) => {
-      if (f.flight_date < minDate) return false;
+      if (f.flight_date < todayLocal) return false;
       // Always keep live flights updated.
       if (f.flight_status === 'en_route' || f.flight_status === 'departed' || f.flight_status === 'taxi_out') return true;
       if (f.actual_departure && !f.actual_arrival) return true;
@@ -172,7 +177,7 @@ export default function Roster() {
           fr24Id: info?.fr24Id,
         }, null, 2));
       }
-      if (debugKey === 'PC978' || debugKey === 'PC615' || debugKey === 'PC1915' || debugKey === 'PC1134' || debugKey === 'PC2088' || debugKey === 'PC2199' || debugKey === 'PC2289') {
+      if (debugKey === 'PC978' || debugKey === 'PC615' || debugKey === 'PC1915' || debugKey === 'PC1134' || debugKey === 'PC2088' || debugKey === 'PC2199' || debugKey === 'PC2289' || debugKey === 'PC2550' || debugKey === 'PC656') {
         if (debugKey !== 'PC2289') {
           console.log(`[Debug ${debugKey}] fetchFlightByNumber result:`, {
             date: flight.flight_date,
@@ -232,6 +237,9 @@ export default function Roster() {
       if (effectiveInfo.nextDayHint != null) {
         setNextDayHintById((prev) => ({ ...prev, [flight.id]: effectiveInfo.nextDayHint === true }));
       }
+      if (effectiveInfo.scheduleSourceHint === 'fr24_first_last_seen') {
+        setScheduleSourceHintById((prev) => ({ ...prev, [flight.id]: 'fr24_first_last_seen' }));
+      }
       if (effectiveInfo.groundSpeedKts != null || effectiveInfo.altitudeFt != null) {
         setLiveMetricsById((prev) => ({
           ...prev,
@@ -252,63 +260,7 @@ export default function Roster() {
         airborneSeenRef.current[flight.id] = true;
         setAirborneSeenById((prev) => (prev[flight.id] ? prev : { ...prev, [flight.id]: true }));
       }
-      // -----------------------------------------------------------------------
-      // LANDED DETECTION (two paths):
-      // A) API already says landed or gives actual_arrival_utc (FR24/Aviation Edge) → we keep it.
-      // B) "Low speed" heuristic: if we once saw the flight airborne and now GS is low, treat as landed.
-      //    Risk: GS=0 or missing can mean "no data" not "on ground". So we require:
-      //    - gs in (0, 70) (exclude 0: often "no data") AND
-      //    - recent track (lastTrackUtc within last 10 min) so we don't use stale/empty data.
-      // -----------------------------------------------------------------------
-      const depMs0 = parseUtcMsStatic(flight.actual_departure ?? flight.scheduled_departure);
-      const now0 = Date.now();
-      const takeoffDetected =
-        airborneSeenRef.current[flight.id] === true ||
-        isAirborneNow ||
-        (depMs0 > 0 && flight.actual_departure != null && now0 - depMs0 >= 5 * 60 * 1000);
-      const airborneSeen = takeoffDetected;
-      const arrMs0 = parseUtcMsStatic(flight.actual_arrival ?? flight.scheduled_arrival);
-      const enRouteByTimes = depMs0 > 0 && depMs0 <= now0 && (arrMs0 === 0 || now0 < arrMs0 + 2 * 60 * 60 * 1000) && !flight.actual_arrival;
-      const isEnRouteFlight = (flight.flight_status ?? '') === 'en_route' || effectiveInfo.flightStatus === 'en_route' || enRouteByTimes;
-      const lastTrackMs = effectiveInfo.lastTrackUtc ? new Date(effectiveInfo.lastTrackUtc).getTime() : 0;
-      const trackIsRecent = lastTrackMs > 0 && now0 - lastTrackMs <= 10 * 60 * 1000;
-      // Require gs in (0, 70): exclude gs=0 (often "no data") to avoid false "landed" when still airborne.
-      const isLowSpeed =
-        typeof gs === 'number' && Number.isFinite(gs) && gs > 0 && gs < 70 && trackIsRecent;
-      if (debugKey === 'PC2289') {
-        console.log('[PC2289] landed heuristic:', JSON.stringify({
-          gs,
-          alt,
-          airborneSeen,
-          isEnRouteFlight,
-          isLowSpeed,
-          trackIsRecent,
-          lastTrackUtc: effectiveInfo.lastTrackUtc,
-          actArr: effectiveInfo.actual_arrival_utc,
-          statusBefore: effectiveInfo.flightStatus,
-          statusAfter: (airborneSeen && isEnRouteFlight && isLowSpeed) ? 'landed' : effectiveInfo.flightStatus,
-        }, null, 2));
-        console.log('========== PC2289 DEBUG END ==========\n');
-      }
-      if (debugKey === 'PC1134') {
-        console.log(`[Debug PC1134] landed heuristic:`, {
-          gs,
-          alt,
-          airborneSeen,
-          isEnRouteFlight,
-          isLowSpeed,
-          trackIsRecent,
-          lastTrackUtc: effectiveInfo.lastTrackUtc,
-          actArr: effectiveInfo.actual_arrival_utc,
-          statusBefore: effectiveInfo.flightStatus,
-        });
-      }
-      if (airborneSeen && isEnRouteFlight && isLowSpeed) {
-        effectiveInfo.flightStatus = 'landed';
-        if (!effectiveInfo.actual_arrival_utc && effectiveInfo.lastTrackUtc) {
-          effectiveInfo.actual_arrival_utc = effectiveInfo.lastTrackUtc;
-        }
-      }
+      // Statü türetme (LANDED DETECTION / low-speed heuristic) kaldırıldı — baştan yazılacak.
       // Update in two phases so missing actual_* columns don't block scheduled_* updates.
       const payloadScheduled = {} as Record<string, unknown>;
       const toIata = (code: string | undefined) => (code ? (getAirportDisplay(code)?.iata ?? code) : undefined);
@@ -383,16 +335,19 @@ export default function Roster() {
     });
     await Promise.all(workers);
     if (!silent) setUpdatingTimes(false);
+    const todayLocal = getLocalDateString();
     let { data, error } = await supabase
       .from('flights')
       .select('id, flight_number, origin_airport, destination_airport, origin_city, destination_city, flight_date, scheduled_departure, scheduled_arrival, actual_departure, actual_arrival, is_delayed, flight_status, schedule_unconfirmed, diverted_to')
       .eq('crew_id', crewProfile.id)
+      .gte('flight_date', todayLocal)
       .order('flight_date', { ascending: true });
     if (isMissingColumn(error?.message, 'schedule_unconfirmed') || isMissingColumn(error?.message, 'diverted_to')) {
       const { data: data2 } = await supabase
         .from('flights')
         .select('id, flight_number, origin_airport, destination_airport, origin_city, destination_city, flight_date, scheduled_departure, scheduled_arrival, actual_departure, actual_arrival, is_delayed, flight_status, schedule_unconfirmed')
         .eq('crew_id', crewProfile.id)
+        .gte('flight_date', todayLocal)
         .order('flight_date', { ascending: true });
       data = (data2 as any)?.map((row: any) => ({
         ...row,
@@ -418,12 +373,12 @@ export default function Roster() {
       setFlights([]);
       return;
     }
-    const minDate = getLocalDateStringPlusDays(-1);
+    const todayLocal = getLocalDateString();
     let { data, error } = await supabase
       .from('flights')
       .select('id, flight_number, origin_airport, destination_airport, origin_city, destination_city, flight_date, scheduled_departure, scheduled_arrival, actual_departure, actual_arrival, is_delayed, flight_status, schedule_unconfirmed, diverted_to, crew_profiles(company_name)')
       .in('crew_id', crewIds)
-      .gte('flight_date', minDate)
+      .gte('flight_date', todayLocal)
       .order('flight_date', { ascending: true })
       .limit(50);
 
@@ -439,7 +394,7 @@ export default function Roster() {
         .from('flights')
         .select(selectCols)
         .in('crew_id', crewIds)
-        .gte('flight_date', minDate)
+        .gte('flight_date', todayLocal)
         .order('flight_date', { ascending: true })
         .limit(50);
       console.log('[FamilyRoster] flights fetched (fallback)', fallback?.length ?? 0);
@@ -520,6 +475,16 @@ export default function Roster() {
     setRefreshingList(false);
   }, [isCrew, profile?.id, refreshFamilyListFromDb]);
 
+  const handlePullToRefresh = useCallback(async () => {
+    if (isCrew) {
+      setRefreshingList(true);
+      await refreshTimesFromApi(true);
+      setRefreshingList(false);
+    } else {
+      await refreshFamilyListFromApi();
+    }
+  }, [isCrew, refreshTimesFromApi, refreshFamilyListFromApi]);
+
   useLayoutEffect(() => {
     navigation.setOptions({
       headerRight: isCrew ? () => (
@@ -586,12 +551,14 @@ export default function Roster() {
       };
 
       if (isCrew && crewProfile?.id) {
+        const todayLocal = getLocalDateString();
         const selectCols =
           'id, flight_number, origin_airport, destination_airport, origin_city, destination_city, flight_date, scheduled_departure, scheduled_arrival, actual_departure, actual_arrival, is_delayed, flight_status, schedule_unconfirmed, diverted_to';
         supabase
           .from('flights')
           .select(selectCols)
           .eq('crew_id', crewProfile.id)
+          .gte('flight_date', todayLocal)
           .order('flight_date', { ascending: true })
           .then(async ({ data, error }) => {
             if (error) {
@@ -611,6 +578,7 @@ export default function Roster() {
                   .from('flights')
                   .select(fallbackCols)
                   .eq('crew_id', crewProfile.id)
+                  .gte('flight_date', todayLocal)
                   .order('flight_date', { ascending: true });
 
                 if (!err2 && fallback && !cancelled) {
@@ -689,12 +657,7 @@ export default function Roster() {
     }, [isCrew, crewProfile?.id, getAutoRefreshList, getDashFlights, refreshTimesFromApi])
   );
 
-  const formatDate = (d: string) => {
-    const date = new Date(d);
-    const weekday = date.toLocaleDateString('en-US', { weekday: 'long' });
-    const dayMonth = date.toLocaleDateString('en-US', { day: 'numeric', month: 'long' });
-    return `${weekday} - ${dayMonth}`;
-  };
+  const formatDate = formatFlightDateTr;
   const formatTimeUTC = (iso: string | null) => formatFlightTimeUTC(iso);
   const formatTimeLocal = (iso: string | null) => formatFlightTimeLocal(iso);
   const localTzTag = (() => {
@@ -716,16 +679,11 @@ export default function Roster() {
 
   type FlightStatus = 'scheduled' | 'taxi_out' | 'departed' | 'en_route' | 'landed' | 'parked' | 'cancelled' | 'diverted' | 'incident' | 'redirected';
   /**
-   * Flight status: from DB flight_status. Fallback: if DB says en_route but we have actual_arrival in the past, show Landed.
+   * Flight status: from DB flight_status only. Statü türetme kaldırıldı — baştan yazılacak.
    */
   const getFlightStatus = (f: Flight): FlightStatus => {
     const fromApi = f.flight_status as FlightStatus | null | undefined;
     if (fromApi && ['cancelled', 'diverted', 'incident', 'redirected', 'scheduled', 'taxi_out', 'departed', 'en_route', 'landed', 'parked'].includes(fromApi)) {
-      // DB may still say en_route after landing if update didn't persist; if we have actual_arrival in the past, show Landed.
-      if (fromApi === 'en_route' && f.actual_arrival) {
-        const arrMs = parseUtcMsStatic(f.actual_arrival);
-        if (arrMs > 0 && Date.now() >= arrMs) return 'landed';
-      }
       return fromApi;
     }
     return 'scheduled';
@@ -856,6 +814,14 @@ export default function Roster() {
             keyExtractor={(item) => item.id}
             contentContainerStyle={styles.list}
             style={styles.listFlex}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshingList || (isCrew && updatingTimes)}
+                onRefresh={handlePullToRefresh}
+                colors={[colors.primary]}
+                tintColor={colors.primary}
+              />
+            }
             renderItem={({ item, index }) => {
             const renderLeftActions = () => (
               <TouchableOpacity
@@ -925,9 +891,14 @@ export default function Roster() {
                         {arrCity}
                         <Text style={styles.depArrTimes}> – {formatTimeLocal(item.actual_arrival ?? item.scheduled_arrival)} ({localTzTag}) / {formatTimeUTC(item.actual_arrival ?? item.scheduled_arrival)} (Z)</Text>
                       </Text>
-                      {item.schedule_unconfirmed === true && (
+                      {item.schedule_unconfirmed === true && !scheduleSourceHintById[item.id] && (
                         <Text style={[styles.toBeUpdated, { color: colors.textMuted }]} accessibilityLabel="Schedule to be updated">
                           <Text style={styles.toBeUpdatedItalic}>{t('roster.toBeUpdated')}</Text>
+                        </Text>
+                      )}
+                      {scheduleSourceHintById[item.id] === 'fr24_first_last_seen' && (
+                        <Text style={[styles.prevDayDataBox, { color: colors.textMuted }]} accessibilityLabel="Önceki günün verisi">
+                          <Text style={styles.prevDayDataText}>{t('roster.prevDayData')}</Text>
                         </Text>
                       )}
                       {showNextDayHint && (
@@ -1111,6 +1082,8 @@ const styles = StyleSheet.create({
   toBeUpdatedItalic: { fontStyle: 'italic' },
   nextDayHint: { marginTop: 6, fontSize: 11, opacity: 0.85 },
   nextDayHintText: { fontStyle: 'italic' },
+  prevDayDataBox: { marginTop: 6, fontSize: 11, opacity: 0.9 },
+  prevDayDataText: { fontStyle: 'italic' },
   headerButton: { paddingHorizontal: 12, paddingVertical: 8, justifyContent: 'center' },
   headerButtonContent: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   headerButtonText: { color: colors.white, fontWeight: '700', fontSize: 17 },

@@ -13,12 +13,14 @@ import {
   Pressable,
   ScrollView,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { useSession } from '../contexts/SessionContext';
 import { supabase } from '../lib/supabase';
 import { colors } from '../theme/colors';
 import { AIRLINES, Airline } from '../constants/airlines';
 
 export default function CompleteProfile() {
+  const { t } = useTranslation();
   const [selectedAirline, setSelectedAirline] = useState<Airline | null>(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -27,7 +29,7 @@ export default function CompleteProfile() {
 
   const handleComplete = async () => {
     if (isCrew && !selectedAirline) {
-      Alert.alert('Error', 'Please select your airline');
+      Alert.alert(t('common.error'), t('completeProfile.errorSelectAirline'));
       return;
     }
 
@@ -40,7 +42,7 @@ export default function CompleteProfile() {
       });
       if (error) {
         setLoading(false);
-        Alert.alert('Error', error.message);
+        Alert.alert(t('common.error'), error.message);
         return;
       }
     }
@@ -55,16 +57,14 @@ export default function CompleteProfile() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={[styles.container, { backgroundColor: colors.background }]}
     >
-      <Text style={[styles.title, { color: colors.text }]}>Complete setup</Text>
+      <Text style={[styles.title, { color: colors.text }]}>{t('completeProfile.title')}</Text>
       <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-        {isCrew
-          ? 'Select your airline (MVP: Pegasus, Turkish Airlines, SunExpress)'
-          : "You're all set. Connect to a crew member to get started."}
+        {isCrew ? t('completeProfile.subtitleCrew') : t('completeProfile.subtitleFamily')}
       </Text>
 
       {isCrew && (
         <>
-          <Text style={[styles.label, { color: colors.textSecondary }]}>Airline</Text>
+          <Text style={[styles.label, { color: colors.textSecondary }]}>{t('completeProfile.airline')}</Text>
           <TouchableOpacity
             style={styles.dropdown}
             onPress={() => setDropdownOpen(true)}
@@ -79,7 +79,7 @@ export default function CompleteProfile() {
                 </View>
               </View>
             ) : (
-              <Text style={[styles.placeholder, { color: colors.textMuted }]}>Select airline...</Text>
+              <Text style={[styles.placeholder, { color: colors.textMuted }]}>{t('completeProfile.selectAirline')}</Text>
             )}
             <Text style={[styles.chevron, { color: colors.textMuted }]}>▼</Text>
           </TouchableOpacity>
@@ -87,7 +87,7 @@ export default function CompleteProfile() {
           <Modal visible={dropdownOpen} transparent animationType="fade">
             <Pressable style={styles.modalOverlay} onPress={() => setDropdownOpen(false)}>
               <View style={styles.modalContent}>
-                <Text style={[styles.modalTitle, { color: colors.text }]}>Select airline</Text>
+                <Text style={[styles.modalTitle, { color: colors.text }]}>{t('completeProfile.selectAirlineTitle')}</Text>
                 <ScrollView style={styles.dropdownList}>
                   {AIRLINES.map((airline) => (
                     <TouchableOpacity
@@ -120,7 +120,7 @@ export default function CompleteProfile() {
         onPress={handleComplete}
         disabled={loading}
       >
-        {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Continue</Text>}
+        {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>{t('common.continue')}</Text>}
       </TouchableOpacity>
     </KeyboardAvoidingView>
   );

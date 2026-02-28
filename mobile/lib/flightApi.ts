@@ -15,10 +15,14 @@ const RAPIDAPI_KEY =
 export const hasFlightApiKeys = !!AVIATION_EDGE_KEY || !!FR24_TOKEN;
 
 /** Aviation Edge timetable status values; we store and display these when present. */
+/** FR24 live path adds: taxi_out, departed, parked (departed = airborne, parked = after last_seen). */
 export type FlightStatusApi =
   | 'scheduled'
+  | 'taxi_out'
+  | 'departed'
   | 'en_route'
   | 'landed'
+  | 'parked'
   | 'cancelled'
   | 'diverted'
   | 'incident'
@@ -54,6 +58,12 @@ function mapAviationEdgeStatus(status: string | undefined): FlightStatusApi | un
     default:
       return undefined;
   }
+}
+
+/** Use Aviation Edge status only for cancelled/diverted; do not use AE for en_route, landed, etc. */
+function aviationEdgeStatusOnlyCancelOrDivert(status: string | undefined): FlightStatusApi | undefined {
+  const mapped = mapAviationEdgeStatus(status);
+  return mapped === 'cancelled' || mapped === 'diverted' ? mapped : undefined;
 }
 
 export type FlightInfo = {
@@ -96,6 +106,23 @@ export type FlightInfo = {
    * UI should show a warning and re-check later; when confirmed schedule arrives, this becomes false.
    */
   scheduleUnconfirmed?: boolean;
+  /**
+   * True when scheduled times are from the next calendar day (scheduled_departure was in the past for selected date).
+   * UI should show a subtle hint that the date shown is tomorrow.
+   */
+  nextDayHint?: boolean;
+  /**
+   * When 'fr24_first_last_seen', scheduled times are from FR24 first_seen (kalkış) and last_seen (varış).
+   * AE/FR24 plan saati yok; UI shows "Önceki günün verisi" in a small info box.
+   */
+  scheduleSourceHint?: 'fr24_first_last_seen';
+  /** FR24 timestamps for live status (when flightEnded === false). All UTC ISO. */
+  first_seen_utc?: string;
+  datetime_takeoff_utc?: string;
+  datetime_landed_utc?: string;
+  last_seen_utc?: string;
+  /** When flightStatus is 'diverted', airport code (IATA/ICAO) where the flight was diverted to. */
+  divertedTo?: string;
 };
 
 function parseTime(iso: string | null | undefined): string {
@@ -305,8 +332,41 @@ function toUtcIsoStrict(dt: string | null | undefined): string | undefined {
   return date.toISOString();
 }
 
-// IATA -> ICAO for MVP airlines (Flightradar24 often uses ICAO in data)
-const IATA_TO_ICAO: Record<string, string> = { PC: 'PGT', TK: 'THY', XQ: 'SXS' };
+/**
+ * FR24 flight_ended=FALSE iken kullanılır. UTC now ile 4 zaman karşılaştırılır:
+ * 1=first_seen, 2=datetime_takeoff, 3=datetime_landed, 4=last_seen
+ *
+ * - now < 1 → Scheduled
+ * - now >= 1 ve (2 null veya 1–2 arası) → Taxi-Out
+ * - now >= 2 ve (3 null veya 2–3 arası) → En-Route
+ * - now >= 4 ve flight_ended=false → Parked (3’ten sonra park edilmiş)
+ * datetime_landed ≤ now < last_seen → Landed; now ≥ last_seen → Parked.
+ */
+function deriveFr24LiveStatus(
+  nowMs: number,
+  firstSeenUtc: string | undefined,
+  datetimeTakeoffUtc: string | undefined,
+  datetimeLandedUtc: string | undefined,
+  lastSeenUtc: string | undefined
+): FlightStatusApi {
+  const first = firstSeenUtc ? new Date(firstSeenUtc).getTime() : 0;
+  const takeoff = datetimeTakeoffUtc ? new Date(datetimeTakeoffUtc).getTime() : 0;
+  const landed = datetimeLandedUtc ? new Date(datetimeLandedUtc).getTime() : 0;
+  const last = lastSeenUtc ? new Date(lastSeenUtc).getTime() : 0;
+
+  if (first > 0 && nowMs < first) return 'scheduled';
+  if (first > 0 && (takeoff === 0 || nowMs < takeoff)) return 'taxi_out';
+  if (takeoff > 0 && (landed === 0 || nowMs < landed)) return 'en_route';
+  if (last > 0 && nowMs >= last) return 'parked';
+  if (landed > 0 && nowMs >= landed) return 'landed';
+  if (first > 0 && nowMs >= first) return 'taxi_out';
+  return 'scheduled';
+}
+
+
+
+// IATA -> ICAO (Flightradar24 often uses ICAO in data)
+const IATA_TO_ICAO: Record<string, string> = { PC: 'PGT', TK: 'THY', XQ: 'SXS', VF: 'TKJ' };
 
 // Build variants of flight number (e.g. PC614 -> PC614, PC0614, PGT614 for FR24)
 function flightNumberVariants(flightNumber: string): string[] {
@@ -333,6 +393,7 @@ const AIRLINE_HUBS: Record<string, string[]> = {
   PC: ['IST', 'SAW', 'ADB', 'AYT', 'ESB'], // Pegasus
   TK: ['IST', 'SAW', 'ESB', 'ADB'],         // Turkish Airlines
   XQ: ['ADB', 'AYT', 'IST', 'SAW'],         // SunExpress
+  VF: ['ESB', 'SAW', 'AYT', 'IST', 'ADB'],  // AJet (Turkey, ex-AnadoluJet)
 };
 const FALLBACK_HUBS = ['IST', 'SAW', 'LHR', 'FRA', 'AMS', 'CDG', 'MAD', 'BCN'];
 
@@ -343,6 +404,7 @@ const AIRPORT_UTC_OFFSET_MINUTES: Record<string, number> = {
   ESB: 180, LTFB: 180, BJV: 180, DLM: 180, LTBS: 180, IZM: 180, TZX: 180, ADA: 180,
   GZP: 180, LTGP: 180, ASR: 180, LTAU: 180, KYA: 180, LTAN: 180, GZT: 180, LTAJ: 180,
   VAN: 180, LTCI: 180, ERZ: 180, LTCE: 180, DIY: 180, LTCC: 180, SZF: 180, EDO: 180, LTFD: 180,
+  COV: 180, LTDB: 180, // Çukurova (Mersin)
   // Cyprus (UTC+2) (DST ignored; good enough for date matching in winter)
   ECN: 120, LCEN: 120, LCA: 120, LCLK: 120, PFO: 120,
   // UK (UTC+0)
@@ -430,14 +492,19 @@ function datePlusTime(date: string, time: string): string | undefined {
 // (returns current/live schedule). Filter results by scheduledTime date.
 // ---------------------------------------------------------------------------
 
-async function fetchFromAviationEdgeTimetable(flightNumber: string, date: string): Promise<FlightInfo | null> {
+/** When useFullStatus true (FR24 flight_ended true path), use full statusMapped. Otherwise only cancel/divert. */
+async function fetchFromAviationEdgeTimetable(
+  flightNumber: string,
+  date: string,
+  options?: { useFullStatus?: boolean }
+): Promise<FlightInfo | null> {
   if (!AVIATION_EDGE_KEY) return null;
+  const useFullStatus = options?.useFullStatus === true;
   const raw = flightNumber.replace(/\s/g, '').trim().toUpperCase();
   const airlineCode = raw.match(/^[A-Z]{2}/)?.[0] ?? '';
   const hubs = AIRLINE_HUBS[airlineCode] ?? FALLBACK_HUBS;
   // Aviation Edge sometimes matches better with ICAO variants too (e.g. PGT615).
   const variants = flightNumberVariants(flightNumber).filter((v) => /^[A-Z]{2,3}\d+$/.test(v));
-  const prevDate = plusIsoDay(date, -1);
   for (const airport of hubs) {
     for (const flightNum of variants) {
       for (const type of ['departure', 'arrival'] as const) {
@@ -465,16 +532,8 @@ async function fetchFromAviationEdgeTimetable(flightNumber: string, date: string
             return utcIsoToLocalDateAtAirport(depIso, origin) ?? str.slice(0, 10);
           };
 
-          // Crew-entered date is interpreted as ORIGIN local departure date.
-          let f: any = list.find((x: any) => depLocalDate(x) === date) ?? null;
-
-          let usedFallbackPrev = false;
-          if (!f) {
-            // 2) Fallback: use previous day's *scheduled* times (not estimated/actual),
-            // and mark schedule as unconfirmed so UI shows a warning until corrected.
-            f = list.find((x: any) => depLocalDate(x) === prevDate) ?? null;
-            usedFallbackPrev = !!f;
-          }
+          // Crew-entered date is interpreted as ORIGIN local departure date (exact match only; no prev-day fallback).
+          const f: any = list.find((x: any) => depLocalDate(x) === date) ?? null;
 
           if (!f || !f.departure || !f.arrival) continue;
           const dep = f.departure;
@@ -482,16 +541,15 @@ async function fetchFromAviationEdgeTimetable(flightNumber: string, date: string
           const origin = (dep.icaoCode ?? dep.iataCode ?? '').toString().toUpperCase();
           const destination = (arr.icaoCode ?? arr.iataCode ?? '').toString().toUpperCase();
           if (!origin && !destination) continue;
-          const depRaw = usedFallbackPrev ? dep.scheduledTime : (dep.scheduledTime ?? dep.estimatedTime);
-          const arrRaw = usedFallbackPrev ? arr.scheduledTime : (arr.scheduledTime ?? arr.estimatedTime);
-          if (usedFallbackPrev && (!depRaw || !arrRaw)) continue;
+          const depRaw = dep.scheduledTime ?? dep.estimatedTime;
+          const arrRaw = arr.scheduledTime ?? arr.estimatedTime;
           const depStr = depRaw ? String(depRaw) : '';
           const arrStr = arrRaw ? String(arrRaw) : '';
           const depHasOffset = depStr.endsWith('Z') || /[+-]\d{2}:?\d{2}$/.test(depStr);
           const arrHasOffset = arrStr.endsWith('Z') || /[+-]\d{2}:?\d{2}$/.test(arrStr);
           const depOffsetMin = getAirportOffsetMinutes(origin) || getAirportOffsetMinutes(airport);
           const arrOffsetMin = getAirportOffsetMinutes(destination);
-          const localDateForConvert = usedFallbackPrev ? prevDate : date;
+          const localDateForConvert = date;
           const depIso =
             depHasOffset ? toUtcIsoStrict(depRaw)
             : /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(depStr)
@@ -505,10 +563,9 @@ async function fetchFromAviationEdgeTimetable(flightNumber: string, date: string
           const originCity = getAirportDisplay(origin)?.city;
           const destinationCity = getAirportDisplay(destination)?.city;
           const apiStatus = (f.status as string | undefined)?.toLowerCase();
-          const flightStatus = usedFallbackPrev ? undefined : mapAviationEdgeStatus(apiStatus);
-          // Prefer true actual time, then estimated (if actual missing).
-          const depActualRaw = usedFallbackPrev ? null : (dep.actualTime ?? dep.estimatedTime);
-          const arrActualRaw = usedFallbackPrev ? null : (arr.actualTime ?? arr.estimatedTime);
+          const flightStatus = useFullStatus ? mapAviationEdgeStatus(apiStatus) : aviationEdgeStatusOnlyCancelOrDivert(apiStatus);
+          const depActualRaw = dep.actualTime ?? dep.estimatedTime;
+          const arrActualRaw = arr.actualTime ?? arr.estimatedTime;
           const depActualIso = depActualRaw && (String(depActualRaw).endsWith('Z') || /[+-]\d{2}:?\d{2}$/.test(String(depActualRaw)))
             ? toUtcIsoStrict(depActualRaw)
             : (depActualRaw && /^\d{4}-\d{2}-\d{2}T/.test(String(depActualRaw))
@@ -519,22 +576,21 @@ async function fetchFromAviationEdgeTimetable(flightNumber: string, date: string
             : (arrActualRaw && /^\d{4}-\d{2}-\d{2}T/.test(String(arrActualRaw))
               ? localIsoToUtcIso(arrActualRaw, arrOffsetMin)
               : undefined) ?? toUtcIsoStrict(arrActualRaw);
-          // If we fell back to the previous day's schedule for a *future* date, shift times forward
-          // so status logic doesn't treat the flight as already departed/arrived.
-          const isFutureDay = date >= getLocalDateStringPlusDays(1);
-          const shiftDays = usedFallbackPrev && isFutureDay ? 1 : 0;
+          const shiftDays = 0;
           const depIsoShifted = shiftDays ? shiftUtcIsoByDays(depIso, shiftDays) : depIso;
           const arrIsoShifted0 = shiftDays ? shiftUtcIsoByDays(arrIso, shiftDays) : arrIso;
           const arrIsoShifted = normalizeOvernightArrival(depIsoShifted, arrIsoShifted0);
 
+          const divertedTo = flightStatus === 'diverted' ? (getAirportDisplay(destination)?.iata ?? destination) : undefined;
           console.log(
             '[AviationEdge Timetable] Found:',
             origin,
             '→',
             destination,
             apiStatus ?? '',
+            divertedTo != null ? `(diverted to ${divertedTo})` : '',
             `(${type})`,
-            usedFallbackPrev ? '(fallback prev-day schedule)' : ''
+            ''
           );
           return {
             origin,
@@ -545,13 +601,13 @@ async function fetchFromAviationEdgeTimetable(flightNumber: string, date: string
             arrTime: parseTime(arrRaw ?? undefined),
             scheduled_departure_utc: depIsoShifted,
             scheduled_arrival_utc: arrIsoShifted,
-            actual_departure_utc: (flightStatus === 'en_route' || flightStatus === 'landed') ? (depActualIso ?? depIso) : undefined,
-            actual_arrival_utc: flightStatus === 'landed' ? (arrActualIso ?? arrIso) : undefined,
+            actual_departure_utc: depActualIso ?? undefined,
+            actual_arrival_utc: arrActualIso ?? undefined,
             airline: f.airline?.name,
             aircraftRegistration: f.aircraft?.regNumber,
-            delayed: usedFallbackPrev ? undefined : (Number(dep.delay) > 0 || Number(arr.delay) > 0),
+            delayed: Number(dep.delay) > 0 || Number(arr.delay) > 0,
             flightStatus,
-            scheduleUnconfirmed: usedFallbackPrev ? true : false,
+            divertedTo,
           };
         } catch {
           continue;
@@ -611,7 +667,9 @@ async function fetchFromAviationEdgeTimetableAtAirports(
               ? localIsoToUtcIso(arrRaw, arrOffsetMin)
               : localTimeToUtcIso(date, arrStr.includes('T') ? arrStr.split('T')[1]?.slice(0, 8) ?? arrStr : arrStr, arrOffsetMin) ?? toUtcIsoStrict(arrRaw);
           const arrIsoNorm = normalizeOvernightArrival(depIso, arrIso);
-          console.log('[AviationEdge Timetable] Found (route airports):', origin, '→', destination, `(${airport}/${type})`);
+          const flightStatusAt = aviationEdgeStatusOnlyCancelOrDivert(String(f.status ?? ''));
+          const divertedToAt = flightStatusAt === 'diverted' ? (getAirportDisplay(destination)?.iata ?? destination) : undefined;
+          console.log('[AviationEdge Timetable] Found (route airports):', origin, '→', destination, flightStatusAt ?? '', divertedToAt != null ? `(diverted to ${divertedToAt})` : '', `(${airport}/${type})`);
           return {
             origin,
             destination,
@@ -624,7 +682,8 @@ async function fetchFromAviationEdgeTimetableAtAirports(
             airline: f.airline?.name,
             aircraftRegistration: f.aircraft?.regNumber,
             delayed: Number(dep.delay) > 0 || Number(arr.delay) > 0,
-            flightStatus: mapAviationEdgeStatus(String(f.status ?? '')),
+            flightStatus: flightStatusAt,
+            divertedTo: divertedToAt,
           };
         } catch {
           continue;
@@ -641,8 +700,14 @@ async function fetchFromAviationEdgeTimetableAtAirports(
 // flights: live flights with tracking and status. Filter by flightIata.
 // ---------------------------------------------------------------------------
 
-async function fetchFromAviationEdgeFlights(flightNumber: string, date: string): Promise<FlightInfo | null> {
+/** When true, use full statusMapped from AE live (fallback when FR24 has no data). Otherwise only cancel/divert. */
+async function fetchFromAviationEdgeFlights(
+  flightNumber: string,
+  date: string,
+  options?: { useLiveStatusMapped?: boolean }
+): Promise<FlightInfo | null> {
   if (!AVIATION_EDGE_KEY) return null;
+  const useFullStatus = options?.useLiveStatusMapped === true;
   const variants = flightNumberVariants(flightNumber).filter((v) => /^[A-Z]{2,3}\d+$/.test(v));
   for (const flightNum of variants) {
     try {
@@ -659,7 +724,9 @@ async function fetchFromAviationEdgeFlights(flightNumber: string, date: string):
       const depIata = String(live?.departure?.iataCode ?? '').toUpperCase();
       const arrIata = String(live?.arrival?.iataCode ?? '').toUpperCase();
       const aircraftReg = (live?.aircraft?.regNumber ?? live?.aircraft?.registration) as string | undefined;
-      const liveStatus = mapAviationEdgeStatus(String(live?.status ?? ''));
+      const liveStatus = useFullStatus
+        ? mapAviationEdgeStatus(String(live?.status ?? ''))
+        : aviationEdgeStatusOnlyCancelOrDivert(String(live?.status ?? ''));
       // Live metrics from /flights (best-effort; units vary by provider).
       const liveLat = Number(live?.geography?.latitude ?? live?.geography?.lat ?? live?.latitude);
       const liveLon = Number(live?.geography?.longitude ?? live?.geography?.lon ?? live?.longitude);
@@ -718,7 +785,9 @@ async function fetchFromAviationEdgeFlights(flightNumber: string, date: string):
             : localTimeToUtcIso(date, arrStr.includes('T') ? arrStr.split('T')[1]?.slice(0, 8) ?? arrStr : arrStr, arrOffsetMin) ?? toUtcIsoStrict(arrRaw);
 
         const apiStatus = (row.status as string | undefined)?.toLowerCase();
-        const flightStatus = mapAviationEdgeStatus(apiStatus) ?? liveStatus;
+        const flightStatus = useFullStatus
+          ? (mapAviationEdgeStatus(apiStatus) ?? mapAviationEdgeStatus(String(live?.status ?? '')))
+          : (aviationEdgeStatusOnlyCancelOrDivert(apiStatus) ?? aviationEdgeStatusOnlyCancelOrDivert(String(live?.status ?? '')));
 
         // Prefer true actual time, then estimated (if actual missing).
         const depActualRaw = dep.actualTime ?? dep.estimatedTime;
@@ -734,7 +803,8 @@ async function fetchFromAviationEdgeFlights(flightNumber: string, date: string):
             ? localIsoToUtcIso(arrActualRaw, arrOffsetMin)
             : undefined) ?? toUtcIsoStrict(arrActualRaw);
 
-        console.log('[AviationEdge Flights] Found (via timetable):', origin, '→', destination, apiStatus ?? '', `(${airport}/${type})`);
+        const divertedToFlights = flightStatus === 'diverted' ? (getAirportDisplay(destination)?.iata ?? destination) : undefined;
+        console.log('[AviationEdge Flights] Found (via timetable):', origin, '→', destination, apiStatus ?? '', divertedToFlights != null ? `(diverted to ${divertedToFlights})` : '', `(${airport}/${type})`);
         return {
           origin,
           destination,
@@ -750,6 +820,7 @@ async function fetchFromAviationEdgeFlights(flightNumber: string, date: string):
           aircraftRegistration: row?.aircraft?.regNumber ?? aircraftReg,
           delayed: Number(dep.delay) > 0 || Number(arr.delay) > 0,
           flightStatus,
+          divertedTo: divertedToFlights,
           groundSpeedKts: Number.isFinite(spdKts) ? spdKts : undefined,
           altitudeFt: Number.isFinite(altFt) ? altFt : undefined,
           latitude: Number.isFinite(liveLat) ? liveLat : undefined,
@@ -829,9 +900,7 @@ async function maybeEnrichWithAviationEdgeLiveMetrics(
     latitude: m.latitude ?? base.latitude,
     longitude: m.longitude ?? base.longitude,
   };
-  if (m.isGround === true && (base.flightStatus === 'en_route' || !base.flightStatus)) {
-    merged.flightStatus = 'landed';
-  }
+  // Statü türetme (isGround → landed) kaldırıldı — baştan yazılacak.
   return merged;
 }
 
@@ -981,15 +1050,23 @@ async function fetchFromFlightradar24(flightNumber: string, date: string): Promi
       const minus1 = pickFrom(minus1Matches as any[]);
       if (minus1) return minus1;
       const plus1Matches = flights.filter((x: Record<string, unknown>) => getOriginLocalDepDate(x) === targetPlus1);
-      return pickFrom(plus1Matches as any[]) ?? null;
+      const plus1 = pickFrom(plus1Matches as any[]);
+      if (plus1) return plus1;
+      // No match on targetDay or ±1: use same logic as test script — pick live or most recent in window.
+      const fallback = pickFrom(flights as any[]);
+      if (fallback) {
+        console.log('[FR24] No exact date match for', targetDay, '→ using live/most recent in window');
+        return fallback;
+      }
+      return null;
     };
     const f = pickBest(list);
     if (!f) {
       console.log('[FR24] No flight on selected date', targetDay);
       return null;
     }
-    const origin = (f.origin_icao ?? f.orig_icao ?? '') as string;
-    const destination = (f.destination_icao_actual ?? f.destination_icao ?? f.dest_icao ?? '') as string;
+    const origin = (f.orig_icao ?? f.origin_icao ?? '') as string;
+    const destination = (f.dest_icao ?? f.destination_icao ?? f.destination_icao_actual ?? '') as string;
     if (!origin && !destination) {
       console.log('[FR24] Flight found but no origin/destination');
       return null;
@@ -1003,12 +1080,19 @@ async function fetchFromFlightradar24(flightNumber: string, date: string): Promi
     }
     const depIso = toUtcIsoAssumeUtc(depScheduled);
     const arrIso = toUtcIsoAssumeUtc(arrScheduled);
-    // For future-day lookups, never write actual times (avoid matching previous instances).
-    const depActual = isFutureDay ? undefined : ((f.datetime_takeoff ?? f.first_seen) as string | undefined);
-    const arrActual = isFutureDay ? undefined : ((f.datetime_landed ?? f.last_seen) as string | undefined);
+    // FR24: only 5 params — 0=flight_ended, 1=first_seen, 2=datetime_takeoff, 3=datetime_landed, 4=last_seen. Used only for status.
+    const firstSeenRaw = (f.first_seen ?? f.firstSeen) as string | undefined;
+    const takeoffRaw = (f.datetime_takeoff ?? f.datetimeTakeoff) as string | undefined;
+    const landedRaw = (f.datetime_landed ?? f.datetimeLanded) as string | undefined;
+    const lastSeenRaw = (f.last_seen ?? f.lastSeen) as string | undefined;
+    const first_seen_utc = toUtcIsoAssumeUtc(firstSeenRaw);
+    const datetime_takeoff_utc = toUtcIsoAssumeUtc(takeoffRaw);
+    const datetime_landed_utc = toUtcIsoAssumeUtc(landedRaw);
+    const last_seen_utc = toUtcIsoAssumeUtc(lastSeenRaw);
+    const flightEnded = (f.flight_ended ?? f.flightEnded) as boolean | undefined;
     const originCity = getAirportDisplay(origin)?.city;
     const destinationCity = getAirportDisplay(destination)?.city;
-    console.log('[FR24] Found:', origin, '→', destination);
+    console.log('[FR24] Found:', origin, '→', destination, 'flight_ended:', flightEnded);
     const base: FlightInfo = {
       origin,
       destination,
@@ -1018,32 +1102,48 @@ async function fetchFromFlightradar24(flightNumber: string, date: string): Promi
       arrTime: arrScheduled ? parseTime(arrScheduled) : '',
       scheduled_departure_utc: depIso,
       scheduled_arrival_utc: arrIso,
-      actual_departure_utc: toUtcIsoAssumeUtc(depActual) ?? undefined,
-      actual_arrival_utc: toUtcIsoAssumeUtc(arrActual) ?? undefined,
+      // No actual_departure_utc / actual_arrival_utc from FR24 — only status from 0–4.
       airline: undefined,
       aircraftRegistration: f.reg as string | undefined,
       fr24Id: (f.fr24_id ?? f.fr24Id ?? f.id) as string | undefined,
       hex: (f.hex ?? f.icao24) as string | undefined,
       operatedAs: (f.operating_as ?? f.operated_as ?? f.painted_as) as string | undefined,
       callsign: (f.callsign ?? f.callSign) as string | undefined,
-      flightEnded: (f.flight_ended ?? f.flightEnded) as boolean | undefined,
+      flightEnded,
       delayed: false,
+      first_seen_utc: first_seen_utc ?? undefined,
+      datetime_takeoff_utc: datetime_takeoff_utc ?? undefined,
+      datetime_landed_utc: datetime_landed_utc ?? undefined,
+      last_seen_utc: last_seen_utc ?? undefined,
     };
-    // Live metrics (ground speed, altitude, last position) for currently tracked flights.
-    const depMs = base.scheduled_departure_utc ? new Date(base.scheduled_departure_utc).getTime() : NaN;
-    const now = Date.now();
-    const nearDepartureWindow =
-      Number.isFinite(depMs) ? (now >= depMs - 2 * 60 * 60 * 1000 && now <= depMs + 18 * 60 * 60 * 1000) : true;
-    if (base.fr24Id && base.flightEnded !== true && !base.actual_arrival_utc && nearDepartureWindow) {
-      const m = await fetchFr24LastTrackPoint(base.fr24Id);
-      if (m) {
-        base.groundSpeedKts = m.groundSpeedKts;
-        base.altitudeFt = m.altitudeFt;
-        base.latitude = m.latitude;
-        base.longitude = m.longitude;
-        base.lastTrackUtc = m.lastTrackUtc;
-        base.flightStatus = base.flightStatus ?? deriveStatusFromLiveMetrics(base, m);
+    if (flightEnded === false && (first_seen_utc || datetime_takeoff_utc || datetime_landed_utc || last_seen_utc)) {
+      base.flightStatus = deriveFr24LiveStatus(
+        Date.now(),
+        first_seen_utc,
+        datetime_takeoff_utc,
+        datetime_landed_utc,
+        last_seen_utc
+      );
+    }
+    // Seçilen gün (targetDay) 28 Şubat iken FR24 bazen önceki günün iniş yapmış bacagini dönebiliyor (örn. 27 Şubat).
+    // Landed göstermeyelim; ama FR normalize (first_seen = kalkış, last_seen = varış) ile saatleri doldurup "Önceki günün verisi" göster.
+    const legOriginDate = utcIsoToLocalDateAtAirport(depIso, origin) ?? (depIso ? depIso.slice(0, 10) : '');
+    if (legOriginDate && legOriginDate < targetDay && (base.flightStatus === 'landed' || base.flightStatus === 'parked')) {
+      if (first_seen_utc && last_seen_utc) {
+        console.log('[FR24] Picked leg is', legOriginDate, '(landed/parked); selected date is', targetDay, '→ use FR normalize (first/last_seen) as times, status scheduled');
+        return {
+          ...base,
+          scheduled_departure_utc: first_seen_utc,
+          scheduled_arrival_utc: last_seen_utc,
+          depTime: parseTime(first_seen_utc),
+          arrTime: parseTime(last_seen_utc),
+          flightStatus: 'scheduled' as FlightStatusApi,
+          scheduleUnconfirmed: true,
+          scheduleSourceHint: 'fr24_first_last_seen',
+        };
       }
+      console.log('[FR24] Picked leg is', legOriginDate, '(landed/parked); selected date is', targetDay, '→ no first/last_seen, ignore leg');
+      return null;
     }
     return base;
   } catch (err) {
@@ -1177,7 +1277,8 @@ async function fetchFromAeroDataBox(flightNumber: string, date: string): Promise
         if (!depIso || !arrIso) continue;
         const delayMin = Number(f.delay ?? dep.delay ?? arr.delay) || 0;
         const flightStatus = mapAeroDataBoxStatus((f.status ?? f.flightStatus ?? f.leg?.status) as string);
-        console.log('[AeroDataBox] Found:', origin, '→', destination, f.status ?? '', flightStatus ?? '');
+        const divertedToAdb = flightStatus === 'diverted' ? (destination || (arr.iata ?? arr.icao ?? arr.code) as string) : undefined;
+        console.log('[AeroDataBox] Found:', origin, '→', destination, f.status ?? '', flightStatus ?? '', divertedToAdb != null ? `(diverted to ${divertedToAdb})` : '');
         return {
           origin,
           destination,
@@ -1193,6 +1294,7 @@ async function fetchFromAeroDataBox(flightNumber: string, date: string): Promise
           aircraftRegistration: (f.aircraft?.registration ?? f.aircraft?.number ?? f.registration) as string | undefined,
           delayed: delayMin > 0,
           flightStatus,
+          divertedTo: divertedToAdb,
         };
       } catch {
         continue;
@@ -1213,8 +1315,8 @@ async function maybeEnrichWithFr24LiveMetrics(
   const max = getLocalDateStringPlusDays(1); // include near-midnight / early-next-day flights (still cost-limited by roster filters)
   if (date < min || date > max) return base;
   if (!FR24_TOKEN) return base;
-  // If already landed/cancelled/etc, no need for live metrics.
-  if (base.flightStatus && ['landed', 'cancelled', 'diverted', 'incident', 'redirected'].includes(base.flightStatus)) {
+  // If already landed/parked/cancelled/etc, no need for live metrics.
+  if (base.flightStatus && ['landed', 'parked', 'cancelled', 'diverted', 'incident', 'redirected'].includes(base.flightStatus)) {
     return base;
   }
   const fr = await fetchFromFlightradar24(flightNumber, date);
@@ -1233,10 +1335,44 @@ async function maybeEnrichWithFr24LiveMetrics(
     longitude: base.longitude ?? fr.longitude,
     lastTrackUtc: base.lastTrackUtc ?? fr.lastTrackUtc,
   };
-  // If FR24 derived a better live status, allow it to upgrade scheduled → en_route.
-  if (!merged.flightStatus && fr.flightStatus) merged.flightStatus = fr.flightStatus;
-  if (merged.flightStatus === 'scheduled' && fr.flightStatus === 'en_route') merged.flightStatus = 'en_route';
+  // Statü merge kaldırıldı — baştan yazılacak. merged.flightStatus burada türetilmiyor.
+  if (fr.actual_arrival_utc) merged.actual_arrival_utc = fr.actual_arrival_utc;
+  if (fr.actual_departure_utc) merged.actual_departure_utc = fr.actual_departure_utc ?? merged.actual_departure_utc;
   return merged;
+}
+
+/**
+ * When FR says flight_ended === true, use Aviation Edge timetable as scheduled source.
+ * Validate scheduled_departure is in the future; if in the past, try next day (no prev-day fallback).
+ */
+async function resolveAeTimetableWhenFrEnded(
+  raw: string,
+  date: string
+): Promise<FlightInfo | null> {
+  const now = Date.now();
+  const opts = { useFullStatus: true };
+  let ae = await fetchFromAviationEdgeTimetable(raw, date, opts);
+  if (ae && (ae.origin || ae.destination)) {
+    const schedDepMs = ae.scheduled_departure_utc ? new Date(ae.scheduled_departure_utc).getTime() : 0;
+    const scheduledInPast = schedDepMs > 0 && schedDepMs < now;
+    if (!ae.scheduleUnconfirmed && scheduledInPast) {
+      const nextDate = plusIsoDay(date, 1);
+      const aeNext = await fetchFromAviationEdgeTimetable(raw, nextDate, opts);
+      if (aeNext && (aeNext.origin || aeNext.destination)) {
+        console.log('[FlightAPI] Scheduled was in past; using next day (nextDayHint)');
+        return { ...aeNext, nextDayHint: true };
+      }
+      return null;
+    }
+    return ae;
+  }
+  const nextDate = plusIsoDay(date, 1);
+  ae = await fetchFromAviationEdgeTimetable(raw, nextDate, opts);
+  if (ae && (ae.origin || ae.destination)) {
+    console.log('[FlightAPI] No AE for date; using next day (nextDayHint)');
+    return { ...ae, nextDayHint: true };
+  }
+  return null;
 }
 
 export async function fetchFlightByNumber(
@@ -1250,25 +1386,90 @@ export async function fetchFlightByNumber(
   }
   console.log('[FlightAPI] Looking up', raw, 'on', date);
   const debug = raw.toUpperCase() === 'PC615';
+  const debug2088 = raw.toUpperCase() === 'PC2088';
+  const debug2550 = raw.toUpperCase() === 'PC2550';
+  const debug656 = raw.toUpperCase() === 'PC656';
 
-  let result = await fetchFromAviationEdgeTimetable(raw, date);
+  // 1) FR24: flight_ended bak.
+  const fr = await fetchFromFlightradar24(raw, date);
+  if (debug2088) console.log('[FlightAPI PC2088] FR24 result:', fr ? { origin: fr.origin, destination: fr.destination, flightStatus: fr.flightStatus, flightEnded: fr.flightEnded } : null);
+  if (debug2550) console.log('[FlightAPI PC2550] FR24 result:', fr ? { origin: fr.origin, destination: fr.destination, schedDep: fr.scheduled_departure_utc, schedArr: fr.scheduled_arrival_utc, flightEnded: fr.flightEnded } : 'null');
+  if (debug656) console.log('[FlightAPI PC656] FR24 result:', fr ? { flightStatus: fr.flightStatus, flightEnded: fr.flightEnded, datetime_landed_utc: fr.datetime_landed_utc, last_seen_utc: fr.last_seen_utc } : 'null');
+  if (fr && (fr.origin || fr.destination)) {
+    // FR normalize ile doldurduğumuz sonuç (önceki gün bacak, first_seen/last_seen = saatler, status scheduled) olduğu gibi kullan.
+    if (fr.scheduleSourceHint === 'fr24_first_last_seen') return fr;
+    // flight_ended TRUE → AE timetable: scheduled times + statusMapped. scheduled_departure geçmişteyse yarın/önceki gün (nextDayHint / to be updated).
+    if (fr.flightEnded === true) {
+      const aeResult = await resolveAeTimetableWhenFrEnded(raw, date);
+      if (aeResult && (aeResult.origin || aeResult.destination)) {
+        console.log('[FlightAPI] FR24 flight_ended true → AE timetable, status = statusMapped');
+        return aeResult;
+      }
+      // AE bulunamadı: FR'deki aynı uçuşun saatleri, status=scheduled, önceki günün gerçekleşen saatleri notu.
+      const scheduled_departure_utc = fr.first_seen_utc ?? fr.scheduled_departure_utc;
+      const scheduled_arrival_utc = fr.last_seen_utc ?? fr.scheduled_arrival_utc;
+      return {
+        ...fr,
+        flightStatus: 'scheduled' as FlightStatusApi,
+        scheduled_departure_utc: scheduled_departure_utc ?? fr.scheduled_departure_utc,
+        scheduled_arrival_utc: scheduled_arrival_utc ?? fr.scheduled_arrival_utc,
+        depTime: scheduled_departure_utc ? parseTime(scheduled_departure_utc) : fr.depTime,
+        arrTime: scheduled_arrival_utc ? parseTime(scheduled_arrival_utc) : fr.arrTime,
+        scheduleUnconfirmed: true,
+        scheduleSourceHint: 'fr24_first_last_seen',
+      };
+    }
+    // flight_ended FALSE → FR ile devam. Statü türetme kaldırıldı — baştan yazılacak.
+    if (fr.flightEnded === false) {
+      let out: FlightInfo = fr;
+      // FR24 often has no scheduled times; fill from AE timetable so UI does not show dash.
+      if (!out.scheduled_departure_utc && !out.scheduled_arrival_utc) {
+        const aeSched = await fetchFromAviationEdgeTimetable(raw, date);
+        if (aeSched?.scheduled_departure_utc || aeSched?.scheduled_arrival_utc) {
+          out = {
+            ...out,
+            scheduled_departure_utc: out.scheduled_departure_utc ?? aeSched.scheduled_departure_utc,
+            scheduled_arrival_utc: out.scheduled_arrival_utc ?? aeSched.scheduled_arrival_utc,
+            depTime: out.depTime || (aeSched.scheduled_departure_utc ? parseTime(aeSched.scheduled_departure_utc) : ''),
+            arrTime: out.arrTime || (aeSched.scheduled_arrival_utc ? parseTime(aeSched.scheduled_arrival_utc) : ''),
+          };
+        } else if (fr.first_seen_utc && fr.last_seen_utc) {
+          // AE ve FR24'te plan saati yok; FR24 normalize: first_seen = kalkış, last_seen = varış. "Önceki günün verisi" göster.
+          out = {
+            ...out,
+            scheduled_departure_utc: fr.first_seen_utc,
+            scheduled_arrival_utc: fr.last_seen_utc,
+            depTime: parseTime(fr.first_seen_utc),
+            arrTime: parseTime(fr.last_seen_utc),
+            scheduleUnconfirmed: true,
+            scheduleSourceHint: 'fr24_first_last_seen',
+          };
+        }
+      }
+      if (debug2088) console.log('[FlightAPI PC2088] Returning from FR24:', { flightStatus: out.flightStatus });
+      if (debug2550) console.log('[FlightAPI PC2550] Returning from FR24 path:', { schedDep: out.scheduled_departure_utc, schedArr: out.scheduled_arrival_utc, flightStatus: out.flightStatus });
+      return out;
+    }
+  }
+
+  // 2) FR24 yok: AE timetable ile scheduled + status (AE Live değil, timetable).
+  let result: FlightInfo | null = await fetchFromAviationEdgeTimetable(raw, date, { useFullStatus: true });
   if (result && (result.origin || result.destination)) {
-    console.log('[FlightAPI] Success from Aviation Edge (timetable)');
-    const ae = await maybeEnrichWithAviationEdgeLiveMetrics(raw, result);
-    return await maybeEnrichWithFr24LiveMetrics(raw, date, ae);
+    console.log('[FlightAPI] No FR24 → AE timetable, status = statusMapped');
+    if (debug2088) console.log('[FlightAPI PC2088] Returning from AE timetable:', { flightStatus: result.flightStatus });
+    if (debug2550) console.log('[FlightAPI PC2550] Returning from AE timetable:', { schedDep: result.scheduled_departure_utc, schedArr: result.scheduled_arrival_utc });
+    return result;
   }
   if (debug) console.log('[Debug PC615] timetable: no match');
 
-  // Live tracking/status (Aviation Edge flights). Useful when timetable doesn't have the leg but flight is in-progress.
-  result = await fetchFromAviationEdgeFlights(raw, date);
+  result = await fetchFromAviationEdgeFlights(raw, date, { useLiveStatusMapped: true });
   if (result && (result.origin || result.destination)) {
-    console.log('[FlightAPI] Success from Aviation Edge (flights)');
-    return await maybeEnrichWithFr24LiveMetrics(raw, date, result);
+    console.log('[FlightAPI] AE Live fallback');
+    return result;
   }
   if (debug) console.log('[Debug PC615] flights (live): no match');
 
-  // Future schedules: for tomorrow and later we want scheduled times (not yesterday's actual).
-  const futureMin = getLocalDateStringPlusDays(1); // todayLocal + 1 day (tomorrow)
+  const futureMin = getLocalDateStringPlusDays(1);
   if (date >= futureMin) {
     result = await fetchFromAviationEdgeFuture(raw, date);
     if (result && (result.origin || result.destination)) {
@@ -1276,16 +1477,16 @@ export async function fetchFlightByNumber(
       return result;
     }
     if (debug) console.log('[Debug PC615] flightsFuture: no match');
-  } else if (debug) {
-    console.log('[Debug PC615] flightsFuture: skipped (date < tomorrow)');
   }
 
-  result = await fetchFromFlightradar24(raw, date);
-  if (result && (result.origin || result.destination)) {
-    console.log('[FlightAPI] Success from Flightradar24');
-    return result;
+  if (!fr || !(fr.origin || fr.destination)) {
+    result = await fetchFromFlightradar24(raw, date);
+    if (result && (result.origin || result.destination)) {
+      console.log('[FlightAPI] Success from Flightradar24');
+      return result;
+    }
+    if (debug) console.log('[Debug PC615] FR24: no match');
   }
-  if (debug) console.log('[Debug PC615] FR24: no match');
 
   result = await fetchFromAeroDataBox(raw, date);
   if (result && (result.origin || result.destination)) {
@@ -1294,43 +1495,7 @@ export async function fetchFlightByNumber(
   }
   if (debug) console.log('[Debug PC615] AeroDataBox: no match');
 
-  // If we couldn't find the selected future date, fall back to previous day's schedule as placeholder + warning.
-  if (date >= futureMin) {
-    const [yy, mm, dd] = date.split('-').map(Number);
-    const prev = new Date(Date.UTC(yy, (mm ?? 1) - 1, (dd ?? 1) - 1, 0, 0, 0)).toISOString().slice(0, 10);
-    const prevRes =
-      (await fetchFromAviationEdgeTimetable(raw, prev)) ??
-      (await fetchFromFlightradar24(raw, prev)) ??
-      null;
-    const routeAirports = [
-      toIataCode(prevRes?.origin),
-      toIataCode(prevRes?.destination),
-    ].filter(Boolean) as string[];
-    const prevScheduleFromRoute = routeAirports.length > 0
-      ? await fetchFromAviationEdgeTimetableAtAirports(raw, prev, routeAirports)
-      : null;
-    const base = prevScheduleFromRoute ?? prevRes;
-    const prevDep = base?.scheduled_departure_utc;
-    const prevArr = base?.scheduled_arrival_utc;
-    if (base && (prevDep || prevArr)) {
-      console.log('[FlightAPI] Using prev-day scheduled time fallback (unconfirmed)');
-      const schedDep = shiftUtcIsoByDays(prevDep, 1);
-      const schedArr = shiftUtcIsoByDays(prevArr, 1);
-      return {
-        ...base,
-        depTime: parseTime(schedDep),
-        arrTime: parseTime(schedArr),
-        scheduled_departure_utc: schedDep,
-        scheduled_arrival_utc: schedArr,
-        actual_departure_utc: undefined,
-        actual_arrival_utc: undefined,
-        flightStatus: undefined,
-        delayed: undefined,
-        scheduleUnconfirmed: true,
-      };
-    }
-  }
-
+  if (debug2550) console.log('[FlightAPI PC2550] No result from any API (dash will stay until one returns scheduled times).');
   console.log('[FlightAPI] No result from Aviation Edge, Flightradar24, or AeroDataBox');
   return null;
 }

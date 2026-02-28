@@ -65,14 +65,14 @@ export default function CompleteProfile() {
       <Text style={styles.title}>Complete setup</Text>
       <Text style={styles.subtitle}>
         {isCrew
-          ? "Enter your airline or company (e.g. Pegasus Airlines)"
+          ? "Enter your airline or company (e.g. Pegasus Airlines, AJet)"
           : "You're all set. Connect to a crew member to get started."}
       </Text>
 
       {isCrew && (
         <TextInput
           style={styles.input}
-          placeholder="Airline / Company"
+          placeholder="Airline / Company (e.g. Pegasus, AJet)"
           placeholderTextColor="#71717a"
           value={companyName}
           onChangeText={setCompanyName}
