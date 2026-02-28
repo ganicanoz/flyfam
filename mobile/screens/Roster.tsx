@@ -70,6 +70,7 @@ type Flight = {
   is_diverted?: boolean | null;
   flight_status?: string | null;
   schedule_unconfirmed?: boolean | null;
+  schedule_source_hint?: string | null;
   diverted_to?: string | null;
   crew_profiles?: { company_name: string | null } | { company_name: string | null }[] | null;
 };
@@ -273,6 +274,7 @@ export default function Roster() {
       if (effectiveInfo.flightStatus != null) payloadScheduled.flight_status = effectiveInfo.flightStatus;
       if (effectiveInfo.delayed != null) payloadScheduled.is_delayed = effectiveInfo.delayed;
       if (effectiveInfo.scheduleUnconfirmed != null) payloadScheduled.schedule_unconfirmed = effectiveInfo.scheduleUnconfirmed;
+      if (effectiveInfo.scheduleSourceHint != null) payloadScheduled.schedule_source_hint = effectiveInfo.scheduleSourceHint;
       if (effectiveInfo.divertedTo != null) payloadScheduled.diverted_to = effectiveInfo.divertedTo;
 
       const payloadActual = {} as Record<string, unknown>;
@@ -285,6 +287,10 @@ export default function Roster() {
         // If DB hasn't been migrated yet, don't let schedule_unconfirmed block schedule updates.
         if (isMissingColumn(error?.message, 'schedule_unconfirmed')) {
           const { schedule_unconfirmed, ...rest } = payloadScheduled as any;
+          ({ error } = await supabase.from('flights').update(rest).eq('id', flight.id));
+        }
+        if (error && isMissingColumn(error?.message, 'schedule_source_hint')) {
+          const { schedule_source_hint: _sh, ...rest } = payloadScheduled as any;
           ({ error } = await supabase.from('flights').update(rest).eq('id', flight.id));
         }
         if (error && isMissingColumn(error?.message, 'diverted_to')) {
@@ -320,10 +326,16 @@ export default function Roster() {
       if (effectiveInfo.flightStatus === 'landed') {
         notifyFamilyFlightEvent('landed', flight.id);
       }
+      if (effectiveInfo.flightStatus === 'cancelled') {
+        notifyFamilyFlightEvent('cancelled', flight.id);
+      }
+      if (effectiveInfo.flightStatus === 'diverted') {
+        notifyFamilyFlightEvent('diverted', flight.id);
+      }
     };
 
     // Run per-flight updates with limited concurrency so total refresh süresi kısalır.
-    const concurrency = 4;
+    const concurrency = 8;
     const queue = [...list];
     const workers = Array.from({ length: Math.min(concurrency, queue.length) }, async () => {
       // eslint-disable-next-line no-constant-condition
@@ -338,11 +350,11 @@ export default function Roster() {
     const todayLocal = getLocalDateString();
     let { data, error } = await supabase
       .from('flights')
-      .select('id, flight_number, origin_airport, destination_airport, origin_city, destination_city, flight_date, scheduled_departure, scheduled_arrival, actual_departure, actual_arrival, is_delayed, flight_status, schedule_unconfirmed, diverted_to')
+      .select('id, flight_number, origin_airport, destination_airport, origin_city, destination_city, flight_date, scheduled_departure, scheduled_arrival, actual_departure, actual_arrival, is_delayed, flight_status, schedule_unconfirmed, schedule_source_hint, diverted_to')
       .eq('crew_id', crewProfile.id)
       .gte('flight_date', todayLocal)
       .order('flight_date', { ascending: true });
-    if (isMissingColumn(error?.message, 'schedule_unconfirmed') || isMissingColumn(error?.message, 'diverted_to')) {
+    if (isMissingColumn(error?.message, 'schedule_unconfirmed') || isMissingColumn(error?.message, 'schedule_source_hint') || isMissingColumn(error?.message, 'diverted_to')) {
       const { data: data2 } = await supabase
         .from('flights')
         .select('id, flight_number, origin_airport, destination_airport, origin_city, destination_city, flight_date, scheduled_departure, scheduled_arrival, actual_departure, actual_arrival, is_delayed, flight_status, schedule_unconfirmed')
@@ -376,7 +388,7 @@ export default function Roster() {
     const todayLocal = getLocalDateString();
     let { data, error } = await supabase
       .from('flights')
-      .select('id, flight_number, origin_airport, destination_airport, origin_city, destination_city, flight_date, scheduled_departure, scheduled_arrival, actual_departure, actual_arrival, is_delayed, flight_status, schedule_unconfirmed, diverted_to, crew_profiles(company_name)')
+      .select('id, flight_number, origin_airport, destination_airport, origin_city, destination_city, flight_date, scheduled_departure, scheduled_arrival, actual_departure, actual_arrival, is_delayed, flight_status, schedule_unconfirmed, schedule_source_hint, diverted_to, crew_profiles(company_name)')
       .in('crew_id', crewIds)
       .gte('flight_date', todayLocal)
       .order('flight_date', { ascending: true })
@@ -385,8 +397,9 @@ export default function Roster() {
     const missingActual =
       error && (isMissingColumn(error.message, 'actual_departure') || isMissingColumn(error.message, 'actual_arrival'));
     const missingUnconfirmed = isMissingColumn(error?.message, 'schedule_unconfirmed');
+    const missingSourceHint = isMissingColumn(error?.message, 'schedule_source_hint');
     const missingDivertedTo = isMissingColumn(error?.message, 'diverted_to');
-    if (missingActual || missingUnconfirmed || missingDivertedTo) {
+    if (missingActual || missingUnconfirmed || missingSourceHint || missingDivertedTo) {
       const selectCols = missingUnconfirmed
         ? 'id, flight_number, origin_airport, destination_airport, origin_city, destination_city, flight_date, scheduled_departure, scheduled_arrival, actual_departure, actual_arrival, is_delayed, flight_status, crew_profiles(company_name)'
         : 'id, flight_number, origin_airport, destination_airport, origin_city, destination_city, flight_date, scheduled_departure, scheduled_arrival, is_delayed, flight_status, schedule_unconfirmed, crew_profiles(company_name)';
@@ -398,7 +411,7 @@ export default function Roster() {
         .order('flight_date', { ascending: true })
         .limit(50);
       console.log('[FamilyRoster] flights fetched (fallback)', fallback?.length ?? 0);
-      setFlights((fallback ?? []).map((row) => ({ ...(row as any), actual_departure: (row as any).actual_departure ?? null, actual_arrival: (row as any).actual_arrival ?? null, diverted_to: (row as any).diverted_to ?? null })));
+      setFlights((fallback ?? []).map((row) => ({ ...(row as any), actual_departure: (row as any).actual_departure ?? null, actual_arrival: (row as any).actual_arrival ?? null, schedule_source_hint: null, diverted_to: (row as any).diverted_to ?? null })));
       return;
     }
 
@@ -429,33 +442,44 @@ export default function Roster() {
       destination_city?: string | null;
       is_delayed?: boolean | null;
       schedule_unconfirmed?: boolean | null;
+      schedule_source_hint?: string | null;
       diverted_to?: string | null;
     }> = [];
-    for (const flight of list) {
-      const info = await fetchFlightByNumber(flight.flight_number, flight.flight_date);
-      if (!info) continue;
-      if (info.groundSpeedKts != null || info.altitudeFt != null) {
-        setLiveMetricsById((prev) => ({
-          ...prev,
-          [flight.id]: {
-            gs: info.groundSpeedKts ?? prev[flight.id]?.gs,
-            altFt: info.altitudeFt ?? prev[flight.id]?.altFt,
-            atUtc: info.lastTrackUtc ?? prev[flight.id]?.atUtc,
-          },
-        }));
+    const FAMILY_UPDATE_CONCURRENCY = 6;
+    for (let i = 0; i < list.length; i += FAMILY_UPDATE_CONCURRENCY) {
+      const chunk = list.slice(i, i + FAMILY_UPDATE_CONCURRENCY);
+      const results = await Promise.all(
+        chunk.map(async (flight) => {
+          const info = await fetchFlightByNumber(flight.flight_number, flight.flight_date);
+          return { flight, info };
+        })
+      );
+      for (const { flight, info } of results) {
+        if (!info) continue;
+        if (info.groundSpeedKts != null || info.altitudeFt != null) {
+          setLiveMetricsById((prev) => ({
+            ...prev,
+            [flight.id]: {
+              gs: info.groundSpeedKts ?? prev[flight.id]?.gs,
+              altFt: info.altitudeFt ?? prev[flight.id]?.altFt,
+              atUtc: info.lastTrackUtc ?? prev[flight.id]?.atUtc,
+            },
+          }));
+        }
+        const u: (typeof updates)[0] = { flightId: flight.id };
+        if (info.scheduled_departure_utc != null) u.scheduled_departure = info.scheduled_departure_utc;
+        if (info.scheduled_arrival_utc != null) u.scheduled_arrival = info.scheduled_arrival_utc;
+        if (info.actual_departure_utc != null) u.actual_departure = info.actual_departure_utc;
+        if (info.actual_arrival_utc != null) u.actual_arrival = info.actual_arrival_utc;
+        if (info.flightStatus != null) u.flight_status = info.flightStatus;
+        if (info.originCity != null) u.origin_city = info.originCity;
+        if (info.destinationCity != null) u.destination_city = info.destinationCity;
+        if (info.delayed != null) u.is_delayed = info.delayed;
+        if (info.scheduleUnconfirmed != null) u.schedule_unconfirmed = info.scheduleUnconfirmed;
+        if (info.scheduleSourceHint != null) u.schedule_source_hint = info.scheduleSourceHint;
+        if (info.divertedTo != null) u.diverted_to = info.divertedTo;
+        if (Object.keys(u).length > 1) updates.push(u);
       }
-      const u: (typeof updates)[0] = { flightId: flight.id };
-      if (info.scheduled_departure_utc != null) u.scheduled_departure = info.scheduled_departure_utc;
-      if (info.scheduled_arrival_utc != null) u.scheduled_arrival = info.scheduled_arrival_utc;
-      if (info.actual_departure_utc != null) u.actual_departure = info.actual_departure_utc;
-      if (info.actual_arrival_utc != null) u.actual_arrival = info.actual_arrival_utc;
-      if (info.flightStatus != null) u.flight_status = info.flightStatus;
-      if (info.originCity != null) u.origin_city = info.originCity;
-      if (info.destinationCity != null) u.destination_city = info.destinationCity;
-      if (info.delayed != null) u.is_delayed = info.delayed;
-      if (info.scheduleUnconfirmed != null) u.schedule_unconfirmed = info.scheduleUnconfirmed;
-      if (info.divertedTo != null) u.diverted_to = info.divertedTo;
-      if (Object.keys(u).length > 1) updates.push(u);
     }
     if (updates.length > 0) {
       const { data: { session } } = await supabase.auth.getSession();
@@ -553,7 +577,7 @@ export default function Roster() {
       if (isCrew && crewProfile?.id) {
         const todayLocal = getLocalDateString();
         const selectCols =
-          'id, flight_number, origin_airport, destination_airport, origin_city, destination_city, flight_date, scheduled_departure, scheduled_arrival, actual_departure, actual_arrival, is_delayed, flight_status, schedule_unconfirmed, diverted_to';
+          'id, flight_number, origin_airport, destination_airport, origin_city, destination_city, flight_date, scheduled_departure, scheduled_arrival, actual_departure, actual_arrival, is_delayed, flight_status, schedule_unconfirmed, schedule_source_hint, diverted_to';
         supabase
           .from('flights')
           .select(selectCols)
@@ -566,12 +590,14 @@ export default function Roster() {
               const missingActual =
                 isMissingColumn(error.message, 'actual_departure') || isMissingColumn(error.message, 'actual_arrival');
               const missingUnconfirmed = isMissingColumn(error.message, 'schedule_unconfirmed');
+              const missingSourceHint = isMissingColumn(error.message, 'schedule_source_hint');
               const missingDivertedTo = isMissingColumn(error.message, 'diverted_to');
 
-              if (missingActual || missingUnconfirmed || missingDivertedTo) {
+              if (missingActual || missingUnconfirmed || missingSourceHint || missingDivertedTo) {
                 let fallbackCols = selectCols;
                 if (missingActual) fallbackCols = fallbackCols.replace(', actual_departure, actual_arrival', '');
                 if (missingUnconfirmed) fallbackCols = fallbackCols.replace(', schedule_unconfirmed', '');
+                if (missingSourceHint) fallbackCols = fallbackCols.replace(', schedule_source_hint', '');
                 if (missingDivertedTo) fallbackCols = fallbackCols.replace(', diverted_to', '');
 
                 const { data: fallback, error: err2 } = await supabase
@@ -588,6 +614,7 @@ export default function Roster() {
                     actual_departure: (row as any).actual_departure ?? null,
                     actual_arrival: (row as any).actual_arrival ?? null,
                     schedule_unconfirmed: (row as any).schedule_unconfirmed ?? null,
+                    schedule_source_hint: (row as any).schedule_source_hint ?? null,
                     diverted_to: (row as any).diverted_to ?? null,
                   }));
                   const kept = await removeFlightsLandedOver6hAgo(list);
@@ -891,12 +918,12 @@ export default function Roster() {
                         {arrCity}
                         <Text style={styles.depArrTimes}> – {formatTimeLocal(item.actual_arrival ?? item.scheduled_arrival)} ({localTzTag}) / {formatTimeUTC(item.actual_arrival ?? item.scheduled_arrival)} (Z)</Text>
                       </Text>
-                      {item.schedule_unconfirmed === true && !scheduleSourceHintById[item.id] && (
+                      {item.schedule_unconfirmed === true && item.schedule_source_hint !== 'fr24_first_last_seen' && !scheduleSourceHintById[item.id] && (
                         <Text style={[styles.toBeUpdated, { color: colors.textMuted }]} accessibilityLabel="Schedule to be updated">
                           <Text style={styles.toBeUpdatedItalic}>{t('roster.toBeUpdated')}</Text>
                         </Text>
                       )}
-                      {scheduleSourceHintById[item.id] === 'fr24_first_last_seen' && (
+                      {(item.schedule_source_hint === 'fr24_first_last_seen' || scheduleSourceHintById[item.id] === 'fr24_first_last_seen') && (
                         <Text style={[styles.prevDayDataBox, { color: colors.textMuted }]} accessibilityLabel="Önceki günün verisi">
                           <Text style={styles.prevDayDataText}>{t('roster.prevDayData')}</Text>
                         </Text>

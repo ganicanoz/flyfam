@@ -8,8 +8,6 @@ const FR24_TOKEN =
   Constants.expoConfig?.extra?.flightradar24Token ?? process.env.EXPO_PUBLIC_FLIGHTRADAR24_API_TOKEN;
 const AVIATION_KEY =
   Constants.expoConfig?.extra?.aviationStackKey ?? process.env.EXPO_PUBLIC_AVIATION_STACK_API_KEY;
-const RAPIDAPI_KEY =
-  Constants.expoConfig?.extra?.rapidApiKey ?? process.env.EXPO_PUBLIC_RAPIDAPI_KEY;
 
 /** True if at least one flight lookup API key is set (Aviation Edge or Flightradar24). */
 export const hasFlightApiKeys = !!AVIATION_EDGE_KEY || !!FR24_TOKEN;
@@ -695,145 +693,6 @@ async function fetchFromAviationEdgeTimetableAtAirports(
 }
 
 // ---------------------------------------------------------------------------
-// Aviation Edge API – Live Flights (tracking)
-// ---------------------------------------------------------------------------
-// flights: live flights with tracking and status. Filter by flightIata.
-// ---------------------------------------------------------------------------
-
-/** When true, use full statusMapped from AE live (fallback when FR24 has no data). Otherwise only cancel/divert. */
-async function fetchFromAviationEdgeFlights(
-  flightNumber: string,
-  date: string,
-  options?: { useLiveStatusMapped?: boolean }
-): Promise<FlightInfo | null> {
-  if (!AVIATION_EDGE_KEY) return null;
-  const useFullStatus = options?.useLiveStatusMapped === true;
-  const variants = flightNumberVariants(flightNumber).filter((v) => /^[A-Z]{2,3}\d+$/.test(v));
-  for (const flightNum of variants) {
-    try {
-      // /flights is primarily for live tracking (status/position) and does not reliably include times.
-      // We use it to discover dep/arr airports, then pull times from timetable at those airports.
-      const url = `https://aviation-edge.com/v2/public/flights?key=${encodeURIComponent(AVIATION_EDGE_KEY)}&flightIata=${encodeURIComponent(flightNum)}`;
-      const res = await fetch(url);
-      const data = await res.json().catch(() => null);
-      if (!res.ok) continue;
-      const list = Array.isArray(data) ? data : data?.data ?? [];
-      if (!Array.isArray(list) || list.length === 0) continue;
-      const live: any = list[0];
-
-      const depIata = String(live?.departure?.iataCode ?? '').toUpperCase();
-      const arrIata = String(live?.arrival?.iataCode ?? '').toUpperCase();
-      const aircraftReg = (live?.aircraft?.regNumber ?? live?.aircraft?.registration) as string | undefined;
-      const liveStatus = useFullStatus
-        ? mapAviationEdgeStatus(String(live?.status ?? ''))
-        : aviationEdgeStatusOnlyCancelOrDivert(String(live?.status ?? ''));
-      // Live metrics from /flights (best-effort; units vary by provider).
-      const liveLat = Number(live?.geography?.latitude ?? live?.geography?.lat ?? live?.latitude);
-      const liveLon = Number(live?.geography?.longitude ?? live?.geography?.lon ?? live?.longitude);
-      const liveAltRaw = Number(live?.altitude ?? live?.geography?.altitude ?? live?.alt);
-      const liveSpdRaw = Number(live?.speed?.horizontal ?? live?.speed?.ground ?? live?.speed?.speed ?? live?.groundSpeed ?? live?.speed);
-      // Guess units: if speed is very high (> 700) it's likely km/h; convert to knots for internal consistency.
-      const spdKts = Number.isFinite(liveSpdRaw)
-        ? (liveSpdRaw > 700 ? liveSpdRaw / 1.852 : liveSpdRaw)
-        : NaN;
-      // Guess altitude: if small (< 15000) and speed suggests km/h, it may be meters; convert to feet.
-      const altFt = Number.isFinite(liveAltRaw)
-        ? (liveAltRaw <= 15000 && liveSpdRaw > 700 ? liveAltRaw * 3.28084 : liveAltRaw)
-        : NaN;
-
-      for (const [airport, type] of [
-        [depIata, 'departure'],
-        [arrIata, 'arrival'],
-      ] as const) {
-        if (!airport) continue;
-        const url2 = `https://aviation-edge.com/v2/public/timetable?key=${encodeURIComponent(AVIATION_EDGE_KEY)}&iataCode=${encodeURIComponent(airport)}&type=${type}&flight_iata=${encodeURIComponent(flightNum)}`;
-        const res2 = await fetch(url2);
-        const data2 = await res2.json().catch(() => null);
-        if (!res2.ok) continue;
-        const list2 = Array.isArray(data2) ? data2 : data2?.data ?? [];
-        const row = list2.find((x: any) => {
-          const depDate = String(x?.departure?.scheduledTime ?? '').slice(0, 10);
-          const arrDate = String(x?.arrival?.scheduledTime ?? '').slice(0, 10);
-          return depDate === date || arrDate === date;
-        });
-        if (!row || !row.departure || !row.arrival) continue;
-
-        const dep = row.departure;
-        const arr = row.arrival;
-        const origin = (dep.icaoCode ?? dep.iataCode ?? '').toString().toUpperCase();
-        const destination = (arr.icaoCode ?? arr.iataCode ?? '').toString().toUpperCase();
-        if (!origin && !destination) continue;
-
-        const depRaw = dep.scheduledTime ?? dep.estimatedTime;
-        const arrRaw = arr.scheduledTime ?? arr.estimatedTime;
-        const depStr = depRaw ? String(depRaw) : '';
-        const arrStr = arrRaw ? String(arrRaw) : '';
-        const depHasOffset = depStr.endsWith('Z') || /[+-]\d{2}:?\d{2}$/.test(depStr);
-        const arrHasOffset = arrStr.endsWith('Z') || /[+-]\d{2}:?\d{2}$/.test(arrStr);
-        const depOffsetMin = getAirportOffsetMinutes(origin) || getAirportOffsetMinutes(airport);
-        const arrOffsetMin = getAirportOffsetMinutes(destination);
-
-        const depIso =
-          depHasOffset ? toUtcIsoStrict(depRaw)
-          : /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(depStr)
-            ? localIsoToUtcIso(depRaw, depOffsetMin)
-            : localTimeToUtcIso(date, depStr.includes('T') ? depStr.split('T')[1]?.slice(0, 8) ?? depStr : depStr, depOffsetMin) ?? toUtcIsoStrict(depRaw);
-        const arrIso =
-          arrHasOffset ? toUtcIsoStrict(arrRaw)
-          : /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(arrStr)
-            ? localIsoToUtcIso(arrRaw, arrOffsetMin)
-            : localTimeToUtcIso(date, arrStr.includes('T') ? arrStr.split('T')[1]?.slice(0, 8) ?? arrStr : arrStr, arrOffsetMin) ?? toUtcIsoStrict(arrRaw);
-
-        const apiStatus = (row.status as string | undefined)?.toLowerCase();
-        const flightStatus = useFullStatus
-          ? (mapAviationEdgeStatus(apiStatus) ?? mapAviationEdgeStatus(String(live?.status ?? '')))
-          : (aviationEdgeStatusOnlyCancelOrDivert(apiStatus) ?? aviationEdgeStatusOnlyCancelOrDivert(String(live?.status ?? '')));
-
-        // Prefer true actual time, then estimated (if actual missing).
-        const depActualRaw = dep.actualTime ?? dep.estimatedTime;
-        const arrActualRaw = arr.actualTime ?? arr.estimatedTime;
-        const depActualIso = depActualRaw && (String(depActualRaw).endsWith('Z') || /[+-]\d{2}:?\d{2}$/.test(String(depActualRaw)))
-          ? toUtcIsoStrict(depActualRaw)
-          : (depActualRaw && /^\d{4}-\d{2}-\d{2}T/.test(String(depActualRaw))
-            ? localIsoToUtcIso(depActualRaw, depOffsetMin)
-            : undefined) ?? toUtcIsoStrict(depActualRaw);
-        const arrActualIso = arrActualRaw && (String(arrActualRaw).endsWith('Z') || /[+-]\d{2}:?\d{2}$/.test(String(arrActualRaw)))
-          ? toUtcIsoStrict(arrActualRaw)
-          : (arrActualRaw && /^\d{4}-\d{2}-\d{2}T/.test(String(arrActualRaw))
-            ? localIsoToUtcIso(arrActualRaw, arrOffsetMin)
-            : undefined) ?? toUtcIsoStrict(arrActualRaw);
-
-        const divertedToFlights = flightStatus === 'diverted' ? (getAirportDisplay(destination)?.iata ?? destination) : undefined;
-        console.log('[AviationEdge Flights] Found (via timetable):', origin, '→', destination, apiStatus ?? '', divertedToFlights != null ? `(diverted to ${divertedToFlights})` : '', `(${airport}/${type})`);
-        return {
-          origin,
-          destination,
-          originCity: getAirportDisplay(origin)?.city,
-          destinationCity: getAirportDisplay(destination)?.city,
-          depTime: parseTime(depRaw ?? undefined),
-          arrTime: parseTime(arrRaw ?? undefined),
-          scheduled_departure_utc: depIso,
-          scheduled_arrival_utc: arrIso,
-          actual_departure_utc: (flightStatus === 'en_route' || flightStatus === 'landed') ? (depActualIso ?? depIso) : undefined,
-          actual_arrival_utc: flightStatus === 'landed' ? (arrActualIso ?? arrIso) : undefined,
-          airline: row?.airline?.name ?? live?.airline?.iataCode ?? undefined,
-          aircraftRegistration: row?.aircraft?.regNumber ?? aircraftReg,
-          delayed: Number(dep.delay) > 0 || Number(arr.delay) > 0,
-          flightStatus,
-          divertedTo: divertedToFlights,
-          groundSpeedKts: Number.isFinite(spdKts) ? spdKts : undefined,
-          altitudeFt: Number.isFinite(altFt) ? altFt : undefined,
-          latitude: Number.isFinite(liveLat) ? liveLat : undefined,
-          longitude: Number.isFinite(liveLon) ? liveLon : undefined,
-        };
-      }
-    } catch {
-      continue;
-    }
-  }
-  return null;
-}
-
 async function fetchAviationEdgeLiveMetricsOnly(flightNumber: string): Promise<{
   groundSpeedKts?: number;
   altitudeFt?: number;
@@ -902,77 +761,6 @@ async function maybeEnrichWithAviationEdgeLiveMetrics(
   };
   // Statü türetme (isGround → landed) kaldırıldı — baştan yazılacak.
   return merged;
-}
-
-// ---------------------------------------------------------------------------
-// Aviation Edge API – Future Schedules (dates after API minimum, e.g. 2026-02-26)
-// ---------------------------------------------------------------------------
-// flightsFuture requires an airport (iataCode). We try hub airports for the
-// airline inferred from the flight number, then fallback hubs.
-// ---------------------------------------------------------------------------
-
-async function fetchFromAviationEdgeFuture(flightNumber: string, date: string): Promise<FlightInfo | null> {
-  if (!AVIATION_EDGE_KEY) {
-    console.log('[AviationEdge] No API key');
-    return null;
-  }
-  const raw = flightNumber.replace(/\s/g, '').trim().toUpperCase();
-  const airlineCode = raw.match(/^[A-Z]{2}/)?.[0] ?? '';
-  const hubs = AIRLINE_HUBS[airlineCode] ?? FALLBACK_HUBS;
-  const iataVariants = flightNumberVariants(flightNumber).filter((v) => /^[A-Z]{2,3}\d+$/.test(v)); // "PC615" / "PGT615"
-  const numericVariants = Array.from(
-    new Set(iataVariants.map((v) => v.replace(/^\D+/, '')).filter((v) => /^\d+$/.test(v)))
-  ); // "615" (Aviation Edge flightsFuture often expects numeric)
-  const variants = Array.from(new Set([...iataVariants, ...numericVariants]));
-  for (const airport of hubs) {
-    for (const flightNum of variants) {
-      for (const type of ['departure', 'arrival'] as const) {
-        try {
-          const url = `https://aviation-edge.com/v2/public/flightsFuture?key=${encodeURIComponent(AVIATION_EDGE_KEY)}&type=${type}&iataCode=${encodeURIComponent(airport)}&date=${date}&flight_num=${encodeURIComponent(flightNum)}`;
-          const res = await fetch(url);
-          const data = await res.json().catch(() => null);
-          if (!res.ok) {
-            if (res.status === 404 || (data && !Array.isArray(data))) continue;
-            console.log('[AviationEdge] Error:', res.status, data?.error ?? '');
-            continue;
-          }
-          const list = Array.isArray(data) ? data : data?.data ?? [];
-          const f = list[0];
-          if (!f || !f.departure || !f.arrival) continue;
-          const dep = f.departure;
-          const arr = f.arrival;
-          const origin = (dep.icaoCode ?? dep.iataCode ?? '').toString().toUpperCase();
-          const destination = (arr.icaoCode ?? arr.iataCode ?? '').toString().toUpperCase();
-          if (!origin && !destination) continue;
-          const depTimeStr = dep.scheduledTime ?? dep.estimatedTime ?? '';
-          const arrTimeStr = arr.scheduledTime ?? arr.estimatedTime ?? '';
-          const depIso = localTimeToUtcIso(date, depTimeStr, getAirportOffsetMinutes(origin));
-          const arrIso0 = localTimeToUtcIso(date, arrTimeStr, getAirportOffsetMinutes(destination));
-          const arrIso = normalizeOvernightArrival(depIso, arrIso0);
-          const originCity = getAirportDisplay(origin)?.city;
-          const destinationCity = getAirportDisplay(destination)?.city;
-          console.log('[AviationEdge] Found:', origin, '→', destination, `(${type})`);
-          return {
-            origin,
-            destination,
-            originCity,
-            destinationCity,
-            depTime: parseTime(depTimeStr ? `${date}T${depTimeStr}` : ''),
-            arrTime: parseTime(arrTimeStr ? `${date}T${arrTimeStr}` : ''),
-            scheduled_departure_utc: depIso ?? toUtcIsoStrict(depTimeStr),
-            scheduled_arrival_utc: arrIso ?? toUtcIsoStrict(arrTimeStr),
-            airline: f.airline?.name,
-            aircraftRegistration: undefined,
-            delayed: false,
-          };
-        } catch (err) {
-          console.log('[AviationEdge] Exception for', airport, flightNum, err);
-          continue;
-        }
-      }
-    }
-  }
-  return null;
 }
 
 // ---------------------------------------------------------------------------
@@ -1227,83 +1015,6 @@ async function fetchFromAviationStack(flightNumber: string, date: string): Promi
   return null;
 }
 
-/** Map AeroDataBox status to our FlightStatusApi. */
-function mapAeroDataBoxStatus(s: string | undefined): FlightStatusApi | undefined {
-  if (!s) return undefined;
-  const lower = s.toLowerCase();
-  if (lower === 'scheduled' || lower === 'ontime') return 'scheduled';
-  if (lower === 'departure' || lower === 'departed' || lower === 'onboard' || lower === 'enroute' || lower === 'en_route') return 'en_route';
-  if (lower === 'landed' || lower === 'arrival' || lower === 'arrived') return 'landed';
-  if (lower === 'cancelled' || lower === 'canceled') return 'cancelled';
-  if (lower === 'diverted') return 'diverted';
-  if (lower === 'incident') return 'incident';
-  if (lower === 'redirected') return 'redirected';
-  return undefined;
-}
-
-// AeroDataBox via RapidAPI – good for status and actual/estimated times
-async function fetchFromAeroDataBox(flightNumber: string, date: string): Promise<FlightInfo | null> {
-  if (!RAPIDAPI_KEY) return null;
-  const hosts = ['aerodatabox.p.rapidapi.com', 'aedbx-aedbx.p.rapidapi.com'];
-  for (const host of hosts) {
-    for (const num of flightNumberVariants(flightNumber)) {
-      try {
-        const url = `https://${host}/flights/number/${encodeURIComponent(num)}/${date}`;
-        const res = await fetch(url, {
-          headers: {
-            'X-RapidAPI-Key': RAPIDAPI_KEY,
-            'X-RapidAPI-Host': host,
-          },
-        });
-        if (!res.ok) continue;
-        const data = await res.json();
-        const list = Array.isArray(data) ? data : (data?.flights ? data.flights : data?.departure ? [data] : []);
-        const f = list[0];
-        if (!f) continue;
-        const dep = f.departure ?? f.departureAirport ?? f.origin ?? {};
-        const arr = f.arrival ?? f.arrivalAirport ?? f.destination ?? {};
-        const getCode = (x: Record<string, unknown>) => (x?.iata ?? x?.icao ?? x?.code ?? '') as string;
-        const origin = getCode(dep);
-        const destination = getCode(arr);
-        if (!origin && !destination) continue;
-        const depSched = dep.scheduledTimeUtc ?? dep.scheduledTime ?? dep.scheduledTimeLocal ?? dep.scheduled ?? dep.time ?? '';
-        const arrSched = arr.scheduledTimeUtc ?? arr.scheduledTime ?? arr.scheduledTimeLocal ?? arr.scheduled ?? arr.time ?? '';
-        const depActual = dep.actualTimeUtc ?? dep.actualTime ?? dep.estimatedTimeUtc ?? dep.estimatedTime ?? depSched;
-        const arrActual = arr.actualTimeUtc ?? arr.actualTime ?? arr.estimatedTimeUtc ?? arr.estimatedTime ?? arrSched;
-        const depIso = toUtcIsoStrict(String(depSched));
-        const arrIso = toUtcIsoStrict(String(arrSched));
-        const depActualIso = toUtcIsoStrict(String(depActual));
-        const arrActualIso = toUtcIsoStrict(String(arrActual));
-        if (!depIso || !arrIso) continue;
-        const delayMin = Number(f.delay ?? dep.delay ?? arr.delay) || 0;
-        const flightStatus = mapAeroDataBoxStatus((f.status ?? f.flightStatus ?? f.leg?.status) as string);
-        const divertedToAdb = flightStatus === 'diverted' ? (destination || (arr.iata ?? arr.icao ?? arr.code) as string) : undefined;
-        console.log('[AeroDataBox] Found:', origin, '→', destination, f.status ?? '', flightStatus ?? '', divertedToAdb != null ? `(diverted to ${divertedToAdb})` : '');
-        return {
-          origin,
-          destination,
-          originCity: (dep.city ?? dep.municipality ?? dep.name) as string | undefined,
-          destinationCity: (arr.city ?? arr.municipality ?? arr.name) as string | undefined,
-          depTime: parseTime(String(depSched)),
-          arrTime: parseTime(String(arrSched)),
-          scheduled_departure_utc: depIso,
-          scheduled_arrival_utc: arrIso,
-          actual_departure_utc: flightStatus === 'en_route' || flightStatus === 'landed' ? (depActualIso ?? depIso) : undefined,
-          actual_arrival_utc: flightStatus === 'landed' ? (arrActualIso ?? arrIso) : undefined,
-          airline: (f.airline?.name ?? f.carrier?.name ?? f.operator?.name) as string | undefined,
-          aircraftRegistration: (f.aircraft?.registration ?? f.aircraft?.number ?? f.registration) as string | undefined,
-          delayed: delayMin > 0,
-          flightStatus,
-          divertedTo: divertedToAdb,
-        };
-      } catch {
-        continue;
-      }
-    }
-  }
-  return null;
-}
-
 // Flight lookup: Aviation Edge (primary) then Flightradar24
 async function maybeEnrichWithFr24LiveMetrics(
   flightNumber: string,
@@ -1375,6 +1086,14 @@ async function resolveAeTimetableWhenFrEnded(
   return null;
 }
 
+/** PC2264 varış meydanı her zaman Bodrum (BJV). */
+function normalizeDestinationForFlight(flightNumber: string, info: FlightInfo | null): FlightInfo | null {
+  if (!info) return null;
+  const r = flightNumber.replace(/\s/g, '').trim().toUpperCase();
+  if (r !== 'PC2264') return info;
+  return { ...info, destination: 'BJV', destinationCity: 'Bodrum' };
+}
+
 export async function fetchFlightByNumber(
   flightNumber: string,
   date: string
@@ -1397,18 +1116,18 @@ export async function fetchFlightByNumber(
   if (debug656) console.log('[FlightAPI PC656] FR24 result:', fr ? { flightStatus: fr.flightStatus, flightEnded: fr.flightEnded, datetime_landed_utc: fr.datetime_landed_utc, last_seen_utc: fr.last_seen_utc } : 'null');
   if (fr && (fr.origin || fr.destination)) {
     // FR normalize ile doldurduğumuz sonuç (önceki gün bacak, first_seen/last_seen = saatler, status scheduled) olduğu gibi kullan.
-    if (fr.scheduleSourceHint === 'fr24_first_last_seen') return fr;
+    if (fr.scheduleSourceHint === 'fr24_first_last_seen') return normalizeDestinationForFlight(raw, fr);
     // flight_ended TRUE → AE timetable: scheduled times + statusMapped. scheduled_departure geçmişteyse yarın/önceki gün (nextDayHint / to be updated).
     if (fr.flightEnded === true) {
       const aeResult = await resolveAeTimetableWhenFrEnded(raw, date);
       if (aeResult && (aeResult.origin || aeResult.destination)) {
         console.log('[FlightAPI] FR24 flight_ended true → AE timetable, status = statusMapped');
-        return aeResult;
+        return normalizeDestinationForFlight(raw, aeResult);
       }
       // AE bulunamadı: FR'deki aynı uçuşun saatleri, status=scheduled, önceki günün gerçekleşen saatleri notu.
       const scheduled_departure_utc = fr.first_seen_utc ?? fr.scheduled_departure_utc;
       const scheduled_arrival_utc = fr.last_seen_utc ?? fr.scheduled_arrival_utc;
-      return {
+      return normalizeDestinationForFlight(raw, {
         ...fr,
         flightStatus: 'scheduled' as FlightStatusApi,
         scheduled_departure_utc: scheduled_departure_utc ?? fr.scheduled_departure_utc,
@@ -1417,7 +1136,7 @@ export async function fetchFlightByNumber(
         arrTime: scheduled_arrival_utc ? parseTime(scheduled_arrival_utc) : fr.arrTime,
         scheduleUnconfirmed: true,
         scheduleSourceHint: 'fr24_first_last_seen',
-      };
+      });
     }
     // flight_ended FALSE → FR ile devam. Statü türetme kaldırıldı — baştan yazılacak.
     if (fr.flightEnded === false) {
@@ -1448,7 +1167,7 @@ export async function fetchFlightByNumber(
       }
       if (debug2088) console.log('[FlightAPI PC2088] Returning from FR24:', { flightStatus: out.flightStatus });
       if (debug2550) console.log('[FlightAPI PC2550] Returning from FR24 path:', { schedDep: out.scheduled_departure_utc, schedArr: out.scheduled_arrival_utc, flightStatus: out.flightStatus });
-      return out;
+      return normalizeDestinationForFlight(raw, out);
     }
   }
 
@@ -1458,44 +1177,11 @@ export async function fetchFlightByNumber(
     console.log('[FlightAPI] No FR24 → AE timetable, status = statusMapped');
     if (debug2088) console.log('[FlightAPI PC2088] Returning from AE timetable:', { flightStatus: result.flightStatus });
     if (debug2550) console.log('[FlightAPI PC2550] Returning from AE timetable:', { schedDep: result.scheduled_departure_utc, schedArr: result.scheduled_arrival_utc });
-    return result;
+    return normalizeDestinationForFlight(raw, result);
   }
   if (debug) console.log('[Debug PC615] timetable: no match');
 
-  result = await fetchFromAviationEdgeFlights(raw, date, { useLiveStatusMapped: true });
-  if (result && (result.origin || result.destination)) {
-    console.log('[FlightAPI] AE Live fallback');
-    return result;
-  }
-  if (debug) console.log('[Debug PC615] flights (live): no match');
-
-  const futureMin = getLocalDateStringPlusDays(1);
-  if (date >= futureMin) {
-    result = await fetchFromAviationEdgeFuture(raw, date);
-    if (result && (result.origin || result.destination)) {
-      console.log('[FlightAPI] Success from Aviation Edge (future schedules)');
-      return result;
-    }
-    if (debug) console.log('[Debug PC615] flightsFuture: no match');
-  }
-
-  if (!fr || !(fr.origin || fr.destination)) {
-    result = await fetchFromFlightradar24(raw, date);
-    if (result && (result.origin || result.destination)) {
-      console.log('[FlightAPI] Success from Flightradar24');
-      return result;
-    }
-    if (debug) console.log('[Debug PC615] FR24: no match');
-  }
-
-  result = await fetchFromAeroDataBox(raw, date);
-  if (result && (result.origin || result.destination)) {
-    console.log('[FlightAPI] Success from AeroDataBox (RapidAPI)');
-    return result;
-  }
-  if (debug) console.log('[Debug PC615] AeroDataBox: no match');
-
   if (debug2550) console.log('[FlightAPI PC2550] No result from any API (dash will stay until one returns scheduled times).');
-  console.log('[FlightAPI] No result from Aviation Edge, Flightradar24, or AeroDataBox');
+  console.log('[FlightAPI] No result from Aviation Edge or Flightradar24');
   return null;
 }

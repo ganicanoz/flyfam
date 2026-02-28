@@ -11,17 +11,16 @@ const AIRPORTS: Record<string, AirportDisplay> = {
   IST: { iata: 'IST', city: 'Istanbul' },
   LTAI: { iata: 'AYT', city: 'Antalya' },
   AYT: { iata: 'AYT', city: 'Antalya' },
-  LTBJ: { iata: 'BJV', city: 'Bodrum' },
+  LTBJ: { iata: 'ADB', city: 'İzmir' }, // İzmir Adnan Menderes
   BJV: { iata: 'BJV', city: 'Bodrum' },
   LTBS: { iata: 'DLM', city: 'Dalaman' },
   DLM: { iata: 'DLM', city: 'Dalaman' },
   // LTFB is Selçuk–Efes (İzmir). No standard IATA; keep ICAO for display.
   LTFB: { iata: 'LTFB', city: 'Selçuk (Efes)' },
   ESB: { iata: 'ESB', city: 'Ankara' },
-  LTCI: { iata: 'IZM', city: 'Izmir' },
-  IZM: { iata: 'IZM', city: 'Izmir' },
-  LTAF: { iata: 'ADB', city: 'Izmir' },
-  ADB: { iata: 'ADB', city: 'Izmir' },
+  LTAF: { iata: 'ADB', city: 'İzmir' }, // İzmir Adnan Menderes
+  ADB: { iata: 'ADB', city: 'İzmir' },
+  IZM: { iata: 'ADB', city: 'İzmir' }, // city code alias
   LTCG: { iata: 'TZX', city: 'Trabzon' },
   TZX: { iata: 'TZX', city: 'Trabzon' },
   LTAH: { iata: 'ADA', city: 'Adana' },
@@ -410,7 +409,7 @@ const AIRPORTS: Record<string, AirportDisplay> = {
   VAS: { iata: 'VAS', city: 'Sivas' },
   LTFC: { iata: 'TEQ', city: 'Tekirdağ' },
   TEQ: { iata: 'TEQ', city: 'Tekirdağ' },
-  LTCI: { iata: 'VAN', city: 'Van' },
+  LTCI: { iata: 'VAN', city: 'Van' }, // Van Ferit Melen (LTCI was wrongly listed as Izmir before)
   VAN: { iata: 'VAN', city: 'Van' },
 };
 
@@ -450,7 +449,7 @@ const AIRPORT_TIMEZONES: Record<string, string> = {
   LTFJ: 'Europe/Istanbul', SAW: 'Europe/Istanbul', LTFM: 'Europe/Istanbul', IST: 'Europe/Istanbul',
   LTAI: 'Europe/Istanbul', AYT: 'Europe/Istanbul', LTBJ: 'Europe/Istanbul', BJV: 'Europe/Istanbul',
   LTBS: 'Europe/Istanbul', DLM: 'Europe/Istanbul', LTFB: 'Europe/Istanbul', ESB: 'Europe/Istanbul',
-  LTCI: 'Europe/Istanbul', IZM: 'Europe/Istanbul', LTAF: 'Europe/Istanbul', ADB: 'Europe/Istanbul',
+  LTCI: 'Europe/Istanbul', LTAF: 'Europe/Istanbul', ADB: 'Europe/Istanbul', IZM: 'Europe/Istanbul',
   LTCG: 'Europe/Istanbul', TZX: 'Europe/Istanbul', LTAH: 'Europe/Istanbul', ADA: 'Europe/Istanbul',
   LTFE: 'Europe/Istanbul', LTAC: 'Europe/Istanbul', ANK: 'Europe/Istanbul',
   OPKC: 'Asia/Karachi', KHI: 'Asia/Karachi', OPRN: 'Asia/Karachi', ISB: 'Asia/Karachi',
