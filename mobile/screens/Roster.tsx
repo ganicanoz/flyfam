@@ -8,7 +8,7 @@ import { useSession } from '../contexts/SessionContext';
 import { supabase } from '../lib/supabase';
 import { formatFlightDateTr, formatFlightTimeLocal, formatFlightTimeUTC, getLocalDateString, getLocalDateStringPlusDays, parseFlightTimeAsUtc } from '../lib/dateUtils';
 import { fetchFlightByNumber, getFr24DeepLink } from '../lib/flightApi';
-import { notifyFamilyFlightEvent, notifyFamilyTodayFlights } from '../lib/notifyFamily';
+import { notifyFamilyTodayFlights } from '../lib/notifyFamily';
 import { formatCityAndCode, getAirportDisplay } from '../constants/airports';
 import { colors } from '../theme/colors';
 
@@ -36,10 +36,13 @@ function isMissingColumn(errMsg: string | undefined | null, column: string): boo
 
 /** Hide flights 10+ hours after landing (no DB deletes). Uses flight_status landed/parked OR actual_arrival so flights are hidden even if status was never updated. */
 async function removeFlightsLandedOver6hAgo<
-  T extends { id: string; scheduled_arrival: string | null; actual_arrival?: string | null; flight_status?: string | null }
+  T extends { id: string; scheduled_arrival: string | null; actual_arrival?: string | null; flight_status?: string | null; flight_date?: string | null }
 >(list: T[]): Promise<T[]> {
   const now = Date.now();
+  const todayLocal = getLocalDateString();
   const toHide = list.filter((f) => {
+    const fd = f.flight_date;
+    if (fd && String(fd).slice(0, 10) >= todayLocal) return false;
     const status = (f.flight_status ?? '').toLowerCase();
     const isLandedByStatus = status === 'landed' || status === 'parked';
     const arrMsSched = parseUtcMsStatic(f.scheduled_arrival);
@@ -97,6 +100,8 @@ export default function Roster() {
   const lastAutoRefreshMsRef = useRef<number>(0);
   const lastDashRefreshMsRef = useRef<number>(0);
   const autoRefreshInFlightRef = useRef<boolean>(false);
+  const swipeableRefs = useRef<Record<string, Swipeable | null>>({});
+  const [updatingFlightIds, setUpdatingFlightIds] = useState<Record<string, boolean>>({});
 
   const DASH_REFRESH_INTERVAL_MS = 60 * 60 * 1000; // 1 hour for flights with no times (dash)
   const getDashFlights = useCallback((list: Flight[]) => {
@@ -108,8 +113,13 @@ export default function Roster() {
   const getAutoRefreshList = useCallback((list: Flight[]) => {
     const now = Date.now();
     const todayLocal = getLocalDateString();
+    const yesterdayLocal = getLocalDateStringPlusDays(-1);
     const maxAheadMs = 12 * 60 * 60 * 1000; // next 12 hours only (reduce API cost)
     return list.filter((f) => {
+      if (f.flight_date < yesterdayLocal) return false;
+      // Dash (saat yok): dün veya bugün olsun API'den doldurmak için listeye al.
+      const isDash = !(f.scheduled_departure ?? '').trim() && !(f.scheduled_arrival ?? '').trim();
+      if (isDash && (f.flight_date === todayLocal || f.flight_date === yesterdayLocal)) return true;
       if (f.flight_date < todayLocal) return false;
       // Always keep live flights updated.
       if (f.flight_status === 'en_route' || f.flight_status === 'departed' || f.flight_status === 'taxi_out') return true;
@@ -178,7 +188,7 @@ export default function Roster() {
           fr24Id: info?.fr24Id,
         }, null, 2));
       }
-      if (debugKey === 'PC978' || debugKey === 'PC615' || debugKey === 'PC1915' || debugKey === 'PC1134' || debugKey === 'PC2088' || debugKey === 'PC2199' || debugKey === 'PC2289' || debugKey === 'PC2550' || debugKey === 'PC656') {
+      if (debugKey === 'PC978' || debugKey === 'PC615' || debugKey === 'PC1915' || debugKey === 'PC1134' || debugKey === 'PC2088' || debugKey === 'PC2199' || debugKey === 'PC2289' || debugKey === 'PC2550' || debugKey === 'PC656' || debugKey === 'PC2533') {
         if (debugKey !== 'PC2289') {
           console.log(`[Debug ${debugKey}] fetchFlightByNumber result:`, {
             date: flight.flight_date,
@@ -223,13 +233,13 @@ export default function Roster() {
 
       // Skip this flight when API and fallback both returned nothing (cannot use continue — not in a loop).
       if (!effectiveInfo) {
-        if (debugKey === 'PC2088' || debugKey === 'PC2199') {
+        if (debugKey === 'PC2088' || debugKey === 'PC2199' || debugKey === 'PC2533') {
           console.log(`[${debugKey}] Skipped: no effectiveInfo (API returned null or empty)`);
         }
         return;
       }
-      if (debugKey === 'PC2088' || debugKey === 'PC2199') {
-        console.log(`[${debugKey}] effectiveInfo.flightStatus =`, effectiveInfo.flightStatus, 'actual_arrival_utc =', effectiveInfo.actual_arrival_utc);
+      if (debugKey === 'PC2088' || debugKey === 'PC2199' || debugKey === 'PC2533') {
+        console.log(`[${debugKey}] effectiveInfo.flightStatus =`, effectiveInfo.flightStatus, 'schedDep =', effectiveInfo.scheduled_departure_utc, 'schedArr =', effectiveInfo.scheduled_arrival_utc, 'actual_arrival_utc =', effectiveInfo.actual_arrival_utc);
       }
       if (effectiveInfo.fr24Id?.trim()) {
         setFr24IdByFlightId((prev) => (prev[flight.id] === effectiveInfo!.fr24Id!.trim() ? prev : { ...prev, [flight.id]: effectiveInfo!.fr24Id!.trim() }));
@@ -300,10 +310,10 @@ export default function Roster() {
         if (error) {
           console.log('[Roster] scheduled update failed', { flight: flight.flight_number, id: flight.id, error: error.message });
           if (debugKey === 'PC2088' || debugKey === 'PC2199') console.log(`[${debugKey}] DB scheduled update FAILED:`, error.message);
-        } else if (debugKey === 'PC978' || debugKey === 'PC615' || debugKey === 'PC1134' || debugKey === 'PC2088' || debugKey === 'PC2199' || debugKey === 'PC2289') {
+        } else if (debugKey === 'PC978' || debugKey === 'PC615' || debugKey === 'PC1134' || debugKey === 'PC2088' || debugKey === 'PC2199' || debugKey === 'PC2289' || debugKey === 'PC2533') {
           console.log(`[Debug ${debugKey}] DB updated scheduled keys:`, Object.keys(payloadScheduled));
         }
-      } else if ((debugKey === 'PC2088' || debugKey === 'PC2199') && effectiveInfo.flightStatus != null) {
+      } else if ((debugKey === 'PC2088' || debugKey === 'PC2199' || debugKey === 'PC2533') && effectiveInfo.flightStatus != null) {
         console.log(`[${debugKey}] WARNING: payloadScheduled was empty so flight_status was NOT written (effectiveInfo.flightStatus =`, effectiveInfo.flightStatus, ')');
       }
 
@@ -320,18 +330,8 @@ export default function Roster() {
           console.log(`[Debug ${debugKey}] DB updated actual keys:`, Object.keys(payloadActual));
         }
       }
-      if ((effectiveInfo.flightStatus === 'en_route' || effectiveInfo.flightStatus === 'departed') && flight.flight_status !== 'en_route' && flight.flight_status !== 'departed') {
-        notifyFamilyFlightEvent('took_off', flight.id);
-      }
-      if (effectiveInfo.flightStatus === 'landed') {
-        notifyFamilyFlightEvent('landed', flight.id);
-      }
-      if (effectiveInfo.flightStatus === 'cancelled') {
-        notifyFamilyFlightEvent('cancelled', flight.id);
-      }
-      if (effectiveInfo.flightStatus === 'diverted') {
-        notifyFamilyFlightEvent('diverted', flight.id);
-      }
+      // Push notifications to family are now sent only from backend cron
+      // (check-flight-status-and-notify + notify-family). App no longer triggers them directly.
     };
 
     // Run per-flight updates with limited concurrency so total refresh süresi kısalır.
@@ -348,18 +348,29 @@ export default function Roster() {
     await Promise.all(workers);
     if (!silent) setUpdatingTimes(false);
     const todayLocal = getLocalDateString();
+    const minFlightDate = getLocalDateStringPlusDays(-1);
+    if (listOverride?.length === 1) {
+      const id = listOverride[0].id;
+      const { data: one } = await supabase
+        .from('flights')
+        .select('id, flight_number, origin_airport, destination_airport, origin_city, destination_city, flight_date, scheduled_departure, scheduled_arrival, actual_departure, actual_arrival, is_delayed, flight_status, schedule_unconfirmed, schedule_source_hint, diverted_to')
+        .eq('id', id)
+        .single();
+      if (one) setFlights((prev) => prev.map((f) => (f.id === id ? { ...f, ...one } : f)));
+      return;
+    }
     let { data, error } = await supabase
       .from('flights')
       .select('id, flight_number, origin_airport, destination_airport, origin_city, destination_city, flight_date, scheduled_departure, scheduled_arrival, actual_departure, actual_arrival, is_delayed, flight_status, schedule_unconfirmed, schedule_source_hint, diverted_to')
       .eq('crew_id', crewProfile.id)
-      .gte('flight_date', todayLocal)
+      .gte('flight_date', minFlightDate)
       .order('flight_date', { ascending: true });
     if (isMissingColumn(error?.message, 'schedule_unconfirmed') || isMissingColumn(error?.message, 'schedule_source_hint') || isMissingColumn(error?.message, 'diverted_to')) {
       const { data: data2 } = await supabase
         .from('flights')
         .select('id, flight_number, origin_airport, destination_airport, origin_city, destination_city, flight_date, scheduled_departure, scheduled_arrival, actual_departure, actual_arrival, is_delayed, flight_status, schedule_unconfirmed')
         .eq('crew_id', crewProfile.id)
-        .gte('flight_date', todayLocal)
+        .gte('flight_date', minFlightDate)
         .order('flight_date', { ascending: true });
       data = (data2 as any)?.map((row: any) => ({
         ...row,
@@ -385,12 +396,12 @@ export default function Roster() {
       setFlights([]);
       return;
     }
-    const todayLocal = getLocalDateString();
+    const minFlightDate = getLocalDateStringPlusDays(-1);
     let { data, error } = await supabase
       .from('flights')
       .select('id, flight_number, origin_airport, destination_airport, origin_city, destination_city, flight_date, scheduled_departure, scheduled_arrival, actual_departure, actual_arrival, is_delayed, flight_status, schedule_unconfirmed, schedule_source_hint, diverted_to, crew_profiles(company_name)')
       .in('crew_id', crewIds)
-      .gte('flight_date', todayLocal)
+      .gte('flight_date', minFlightDate)
       .order('flight_date', { ascending: true })
       .limit(50);
 
@@ -407,7 +418,7 @@ export default function Roster() {
         .from('flights')
         .select(selectCols)
         .in('crew_id', crewIds)
-        .gte('flight_date', todayLocal)
+        .gte('flight_date', minFlightDate)
         .order('flight_date', { ascending: true })
         .limit(50);
       console.log('[FamilyRoster] flights fetched (fallback)', fallback?.length ?? 0);
@@ -420,17 +431,13 @@ export default function Roster() {
     setFlights(data ?? []);
   }, [isCrew, profile?.id]);
 
-  const refreshFamilyList = useCallback(async () => {
+  /** Family: API’den güncelle (öncelik). Crew uçarken offline; family tek başına bilgi alır. */
+  const refreshFamilyListFromApi = useCallback(async (listOverride?: Flight[]) => {
     if (isCrew || !profile?.id) return;
-    setRefreshingList(true);
-    await refreshFamilyListFromDb();
-    setRefreshingList(false);
-  }, [isCrew, profile?.id, refreshFamilyListFromDb]);
-
-  const refreshFamilyListFromApi = useCallback(async () => {
-    if (isCrew || !profile?.id || flightsRef.current.length === 0) return;
-    setRefreshingList(true);
-    const list = flightsRef.current;
+    const list = listOverride ?? flightsRef.current;
+    if (list.length === 0) return;
+    const singleFlight = listOverride?.length === 1;
+    if (!singleFlight) setRefreshingList(true);
     const updates: Array<{
       flightId: string;
       scheduled_departure?: string | null;
@@ -484,17 +491,29 @@ export default function Roster() {
     if (updates.length > 0) {
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.access_token) {
-        const { data, error } = await supabase.functions.invoke('update-flights-from-api', {
+        await supabase.functions.invoke('update-flights-from-api', {
           body: { updates },
           headers: { Authorization: `Bearer ${session.access_token}` },
         });
-        console.log('[Family Update] update-flights-from-api result', { data: data ?? null, error: error?.message ?? null });
-      } else {
-        console.log('[Family Update] No access token; cannot invoke update-flights-from-api');
       }
-    } else {
-      console.log('[Family Update] No updates to apply');
     }
+    if (singleFlight && list[0]) {
+      const id = list[0].id;
+      const { data: one } = await supabase
+        .from('flights')
+        .select('id, flight_number, origin_airport, destination_airport, origin_city, destination_city, flight_date, scheduled_departure, scheduled_arrival, actual_departure, actual_arrival, is_delayed, flight_status, schedule_unconfirmed, schedule_source_hint, diverted_to, crew_profiles(company_name)')
+        .eq('id', id)
+        .single();
+      if (one) setFlights((prev) => prev.map((f) => (f.id === id ? { ...f, ...one } : f)));
+    } else {
+      await refreshFamilyListFromDb();
+    }
+    if (!singleFlight) setRefreshingList(false);
+  }, [isCrew, profile?.id, refreshFamilyListFromDb]);
+
+  const refreshFamilyList = useCallback(async () => {
+    if (isCrew || !profile?.id) return;
+    setRefreshingList(true);
     await refreshFamilyListFromDb();
     setRefreshingList(false);
   }, [isCrew, profile?.id, refreshFamilyListFromDb]);
@@ -511,37 +530,41 @@ export default function Roster() {
 
   useLayoutEffect(() => {
     navigation.setOptions({
-      headerRight: isCrew ? () => (
-        <TouchableOpacity
-          onPress={() => refreshTimesFromApi()}
-          disabled={updatingTimes || flights.length === 0}
-          style={styles.headerButton}
-        >
-          {updatingTimes ? (
-            <ActivityIndicator size="small" color={colors.white} />
-          ) : (
-            <View style={styles.headerButtonContent}>
-              <Ionicons name="sync-outline" size={20} color={colors.white} />
-              <Text style={styles.headerButtonText}>{t('roster.sync')}</Text>
-            </View>
-          )}
-        </TouchableOpacity>
-      ) : !isCrew && profile ? () => (
-        <TouchableOpacity
-          onPress={() => refreshFamilyListFromApi()}
-          disabled={refreshingList || flights.length === 0}
-          style={styles.headerButton}
-        >
-          {refreshingList ? (
-            <ActivityIndicator size="small" color={colors.white} />
-          ) : (
-            <View style={styles.headerButtonContent}>
-              <Ionicons name="sync-outline" size={20} color={colors.white} />
-              <Text style={styles.headerButtonText}>{t('roster.sync')}</Text>
-            </View>
-          )}
-        </TouchableOpacity>
-      ) : undefined,
+      headerRight: isCrew
+        ? () => (
+            <TouchableOpacity
+              onPress={() => refreshTimesFromApi()}
+              disabled={updatingTimes || flights.length === 0}
+              style={styles.headerButton}
+            >
+              {updatingTimes ? (
+                <ActivityIndicator size="small" color={colors.white} />
+              ) : (
+                <View style={styles.headerButtonContent}>
+                  <Ionicons name="sync-outline" size={20} color={colors.white} />
+                  <Text style={styles.headerButtonText}>{t('roster.sync')}</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          )
+        : profile
+          ? () => (
+              <TouchableOpacity
+                onPress={() => refreshFamilyListFromApi()}
+                disabled={refreshingList || flights.length === 0}
+                style={styles.headerButton}
+              >
+                {refreshingList ? (
+                  <ActivityIndicator size="small" color={colors.white} />
+                ) : (
+                  <View style={styles.headerButtonContent}>
+                    <Ionicons name="sync-outline" size={20} color={colors.white} />
+                    <Text style={styles.headerButtonText}>{t('roster.sync')}</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            )
+          : undefined,
     });
   }, [navigation, isCrew, profile, refreshTimesFromApi, refreshFamilyListFromApi, updatingTimes, refreshingList, flights.length]);
 
@@ -575,14 +598,14 @@ export default function Roster() {
       };
 
       if (isCrew && crewProfile?.id) {
-        const todayLocal = getLocalDateString();
+        const minFlightDate = getLocalDateStringPlusDays(-1);
         const selectCols =
           'id, flight_number, origin_airport, destination_airport, origin_city, destination_city, flight_date, scheduled_departure, scheduled_arrival, actual_departure, actual_arrival, is_delayed, flight_status, schedule_unconfirmed, schedule_source_hint, diverted_to';
         supabase
           .from('flights')
           .select(selectCols)
           .eq('crew_id', crewProfile.id)
-          .gte('flight_date', todayLocal)
+          .gte('flight_date', minFlightDate)
           .order('flight_date', { ascending: true })
           .then(async ({ data, error }) => {
             if (error) {
@@ -604,7 +627,7 @@ export default function Roster() {
                   .from('flights')
                   .select(fallbackCols)
                   .eq('crew_id', crewProfile.id)
-                  .gte('flight_date', todayLocal)
+                  .gte('flight_date', minFlightDate)
                   .order('flight_date', { ascending: true });
 
                 if (!err2 && fallback && !cancelled) {
@@ -711,7 +734,7 @@ export default function Roster() {
   const getFlightStatus = (f: Flight): FlightStatus => {
     const fromApi = f.flight_status as FlightStatus | null | undefined;
     if (fromApi && ['cancelled', 'diverted', 'incident', 'redirected', 'scheduled', 'taxi_out', 'departed', 'en_route', 'landed', 'parked'].includes(fromApi)) {
-      return fromApi;
+      return fromApi === 'parked' ? 'landed' : fromApi;
     }
     return 'scheduled';
   };
@@ -721,7 +744,6 @@ export default function Roster() {
     departed: { label: t('roster.statusDeparted') },
     en_route: { label: t('roster.statusEnRoute') },
     landed: { label: t('roster.statusLanded') },
-    parked: { label: t('roster.statusParked') },
     cancelled: { label: t('roster.statusCancelled') },
     diverted: { label: t('roster.statusDiverted') },
     incident: { label: t('roster.statusIncident') },
@@ -850,14 +872,44 @@ export default function Roster() {
               />
             }
             renderItem={({ item, index }) => {
-            const renderLeftActions = () => (
-              <TouchableOpacity
-                style={styles.swipeDelete}
-                onPress={() => handleDelete(item)}
-              >
-                <Text style={styles.swipeDeleteText}>{t('common.delete')}</Text>
-              </TouchableOpacity>
-            );
+            const runUpdateAndClose = () => {
+              setUpdatingFlightIds((prev) => ({ ...prev, [item.id]: true }));
+              const done = () => {
+                setUpdatingFlightIds((prev) => ({ ...prev, [item.id]: false }));
+                swipeableRefs.current[item.id]?.close();
+              };
+              if (isCrew) {
+                refreshTimesFromApi(true, [item]).finally(done);
+              } else {
+                refreshFamilyListFromApi([item]).finally(done);
+              }
+            };
+            const renderLeftActions = () => {
+              const isUpdating = !!updatingFlightIds[item.id];
+              return (
+                <View style={[styles.swipeActionsRow, styles.swipeUpdate]}>
+                  <View style={styles.swipeUpdateContent}>
+                    <Text style={styles.swipeUpdateText}>{t('roster.sync')}</Text>
+                    {isUpdating && (
+                      <ActivityIndicator size="small" color={colors.white} style={styles.swipeUpdateSpinner} />
+                    )}
+                  </View>
+                </View>
+              );
+            };
+            const renderRightActions = () =>
+              !isCrew
+                ? null
+                : (
+                  <View style={styles.swipeActionsRow}>
+                    <TouchableOpacity
+                      style={styles.swipeDelete}
+                      onPress={() => handleDelete(item)}
+                    >
+                      <Text style={styles.swipeDeleteText}>{t('common.delete')}</Text>
+                    </TouchableOpacity>
+                  </View>
+                );
             const status = getFlightStatus(item);
             const displayStatus = status;
             const statusBox = statusConfig[displayStatus];
@@ -866,15 +918,14 @@ export default function Roster() {
             const isEnRoute = displayStatus === 'en_route' || displayStatus === 'departed';
             const showNextDayHint = nextDayHintById[item.id] === true;
             const statusLabelText =
-              (displayStatus === 'en_route' || displayStatus === 'departed' || displayStatus === 'landed' || displayStatus === 'parked' || displayStatus === 'taxi_out' || displayStatus === 'scheduled' || displayStatus === 'diverted' || displayStatus === 'cancelled') ? null
+              (displayStatus === 'en_route' || displayStatus === 'departed' || displayStatus === 'landed' || displayStatus === 'taxi_out' || displayStatus === 'scheduled' || displayStatus === 'diverted' || displayStatus === 'cancelled') ? null
                   : statusBox.label;
             const statusWithCenterIcon =
-              displayStatus === 'en_route' || displayStatus === 'departed' || displayStatus === 'landed' || displayStatus === 'parked'
+              displayStatus === 'en_route' || displayStatus === 'departed' || displayStatus === 'landed'
               || displayStatus === 'taxi_out' || displayStatus === 'scheduled' || displayStatus === 'diverted' || displayStatus === 'cancelled';
             const statusIsError = displayStatus === 'diverted' || displayStatus === 'cancelled';
             const statusCenterIcon =
               displayStatus === 'landed' ? '✅'
-              : displayStatus === 'parked' ? '✓'
               : (displayStatus === 'en_route' || displayStatus === 'departed') ? '⏰'
               : null;
             const flightIndex = index + 1;
@@ -907,7 +958,7 @@ export default function Roster() {
                       >
                         <Text style={styles.depArrPrefix}>{t('roster.dep')} </Text>
                         {depCity}
-                        <Text style={styles.depArrTimes}> – {formatTimeLocal(item.actual_departure ?? item.scheduled_departure)} ({localTzTag}) / {formatTimeUTC(item.actual_departure ?? item.scheduled_departure)} (Z)</Text>
+                        <Text style={styles.depArrTimes}> – {formatTimeLocal(item.scheduled_departure)} ({localTzTag}) / {formatTimeUTC(item.scheduled_departure)} (Z)</Text>
                       </Text>
                       <Text
                         style={[styles.depArrLine, { color: colors.text }]}
@@ -916,7 +967,7 @@ export default function Roster() {
                       >
                         <Text style={styles.depArrPrefix}>{t('roster.arr')} </Text>
                         {arrCity}
-                        <Text style={styles.depArrTimes}> – {formatTimeLocal(item.actual_arrival ?? item.scheduled_arrival)} ({localTzTag}) / {formatTimeUTC(item.actual_arrival ?? item.scheduled_arrival)} (Z)</Text>
+                        <Text style={styles.depArrTimes}> – {formatTimeLocal(item.scheduled_arrival)} ({localTzTag}) / {formatTimeUTC(item.scheduled_arrival)} (Z)</Text>
                       </Text>
                       {item.schedule_unconfirmed === true && item.schedule_source_hint !== 'fr24_first_last_seen' && !scheduleSourceHintById[item.id] && (
                         <Text style={[styles.toBeUpdated, { color: colors.textMuted }]} accessibilityLabel="Schedule to be updated">
@@ -944,32 +995,34 @@ export default function Roster() {
                   accessibilityLabel="Track on FR24"
                 >
                   <View style={styles.statusBoxInner}>
-                    {statusWithCenterIcon ? (
-                      <>
-                        <Text style={[styles.statusLabel, { color: statusIsError ? colors.error : displayStatus === 'landed' ? colors.success : colors.text }]}>
-                          {displayStatus === 'diverted' && item.diverted_to ? t('roster.divertedTo', { airport: item.diverted_to }) : statusBox.label}
+                    <View style={styles.statusContentCenter}>
+                      {statusWithCenterIcon ? (
+                        <>
+                          <Text style={[styles.statusLabel, { color: statusIsError ? colors.error : displayStatus === 'landed' ? colors.success : colors.text }]}>
+                            {displayStatus === 'diverted' && item.diverted_to ? t('roster.divertedTo', { airport: item.diverted_to }) : statusBox.label}
+                          </Text>
+                          <View style={styles.statusClockCenter}>
+                            {displayStatus === 'taxi_out' ? (
+                              <Ionicons name="radio-outline" size={28} color={colors.text} />
+                            ) : displayStatus === 'scheduled' ? (
+                              <Ionicons name="calendar-outline" size={28} color={colors.text} />
+                            ) : displayStatus === 'diverted' ? (
+                              <Ionicons name="arrow-redo-outline" size={28} color={colors.error} />
+                            ) : displayStatus === 'cancelled' ? (
+                              <Ionicons name="close-circle-outline" size={28} color={colors.error} />
+                            ) : (
+                              <Text style={styles.statusClockIcon}>{statusCenterIcon}</Text>
+                            )}
+                          </View>
+                        </>
+                      ) : (
+                        <Text style={[styles.statusLabel, { color: colors.text }]}>
+                          {statusLabelText}
                         </Text>
-                        <View style={styles.statusClockCenter}>
-                          {displayStatus === 'taxi_out' ? (
-                            <Ionicons name="business-outline" size={24} color={colors.text} />
-                          ) : displayStatus === 'scheduled' ? (
-                            <Ionicons name="calendar-outline" size={24} color={colors.text} />
-                          ) : displayStatus === 'diverted' ? (
-                            <Ionicons name="arrow-redo-outline" size={24} color={colors.error} />
-                          ) : displayStatus === 'cancelled' ? (
-                            <Ionicons name="close-circle-outline" size={24} color={colors.error} />
-                          ) : (
-                            <Text style={styles.statusClockIcon}>{statusCenterIcon}</Text>
-                          )}
-                        </View>
-                      </>
-                    ) : (
-                      <Text style={[styles.statusLabel, { color: colors.text }]}>
-                        {statusLabelText}
-                      </Text>
-                    )}
+                      )}
+                    </View>
                     <View style={styles.trackInStatusRow}>
-                      <Ionicons name="location-outline" size={18} color={colors.accent} />
+                      <Ionicons name="location-outline" size={12} color={colors.accent} />
                       <Text style={[styles.trackInStatusText, { color: colors.primary }]}>{t('roster.trackOnFr24')}</Text>
                     </View>
                   </View>
@@ -977,18 +1030,25 @@ export default function Roster() {
               </View>
             );
             const cardContent = (
-              <View style={[styles.card, (displayStatus === 'landed' || displayStatus === 'parked') && styles.cardLanded]}>
-                {cardInner}
+              <Swipeable
+                ref={(r) => { swipeableRefs.current[item.id] = r; }}
+                renderLeftActions={renderLeftActions}
+                renderRightActions={renderRightActions}
+                leftThreshold={20}
+                onSwipeableOpen={runUpdateAndClose}
+                overshootLeft={false}
+                overshootRight={false}
+              >
+                <View style={[styles.card, displayStatus === 'landed' && styles.cardLanded]}>
+                  {cardInner}
+                </View>
+              </Swipeable>
+            );
+            return (
+              <View style={styles.itemWrapper}>
+                {cardContent}
               </View>
             );
-            if (isCrew) {
-              return (
-                <Swipeable renderLeftActions={renderLeftActions} overshootLeft={false}>
-                  {cardContent}
-                </Swipeable>
-              );
-            }
-            return cardContent;
           }}
           />
           {isCrew && flights.length > 0 && (
@@ -1051,10 +1111,10 @@ const styles = StyleSheet.create({
   },
   clearAllButtonContent: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   clearAllButtonText: { color: colors.white, fontWeight: '700', fontSize: 16 },
+  itemWrapper: { marginBottom: 12 },
   card: {
     backgroundColor: colors.surface,
     borderRadius: 12,
-    marginBottom: 12,
     borderWidth: 1,
     borderColor: colors.border,
     overflow: 'hidden',
@@ -1100,11 +1160,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     alignSelf: 'stretch',
   },
-  statusLabel: { fontSize: 17, fontWeight: '900', textAlign: 'center' },
-  statusClockCenter: { flex: 1, justifyContent: 'center', alignItems: 'center', minHeight: 24 },
-  statusClockIcon: { fontSize: 22 },
-  trackInStatusRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
-  trackInStatusText: { fontSize: 10, fontWeight: '700', textAlign: 'center' },
+  statusLabel: { fontSize: 20, fontWeight: '900', textAlign: 'center' },
+  statusClockCenter: { flex: 1, justifyContent: 'center', alignItems: 'center', minHeight: 30 },
+  statusClockIcon: { fontSize: 26 },
+  trackInStatusRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, marginTop: 0 },
+  trackInStatusText: { fontSize: 12, fontWeight: '700', fontStyle: 'italic', textAlign: 'center' },
   toBeUpdated: { marginTop: 10, fontSize: 12 },
   toBeUpdatedItalic: { fontStyle: 'italic' },
   nextDayHint: { marginTop: 6, fontSize: 11, opacity: 0.85 },
@@ -1122,13 +1182,33 @@ const styles = StyleSheet.create({
   depArrLine: { fontSize: 13, marginTop: 6 },
   depArrPrefix: { fontWeight: '600' },
   depArrTimes: { fontWeight: '400', color: colors.textMuted, fontSize: 13 },
+  swipeActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: '100%',
+  },
+  swipeUpdate: {
+    backgroundColor: colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 90,
+    height: '100%',
+    borderRadius: 12,
+    marginRight: 8,
+  },
+  swipeUpdateContent: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  swipeUpdateText: { color: colors.white, fontWeight: '700', fontSize: 14 },
+  swipeUpdateSpinner: { marginTop: 6 },
   swipeDelete: {
     backgroundColor: colors.error,
     justifyContent: 'center',
     alignItems: 'center',
     width: 80,
+    height: '100%',
     borderRadius: 12,
-    marginBottom: 12,
   },
   swipeDeleteText: { color: colors.white, fontWeight: '700', fontSize: 14 },
   empty: { textAlign: 'center', marginTop: 48, fontSize: 16 },
