@@ -1,0 +1,8 @@
+# Let EAS run prebuild on the server so app.config.js / plugins are applied.
+# Uploading local ios/ can cause build mismatches. android/ is included so
+# android/app/google-services.json is available for :app:processReleaseGoogleServices.
+ios/
+# Shrink upload
+.git/
+*.log
+node_modules/.cache
