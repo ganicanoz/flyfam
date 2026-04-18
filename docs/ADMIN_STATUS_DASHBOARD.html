@@ -1,0 +1,936 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>FlyFam Admin Dashboard</title>
+  <style>
+    :root {
+      --bg: #eef2f7;
+      --sidebar: #ffffff;
+      --panel: #ffffff;
+      --panel-soft: #f7f9fc;
+      --text: #1f2937;
+      --muted: #64748b;
+      --line: #d6deea;
+      --ok: #16a34a;
+      --warn: #d97706;
+      --bad: #dc2626;
+      --brand: #2563eb;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      color: var(--text);
+      background: var(--bg);
+    }
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      background: rgba(255, 255, 255, 0.96);
+      border-bottom: 1px solid var(--line);
+      backdrop-filter: blur(8px);
+      padding: 10px 14px;
+    }
+    .topbar-inner {
+      display: grid;
+      grid-template-columns: 220px 1fr;
+      gap: 10px;
+      align-items: center;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .brand img {
+      width: 34px;
+      height: 34px;
+      border-radius: 8px;
+      object-fit: contain;
+      border: 1px solid var(--line);
+      background: #fff;
+    }
+    .brand-title { font-weight: 700; font-size: 16px; }
+    .app { min-height: calc(100vh - 74px); display: grid; grid-template-columns: 260px 1fr; }
+    .sidebar {
+      background: var(--sidebar);
+      border-right: 1px solid var(--line);
+      padding: 14px;
+      position: sticky;
+      top: 76px;
+      height: calc(100vh - 76px);
+      overflow: auto;
+    }
+    .main { padding: 14px; }
+    h1 { margin: 0 0 2px; font-size: 20px; }
+    h2 { margin: 0 0 4px; font-size: 17px; }
+    .sub { margin: 0 0 10px; color: var(--muted); font-size: 12px; }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 10px;
+      margin-bottom: 10px;
+    }
+    .mini { font-size: 12px; color: var(--muted); }
+    .hidden { display: none !important; }
+    .grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 8px; }
+    .kpi-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+    .card { background: var(--panel-soft); border: 1px solid #2f3b49; border-radius: 8px; padding: 10px; }
+    .card h3 { margin: 0; font-size: 13px; color: var(--muted); font-weight: 600; }
+    .num { font-size: 24px; font-weight: 700; margin-top: 2px; }
+    .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    input, select, textarea {
+      background: #ffffff;
+      border: 1px solid #c9d5e6;
+      border-radius: 6px;
+      color: var(--text);
+      padding: 7px;
+      width: 100%;
+      font-size: 12px;
+    }
+    textarea { min-height: 64px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    button {
+      background: #f4f7fd;
+      color: var(--text);
+      border: 1px solid #c7d5ea;
+      border-radius: 6px;
+      padding: 7px 10px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    button:hover { border-color: #8ea8cf; background: #eef4ff; }
+    .btnPrimary { background: #2563eb; border-color: #1d4ed8; color: #fff; }
+    .btnPrimary:hover { background: #1d4ed8; border-color: #1e40af; }
+    .btnDanger { background: #fef2f2; border-color: #fecaca; color: #b91c1c; }
+    .btnDanger:hover { border-color: #ef4444; }
+    .btnSmall { padding: 4px 7px; font-size: 12px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td {
+      border-bottom: 1px solid #e3eaf5;
+      padding: 6px 5px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th { color: var(--muted); font-weight: 600; }
+    .badge {
+      padding: 2px 6px;
+      border-radius: 999px;
+      border: 1px solid #c7d2e5;
+      font-size: 11px;
+      display: inline-block;
+      margin-right: 6px;
+      margin-top: 4px;
+      background: #f8fbff;
+    }
+    .phase-active { border-color: #2563eb; color: #2563eb; }
+    .phase-semi_active { border-color: #f59e0b; color: #b45309; }
+    .phase-passive_past, .phase-passive_future, .phase-passive_upcoming { border-color: #94a3b8; color: #64748b; }
+    .bar { height: 6px; border-radius: 999px; background: #e5edf8; overflow: hidden; width: 100%; max-width: 160px; }
+    .bar > span { display: block; height: 100%; background: linear-gradient(90deg, #2563eb, #60a5fa); }
+    .ok { color: var(--ok); } .warn { color: var(--warn); } .bad { color: var(--bad); }
+    .route { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; font-weight: 600; color: #334155; }
+    .route .line { width: 26px; height: 2px; background: #60a5fa; border-radius: 2px; display: inline-block; }
+    .menu { margin-top: 12px; display: flex; flex-direction: column; gap: 8px; }
+    .menu button { text-align: left; width: 100%; }
+    .menu button.active { background: #eaf2ff; border-color: #9eb9e5; color: #1e3a8a; }
+    .submenu { display: flex; gap: 8px; margin-bottom: 10px; }
+    .sub-btn.active { background: #dbeafe; border-color: #93c5fd; color: #1e3a8a; }
+    .subview { display: none; }
+    .subview.active { display: block; }
+    .flight-edit-row { display: none; }
+    .flight-edit-row.open { display: table-row; }
+    .flight-edit-box { background: #f8fbff; border: 1px dashed #bfd3f3; border-radius: 8px; padding: 8px; }
+    .users-toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; align-items: end; }
+    .users-toolbar > div { min-width: 180px; }
+    .view { display: none; }
+    .view.active { display: block; }
+    @media (max-width: 1100px) {
+      .topbar-inner { grid-template-columns: 1fr; }
+      .app { grid-template-columns: 1fr; min-height: auto; }
+      .sidebar { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--line); top: 0; }
+      .kpi-row { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <img src="./Görseller/image.png" alt="FlyFam logo" onerror="this.style.display='none'" />
+        <div>
+          <div class="brand-title">FlyFam Admin</div>
+          <div class="mini">New light admin panel</div>
+        </div>
+      </div>
+      <div class="panel" style="margin:0;">
+        <div class="grid">
+          <div style="grid-column: span 3;"><label class="mini">Supabase URL</label><input id="supabaseUrl" placeholder="https://xxx.supabase.co" /></div>
+          <div style="grid-column: span 3;"><label class="mini">Anon key</label><input id="anonKey" placeholder="eyJhbGciOi..." /></div>
+          <div style="grid-column: span 2;"><label class="mini">Admin Email</label><input id="email" placeholder="admin@..." /></div>
+          <div style="grid-column: span 2;"><label class="mini">Password</label><input id="password" type="password" /></div>
+          <div style="grid-column: span 2; display:flex; align-items:end; gap:6px; justify-content:flex-end;">
+            <button id="btnLogin" class="btnPrimary">Login + Refresh</button>
+            <button id="btnRefresh">Refresh</button>
+            <button id="btnLogout">Logout</button>
+            <button id="btnToggleAdvanced">+ Advanced</button>
+          </div>
+          <div id="advancedHint" style="grid-column: span 12;" class="mini hidden">Advanced fields are hidden. Click "+ Advanced" to edit Supabase URL, key, and admin email.</div>
+          <div style="grid-column: span 12;"><span id="status" class="mini"></span></div>
+        </div>
+      </div>
+    </div>
+  </header>
+  <div class="app">
+    <aside class="sidebar">
+      <h2>Menu</h2>
+      <p class="sub">Details on the left, summary on home</p>
+      <nav class="menu">
+        <button class="nav-btn active" data-view="overviewView">Overview</button>
+        <button class="nav-btn" data-view="usersView">Users</button>
+        <button class="nav-btn" data-view="flightsView">Flights</button>
+        <button class="nav-btn" data-view="usageView">Quota / Usage</button>
+      </nav>
+    </aside>
+    <main class="main">
+      <section id="overviewView" class="view active">
+        <h1>Overview</h1>
+        <p class="sub">Summary metrics on the home screen</p>
+        <div class="kpi-row">
+          <div class="card">
+            <h3>Active database users</h3>
+            <div class="num" id="usersActive">-</div>
+            <div class="mini">Total: <span id="usersTotal">-</span> · Active in last 30 days</div>
+          </div>
+          <div class="card">
+            <h3>Flights and phases</h3>
+            <div class="num" id="flightsActive">-</div>
+            <div class="mini">Total: <span id="flightsTotal">-</span> · active + semi_active</div>
+            <div id="phaseSummary" class="mini" style="margin-top:6px;"></div>
+          </div>
+          <div class="card">
+            <h3>API quota / usage</h3>
+            <div class="num" id="usageConfigured">-</div>
+            <div class="mini" id="usageShortHint">Quota summary</div>
+          </div>
+        </div>
+      </section>
+
+      <section id="usersView" class="view">
+        <div class="panel">
+          <h3 style="margin:0 0 8px;">User details</h3>
+          <div class="users-toolbar">
+            <div>
+              <label class="mini">User type filter</label>
+              <select id="userTypeFilter">
+                <option value="all">All</option>
+                <option value="real">Real users</option>
+                <option value="test">Test accounts</option>
+                <option value="unlabeled">Unlabeled</option>
+              </select>
+            </div>
+            <div>
+              <label class="mini">Airline filter</label>
+              <select id="airlineFilter">
+                <option value="all">All airlines</option>
+              </select>
+            </div>
+          </div>
+          <table><thead><tr><th>#</th><th>Full name</th><th>Email</th><th>ID (short)</th><th>Role</th><th>Airline</th><th>User type</th><th>Last sign in</th><th>Password</th><th>Action</th></tr></thead><tbody id="usersBody"></tbody></table>
+        </div>
+      </section>
+
+      <section id="flightsView" class="view">
+        <div class="panel">
+          <h3 style="margin:0 0 8px;">Flight details</h3>
+          <div class="submenu">
+            <button id="flightsListTab" class="sub-btn active" data-subview="flightsListView">Flight list</button>
+            <button id="flightsCreateTab" class="sub-btn" data-subview="flightsCreateView">Add flight</button>
+          </div>
+          <div id="flightsCreateView" class="subview">
+            <div class="panel" style="margin-bottom:8px;">
+              <h3 style="margin:0 0 8px;">GOD Tools · Create flight</h3>
+              <div class="grid">
+                <div style="grid-column: span 2;"><input id="newFlightNo" placeholder="PC1234" /></div>
+                <div style="grid-column: span 2;"><input id="newFlightDate" placeholder="YYYY-MM-DD" /></div>
+                <div style="grid-column: span 2;"><input id="newOrigin" placeholder="DEP (SAW)" /></div>
+                <div style="grid-column: span 2;"><input id="newDestination" placeholder="DES (ADB)" /></div>
+                <div style="grid-column: span 2;"><input id="newStdUtc" placeholder="STD UTC ISO" /></div>
+                <div style="grid-column: span 2;"><input id="newStaUtc" placeholder="STA UTC ISO" /></div>
+                <div style="grid-column: span 8;"><label class="mini">Select crew (multi-select):</label><select id="newCrewIds" multiple style="min-height:74px;"></select></div>
+                <div style="grid-column: span 4; display:flex; align-items:end;"><button id="btnCreateFlight" class="btnPrimary">Create flight</button></div>
+              </div>
+            </div>
+          </div>
+          <div id="flightsListView" class="subview active">
+            <div class="panel" style="margin-bottom:8px;">
+            <h3 style="margin:0 0 8px;">GOD Tools · Bulk flight actions</h3>
+            <div class="grid">
+              <div style="grid-column: span 6;"><label class="mini">Flight ID list (comma or newline)</label><textarea id="bulkFlightIds" placeholder="uuid-1,uuid-2"></textarea></div>
+              <div style="grid-column: span 3;">
+                <label class="mini">Bulk phase</label>
+                <select id="bulkPhase"><option value="">Select</option><option value="active">active</option><option value="semi_active">semi_active</option><option value="passive_future">passive_future</option><option value="passive_upcoming">passive_upcoming</option><option value="passive_past">passive_past</option></select>
+                <button id="btnBulkPhase" class="btnSmall" style="margin-top:6px;">Apply bulk phase</button>
+              </div>
+              <div style="grid-column: span 3;">
+                <label class="mini">Bulk status</label>
+                <select id="bulkStatus"><option value="">Select</option><option value="scheduled">scheduled</option><option value="taxi_out">taxi_out</option><option value="en_route">en_route</option><option value="landed">landed</option><option value="parked">parked</option><option value="cancelled">cancelled</option><option value="diverted">diverted</option></select>
+                <button id="btnBulkStatus" class="btnSmall" style="margin-top:6px;">Apply bulk status</button>
+                <button id="btnBulkDelete" class="btnDanger btnSmall" style="margin-top:6px;">Bulk delete</button>
+              </div>
+            </div>
+            </div>
+            <table><thead><tr><th>Flight</th><th>Route</th><th>Date</th><th>Phase</th><th>Status</th><th>Crew</th><th>Action</th></tr></thead><tbody id="flightsBody"></tbody></table>
+          </div>
+        </div>
+      </section>
+
+      <section id="usageView" class="view">
+        <div class="panel">
+          <h3 style="margin:0 0 8px;">API usage / quota (monthly)</h3>
+          <p class="mini" style="margin-top:0;">Quotas and usage are read from function env: <code>ADMIN_PROVIDER_QUOTAS_JSON</code>, <code>ADMIN_PROVIDER_MONTHLY_USAGE_JSON</code>. For FR24 live usage: <code>ADMIN_FR24_USAGE_URL</code>.</p>
+          <div class="panel">
+            <h3 style="margin:0 0 8px;">FR24 Login & Sync</h3>
+            <p class="mini" style="margin:0 0 8px;">If iframe login is blocked by FR24 security policy, use "Open FR24 login in new tab", then return and press "Fetch FR24 usage now".</p>
+            <div class="row" style="margin-bottom:8px;">
+              <button id="btnFr24Open">Open FR24 login in new tab</button>
+              <button id="btnFr24Fetch" class="btnPrimary">Fetch FR24 usage now</button>
+              <span id="fr24Status" class="mini"></span>
+            </div>
+            <iframe id="fr24Frame" src="https://fr24api.flightradar24.com/usage-metrics?period=30d" title="FR24 login" style="width:100%; min-height:420px; border:1px solid var(--line); border-radius:8px; background:#fff;"></iframe>
+          </div>
+          <p id="quotaHint" class="mini" style="margin-top:0;"></p>
+          <table><thead><tr><th>Provider</th><th>Quota</th><th>Used</th><th>Remaining</th><th>Cumulative</th><th>Cooldown</th></tr></thead><tbody id="usageBody"></tbody></table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const els = {
+      supabaseUrl: document.getElementById('supabaseUrl'),
+      anonKey: document.getElementById('anonKey'),
+      email: document.getElementById('email'),
+      password: document.getElementById('password'),
+      btnLogin: document.getElementById('btnLogin'),
+      btnRefresh: document.getElementById('btnRefresh'),
+      btnLogout: document.getElementById('btnLogout'),
+      btnToggleAdvanced: document.getElementById('btnToggleAdvanced'),
+      advancedHint: document.getElementById('advancedHint'),
+      status: document.getElementById('status'),
+      usersActive: document.getElementById('usersActive'),
+      usersTotal: document.getElementById('usersTotal'),
+      flightsActive: document.getElementById('flightsActive'),
+      flightsTotal: document.getElementById('flightsTotal'),
+      phaseSummary: document.getElementById('phaseSummary'),
+      usageConfigured: document.getElementById('usageConfigured'),
+      usageShortHint: document.getElementById('usageShortHint'),
+      navButtons: Array.from(document.querySelectorAll('.nav-btn')),
+      views: Array.from(document.querySelectorAll('.view')),
+      flightsSubButtons: Array.from(document.querySelectorAll('.sub-btn')),
+      flightSubViews: Array.from(document.querySelectorAll('.subview')),
+      usersBody: document.getElementById('usersBody'),
+      userTypeFilter: document.getElementById('userTypeFilter'),
+      airlineFilter: document.getElementById('airlineFilter'),
+      flightsBody: document.getElementById('flightsBody'),
+      usageBody: document.getElementById('usageBody'),
+      btnFr24Open: document.getElementById('btnFr24Open'),
+      btnFr24Fetch: document.getElementById('btnFr24Fetch'),
+      fr24Status: document.getElementById('fr24Status'),
+      newFlightNo: document.getElementById('newFlightNo'),
+      newFlightDate: document.getElementById('newFlightDate'),
+      newOrigin: document.getElementById('newOrigin'),
+      newDestination: document.getElementById('newDestination'),
+      newStdUtc: document.getElementById('newStdUtc'),
+      newStaUtc: document.getElementById('newStaUtc'),
+      newCrewIds: document.getElementById('newCrewIds'),
+      btnCreateFlight: document.getElementById('btnCreateFlight'),
+      bulkFlightIds: document.getElementById('bulkFlightIds'),
+      bulkPhase: document.getElementById('bulkPhase'),
+      bulkStatus: document.getElementById('bulkStatus'),
+      btnBulkPhase: document.getElementById('btnBulkPhase'),
+      btnBulkStatus: document.getElementById('btnBulkStatus'),
+      btnBulkDelete: document.getElementById('btnBulkDelete'),
+    };
+
+    const STORAGE_KEY = 'flyfam_admin_dashboard_cfg_v1';
+    const USER_META_KEY = 'flyfam_admin_user_meta_v1';
+    let accessToken = null;
+    let lastUsers = [];
+    let advancedVisible = false;
+    let userMeta = {};
+
+    function loadUserMeta() {
+      try {
+        userMeta = JSON.parse(localStorage.getItem(USER_META_KEY) || '{}') || {};
+      } catch {
+        userMeta = {};
+      }
+    }
+    function saveUserMeta() {
+      localStorage.setItem(USER_META_KEY, JSON.stringify(userMeta));
+    }
+
+    function saveCfg() {
+      const cfg = {
+        supabaseUrl: els.supabaseUrl.value.trim(),
+        anonKey: els.anonKey.value.trim(),
+        email: els.email.value.trim(),
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(cfg));
+    }
+
+    function loadCfg() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return;
+        const cfg = JSON.parse(raw);
+        els.supabaseUrl.value = cfg.supabaseUrl || '';
+        els.anonKey.value = cfg.anonKey || '';
+        els.email.value = cfg.email || '';
+      } catch {}
+    }
+
+    function setStatus(msg, level) {
+      els.status.textContent = msg;
+      els.status.className = 'mini ' + (level || '');
+    }
+    function setFr24Status(msg, level) {
+      if (!els.fr24Status) return;
+      els.fr24Status.textContent = msg;
+      els.fr24Status.className = 'mini ' + (level || '');
+    }
+    function updateAdvancedVisibility() {
+      const fields = [els.supabaseUrl, els.anonKey, els.email];
+      fields.forEach((el) => {
+        if (!el || !el.parentElement) return;
+        el.parentElement.classList.toggle('hidden', !advancedVisible);
+      });
+      if (els.advancedHint) {
+        els.advancedHint.classList.toggle('hidden', advancedVisible);
+      }
+      if (els.btnToggleAdvanced) {
+        els.btnToggleAdvanced.textContent = advancedVisible ? '- Advanced' : '+ Advanced';
+      }
+    }
+
+    function fmtDate(v) {
+      if (!v) return '-';
+      const d = new Date(v);
+      if (Number.isNaN(d.getTime())) return String(v);
+      return d.toLocaleString();
+    }
+
+    async function signIn() {
+      const url = els.supabaseUrl.value.trim();
+      const key = els.anonKey.value.trim();
+      const email = els.email.value.trim();
+      const password = els.password.value;
+      if (!url || !key || !email || !password) throw new Error('URL, key, email, and password are required');
+      const res = await fetch(url + '/auth/v1/token?grant_type=password', {
+        method: 'POST',
+        headers: { apikey: key, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.access_token) {
+        throw new Error(json.error_description || json.msg || 'Login failed');
+      }
+      accessToken = json.access_token;
+      return accessToken;
+    }
+
+    async function loadDashboard() {
+      const url = els.supabaseUrl.value.trim();
+      if (!url) throw new Error('Supabase URL is required');
+      if (!accessToken) throw new Error('Please login first');
+      const res = await fetch(url + '/functions/v1/admin-dashboard', {
+        headers: { Authorization: 'Bearer ' + accessToken },
+      });
+      let json = null;
+      try {
+        json = await res.json();
+      } catch {
+        json = null;
+      }
+      if (!res.ok) {
+        const details = json && typeof json === 'object' ? (json.error || json.message || JSON.stringify(json)) : null;
+        throw new Error('Dashboard request failed (' + res.status + ')' + (details ? ': ' + details : ''));
+      }
+      renderDashboard(json);
+    }
+
+    async function callAdminAction(action, payload) {
+      const url = els.supabaseUrl.value.trim();
+      if (!url) throw new Error('Supabase URL is required');
+      if (!accessToken) throw new Error('Please login first');
+      const res = await fetch(url + '/functions/v1/admin-dashboard', {
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer ' + accessToken,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ action, ...payload }),
+      });
+      const json = await res.json().catch(() => null);
+      if (!res.ok) {
+        const details = json && typeof json === 'object' ? (json.error || json.message || JSON.stringify(json)) : null;
+        throw new Error('Action failed (' + res.status + ')' + (details ? ': ' + details : ''));
+      }
+      return json;
+    }
+
+    async function triggerFr24Sync() {
+      const url = els.supabaseUrl.value.trim();
+      if (!url) throw new Error('Supabase URL is required');
+      if (!accessToken) throw new Error('Please login first');
+      const res = await fetch(url + '/functions/v1/sync-fr24-usage-metrics', {
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer ' + accessToken,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ source: 'admin_dashboard_html' }),
+      });
+      const json = await res.json().catch(() => null);
+      if (!res.ok) {
+        const details = json && typeof json === 'object' ? (json.error || json.message || JSON.stringify(json)) : null;
+        throw new Error('FR24 sync failed (' + res.status + ')' + (details ? ': ' + details : ''));
+      }
+      return json;
+    }
+
+    function renderPhaseSummary(summary) {
+      const parts = Object.entries(summary || {})
+        .sort((a, b) => String(a[0]).localeCompare(String(b[0])))
+        .map(([k, v]) => '<span class="badge phase-' + k + '">' + k + ': ' + v + '</span>');
+      els.phaseSummary.innerHTML = parts.join(' ');
+    }
+
+    function upsertAirlineFilter(rows) {
+      const fromData = (rows || []).map((u) => (u.airline || u.airline_code || userMeta[u.id]?.airline || '').trim()).filter(Boolean);
+      const fromMeta = Object.values(userMeta || {}).map((x) => (x?.airline || '').trim()).filter(Boolean);
+      const unique = Array.from(new Set([...fromData, ...fromMeta])).sort((a, b) => a.localeCompare(b));
+      const current = els.airlineFilter.value || 'all';
+      els.airlineFilter.innerHTML = '<option value="all">All airlines</option>' + unique.map((x) => '<option value="' + x + '">' + x + '</option>').join('');
+      if (unique.includes(current)) els.airlineFilter.value = current;
+    }
+
+    function renderUsers(rows) {
+      lastUsers = rows || [];
+      upsertAirlineFilter(lastUsers);
+      const typeFilter = els.userTypeFilter.value || 'all';
+      const airlineFilter = els.airlineFilter.value || 'all';
+      const sorted = lastUsers.slice().sort((a, b) => {
+        const ta = a.last_sign_in_at ? new Date(a.last_sign_in_at).getTime() : 0;
+        const tb = b.last_sign_in_at ? new Date(b.last_sign_in_at).getTime() : 0;
+        return tb - ta;
+      });
+      const filtered = sorted.filter((u) => {
+        const meta = userMeta[u.id] || {};
+        const type = meta.type || 'unlabeled';
+        const airline = (meta.airline || u.airline || u.airline_code || '').trim() || '-';
+        if (typeFilter !== 'all' && type !== typeFilter) return false;
+        if (airlineFilter !== 'all' && airline !== airlineFilter) return false;
+        return true;
+      });
+      els.usersBody.innerHTML = filtered.map((u, idx) => {
+        const meta = userMeta[u.id] || {};
+        const userType = meta.type || 'unlabeled';
+        const airline = (meta.airline || u.airline || u.airline_code || '').trim() || '-';
+        return (
+          '<tr>' +
+            '<td>' + (idx + 1) + '</td>' +
+            '<td>' + (u.full_name || '-') + '</td>' +
+            '<td>' + (u.email || '-') + '</td>' +
+            '<td><code>' + (u.id_short || '-') + '</code></td>' +
+            '<td>' + (u.role || '-') + '</td>' +
+            '<td><input data-role="airline" data-user-id="' + (u.id || '') + '" value="' + (airline === '-' ? '' : airline) + '" placeholder="e.g. Pegasus" /></td>' +
+            '<td><select data-role="user-type" data-user-id="' + (u.id || '') + '"><option value="unlabeled"' + (userType === 'unlabeled' ? ' selected' : '') + '>unlabeled</option><option value="real"' + (userType === 'real' ? ' selected' : '') + '>real</option><option value="test"' + (userType === 'test' ? ' selected' : '') + '>test</option></select></td>' +
+            '<td>' + fmtDate(u.last_sign_in_at) + '</td>' +
+            '<td><input type="password" data-role="new-password" data-user-id="' + (u.id || '') + '" placeholder="min 8 chars" /></td>' +
+            '<td><button class="btnSmall" data-action="save-user-meta" data-user-id="' + (u.id || '') + '">Save tags</button> <button class="btnSmall" data-action="change-user-password" data-user-id="' + (u.id || '') + '">Change password</button> <button class="btnDanger btnSmall" data-action="delete-user" data-user-id="' + (u.id || '') + '" data-user-email="' + (u.email || '-') + '">Delete</button></td>' +
+          '</tr>'
+        );
+      }).join('');
+    }
+
+    function renderCrewDirectory(rows) {
+      const crews = (rows || []).filter((x) => x && x.crew_id);
+      els.newCrewIds.innerHTML = crews
+        .map((c) => '<option value="' + c.crew_id + '">' + ((c.full_name || '-') + ' · ' + (c.email || '-')) + '</option>')
+        .join('');
+    }
+
+    function renderFlights(rows) {
+      const phasePriority = { active: 0, semi_active: 1, passive_future: 2, passive_upcoming: 3, passive_past: 4 };
+      const sorted = (rows || []).slice().sort((a, b) => {
+        const pa = phasePriority[a.api_refresh_phase] ?? 9;
+        const pb = phasePriority[b.api_refresh_phase] ?? 9;
+        if (pa !== pb) return pa - pb;
+        const ta = a.scheduled_departure ? new Date(a.scheduled_departure).getTime() : Number.POSITIVE_INFINITY;
+        const tb = b.scheduled_departure ? new Date(b.scheduled_departure).getTime() : Number.POSITIVE_INFINITY;
+        if (ta !== tb) return ta - tb;
+        return String(a.flight_date || '').localeCompare(String(b.flight_date || ''));
+      });
+
+      function crewCellHtml(names) {
+        const list = Array.isArray(names) ? names.filter(Boolean) : [];
+        if (list.length === 0) return '-';
+        if (list.length === 1) return list[0];
+        return '<details><summary>' + list.length + ' people</summary>' +
+          list.map((n) => '<div>' + n + '</div>').join('') +
+          '</details>';
+      }
+
+      els.flightsBody.innerHTML = sorted.map((f) => (
+        '<tr>' +
+          '<td>' + (f.flight_number || '-') + '</td>' +
+          '<td><span class="route"><span>' + (f.origin_airport || '-') + '</span><span class="line"></span><span>' + (f.destination_airport || '-') + '</span></span></td>' +
+          '<td>' + (f.scheduled_departure ? fmtDate(f.scheduled_departure) : (f.flight_date || '-')) + '</td>' +
+          '<td><span class="badge phase-' + (f.api_refresh_phase || 'unknown') + '">' + (f.api_refresh_phase || 'unknown') + '</span></td>' +
+          '<td><span class="badge">' + (f.flight_status || '-') + '</span></td>' +
+          '<td>' + crewCellHtml(f.crew_names) + '</td>' +
+          '<td>' +
+            '<button class="btnSmall" data-action="toggle-edit" data-flight-id="' + (f.id || '') + '">Modify flight</button>' +
+            '<button class="btnDanger btnSmall" data-action="delete-flight" data-flight-id="' + (f.id || '') + '" data-flight-no="' + (f.flight_number || '-') + '">Delete</button>' +
+          '</td>' +
+        '</tr>' +
+        '<tr class="flight-edit-row" id="edit-row-' + (f.id || '') + '">' +
+          '<td colspan="7">' +
+            '<div class="flight-edit-box">' +
+            '<div class="row">' +
+              '<select data-role="phase">' +
+                '<option value="">Select phase</option>' +
+                '<option value="active">active</option>' +
+                '<option value="semi_active">semi_active</option>' +
+                '<option value="passive_future">passive_future</option>' +
+                '<option value="passive_upcoming">passive_upcoming</option>' +
+                '<option value="passive_past">passive_past</option>' +
+              '</select>' +
+              '<button class="btnSmall" data-action="set-flight-phase" data-flight-id="' + (f.id || '') + '">Apply</button>' +
+              '<select data-role="status">' +
+                '<option value="">Select status</option>' +
+                '<option value="scheduled">scheduled</option>' +
+                '<option value="taxi_out">taxi_out</option>' +
+                '<option value="en_route">en_route</option>' +
+                '<option value="landed">landed</option>' +
+                '<option value="parked">parked</option>' +
+                '<option value="cancelled">cancelled</option>' +
+                '<option value="diverted">diverted</option>' +
+              '</select>' +
+              '<button class="btnSmall" data-action="set-flight-status" data-flight-id="' + (f.id || '') + '">Apply</button>' +
+              '<select data-role="crew">' + (window.__crewOptionsHtml || '<option value="">Select crew</option>') + '</select>' +
+              '<button class="btnSmall" data-action="attach-crew" data-flight-id="' + (f.id || '') + '">Attach</button>' +
+              '<button class="btnSmall" data-action="detach-crew" data-flight-id="' + (f.id || '') + '">Detach</button>' +
+              '<button class="btnSmall" data-action="toggle-edit" data-flight-id="' + (f.id || '') + '">Close</button>' +
+            '</div>' +
+            '</div>' +
+          '</td>' +
+        '</tr>'
+      )).join('');
+    }
+
+    function renderUsage(rows) {
+      els.usageBody.innerHTML = rows.map((r) => {
+        const q = r.quota_monthly;
+        const u = r.used_monthly;
+        const rem = r.remaining_monthly;
+        const percent = (q && u != null) ? Math.max(0, Math.min(100, (u / q) * 100)) : 0;
+        const cd = r.cooldown_active ? 'ACTIVE until ' + fmtDate(r.blocked_until) : (r.blocked_until ? 'expired' : '-');
+        const cdClass = r.cooldown_active ? 'warn' : 'ok';
+        return (
+          '<tr>' +
+            '<td><strong>' + r.provider + '</strong></td>' +
+            '<td>' + (q != null ? q : 'undefined') + '</td>' +
+            '<td>' + (u != null ? u : '-') + '</td>' +
+            '<td>' + (rem != null ? rem : '-') + '</td>' +
+            '<td>' +
+              '<div class="bar"><span style="width:' + percent.toFixed(1) + '%"></span></div>' +
+              '<div class="mini">' + percent.toFixed(1) + '%</div>' +
+            '</td>' +
+            '<td class="' + cdClass + '">' + cd +
+              '<div class="mini">source: ' + (r.source || '-') + '</div>' +
+              (r.last_updated ? '<div class="mini">updated: ' + fmtDate(r.last_updated) + '</div>' : '') +
+              (r.fr24_request_count != null ? '<div class="mini">req: ' + r.fr24_request_count + ' · ep: ' + (r.fr24_endpoint_count ?? 0) + '</div>' : '') +
+            '</td>' +
+          '</tr>'
+        );
+      }).join('');
+    }
+
+    function renderDashboard(data) {
+      els.usersActive.textContent = data.users?.active_30d ?? '-';
+      els.usersTotal.textContent = data.users?.total ?? '-';
+      els.flightsActive.textContent = data.flights?.active_now ?? '-';
+      els.flightsTotal.textContent = data.flights?.total ?? '-';
+      renderPhaseSummary(data.flights?.phase_summary || {});
+      renderUsers(data.users?.rows || []);
+      const crewDirectory = data.users?.crew_directory || [];
+      renderCrewDirectory(crewDirectory);
+      window.__crewOptionsHtml = '<option value="">Select crew</option>' + crewDirectory
+        .map((c) => '<option value="' + c.crew_id + '">' + ((c.full_name || '-') + '</option>'))
+        .join('');
+      renderFlights(data.flights?.rows || []);
+      renderUsage((data.api_usage?.providers || []).slice().sort((a, b) => String(a.provider).localeCompare(String(b.provider))));
+      const qc = data.api_usage?.quota_configured_count ?? 0;
+      const liveFr24 = data.api_usage?.has_live_fr24;
+      els.usageConfigured.textContent = String(qc);
+      els.usageShortHint.textContent = liveFr24 ? 'FR24 live usage enabled' : 'FR24 live usage disabled';
+      const hint = qc > 0
+        ? ('Quota configuration found: ' + qc + ' provider(s)' + (liveFr24 ? ' · FR24 live: enabled' : ' · FR24 live: disabled'))
+        : ('No quota config: set ADMIN_PROVIDER_QUOTAS_JSON in Supabase function env. FR24 live is ' + (liveFr24 ? 'enabled' : 'disabled'));
+      const quotaHint = document.getElementById('quotaHint');
+      if (quotaHint) quotaHint.textContent = hint;
+    }
+
+    async function loginAndRefresh() {
+      try {
+        setStatus('Login...', 'warn');
+        saveCfg();
+        await signIn();
+        setStatus('Loading dashboard...', 'warn');
+        await loadDashboard();
+        setStatus('OK', 'ok');
+      } catch (e) {
+        setStatus(String(e.message || e), 'bad');
+      }
+    }
+
+    async function refreshOnly() {
+      try {
+        setStatus('Refreshing...', 'warn');
+        await loadDashboard();
+        setStatus('OK', 'ok');
+      } catch (e) {
+        setStatus(String(e.message || e), 'bad');
+      }
+    }
+
+    function logout() {
+      accessToken = null;
+      els.password.value = '';
+      setStatus('Logged out', '');
+    }
+
+    els.btnLogin.addEventListener('click', loginAndRefresh);
+    els.btnRefresh.addEventListener('click', refreshOnly);
+    els.btnLogout.addEventListener('click', logout);
+    els.flightsBody.addEventListener('click', async (e) => {
+      const target = e.target;
+      if (!(target instanceof HTMLElement)) return;
+      const btn = target.closest('button[data-action]');
+      if (!btn) return;
+      const action = btn.getAttribute('data-action');
+      const flightId = btn.getAttribute('data-flight-id');
+      if (!flightId) return;
+      try {
+        if (action === 'toggle-edit') {
+          const row = document.getElementById('edit-row-' + flightId);
+          if (!row) return;
+          row.classList.toggle('open');
+          return;
+        } else if (action === 'delete-flight') {
+          const flightNo = btn.getAttribute('data-flight-no') || '-';
+          const ok = window.confirm('Do you want to permanently delete this flight from DB? (' + flightNo + ')');
+          if (!ok) return;
+          setStatus('Deleting...', 'warn');
+          await callAdminAction('delete_flight', { flight_id: flightId });
+        } else if (action === 'set-flight-phase') {
+          const tr = btn.closest('tr');
+          const phaseEl = tr && tr.querySelector('select[data-role="phase"]');
+          const value = phaseEl && phaseEl.value;
+          if (!value) throw new Error('Select phase');
+          setStatus('Updating phase...', 'warn');
+          await callAdminAction('update_flight', { flight_id: flightId, patch: { api_refresh_phase: value } });
+        } else if (action === 'set-flight-status') {
+          const tr = btn.closest('tr');
+          const statusEl = tr && tr.querySelector('select[data-role="status"]');
+          const value = statusEl && statusEl.value;
+          if (!value) throw new Error('Select status');
+          setStatus('Updating status...', 'warn');
+          await callAdminAction('update_flight', { flight_id: flightId, patch: { flight_status: value } });
+        } else if (action === 'attach-crew' || action === 'detach-crew') {
+          const tr = btn.closest('tr');
+          const crewEl = tr && tr.querySelector('select[data-role="crew"]');
+          const crewId = crewEl && crewEl.value;
+          if (!crewId) throw new Error('Select crew');
+          setStatus(action === 'attach-crew' ? 'Attaching crew...' : 'Detaching crew...', 'warn');
+          await callAdminAction(action === 'attach-crew' ? 'attach_crew_to_flight' : 'detach_crew_from_flight', {
+            flight_id: flightId,
+            crew_id: crewId,
+          });
+        } else {
+          return;
+        }
+        await loadDashboard();
+        setStatus('Action completed', 'ok');
+      } catch (err) {
+        setStatus(String(err?.message || err), 'bad');
+      }
+    });
+    els.usersBody.addEventListener('click', async (e) => {
+      const target = e.target;
+      if (!(target instanceof HTMLElement)) return;
+      const btn = target.closest('button[data-action]');
+      if (!btn) return;
+      if (btn.getAttribute('data-action') === 'save-user-meta') {
+        const userId = btn.getAttribute('data-user-id');
+        if (!userId) return;
+        const tr = btn.closest('tr');
+        const typeEl = tr && tr.querySelector('select[data-role="user-type"]');
+        const airlineEl = tr && tr.querySelector('input[data-role="airline"]');
+        const type = typeEl && typeEl.value ? typeEl.value : 'unlabeled';
+        const airline = airlineEl && airlineEl.value ? airlineEl.value.trim() : '';
+        userMeta[userId] = { type, airline };
+        saveUserMeta();
+        renderUsers(lastUsers);
+        setStatus('User tags saved', 'ok');
+        return;
+      }
+      if (btn.getAttribute('data-action') === 'change-user-password') {
+        const userId = btn.getAttribute('data-user-id');
+        if (!userId) return;
+        const tr = btn.closest('tr');
+        const passwordEl = tr && tr.querySelector('input[data-role="new-password"]');
+        const newPassword = passwordEl && passwordEl.value ? passwordEl.value.trim() : '';
+        if (!newPassword || newPassword.length < 8) {
+          setStatus('New password must be at least 8 characters', 'bad');
+          return;
+        }
+        try {
+          setStatus('Updating user password...', 'warn');
+          await callAdminAction('update_user_password', { user_id: userId, new_password: newPassword });
+          if (passwordEl) passwordEl.value = '';
+          setStatus('User password updated', 'ok');
+        } catch (err) {
+          setStatus(String(err?.message || err), 'bad');
+        }
+        return;
+      }
+      if (btn.getAttribute('data-action') !== 'delete-user') return;
+      const userId = btn.getAttribute('data-user-id');
+      const email = btn.getAttribute('data-user-email') || '-';
+      if (!userId) return;
+      const ok = window.confirm('Do you want to delete this user with all related links? (' + email + ')');
+      if (!ok) return;
+      try {
+        setStatus('Deleting user...', 'warn');
+        await callAdminAction('delete_user', { user_id: userId });
+        await loadDashboard();
+        setStatus('User deleted', 'ok');
+      } catch (err) {
+        setStatus(String(err?.message || err), 'bad');
+      }
+    });
+    function parseBulkIds() {
+      return String(els.bulkFlightIds.value || '')
+        .split(/[\s,]+/)
+        .map((x) => x.trim())
+        .filter(Boolean);
+    }
+    els.btnCreateFlight.addEventListener('click', async () => {
+      try {
+        const selectedCrewIds = Array.from(els.newCrewIds.selectedOptions || []).map((o) => o.value).filter(Boolean);
+        setStatus('Creating flight...', 'warn');
+        await callAdminAction('create_flight', {
+          payload: {
+            flight_number: els.newFlightNo.value.trim(),
+            flight_date: els.newFlightDate.value.trim(),
+            origin_airport: els.newOrigin.value.trim(),
+            destination_airport: els.newDestination.value.trim(),
+            scheduled_departure: els.newStdUtc.value.trim(),
+            scheduled_arrival: els.newStaUtc.value.trim(),
+            crew_ids: selectedCrewIds,
+          },
+        });
+        await loadDashboard();
+        setStatus('Flight created', 'ok');
+      } catch (err) {
+        setStatus(String(err?.message || err), 'bad');
+      }
+    });
+    els.btnBulkPhase.addEventListener('click', async () => {
+      try {
+        const ids = parseBulkIds();
+        const phase = els.bulkPhase.value;
+        if (!phase) throw new Error('Select phase');
+        setStatus('Updating bulk phase...', 'warn');
+        await callAdminAction('bulk_update_flights', { flight_ids: ids, patch: { api_refresh_phase: phase } });
+        await loadDashboard();
+        setStatus('Bulk phase updated', 'ok');
+      } catch (err) {
+        setStatus(String(err?.message || err), 'bad');
+      }
+    });
+    els.btnBulkStatus.addEventListener('click', async () => {
+      try {
+        const ids = parseBulkIds();
+        const status = els.bulkStatus.value;
+        if (!status) throw new Error('Select status');
+        setStatus('Updating bulk status...', 'warn');
+        await callAdminAction('bulk_update_flights', { flight_ids: ids, patch: { flight_status: status } });
+        await loadDashboard();
+        setStatus('Bulk status updated', 'ok');
+      } catch (err) {
+        setStatus(String(err?.message || err), 'bad');
+      }
+    });
+    els.btnBulkDelete.addEventListener('click', async () => {
+      try {
+        const ids = parseBulkIds();
+        if (ids.length === 0) throw new Error('Enter at least one flight ID');
+        const ok = window.confirm('Do you want to bulk delete ' + ids.length + ' flight(s)?');
+        if (!ok) return;
+        setStatus('Bulk delete in progress...', 'warn');
+        await callAdminAction('bulk_delete_flights', { flight_ids: ids });
+        await loadDashboard();
+        setStatus('Bulk delete completed', 'ok');
+      } catch (err) {
+        setStatus(String(err?.message || err), 'bad');
+      }
+    });
+    function switchView(viewId) {
+      els.views.forEach((v) => v.classList.toggle('active', v.id === viewId));
+      els.navButtons.forEach((b) => b.classList.toggle('active', b.dataset.view === viewId));
+    }
+    function switchFlightsSubview(subviewId) {
+      els.flightSubViews.forEach((v) => v.classList.toggle('active', v.id === subviewId));
+      els.flightsSubButtons.forEach((b) => b.classList.toggle('active', b.dataset.subview === subviewId));
+    }
+    els.navButtons.forEach((btn) => {
+      btn.addEventListener('click', () => switchView(btn.dataset.view));
+    });
+    els.flightsSubButtons.forEach((btn) => {
+      btn.addEventListener('click', () => switchFlightsSubview(btn.dataset.subview));
+    });
+    els.userTypeFilter.addEventListener('change', () => renderUsers(lastUsers));
+    els.airlineFilter.addEventListener('change', () => renderUsers(lastUsers));
+    els.btnToggleAdvanced.addEventListener('click', () => {
+      advancedVisible = !advancedVisible;
+      updateAdvancedVisibility();
+    });
+    els.btnFr24Open.addEventListener('click', () => {
+      window.open('https://fr24api.flightradar24.com/usage-metrics?period=30d', '_blank', 'noopener,noreferrer');
+    });
+    els.btnFr24Fetch.addEventListener('click', async () => {
+      try {
+        setFr24Status('Fetching...', 'warn');
+        await triggerFr24Sync();
+        await loadDashboard();
+        setFr24Status('Fetched successfully', 'ok');
+      } catch (err) {
+        setFr24Status(String(err?.message || err), 'bad');
+      }
+    });
+
+    loadUserMeta();
+    updateAdvancedVisibility();
+    loadCfg();
+  </script>
+</body>
+</html>
+

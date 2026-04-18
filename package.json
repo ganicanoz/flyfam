@@ -1,0 +1,25 @@
+{
+  "name": "flyfam",
+  "private": true,
+  "scripts": {
+    "start": "cd mobile && npm run start",
+    "start:go": "cd mobile && npm run start:go",
+    "start:clear": "cd mobile && npm run start:clear",
+    "airports:import-csv": "node scripts/import-airport-codes-csv.js",
+    "airports:fetch-ourairports": "node scripts/fetch-ourairports-csv.js",
+    "airports:import-world": "node scripts/fetch-ourairports-csv.js && CSV_PATH=scripts/data/airports-ourairports.csv node scripts/import-airport-codes-csv.js",
+    "airports:sync-weekly": "node scripts/fetch-ourairports-csv.js && CSV_PATH=scripts/data/airports-ourairports.csv AIRPORTS_IMPORT_NO_DELETE=1 node scripts/import-airport-codes-csv.js",
+    "test-all-apis": "node scripts/test-all-apis.js",
+    "flight-provider-snapshot": "node scripts/flight-provider-snapshot-report.js",
+    "airlabs:discover": "node scripts/airlabs-discover-fields.js",
+    "fr24:discover": "node scripts/fr24-discover-fields.js",
+    "saw:phase-sample": "node scripts/saw-flight-phase-sample.js",
+    "seed10:sim": "node scripts/run-seed10-chatllm-sim.js",
+    "admin:upload-static": "node scripts/upload-admin-static-to-storage.mjs"
+  },
+  "devDependencies": {
+    "@supabase/supabase-js": "^2.49.1",
+    "geo-tz": "^8.1.6",
+    "supabase": "^2.84.4"
+  }
+}

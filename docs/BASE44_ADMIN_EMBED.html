@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>FlyFam Admin Embed</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #111827;
+      --text: #e5e7eb;
+      --muted: #94a3b8;
+      --line: #334155;
+      --accent: #2563eb;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    }
+    .wrap {
+      min-height: 100vh;
+      display: grid;
+      grid-template-rows: auto 1fr;
+    }
+    .top {
+      padding: 10px 12px;
+      background: var(--panel);
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .top input {
+      width: min(100%, 520px);
+      background: #0b1220;
+      color: var(--text);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 8px 10px;
+    }
+    .top button, .top a {
+      border: 1px solid #3b82f6;
+      background: #1d4ed8;
+      color: #fff;
+      padding: 8px 10px;
+      border-radius: 8px;
+      text-decoration: none;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    .hint {
+      color: var(--muted);
+      font-size: 12px;
+      width: 100%;
+    }
+    iframe {
+      width: 100%;
+      height: calc(100vh - 70px);
+      border: 0;
+      background: #fff;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <strong>FlyFam Admin</strong>
+      <input id="dashboardUrl" placeholder="https://your-hosted-domain/ADMIN_STATUS_DASHBOARD.html" />
+      <button id="btnLoad">Load panel</button>
+      <a id="openNewTab" href="#" target="_blank" rel="noopener noreferrer">Open in new tab</a>
+      <div class="hint">For Base44: host both files online, then use this page URL inside your Base44 navigation or iframe block.</div>
+    </div>
+    <iframe id="frame" title="FlyFam Admin Panel"></iframe>
+  </div>
+  <script>
+    const DEFAULT_URL = './ADMIN_STATUS_DASHBOARD.html';
+    const STORAGE_KEY = 'flyfam_admin_embed_url_v2';
+    const input = document.getElementById('dashboardUrl');
+    const frame = document.getElementById('frame');
+    const openNewTab = document.getElementById('openNewTab');
+    const btnLoad = document.getElementById('btnLoad');
+
+    function applyUrl(raw) {
+      const url = String(raw || '').trim() || DEFAULT_URL;
+      frame.src = url;
+      openNewTab.href = url;
+      input.value = url;
+      localStorage.setItem(STORAGE_KEY, url);
+    }
+
+    btnLoad.addEventListener('click', () => applyUrl(input.value));
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') applyUrl(input.value);
+    });
+
+    const params = new URLSearchParams(location.search);
+    const byQuery = params.get('dashboardUrl');
+    const byStorage = localStorage.getItem(STORAGE_KEY);
+    applyUrl(byQuery || byStorage || DEFAULT_URL);
+  </script>
+</body>
+</html>
