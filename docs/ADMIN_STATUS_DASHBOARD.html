@@ -9,7 +9,7 @@
   <meta http-equiv="Expires" content="0" />
   <script>
     (function () {
-      var UI = '4';
+      var UI = '5';
       var p = new URLSearchParams(location.search);
       if (p.get('ui') !== UI) {
         p.set('ui', UI);
@@ -31,8 +31,8 @@
       --warn: #d97706;
       --bad: #dc2626;
       --brand: #2563eb;
-      /* Üst bar yüksekliği — sidebar sticky ile uyumlu */
-      --topbar-offset: 54px;
+      /* Sticky header block height (keep in sync when changing topbar density) */
+      --topbar-offset: 48px;
     }
     * { box-sizing: border-box; }
     body {
@@ -45,63 +45,99 @@
       position: sticky;
       top: 0;
       z-index: 20;
-      background: rgba(255, 255, 255, 0.98);
+      background: rgba(255, 255, 255, 0.96);
       border-bottom: 1px solid var(--line);
-      backdrop-filter: blur(10px);
-      padding: 6px 12px;
-      box-shadow: 0 1px 0 rgba(15, 23, 42, 0.05);
+      backdrop-filter: blur(8px);
+      padding: 3px 8px;
     }
     .topbar-inner {
       display: grid;
-      grid-template-columns: minmax(0, 160px) minmax(0, 1fr);
-      gap: 10px;
+      grid-template-columns: 180px minmax(0, 1fr);
+      gap: 8px;
       align-items: start;
     }
     .topbar-inner > .panel {
       min-width: 0;
-      padding: 6px 8px !important;
-      margin: 0 !important;
-      border-radius: 8px;
-      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
     }
     .brand {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
     }
     .brand img {
-      width: 28px;
-      height: 28px;
-      border-radius: 7px;
+      width: 26px;
+      height: 26px;
+      border-radius: 6px;
       object-fit: contain;
       border: 1px solid var(--line);
       background: #fff;
     }
-    .brand-title { font-weight: 700; font-size: 14px; letter-spacing: -0.02em; line-height: 1.2; }
-    .topbar .grid {
-      gap: 6px !important;
+    .brand-title { font-weight: 700; font-size: 13px; line-height: 1.2; }
+    .topbar .panel {
+      padding: 4px 6px;
+      border-radius: 6px;
+      margin: 0 !important;
+    }
+    .topbar .auth-grid { gap: 3px; }
+    .topbar .auth-grid > * {
+      min-width: 0;
+    }
+    .topbar .advanced-auth-fields {
+      grid-column: span 12;
+      display: grid;
+      grid-template-columns: repeat(12, minmax(0, 1fr));
+      gap: 3px;
+      align-content: start;
+    }
+    .topbar .auth-field {
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+    }
+    .topbar .auth-field label {
+      flex-shrink: 0;
+      margin: 0;
+      line-height: 1.1;
+    }
+    .topbar .auth-actions {
+      gap: 3px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .topbar .auth-actions > #status {
+      margin-right: auto;
+      flex: 1 1 100px;
+      min-width: 0;
+      text-align: left;
+      line-height: 1.2;
     }
     .topbar input,
-    .topbar select {
-      padding: 5px 8px !important;
-      font-size: 11px !important;
-    }
     .topbar button {
-      padding: 5px 10px !important;
-      font-size: 11px !important;
+      padding: 3px 6px;
+      font-size: 11px;
+      line-height: 1.2;
     }
-    .topbar .mini {
-      font-size: 10px;
+    .topbar .mini { font-size: 10px; line-height: 1.15; }
+    .topbar .row { gap: 5px; align-items: center; }
+    .topbar .topbar-hint {
+      margin: 2px 0 0;
+      line-height: 1.25;
     }
-    .app {
-      min-height: calc(100vh - var(--topbar-offset));
-      display: grid;
-      grid-template-columns: 218px minmax(0, 1fr);
+    .auth-grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 8px; }
+    .auth-actions {
+      grid-column: span 12;
+      display: flex;
+      gap: 6px;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+      align-items: center;
     }
+    .app { min-height: calc(100vh - var(--topbar-offset)); display: grid; grid-template-columns: 260px 1fr; }
     .sidebar {
       background: var(--sidebar);
       border-right: 1px solid var(--line);
-      padding: 12px;
+      padding: 14px;
       position: sticky;
       top: var(--topbar-offset);
       height: calc(100vh - var(--topbar-offset));
@@ -122,13 +158,7 @@
     .hidden { display: none !important; }
     .grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 8px; }
     .kpi-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
-    .card {
-      background: var(--panel-soft);
-      border: 1px solid var(--line);
-      border-radius: 10px;
-      padding: 12px;
-      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
-    }
+    .card { background: var(--panel-soft); border: 1px solid #2f3b49; border-radius: 8px; padding: 10px; }
     .card h3 { margin: 0; font-size: 13px; color: var(--muted); font-weight: 600; }
     .num { font-size: 24px; font-weight: 700; margin-top: 2px; }
     .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
@@ -186,6 +216,21 @@
     .menu { margin-top: 12px; display: flex; flex-direction: column; gap: 8px; }
     .menu button { text-align: left; width: 100%; }
     .menu button.active { background: #eaf2ff; border-color: #9eb9e5; color: #1e3a8a; }
+    .menu a.nav-external {
+      display: block;
+      text-align: left;
+      width: 100%;
+      background: #f4f7fd;
+      color: var(--brand);
+      border: 1px solid #c7d5ea;
+      border-radius: 6px;
+      padding: 7px 10px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 12px;
+      text-decoration: none;
+    }
+    .menu a.nav-external:hover { border-color: #2563eb; background: #eef4ff; }
     .submenu { display: flex; gap: 8px; margin-bottom: 10px; }
     .sub-btn.active { background: #dbeafe; border-color: #93c5fd; color: #1e3a8a; }
     .subview { display: none; }
@@ -195,6 +240,20 @@
     .flight-edit-box { background: #f8fbff; border: 1px dashed #bfd3f3; border-radius: 8px; padding: 8px; }
     .users-toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; align-items: end; }
     .users-toolbar > div { min-width: 180px; }
+    .conn-line { margin: 0; line-height: 1.4; }
+    .conn-cell { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+    .conn-peer-name { font-weight: 600; word-break: break-word; }
+    .conn-more-inline { display: inline-block; vertical-align: top; margin: 0 0 0 6px; }
+    .conn-more-inline > summary {
+      cursor: pointer;
+      color: var(--brand);
+      font-size: 12px;
+      font-weight: 700;
+      list-style: none;
+      display: inline;
+      user-select: none;
+    }
+    .conn-more-inline summary::-webkit-details-marker { display: none; }
     .view { display: none; }
     .view.active { display: block; }
     @media (max-width: 1100px) {
@@ -202,6 +261,13 @@
       .app { grid-template-columns: 1fr; min-height: auto; }
       .sidebar { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--line); top: 0; }
       .kpi-row { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 1400px) {
+      .topbar .advanced-auth-fields > .auth-field { grid-column: span 6 !important; }
+    }
+    @media (max-width: 760px) {
+      .topbar .advanced-auth-fields > .auth-field { grid-column: span 12 !important; }
+      .topbar .auth-actions { justify-content: flex-start; }
     }
   </style>
 </head>
@@ -212,23 +278,49 @@
         <img src="./Görseller/image.png" alt="FlyFam logo" onerror="this.style.display='none'" />
         <div>
           <div class="brand-title">FlyFam Admin</div>
-          <div class="mini">Kompakt panel · v2</div>
         </div>
       </div>
       <div class="panel" style="margin:0;">
-        <div class="grid">
-          <div style="grid-column: span 3;"><label class="mini">Supabase URL</label><input id="supabaseUrl" placeholder="https://xxx.supabase.co" /></div>
-          <div style="grid-column: span 3;"><label class="mini">Anon key</label><input id="anonKey" placeholder="eyJhbGciOi..." /></div>
-          <div style="grid-column: span 2;"><label class="mini">Admin Email</label><input id="email" placeholder="admin@..." /></div>
-          <div style="grid-column: span 2;"><label class="mini">Password</label><input id="password" type="password" /></div>
-          <div style="grid-column: span 2; display:flex; align-items:end; gap:6px; justify-content:flex-end;">
-            <button id="btnLogin" class="btnPrimary">Login + Refresh</button>
-            <button id="btnRefresh">Refresh</button>
-            <button id="btnLogout">Logout</button>
-            <button id="btnToggleAdvanced">+ Advanced</button>
+        <div class="auth-grid">
+          <div id="quickLoginRow" class="hidden" style="grid-column: span 12;">
+            <div class="row" style="align-items: flex-end;">
+              <div style="flex: 1; min-width: 200px;">
+                <label class="mini">Panel PIN</label>
+                <input id="panelPinOnly" type="password" autocomplete="off" placeholder="Your saved panel PIN" />
+              </div>
+              <button type="button" id="btnQuickLogin" class="btnPrimary">Login</button>
+            </div>
+            <p class="mini topbar-hint">Uses saved Supabase settings on this browser. Open "+ Advanced" to view fields, clear saved login, or edit Supabase URL, key, and admin email.</p>
+          </div>
+          <div id="advancedAuthFields" class="advanced-auth-fields">
+            <div class="auth-field" style="grid-column: span 3;"><label class="mini">Supabase URL</label><input id="supabaseUrl" placeholder="https://xxx.supabase.co" /></div>
+            <div class="auth-field" style="grid-column: span 3;"><label class="mini">Anon key</label><input id="anonKey" placeholder="eyJhbGciOi..." /></div>
+            <div class="auth-field" style="grid-column: span 2;"><label class="mini">Admin Email</label><input id="email" placeholder="admin@..." /></div>
+            <div class="auth-field" style="grid-column: span 2;"><label class="mini">Supabase password</label><input id="password" type="password" /></div>
+          </div>
+          <div class="auth-actions">
+            <span id="status" class="mini" aria-live="polite"></span>
+            <button type="button" id="btnLogin" class="btnPrimary">Login + Refresh</button>
+            <button type="button" id="btnRefresh">Refresh</button>
+            <button type="button" id="btnLogout">Logout</button>
+            <button type="button" id="btnToggleAdvanced">+ Advanced</button>
+          </div>
+          <div id="quickLoginSetup" style="grid-column: span 12;" class="mini hidden">
+            <div class="row" style="align-items: flex-end; flex-wrap: wrap; gap: 6px;">
+              <div style="min-width: 200px; flex: 1;">
+                <label class="mini">Panel PIN (quick unlock)</label>
+                <input id="panelPinSetup" type="password" autocomplete="new-password" placeholder="Choose a PIN for this browser" />
+              </div>
+              <label class="row" style="align-items: center; gap: 6px; cursor: pointer; user-select: none;">
+                <input id="chkRememberSupabasePw" type="checkbox" />
+                <span>Remember Supabase user password on this device</span>
+              </label>
+              <button type="button" id="btnSaveQuickLogin">Save quick login</button>
+              <button type="button" id="btnClearQuickLogin" class="btnDanger">Clear quick login</button>
+            </div>
+            <p class="mini" style="margin: 2px 0 0;">Panel PIN is only for this HTML page on this device. Anyone with browser access can open DevTools; do not reuse a high‑value password.</p>
           </div>
           <div id="advancedHint" style="grid-column: span 12;" class="mini hidden">Advanced fields are hidden. Click "+ Advanced" to edit Supabase URL, key, and admin email.</div>
-          <div style="grid-column: span 12;"><span id="status" class="mini"></span></div>
         </div>
       </div>
     </div>
@@ -242,6 +334,7 @@
         <button class="nav-btn" data-view="usersView">Users</button>
         <button class="nav-btn" data-view="flightsView">Flights</button>
         <button class="nav-btn" data-view="usageView">Quota / Usage</button>
+        <a class="nav-external" href="./admin/splash-preview.html" target="_blank" rel="noopener">Splash · video önizleme</a>
       </nav>
     </aside>
     <main class="main">
@@ -273,22 +366,22 @@
           <h3 style="margin:0 0 8px;">User details</h3>
           <div class="users-toolbar">
             <div>
-              <label class="mini">User type filter</label>
+              <label class="mini">App role filter</label>
               <select id="userTypeFilter">
                 <option value="all">All</option>
-                <option value="real">Real users</option>
-                <option value="test">Test accounts</option>
-                <option value="unlabeled">Unlabeled</option>
+                <option value="crew">crew</option>
+                <option value="family">family</option>
               </select>
             </div>
             <div>
-              <label class="mini">Airline filter</label>
+              <label class="mini">Havayolu</label>
               <select id="airlineFilter">
-                <option value="all">All airlines</option>
+                <option value="all">Tümü</option>
               </select>
             </div>
           </div>
-          <table><thead><tr><th>#</th><th>Full name</th><th>Email</th><th>ID (short)</th><th>Role</th><th>Airline</th><th>User type</th><th>Last sign in</th><th>Password</th><th>Action</th></tr></thead><tbody id="usersBody"></tbody></table>
+          <table><thead><tr><th>#</th><th>Full name</th><th>Email</th><th>ID (short)</th><th>App role</th><th>Havayolu (app)</th><th>Bağlantılı</th><th>Last sign in</th><th>New password</th><th>Actions</th></tr></thead><tbody id="usersBody"></tbody></table>
+          <p id="usersApiHint" class="mini" style="margin-top:10px;display:none;"></p>
         </div>
       </section>
 
@@ -340,7 +433,7 @@
       <section id="usageView" class="view">
         <div class="panel">
           <h3 style="margin:0 0 8px;">API usage / quota (monthly)</h3>
-          <p class="mini" style="margin-top:0;">Quotas: <code>ADMIN_PROVIDER_QUOTAS_JSON</code>, <code>ADMIN_PROVIDER_MONTHLY_USAGE_JSON</code>. FR24 için Supabase’te yeterli olan secret: uçuş API’siyle aynı <code>FR24_API_TOKEN</code> (flight-lookup). <code>ADMIN_FR24_USAGE_URL</code> şart değil — boşsa <code>/api/usage</code> kullanılır.</p>
+            <p class="mini" style="margin-top:0;">Quotas and usage are read from function env: <code>ADMIN_PROVIDER_QUOTAS_JSON</code>, <code>ADMIN_PROVIDER_MONTHLY_USAGE_JSON</code>. For FR24 live usage set <code>ADMIN_FR24_USAGE_URL</code> to <code>https://fr24api.flightradar24.com/api/usage</code> (Bearer token; <code>Accept-Version: v1</code> is sent by the function).</p>
           <div class="panel">
             <h3 style="margin:0 0 8px;">FR24 Login & Sync</h3>
             <p class="mini" style="margin:0 0 8px;">If iframe login is blocked by FR24 security policy, use "Open FR24 login in new tab", then return and press "Fetch FR24 usage now".</p>
@@ -364,7 +457,14 @@
       anonKey: document.getElementById('anonKey'),
       email: document.getElementById('email'),
       password: document.getElementById('password'),
+      panelPinOnly: document.getElementById('panelPinOnly'),
+      panelPinSetup: document.getElementById('panelPinSetup'),
+      chkRememberSupabasePw: document.getElementById('chkRememberSupabasePw'),
+      quickLoginSetup: document.getElementById('quickLoginSetup'),
       btnLogin: document.getElementById('btnLogin'),
+      btnQuickLogin: document.getElementById('btnQuickLogin'),
+      btnSaveQuickLogin: document.getElementById('btnSaveQuickLogin'),
+      btnClearQuickLogin: document.getElementById('btnClearQuickLogin'),
       btnRefresh: document.getElementById('btnRefresh'),
       btnLogout: document.getElementById('btnLogout'),
       btnToggleAdvanced: document.getElementById('btnToggleAdvanced'),
@@ -377,11 +477,12 @@
       phaseSummary: document.getElementById('phaseSummary'),
       usageConfigured: document.getElementById('usageConfigured'),
       usageShortHint: document.getElementById('usageShortHint'),
-      navButtons: Array.from(document.querySelectorAll('.nav-btn')),
+      navButtons: Array.from(document.querySelectorAll('.nav-btn[data-view]')),
       views: Array.from(document.querySelectorAll('.view')),
       flightsSubButtons: Array.from(document.querySelectorAll('.sub-btn')),
       flightSubViews: Array.from(document.querySelectorAll('.subview')),
       usersBody: document.getElementById('usersBody'),
+      usersApiHint: document.getElementById('usersApiHint'),
       userTypeFilter: document.getElementById('userTypeFilter'),
       airlineFilter: document.getElementById('airlineFilter'),
       flightsBody: document.getElementById('flightsBody'),
@@ -406,41 +507,194 @@
     };
 
     const STORAGE_KEY = 'flyfam_admin_dashboard_cfg_v1';
-    const USER_META_KEY = 'flyfam_admin_user_meta_v1';
+    const SESSION_KEY = 'flyfam_admin_dashboard_session_v1';
     let accessToken = null;
     let lastUsers = [];
     let advancedVisible = false;
-    let userMeta = {};
 
-    function loadUserMeta() {
+    function escapeAttr(s) {
+      return String(s ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;')
+        .replace(/</g, '&lt;');
+    }
+
+    /** Havayolu filtre seçenekleri: crew kendi şirket/ICAO; aile bağlı crew havayolu (birden fazlaysa ayrı seçenekler). */
+    function userAirlineFilterKeys(u) {
+      const r = String(u.role || '');
+      if (r === 'crew') {
+        const c = String(u.company_name || '').trim();
+        const ic = String(u.airline_icao || '').trim();
+        return [c || ic || '(no airline name)'];
+      }
+      if (r === 'family') {
+        const raw = String(u.family_linked_crew_company || '').trim();
+        if (!raw) return ['(aile: bağlı crew havayolu yok)'];
+        const parts = raw.split(/\s*·\s*/).map((x) => x.trim()).filter(Boolean);
+        return parts.length ? parts : ['(aile: bağlı crew havayolu yok)'];
+      }
+      return [];
+    }
+
+    /** Bağlantıdaki diğer üyenin gösterim adı (isim → e-posta → kısa id). */
+    function linkedPeerDisplayName(c) {
+      const n = String(c.other_full_name || '').trim();
+      if (n) return n;
+      const e = String(c.other_email || '').trim();
+      if (e) return e;
+      const id = String(c.other_user_id || '');
+      return id ? (id.slice(0, 8) + '…') : '—';
+    }
+
+    function connLineNameStatus(c) {
+      const nm = escapeAttr(linkedPeerDisplayName(c));
+      const st = escapeAttr(c.status);
+      return '<span class="conn-peer-name">' + nm + '</span> <span class="badge">' + st + '</span>';
+    }
+
+    /** İlk bağlantı isim olarak; birden fazlaysa +N ile genişletilebilir. */
+    function renderConnectionsCell(u) {
+      const list = u.connections || [];
+      if (list.length === 0) return '<span class="mini" style="color:var(--muted);">—</span>';
+      const first = connLineNameStatus(list[0]);
+      if (list.length === 1) return '<div class="conn-cell">' + first + '</div>';
+      const rest = list.slice(1).map((c) => (
+        '<div class="mini conn-line">' + connLineNameStatus(c) + '</div>'
+      )).join('');
+      return (
+        '<div class="conn-cell">' +
+          '<div>' + first +
+          ' <details class="conn-more-inline"><summary>+' + (list.length - 1) + '</summary>' +
+          '<div style="margin-top:6px;padding-left:6px;border-left:2px solid var(--line);">' + rest + '</div>' +
+          '</details></div>' +
+        '</div>'
+      );
+    }
+
+    function readCfg() {
       try {
-        userMeta = JSON.parse(localStorage.getItem(USER_META_KEY) || '{}') || {};
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return {};
+        const cfg = JSON.parse(raw);
+        return cfg && typeof cfg === 'object' ? cfg : {};
       } catch {
-        userMeta = {};
+        return {};
       }
     }
-    function saveUserMeta() {
-      localStorage.setItem(USER_META_KEY, JSON.stringify(userMeta));
+
+    function persistCfg(cfg) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(cfg));
     }
 
-    function saveCfg() {
-      const cfg = {
-        supabaseUrl: els.supabaseUrl.value.trim(),
-        anonKey: els.anonKey.value.trim(),
-        email: els.email.value.trim(),
-      };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(cfg));
+    function readSession() {
+      try {
+        const s = JSON.parse(localStorage.getItem(SESSION_KEY) || 'null');
+        return s && typeof s === 'object' ? s : null;
+      } catch {
+        return null;
+      }
+    }
+
+    function writeSession(sess) {
+      if (!sess) localStorage.removeItem(SESSION_KEY);
+      else localStorage.setItem(SESSION_KEY, JSON.stringify(sess));
+    }
+
+    function persistAuthSession(url, anonKey, email, authJson) {
+      const exp =
+        authJson.expires_at != null
+          ? Number(authJson.expires_at)
+          : Math.floor(Date.now() / 1000) + Number(authJson.expires_in || 3600);
+      writeSession({
+        supabaseUrl: url,
+        anonKey,
+        email,
+        access_token: authJson.access_token,
+        refresh_token: typeof authJson.refresh_token === 'string' ? authJson.refresh_token : null,
+        expires_at: exp,
+      });
+    }
+
+    async function refreshAccessToken(url, anonKey, refreshToken) {
+      const res = await fetch(url + '/auth/v1/token?grant_type=refresh_token', {
+        method: 'POST',
+        headers: { apikey: anonKey, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refresh_token: refreshToken }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.access_token) {
+        throw new Error(json.error_description || json.msg || 'Session refresh failed');
+      }
+      const email = readSession()?.email || els.email.value.trim();
+      persistAuthSession(url, anonKey, email, json);
+      accessToken = json.access_token;
+      return accessToken;
+    }
+
+    async function tryRestoreSession() {
+      const sess = readSession();
+      if (!sess?.access_token || !sess.supabaseUrl || !sess.anonKey) return false;
+      if (!els.supabaseUrl.value.trim() && sess.supabaseUrl) els.supabaseUrl.value = sess.supabaseUrl;
+      if (!els.anonKey.value.trim() && sess.anonKey) els.anonKey.value = sess.anonKey;
+      if (!els.email.value.trim() && sess.email) els.email.value = sess.email;
+      if (els.supabaseUrl.value.trim() !== sess.supabaseUrl || els.anonKey.value.trim() !== sess.anonKey) {
+        return false;
+      }
+      const now = Math.floor(Date.now() / 1000);
+      const exp = Number(sess.expires_at || 0);
+      if (sess.refresh_token && exp < now + 300) {
+        try {
+          await refreshAccessToken(sess.supabaseUrl, sess.anonKey, sess.refresh_token);
+        } catch {
+          writeSession(null);
+          accessToken = null;
+          return false;
+        }
+      } else if (!sess.refresh_token && exp < now + 30) {
+        writeSession(null);
+        accessToken = null;
+        return false;
+      } else {
+        accessToken = sess.access_token;
+      }
+      return true;
+    }
+
+    function saveCfgBasics() {
+      const cur = readCfg();
+      cur.supabaseUrl = els.supabaseUrl.value.trim();
+      cur.anonKey = els.anonKey.value.trim();
+      cur.email = els.email.value.trim();
+      persistCfg(cur);
     }
 
     function loadCfg() {
       try {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        if (!raw) return;
-        const cfg = JSON.parse(raw);
+        const cfg = readCfg();
         els.supabaseUrl.value = cfg.supabaseUrl || '';
         els.anonKey.value = cfg.anonKey || '';
         els.email.value = cfg.email || '';
       } catch {}
+      updateAuthLayout();
+    }
+
+    function quickLoginPossible(cfg) {
+      const c = cfg || readCfg();
+      return !!(c.panelPin && c.supabasePassword && c.supabaseUrl && c.anonKey && c.email);
+    }
+
+    function updateAuthLayout() {
+      const q = quickLoginPossible();
+      const elQuick = document.getElementById('quickLoginRow');
+      const elAdv = document.getElementById('advancedAuthFields');
+      if (elQuick) elQuick.classList.toggle('hidden', !q);
+      if (elAdv) elAdv.classList.toggle('hidden', q && !advancedVisible);
+      if (els.btnLogin) els.btnLogin.classList.toggle('hidden', q && !advancedVisible);
+      if (els.btnQuickLogin) els.btnQuickLogin.classList.toggle('hidden', !(q && !advancedVisible));
+      if (els.advancedHint) {
+        els.advancedHint.classList.toggle('hidden', advancedVisible || q);
+      }
     }
 
     function setStatus(msg, level) {
@@ -458,12 +712,13 @@
         if (!el || !el.parentElement) return;
         el.parentElement.classList.toggle('hidden', !advancedVisible);
       });
-      if (els.advancedHint) {
-        els.advancedHint.classList.toggle('hidden', advancedVisible);
+      if (els.quickLoginSetup) {
+        els.quickLoginSetup.classList.toggle('hidden', !advancedVisible);
       }
       if (els.btnToggleAdvanced) {
         els.btnToggleAdvanced.textContent = advancedVisible ? '- Advanced' : '+ Advanced';
       }
+      updateAuthLayout();
     }
 
     function fmtDate(v) {
@@ -473,11 +728,7 @@
       return d.toLocaleString();
     }
 
-    async function signIn() {
-      const url = els.supabaseUrl.value.trim();
-      const key = els.anonKey.value.trim();
-      const email = els.email.value.trim();
-      const password = els.password.value;
+    async function signInWithParams(url, key, email, password) {
       if (!url || !key || !email || !password) throw new Error('URL, key, email, and password are required');
       const res = await fetch(url + '/auth/v1/token?grant_type=password', {
         method: 'POST',
@@ -489,7 +740,17 @@
         throw new Error(json.error_description || json.msg || 'Login failed');
       }
       accessToken = json.access_token;
+      persistAuthSession(url, key, email, json);
       return accessToken;
+    }
+
+    async function signIn() {
+      return signInWithParams(
+        els.supabaseUrl.value.trim(),
+        els.anonKey.value.trim(),
+        els.email.value.trim(),
+        els.password.value
+      );
     }
 
     async function loadDashboard() {
@@ -506,6 +767,10 @@
         json = null;
       }
       if (!res.ok) {
+        if (res.status === 401) {
+          writeSession(null);
+          accessToken = null;
+        }
         const details = json && typeof json === 'object' ? (json.error || json.message || JSON.stringify(json)) : null;
         throw new Error('Dashboard request failed (' + res.status + ')' + (details ? ': ' + details : ''));
       }
@@ -526,10 +791,29 @@
       });
       const json = await res.json().catch(() => null);
       if (!res.ok) {
+        if (res.status === 401) {
+          writeSession(null);
+          accessToken = null;
+        }
         const details = json && typeof json === 'object' ? (json.error || json.message || JSON.stringify(json)) : null;
         throw new Error('Action failed (' + res.status + ')' + (details ? ': ' + details : ''));
       }
       return json;
+    }
+
+    function formatFr24SyncError(json, httpStatus) {
+      if (!json || typeof json !== 'object') {
+        return 'FR24 sync failed (' + httpStatus + ')';
+      }
+      const bits = [];
+      if (json.error) bits.push(String(json.error));
+      else if (json.message) bits.push(String(json.message));
+      if (json.hint) bits.push(String(json.hint));
+      if (json.status != null && String(json.status) !== String(httpStatus)) {
+        bits.push('FR24 upstream HTTP: ' + json.status);
+      }
+      if (json.body_preview) bits.push(String(json.body_preview).trim().slice(0, 400));
+      return bits.length ? ('FR24 sync failed (' + httpStatus + '): ' + bits.join(' · ')) : ('FR24 sync failed (' + httpStatus + ')');
     }
 
     async function triggerFr24Sync() {
@@ -546,8 +830,11 @@
       });
       const json = await res.json().catch(() => null);
       if (!res.ok) {
-        const details = json && typeof json === 'object' ? (json.error || json.message || JSON.stringify(json)) : null;
-        throw new Error('FR24 sync failed (' + res.status + ')' + (details ? ': ' + details : ''));
+        if (res.status === 401) {
+          writeSession(null);
+          accessToken = null;
+        }
+        throw new Error(formatFr24SyncError(json, res.status));
       }
       return json;
     }
@@ -560,11 +847,12 @@
     }
 
     function upsertAirlineFilter(rows) {
-      const fromData = (rows || []).map((u) => (u.airline || u.airline_code || userMeta[u.id]?.airline || '').trim()).filter(Boolean);
-      const fromMeta = Object.values(userMeta || {}).map((x) => (x?.airline || '').trim()).filter(Boolean);
-      const unique = Array.from(new Set([...fromData, ...fromMeta])).sort((a, b) => a.localeCompare(b));
+      const keys = (rows || []).flatMap(userAirlineFilterKeys);
+      const unique = Array.from(new Set(keys)).sort((a, b) => a.localeCompare(b));
       const current = els.airlineFilter.value || 'all';
-      els.airlineFilter.innerHTML = '<option value="all">All airlines</option>' + unique.map((x) => '<option value="' + x + '">' + x + '</option>').join('');
+      els.airlineFilter.innerHTML = '<option value="all">Tümü</option>' + unique.map((x) => (
+        '<option value="' + escapeAttr(x) + '">' + escapeAttr(x) + '</option>'
+      )).join('');
       if (unique.includes(current)) els.airlineFilter.value = current;
     }
 
@@ -579,29 +867,48 @@
         return tb - ta;
       });
       const filtered = sorted.filter((u) => {
-        const meta = userMeta[u.id] || {};
-        const type = meta.type || 'unlabeled';
-        const airline = (meta.airline || u.airline || u.airline_code || '').trim() || '-';
-        if (typeFilter !== 'all' && type !== typeFilter) return false;
-        if (airlineFilter !== 'all' && airline !== airlineFilter) return false;
+        const appRole = String(u.role || '');
+        if (typeFilter !== 'all' && appRole !== typeFilter) return false;
+        if (airlineFilter !== 'all') {
+          if (appRole === 'crew') {
+            const keys = userAirlineFilterKeys(u);
+            if (keys.indexOf(airlineFilter) < 0) return false;
+          } else if (appRole === 'family') {
+            if (userAirlineFilterKeys(u).indexOf(airlineFilter) < 0) return false;
+          }
+        }
         return true;
       });
       els.usersBody.innerHTML = filtered.map((u, idx) => {
-        const meta = userMeta[u.id] || {};
-        const userType = meta.type || 'unlabeled';
-        const airline = (meta.airline || u.airline || u.airline_code || '').trim() || '-';
+        const appRole = String(u.role || '');
+        const isCrew = appRole === 'crew';
+        const companyVal = escapeAttr(u.company_name || '');
+        const crewSel = appRole === 'crew' ? ' selected' : '';
+        const famSel = appRole === 'family' ? ' selected' : '';
+        const disCrew = isCrew ? '' : 'disabled ';
+        const famAir = escapeAttr(u.family_linked_crew_company || '');
+        const airlineCell = isCrew
+          ? ('<input data-role="company-name" data-user-id="' + (u.id || '') + '" value="' + companyVal + '" placeholder="e.g. Pegasus Airlines" ' + disCrew + '/>')
+          : ('<span class="mini" title="Linked crew airline(s) from family_connections (non-declined)">' +
+            (famAir ? famAir : '—') + '</span>');
+        const connCell = renderConnectionsCell(u);
         return (
           '<tr>' +
             '<td>' + (idx + 1) + '</td>' +
-            '<td>' + (u.full_name || '-') + '</td>' +
-            '<td>' + (u.email || '-') + '</td>' +
+            '<td>' + escapeAttr(u.full_name || '-') + '</td>' +
+            '<td>' + escapeAttr(u.email || '-') + '</td>' +
             '<td><code>' + (u.id_short || '-') + '</code></td>' +
-            '<td>' + (u.role || '-') + '</td>' +
-            '<td><input data-role="airline" data-user-id="' + (u.id || '') + '" value="' + (airline === '-' ? '' : airline) + '" placeholder="e.g. Pegasus" /></td>' +
-            '<td><select data-role="user-type" data-user-id="' + (u.id || '') + '"><option value="unlabeled"' + (userType === 'unlabeled' ? ' selected' : '') + '>unlabeled</option><option value="real"' + (userType === 'real' ? ' selected' : '') + '>real</option><option value="test"' + (userType === 'test' ? ' selected' : '') + '>test</option></select></td>' +
+            '<td><select data-role="app-role" data-user-id="' + (u.id || '') + '">' +
+              '<option value="crew"' + crewSel + '>crew</option>' +
+              '<option value="family"' + famSel + '>family</option>' +
+            '</select></td>' +
+            '<td>' + airlineCell + '</td>' +
+            '<td style="max-width:240px;">' + connCell + '</td>' +
             '<td>' + fmtDate(u.last_sign_in_at) + '</td>' +
-            '<td><input type="password" data-role="new-password" data-user-id="' + (u.id || '') + '" placeholder="min 8 chars" /></td>' +
-            '<td><button class="btnSmall" data-action="save-user-meta" data-user-id="' + (u.id || '') + '">Save tags</button> <button class="btnSmall" data-action="change-user-password" data-user-id="' + (u.id || '') + '">Change password</button> <button class="btnDanger btnSmall" data-action="delete-user" data-user-id="' + (u.id || '') + '" data-user-email="' + (u.email || '-') + '">Delete</button></td>' +
+            '<td><input type="password" data-role="new-password" data-user-id="' + (u.id || '') + '" placeholder="min 8 chars" autocomplete="new-password" /></td>' +
+            '<td><button class="btnSmall" data-action="save-user-profile" data-user-id="' + (u.id || '') + '">Save profile</button> ' +
+            '<button class="btnSmall" data-action="change-user-password" data-user-id="' + (u.id || '') + '">Set password</button> ' +
+            '<button class="btnDanger btnSmall" data-action="delete-user" data-user-id="' + (u.id || '') + '" data-user-email="' + escapeAttr(u.email || '-') + '">Delete</button></td>' +
           '</tr>'
         );
       }).join('');
@@ -717,7 +1024,24 @@
       els.flightsActive.textContent = data.flights?.active_now ?? '-';
       els.flightsTotal.textContent = data.flights?.total ?? '-';
       renderPhaseSummary(data.flights?.phase_summary || {});
-      renderUsers(data.users?.rows || []);
+      const userRows = data.users?.rows || [];
+      renderUsers(userRows);
+      if (els.usersApiHint) {
+        const sample = userRows[0];
+        const apiHasConnections = !sample || Array.isArray(sample.connections);
+        if (apiHasConnections) {
+          els.usersApiHint.style.display = 'none';
+          els.usersApiHint.textContent = '';
+        } else {
+          els.usersApiHint.style.display = 'block';
+          els.usersApiHint.className = 'mini bad';
+          els.usersApiHint.innerHTML =
+            'API yanıtında <code>connections</code> alanı yok: bu panelin veri kısmı için ' +
+            '<code>admin-dashboard</code> edge function’ını bu repodaki kodla yeniden deploy etmen gerekir ' +
+            '(ör. <code>supabase functions deploy admin-dashboard</code>). ' +
+            'Tablo başlığında <strong>Bağlantılı</strong> sütunu görüyorsan HTML günceldir.';
+        }
+      }
       const crewDirectory = data.users?.crew_directory || [];
       renderCrewDirectory(crewDirectory);
       window.__crewOptionsHtml = '<option value="">Select crew</option>' + crewDirectory
@@ -739,10 +1063,41 @@
     async function loginAndRefresh() {
       try {
         setStatus('Login...', 'warn');
-        saveCfg();
+        saveCfgBasics();
         await signIn();
         setStatus('Loading dashboard...', 'warn');
         await loadDashboard();
+        setStatus('OK', 'ok');
+      } catch (e) {
+        setStatus(String(e.message || e), 'bad');
+      }
+    }
+
+    async function quickLogin() {
+      const cfg = readCfg();
+      if (!quickLoginPossible(cfg)) {
+        setStatus('Open "+ Advanced" and use Save quick login (with remember password) first.', 'bad');
+        return;
+      }
+      const pin = els.panelPinOnly && els.panelPinOnly.value ? els.panelPinOnly.value : '';
+      if (!pin) {
+        setStatus('Enter panel PIN', 'bad');
+        return;
+      }
+      if (pin !== cfg.panelPin) {
+        setStatus('Wrong panel PIN', 'bad');
+        return;
+      }
+      try {
+        setStatus('Login...', 'warn');
+        els.supabaseUrl.value = cfg.supabaseUrl || '';
+        els.anonKey.value = cfg.anonKey || '';
+        els.email.value = cfg.email || '';
+        saveCfgBasics();
+        await signInWithParams(cfg.supabaseUrl, cfg.anonKey, cfg.email, cfg.supabasePassword);
+        setStatus('Loading dashboard...', 'warn');
+        await loadDashboard();
+        if (els.panelPinOnly) els.panelPinOnly.value = '';
         setStatus('OK', 'ok');
       } catch (e) {
         setStatus(String(e.message || e), 'bad');
@@ -761,11 +1116,71 @@
 
     function logout() {
       accessToken = null;
+      writeSession(null);
       els.password.value = '';
+      if (els.panelPinOnly) els.panelPinOnly.value = '';
       setStatus('Logged out', '');
     }
 
     els.btnLogin.addEventListener('click', loginAndRefresh);
+    if (els.btnQuickLogin) els.btnQuickLogin.addEventListener('click', quickLogin);
+    if (els.panelPinOnly) {
+      els.panelPinOnly.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          quickLogin();
+        }
+      });
+    }
+    if (els.btnSaveQuickLogin) {
+      els.btnSaveQuickLogin.addEventListener('click', () => {
+        const pin = els.panelPinSetup && els.panelPinSetup.value ? els.panelPinSetup.value : '';
+        if (!pin) {
+          setStatus('Enter a panel PIN to save', 'bad');
+          return;
+        }
+        const url = els.supabaseUrl.value.trim();
+        const key = els.anonKey.value.trim();
+        const email = els.email.value.trim();
+        if (!url || !key || !email) {
+          setStatus('Supabase URL, anon key, and email are required', 'bad');
+          return;
+        }
+        const cur = readCfg();
+        cur.supabaseUrl = url;
+        cur.anonKey = key;
+        cur.email = email;
+        cur.panelPin = pin;
+        if (els.chkRememberSupabasePw && els.chkRememberSupabasePw.checked) {
+          const pw = els.password.value;
+          if (!pw) {
+            setStatus('Enter Supabase password or turn off remember', 'bad');
+            return;
+          }
+          cur.supabasePassword = pw;
+        } else {
+          delete cur.supabasePassword;
+        }
+        persistCfg(cur);
+        setStatus('Quick login saved on this device', 'ok');
+        updateAuthLayout();
+      });
+    }
+    if (els.btnClearQuickLogin) {
+      els.btnClearQuickLogin.addEventListener('click', () => {
+        const ok = window.confirm('Remove panel PIN and saved Supabase password from this browser?');
+        if (!ok) return;
+        const cur = readCfg();
+        delete cur.panelPin;
+        delete cur.supabasePassword;
+        persistCfg(cur);
+        if (els.panelPinSetup) els.panelPinSetup.value = '';
+        if (els.panelPinOnly) els.panelPinOnly.value = '';
+        if (els.chkRememberSupabasePw) els.chkRememberSupabasePw.checked = false;
+        setStatus('Quick login cleared', 'ok');
+        updateAuthLayout();
+      });
+    }
     els.btnRefresh.addEventListener('click', refreshOnly);
     els.btnLogout.addEventListener('click', logout);
     els.flightsBody.addEventListener('click', async (e) => {
@@ -821,23 +1236,45 @@
         setStatus(String(err?.message || err), 'bad');
       }
     });
+    els.usersBody.addEventListener('change', (e) => {
+      const t = e.target;
+      if (!(t instanceof HTMLSelectElement)) return;
+      if (t.getAttribute('data-role') !== 'app-role') return;
+      const tr = t.closest('tr');
+      if (!tr) return;
+      const crew = t.value === 'crew';
+      tr.querySelectorAll('input[data-role="airline-icao"]').forEach((el) => {
+        el.disabled = !crew;
+      });
+    });
     els.usersBody.addEventListener('click', async (e) => {
       const target = e.target;
       if (!(target instanceof HTMLElement)) return;
       const btn = target.closest('button[data-action]');
       if (!btn) return;
-      if (btn.getAttribute('data-action') === 'save-user-meta') {
+      if (btn.getAttribute('data-action') === 'save-user-profile') {
         const userId = btn.getAttribute('data-user-id');
         if (!userId) return;
         const tr = btn.closest('tr');
-        const typeEl = tr && tr.querySelector('select[data-role="user-type"]');
-        const airlineEl = tr && tr.querySelector('input[data-role="airline"]');
-        const type = typeEl && typeEl.value ? typeEl.value : 'unlabeled';
-        const airline = airlineEl && airlineEl.value ? airlineEl.value.trim() : '';
-        userMeta[userId] = { type, airline };
-        saveUserMeta();
-        renderUsers(lastUsers);
-        setStatus('User tags saved', 'ok');
+        const roleEl = tr && tr.querySelector('select[data-role="app-role"]');
+        const companyEl = tr && tr.querySelector('input[data-role="company-name"]');
+        const role = roleEl && roleEl.value ? roleEl.value : '';
+        if (role !== 'crew' && role !== 'family') {
+          setStatus('Invalid app role', 'bad');
+          return;
+        }
+        try {
+          setStatus('Saving profile...', 'warn');
+          const payload = { user_id: userId, role };
+          if (role === 'crew') {
+            payload.company_name = companyEl ? String(companyEl.value) : '';
+          }
+          await callAdminAction('update_user_profile', payload);
+          await loadDashboard();
+          setStatus('Profile saved', 'ok');
+        } catch (err) {
+          setStatus(String(err?.message || err), 'bad');
+        }
         return;
       }
       if (btn.getAttribute('data-action') === 'change-user-password') {
@@ -854,7 +1291,8 @@
           setStatus('Updating user password...', 'warn');
           await callAdminAction('update_user_password', { user_id: userId, new_password: newPassword });
           if (passwordEl) passwordEl.value = '';
-          setStatus('User password updated', 'ok');
+          await loadDashboard();
+          setStatus('Password updated', 'ok');
         } catch (err) {
           setStatus(String(err?.message || err), 'bad');
         }
@@ -976,9 +1414,21 @@
       }
     });
 
-    loadUserMeta();
     updateAdvancedVisibility();
     loadCfg();
+    (async () => {
+      if (await tryRestoreSession()) {
+        try {
+          setStatus('Restoring session…', 'warn');
+          await loadDashboard();
+          setStatus('OK', 'ok');
+        } catch (e) {
+          writeSession(null);
+          accessToken = null;
+          setStatus(String(e?.message || e), 'bad');
+        }
+      }
+    })();
   </script>
 </body>
 </html>
