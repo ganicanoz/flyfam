@@ -63,8 +63,15 @@ jobs:
           fi
         shell: bash
 
+      # Yerelde klasör adı "support"; yayında dosyalar site kökünde. /flyfam/support gibi URL'ler 404 olmasın.
+      - name: Mirror index at /support/ (bookmarks and /support path)
+        run: |
+          mkdir -p support/support
+          cp -f support/index.html support/support/index.html
+        shell: bash
+
       - name: Verify site root (index.html)
-        run: test -f support/index.html && ls -la support/
+        run: test -f support/index.html && test -f support/support/index.html && ls -la support/ support/support/
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
