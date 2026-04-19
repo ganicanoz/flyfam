@@ -1,0 +1,48 @@
+# FlyFam destek sayfası – push olunca otomatik GitHub Pages’e deploy
+name: Deploy support site
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - 'support/**'
+      - 'docs/admin/**'
+      - '.github/workflows/deploy-support.yml'
+  workflow_dispatch:  # Manuel tetiklemek için: Actions → Deploy support site → Run
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: 'pages'
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Mirror admin splash preview into support tree
+        run: |
+          mkdir -p support/admin/mobile-assets
+          cp docs/admin/splash-preview.html support/admin/
+          cp docs/admin/mobile-assets/highressplash1.mp4 \
+            docs/admin/mobile-assets/highressplash1.mp4.png \
+            docs/admin/mobile-assets/splash-logo-ios-default-1024.png \
+            support/admin/mobile-assets/
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload support site
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: 'support'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

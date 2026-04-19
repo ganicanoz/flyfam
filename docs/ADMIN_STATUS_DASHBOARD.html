@@ -137,6 +137,21 @@
     .menu { margin-top: 12px; display: flex; flex-direction: column; gap: 8px; }
     .menu button { text-align: left; width: 100%; }
     .menu button.active { background: #eaf2ff; border-color: #9eb9e5; color: #1e3a8a; }
+    .menu a.nav-external {
+      display: block;
+      text-align: left;
+      width: 100%;
+      background: #f4f7fd;
+      color: var(--brand);
+      border: 1px solid #c7d5ea;
+      border-radius: 6px;
+      padding: 7px 10px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 12px;
+      text-decoration: none;
+    }
+    .menu a.nav-external:hover { border-color: #2563eb; background: #eef4ff; }
     .submenu { display: flex; gap: 8px; margin-bottom: 10px; }
     .sub-btn.active { background: #dbeafe; border-color: #93c5fd; color: #1e3a8a; }
     .subview { display: none; }
@@ -193,6 +208,7 @@
         <button class="nav-btn" data-view="usersView">Users</button>
         <button class="nav-btn" data-view="flightsView">Flights</button>
         <button class="nav-btn" data-view="usageView">Quota / Usage</button>
+        <a class="nav-external" href="./admin/splash-preview.html" target="_blank" rel="noopener">Splash · video önizleme</a>
       </nav>
     </aside>
     <main class="main">
@@ -328,7 +344,7 @@
       phaseSummary: document.getElementById('phaseSummary'),
       usageConfigured: document.getElementById('usageConfigured'),
       usageShortHint: document.getElementById('usageShortHint'),
-      navButtons: Array.from(document.querySelectorAll('.nav-btn')),
+      navButtons: Array.from(document.querySelectorAll('.nav-btn[data-view]')),
       views: Array.from(document.querySelectorAll('.view')),
       flightsSubButtons: Array.from(document.querySelectorAll('.sub-btn')),
       flightSubViews: Array.from(document.querySelectorAll('.subview')),

@@ -33,6 +33,8 @@ Replace `<github-username>` and `<repo-name>` with yours (path segments URL-enco
 
 Logo: keep `docs/Görseller/image.png` in the repo; `./Görseller/image.png` in the dashboard still works when Pages serves from `/docs`.
 
+**Splash / intro video mockup (admin):** `https://<github-username>.github.io/<repo-name>/admin/splash-preview.html` — Admin panel sol menüde **Splash · video önizleme** linkiyle de açılır. Asset’ler `docs/admin/mobile-assets/` içinde tutulur; güncellerken `docs/admin/README.md` komutuna bakın.
+
 ### Cache / `304 Not Modified`
 
 If you change HTML and the browser still shows an old version, append a version query once:

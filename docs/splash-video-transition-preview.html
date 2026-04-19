@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FlyFam — Splash &amp; video geçişi (mockup)</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        /* Videonun poster gök/bulut bandı ile aynı aile — üst açık bulut, alt gök */
+        --sky-1: #f0f6ff;
+        --sky-2: #e2ecfe;
+        --sky-3: #c9ddfb;
+        --sky-4: #b4ccfb;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        background: #0b1020;
+        color: #e8ecff;
+      }
+      .wrap {
+        max-width: 1100px;
+        margin: 24px auto;
+        padding: 0 16px 32px;
+      }
+      h1 {
+        font-size: 20px;
+        margin: 0 0 8px;
+      }
+      .meta {
+        margin: 0 0 18px;
+        opacity: 0.88;
+        font-size: 14px;
+        line-height: 1.5;
+        max-width: 64ch;
+      }
+      .meta strong {
+        color: #fff;
+      }
+      .swatches {
+        display: inline-flex;
+        gap: 4px;
+        vertical-align: middle;
+        margin-right: 8px;
+      }
+      .swatches i {
+        width: 18px;
+        height: 18px;
+        border-radius: 4px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+      }
+      .swatches i:nth-child(1) {
+        background: var(--sky-1);
+      }
+      .swatches i:nth-child(2) {
+        background: var(--sky-3);
+      }
+      .swatches i:nth-child(3) {
+        background: var(--sky-4);
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: 1fr minmax(280px, 340px);
+        gap: 20px;
+        align-items: start;
+      }
+      .phone {
+        position: relative;
+        width: min(100%, 400px);
+        aspect-ratio: 9 / 16;
+        margin: 0 auto;
+        border-radius: 28px;
+        overflow: hidden;
+        border: 1px solid #31406d;
+        box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+      }
+      /* Her zaman görünen bulutlu gök — video ile aynı renk ailesi */
+      .sky-backdrop {
+        position: absolute;
+        inset: 0;
+        z-index: 0;
+        background: linear-gradient(180deg, var(--sky-1) 0%, var(--sky-2) 28%, var(--sky-3) 62%, var(--sky-4) 100%);
+      }
+      .layer-video {
+        position: absolute;
+        inset: 0;
+        z-index: 1;
+      }
+      .layer-video video {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        object-position: center;
+        display: block;
+        opacity: 0;
+        transition: opacity 720ms cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      .phone.is-video-reveal .layer-video video {
+        opacity: 1;
+      }
+      /* Sadece logo; arka plan şeffaf — alttaki bulut zemini görünür */
+      .logo-layer {
+        position: absolute;
+        inset: 0;
+        z-index: 2;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        pointer-events: none;
+        transition:
+          opacity 620ms cubic-bezier(0.4, 0, 0.2, 1),
+          transform 620ms cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      .logo-layer.is-hidden {
+        opacity: 0;
+        transform: scale(0.94);
+      }
+      .splash-logo {
+        width: min(32vw, 148px);
+        max-width: 48%;
+        height: auto;
+        aspect-ratio: 1;
+        object-fit: contain;
+        filter: drop-shadow(0 4px 18px rgba(60, 90, 150, 0.12));
+      }
+      .panel {
+        background: #121a33;
+        border: 1px solid #2c3b67;
+        border-radius: 14px;
+        padding: 16px;
+      }
+      .btns {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 14px;
+      }
+      button {
+        border: 1px solid #4a5f9a;
+        background: #182447;
+        color: #dce6ff;
+        border-radius: 10px;
+        padding: 10px 14px;
+        cursor: pointer;
+        font-size: 13px;
+      }
+      button:hover {
+        background: #1f2d56;
+      }
+      .steps {
+        font-size: 13px;
+        line-height: 1.55;
+        opacity: 0.9;
+        margin: 0 0 12px;
+        padding-left: 1.1rem;
+      }
+      .steps li {
+        margin: 6px 0;
+      }
+      code.block {
+        display: block;
+        font-size: 11px;
+        background: #0e1530;
+        border: 1px solid #25345c;
+        border-radius: 8px;
+        padding: 10px;
+        overflow-x: auto;
+        margin-top: 8px;
+        line-height: 1.45;
+      }
+      .hint {
+        font-size: 12px;
+        opacity: 0.78;
+        line-height: 1.45;
+        margin-top: 10px;
+      }
+      @media (max-width: 900px) {
+        .grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <h1>Splash ekranı — bulut zemini + video geçişi</h1>
+      <p class="meta">
+        <span class="swatches" title="Gradient uçları"><i></i><i></i><i></i></span>
+        <strong>Zemin</strong> videonun posterindeki gök/bulut tonlarıyla aynı paletten
+        <strong>dikey gradient</strong> (düz tek renk değil — logo PNG’sinin kendi mavi köşeleri tüm ekranı
+        kaplamaz). <strong>Logo</strong> daha küçük, ortada <code>contain</code>.
+      </p>
+      <div class="grid">
+        <div class="phone" id="phone" aria-label="Telefon önizleme">
+          <div class="sky-backdrop" aria-hidden="true"></div>
+          <div class="layer-video">
+            <video
+              id="video"
+              src="../mobile/assets/highressplash1.mp4"
+              muted
+              playsinline
+              preload="auto"
+            ></video>
+          </div>
+          <div class="logo-layer" id="logoLayer">
+            <img
+              class="splash-logo"
+              src="../mobile/assets/splash-logo-ios-default-1024.png"
+              alt="FlyFam logo"
+            />
+          </div>
+        </div>
+        <div class="panel">
+          <div class="btns">
+            <button type="button" id="btnSplash">1 · Sadece splash</button>
+            <button type="button" id="btnTransition">2 · Videoya geç</button>
+            <button type="button" id="btnReset">Sıfırla</button>
+          </div>
+          <ol class="steps">
+            <li>Altta her zaman <strong>bulutlu gök gradienti</strong> (video ilk saniyesiyle uyumlu).</li>
+            <li>Üstte <strong>şeffaf</strong> katmanda yalnızca logo — zemin kaybolmuyor.</li>
+            <li><strong>Videoya geç</strong>: video yumuşakça belirir (~0,72s), logo hafif küçülerek soluklaşır.</li>
+          </ol>
+          <code class="block"
+            >JS/React: expo-linear-gradient + splashLogoSizePx()<br />
+            Native splash: tek renk splash.backgroundColor = '#B4CCFB'<br />
+            splash.image = splash-logo-ios-default-1024.png · resizeMode = contain</code
+          >
+          <p class="hint">
+            Yerel: <code>docs/</code>’tan açın (<code>../mobile/assets/...</code>). GitHub Pages
+            <code>/docs</code>: <a href="./admin/splash-preview.html" style="color: #93c5fd">admin/splash-preview.html</a>
+            (gömülü asset’ler).
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const video = document.getElementById("video");
+      const phone = document.getElementById("phone");
+      const logoLayer = document.getElementById("logoLayer");
+      const btnSplash = document.getElementById("btnSplash");
+      const btnTransition = document.getElementById("btnTransition");
+      const btnReset = document.getElementById("btnReset");
+
+      function showSplashOnly() {
+        phone.classList.remove("is-video-reveal");
+        logoLayer.classList.remove("is-hidden");
+        video.pause();
+        video.currentTime = 0;
+      }
+
+      async function crossfadeToVideo() {
+        logoLayer.classList.remove("is-hidden");
+        phone.classList.remove("is-video-reveal");
+        video.currentTime = 0;
+        try {
+          await video.play();
+        } catch (e) {
+          console.error(e);
+          alert("Video oynatılamadı.");
+          return;
+        }
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            phone.classList.add("is-video-reveal");
+            logoLayer.classList.add("is-hidden");
+          });
+        });
+      }
+
+      function resetAll() {
+        phone.classList.remove("is-video-reveal");
+        logoLayer.classList.remove("is-hidden");
+        video.pause();
+        video.currentTime = 0;
+      }
+
+      btnSplash.addEventListener("click", showSplashOnly);
+      btnTransition.addEventListener("click", crossfadeToVideo);
+      btnReset.addEventListener("click", resetAll);
+      video.addEventListener("ended", () => {
+        phone.classList.remove("is-video-reveal");
+        logoLayer.classList.remove("is-hidden");
+        video.pause();
+        video.currentTime = 0;
+      });
+    </script>
+  </body>
+</html>
