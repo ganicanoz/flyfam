@@ -75,11 +75,15 @@
       var a = document.getElementById('adminPanelLink');
       var host = window.location.hostname || '';
       var parts = window.location.pathname.split('/').filter(Boolean);
+      /* Yerelde açılırsa __DEPLOY_SHA__ kalır; GitHub Actions deploy sırasında kısa SHA ile değiştirilir (CDN önbelleğini kırmak için). */
+      var cb = '__DEPLOY_SHA__';
+      if (!cb || cb.indexOf('__') === 0) cb = String(Date.now());
+      var suffix = '?cb=' + encodeURIComponent(cb);
       var href =
-        'https://ganicanoz.github.io/flyfam/ADMIN_STATUS_DASHBOARD.html';
+        'https://ganicanoz.github.io/flyfam/ADMIN_STATUS_DASHBOARD.html' + suffix;
       if (host.endsWith('github.io') && parts.length >= 1) {
         href =
-          window.location.origin + '/' + parts[0] + '/ADMIN_STATUS_DASHBOARD.html';
+          window.location.origin + '/' + parts[0] + '/ADMIN_STATUS_DASHBOARD.html' + suffix;
       }
       a.href = href;
     })();

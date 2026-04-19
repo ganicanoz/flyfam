@@ -53,6 +53,16 @@ jobs:
           fi
         shell: bash
 
+      - name: Stamp deploy SHA in admin link (cache bust for CDN)
+        run: |
+          CB="${GITHUB_SHA:0:8}"
+          sed -i "s/__DEPLOY_SHA__/${CB}/g" support/index.html
+          if grep -q '__DEPLOY_SHA__' support/index.html; then
+            echo "Admin link placeholder not replaced"
+            exit 1
+          fi
+        shell: bash
+
       - name: Verify site root (index.html)
         run: test -f support/index.html && ls -la support/
 
