@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>FlyFam Admin Dashboard</title>
+  <title>FlyFam Admin · panel</title>
   <style>
     :root {
       --bg: #eef2f7;
@@ -17,6 +17,8 @@
       --warn: #d97706;
       --bad: #dc2626;
       --brand: #2563eb;
+      /* Üst bar yüksekliği — sidebar sticky ile uyumlu */
+      --topbar-offset: 54px;
     }
     * { box-sizing: border-box; }
     body {
@@ -29,39 +31,66 @@
       position: sticky;
       top: 0;
       z-index: 20;
-      background: rgba(255, 255, 255, 0.96);
+      background: rgba(255, 255, 255, 0.98);
       border-bottom: 1px solid var(--line);
-      backdrop-filter: blur(8px);
-      padding: 10px 14px;
+      backdrop-filter: blur(10px);
+      padding: 6px 12px;
+      box-shadow: 0 1px 0 rgba(15, 23, 42, 0.05);
     }
     .topbar-inner {
       display: grid;
-      grid-template-columns: 220px 1fr;
+      grid-template-columns: minmax(0, 160px) minmax(0, 1fr);
       gap: 10px;
-      align-items: center;
+      align-items: start;
+    }
+    .topbar-inner > .panel {
+      min-width: 0;
+      padding: 6px 8px !important;
+      margin: 0 !important;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
     }
     .brand {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
     }
     .brand img {
-      width: 34px;
-      height: 34px;
-      border-radius: 8px;
+      width: 28px;
+      height: 28px;
+      border-radius: 7px;
       object-fit: contain;
       border: 1px solid var(--line);
       background: #fff;
     }
-    .brand-title { font-weight: 700; font-size: 16px; }
-    .app { min-height: calc(100vh - 74px); display: grid; grid-template-columns: 260px 1fr; }
+    .brand-title { font-weight: 700; font-size: 14px; letter-spacing: -0.02em; line-height: 1.2; }
+    .topbar .grid {
+      gap: 6px !important;
+    }
+    .topbar input,
+    .topbar select {
+      padding: 5px 8px !important;
+      font-size: 11px !important;
+    }
+    .topbar button {
+      padding: 5px 10px !important;
+      font-size: 11px !important;
+    }
+    .topbar .mini {
+      font-size: 10px;
+    }
+    .app {
+      min-height: calc(100vh - var(--topbar-offset));
+      display: grid;
+      grid-template-columns: 218px minmax(0, 1fr);
+    }
     .sidebar {
       background: var(--sidebar);
       border-right: 1px solid var(--line);
-      padding: 14px;
+      padding: 12px;
       position: sticky;
-      top: 76px;
-      height: calc(100vh - 76px);
+      top: var(--topbar-offset);
+      height: calc(100vh - var(--topbar-offset));
       overflow: auto;
     }
     .main { padding: 14px; }
@@ -79,7 +108,13 @@
     .hidden { display: none !important; }
     .grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 8px; }
     .kpi-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
-    .card { background: var(--panel-soft); border: 1px solid #2f3b49; border-radius: 8px; padding: 10px; }
+    .card {
+      background: var(--panel-soft);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 12px;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    }
     .card h3 { margin: 0; font-size: 13px; color: var(--muted); font-weight: 600; }
     .num { font-size: 24px; font-weight: 700; margin-top: 2px; }
     .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
@@ -163,7 +198,7 @@
         <img src="./Görseller/image.png" alt="FlyFam logo" onerror="this.style.display='none'" />
         <div>
           <div class="brand-title">FlyFam Admin</div>
-          <div class="mini">New light admin panel</div>
+          <div class="mini">Kompakt panel · v2</div>
         </div>
       </div>
       <div class="panel" style="margin:0;">
