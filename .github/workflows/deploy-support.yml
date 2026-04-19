@@ -73,6 +73,11 @@ jobs:
       - name: Verify site root (index.html)
         run: test -f support/index.html && test -f support/support/index.html && ls -la support/ support/support/
 
+      - name: Verify admin HTML in artifact
+        run: |
+          test -f support/ADMIN_STATUS_DASHBOARD.html
+          test "$(wc -c < support/ADMIN_STATUS_DASHBOARD.html)" -ge 8000
+
       - name: Setup Pages
         uses: actions/configure-pages@v4
 
