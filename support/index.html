@@ -78,7 +78,10 @@
       /* Yerelde açılırsa __DEPLOY_SHA__ kalır; GitHub Actions deploy sırasında kısa SHA ile değiştirilir (CDN önbelleğini kırmak için). */
       var cb = '__DEPLOY_SHA__';
       if (!cb || cb.indexOf('__') === 0) cb = String(Date.now());
-      var suffix = '?cb=' + encodeURIComponent(cb);
+      /* docs/ADMIN_STATUS_DASHBOARD.html içindeki var UI ile aynı tut (panel güncellenince artır). */
+      var adminUi = '5';
+      var suffix =
+        '?cb=' + encodeURIComponent(cb) + '&ui=' + encodeURIComponent(adminUi);
       var href =
         'https://ganicanoz.github.io/flyfam/ADMIN_STATUS_DASHBOARD.html' + suffix;
       if (host.endsWith('github.io') && parts.length >= 1) {
