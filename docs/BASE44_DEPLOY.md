@@ -33,7 +33,7 @@ Replace `<github-username>` and `<repo-name>` with yours (path segments URL-enco
 
 Logo: keep `docs/Görseller/image.png` in the repo; `./Görseller/image.png` in the dashboard still works when Pages serves from `/docs`.
 
-**Splash / intro video mockup (admin):** `https://<github-username>.github.io/<repo-name>/admin/splash-preview.html` — Admin panel sol menüde **Splash · video önizleme** linkiyle de açılır. Asset’ler `docs/admin/mobile-assets/` içinde tutulur; güncellerken `docs/admin/README.md` komutuna bakın.
+**Admin panel (yeni ekran):** `https://<github-username>.github.io/<repo-name>/ADMIN_STATUS_DASHBOARD.html` — GitHub Pages kaynağı `/docs` iken bu dosya kökte yayınlanır. Destek sitesi (`support/`) üzerindeki **Yönetici** linki aynı adrese yönlendirir.
 
 ### Cache / `304 Not Modified`
 

@@ -137,21 +137,6 @@
     .menu { margin-top: 12px; display: flex; flex-direction: column; gap: 8px; }
     .menu button { text-align: left; width: 100%; }
     .menu button.active { background: #eaf2ff; border-color: #9eb9e5; color: #1e3a8a; }
-    .menu a.nav-external {
-      display: block;
-      text-align: left;
-      width: 100%;
-      background: #f4f7fd;
-      color: var(--brand);
-      border: 1px solid #c7d5ea;
-      border-radius: 6px;
-      padding: 7px 10px;
-      cursor: pointer;
-      font-weight: 600;
-      font-size: 12px;
-      text-decoration: none;
-    }
-    .menu a.nav-external:hover { border-color: #2563eb; background: #eef4ff; }
     .submenu { display: flex; gap: 8px; margin-bottom: 10px; }
     .sub-btn.active { background: #dbeafe; border-color: #93c5fd; color: #1e3a8a; }
     .subview { display: none; }
@@ -208,7 +193,6 @@
         <button class="nav-btn" data-view="usersView">Users</button>
         <button class="nav-btn" data-view="flightsView">Flights</button>
         <button class="nav-btn" data-view="usageView">Quota / Usage</button>
-        <a class="nav-external" href="./admin/splash-preview.html" target="_blank" rel="noopener">Splash · video önizleme</a>
       </nav>
     </aside>
     <main class="main">
@@ -307,7 +291,7 @@
       <section id="usageView" class="view">
         <div class="panel">
           <h3 style="margin:0 0 8px;">API usage / quota (monthly)</h3>
-          <p class="mini" style="margin-top:0;">Quotas and usage are read from function env: <code>ADMIN_PROVIDER_QUOTAS_JSON</code>, <code>ADMIN_PROVIDER_MONTHLY_USAGE_JSON</code>. For FR24 live usage: <code>ADMIN_FR24_USAGE_URL</code>.</p>
+          <p class="mini" style="margin-top:0;">Quotas: <code>ADMIN_PROVIDER_QUOTAS_JSON</code>, <code>ADMIN_PROVIDER_MONTHLY_USAGE_JSON</code>. FR24 için Supabase’te yeterli olan secret: uçuş API’siyle aynı <code>FR24_API_TOKEN</code> (flight-lookup). <code>ADMIN_FR24_USAGE_URL</code> şart değil — boşsa <code>/api/usage</code> kullanılır.</p>
           <div class="panel">
             <h3 style="margin:0 0 8px;">FR24 Login & Sync</h3>
             <p class="mini" style="margin:0 0 8px;">If iframe login is blocked by FR24 security policy, use "Open FR24 login in new tab", then return and press "Fetch FR24 usage now".</p>
@@ -344,7 +328,7 @@
       phaseSummary: document.getElementById('phaseSummary'),
       usageConfigured: document.getElementById('usageConfigured'),
       usageShortHint: document.getElementById('usageShortHint'),
-      navButtons: Array.from(document.querySelectorAll('.nav-btn[data-view]')),
+      navButtons: Array.from(document.querySelectorAll('.nav-btn')),
       views: Array.from(document.querySelectorAll('.view')),
       flightsSubButtons: Array.from(document.querySelectorAll('.sub-btn')),
       flightSubViews: Array.from(document.querySelectorAll('.subview')),

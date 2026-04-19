@@ -48,8 +48,10 @@
 
   <h2>Yönetici</h2>
   <p style="margin: 0 0 16px; font-size: 0.95rem;">
-    <a href="./admin/splash-preview.html">Splash ekranı &amp; video geçişi önizlemesi</a>
-    <span style="color: #64748b; font-size: 0.85rem;"> (GitHub Pages deploy sonrası; yerelde çalışmıyorsa repo kökünden <code>docs/admin/splash-preview.html</code> açın.)</span>
+    <a id="adminPanelLink" href="#">FlyFam Admin paneli</a>
+    <span style="color: #64748b; font-size: 0.85rem;">
+      (GitHub Pages’te <code>/docs</code> kaynağıyla yayınlanır; aşağıdaki adres repo adına göre otomatik seçilir.)
+    </span>
   </p>
 
   <h2>Sık sorulan sorular</h2>
@@ -67,6 +69,20 @@
   </div>
 
   <footer>© <span id="y"></span> FlyFam · Destek sayfası</footer>
-  <script>document.getElementById('y').textContent = new Date().getFullYear();</script>
+  <script>
+    document.getElementById('y').textContent = new Date().getFullYear();
+    (function () {
+      var a = document.getElementById('adminPanelLink');
+      var host = window.location.hostname || '';
+      var parts = window.location.pathname.split('/').filter(Boolean);
+      var href =
+        'https://ganicanoz.github.io/flyfam/ADMIN_STATUS_DASHBOARD.html';
+      if (host.endsWith('github.io') && parts.length >= 1) {
+        href =
+          window.location.origin + '/' + parts[0] + '/ADMIN_STATUS_DASHBOARD.html';
+      }
+      a.href = href;
+    })();
+  </script>
 </body>
 </html>

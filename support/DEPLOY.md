@@ -33,10 +33,10 @@ E-posta adresini değiştirmek için `index.html` içinde `support@flyfam.app` m
 
 ---
 
-## Admin: splash + video önizlemesi
+## Admin panel
 
-Deploy sırasında workflow, `docs/admin/` içeriğini `support/admin/` altına kopyalar. Canlı sitede:
+Admin arayüzü **`docs/ADMIN_STATUS_DASHBOARD.html`** dosyasıdır; GitHub Pages’i **`/docs`** klasöründen yayınladığınızda adres:
 
-`https://<kullanici>.github.io/<repo>/admin/splash-preview.html`
+`https://<kullanici>.github.io/<repo>/ADMIN_STATUS_DASHBOARD.html`
 
-Ana destek sayfasındaki **Yönetici** linki de buraya gider. Kaynak tek doğruluk: `docs/admin/` (bkz. `docs/admin/README.md`).
+Destek sayfasındaki **FlyFam Admin paneli** linki, `github.io` üzerindeyseniz repo adını pathname’den okuyarak bu dosyaya gider; aksi halde varsayılan olarak `ganicanoz.github.io/flyfam` kullanılır (`support/index.html` içinde düzenleyebilirsiniz).

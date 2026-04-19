@@ -6,7 +6,6 @@ on:
     branches: [main, master]
     paths:
       - 'support/**'
-      - 'docs/admin/**'
       - '.github/workflows/deploy-support.yml'
   workflow_dispatch:  # Manuel tetiklemek için: Actions → Deploy support site → Run
 
@@ -25,15 +24,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Mirror admin splash preview into support tree
-        run: |
-          mkdir -p support/admin/mobile-assets
-          cp docs/admin/splash-preview.html support/admin/
-          cp docs/admin/mobile-assets/highressplash1.mp4 \
-            docs/admin/mobile-assets/highressplash1.mp4.png \
-            docs/admin/mobile-assets/splash-logo-ios-default-1024.png \
-            support/admin/mobile-assets/
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
