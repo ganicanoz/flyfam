@@ -1,4 +1,5 @@
 # FlyFam destek sayfası – push olunca otomatik GitHub Pages’e deploy
+# deploy-pages@v4: job’da mutlaka environment: github-pages olmalı (aksi halde 400 Missing environment).
 name: Deploy support site
 
 on:
@@ -6,27 +7,54 @@ on:
     branches: [main, master]
     paths:
       - 'support/**'
+      - 'docs/ADMIN_STATUS_DASHBOARD.html'
+      - 'docs/admin/**'
       - '.github/workflows/deploy-support.yml'
-  workflow_dispatch:  # Manuel tetiklemek için: Actions → Deploy support site → Run
+  workflow_dispatch:
 
 permissions:
   contents: read
   pages: write
   id-token: write
 
+# GitHub'ın pages-build-deployment ile aynı artifact adını kullanmayın — kök 404 / eski dosya karışması olur.
 concurrency:
-  group: 'pages'
+  group: 'flyfam-support-pages'
   cancel-in-progress: false
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      # Destek sayfasındaki admin linki …/ADMIN_STATUS_DASHBOARD.html bekliyor; dosya docs/’ta.
+      - name: Copy admin dashboard for GitHub Pages
+        run: |
+          if [ -f docs/ADMIN_STATUS_DASHBOARD.html ]; then
+            cp -f docs/ADMIN_STATUS_DASHBOARD.html support/
+          fi
+        shell: bash
+
+      # Uzak repoda docs/admin varsa support/admin altına kopyala (yoksa atla).
+      - name: Optional · admin preview assets into support/
+        run: |
+          if [ -d docs/admin ]; then
+            mkdir -p support/admin/mobile-assets
+            cp -f docs/admin/splash-preview.html support/admin/ 2>/dev/null || true
+            shopt -s nullglob || true
+            for f in docs/admin/mobile-assets/*; do
+              [ -f "$f" ] && cp -f "$f" support/admin/mobile-assets/ || true
+            done
+          fi
+        shell: bash
+
+      - name: Verify site root (index.html)
+        run: test -f support/index.html && ls -la support/
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
@@ -35,7 +63,10 @@ jobs:
         uses: actions/upload-pages-artifact@v3
         with:
           path: 'support'
+          name: flyfam-support-site
 
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+        with:
+          artifact_name: flyfam-support-site

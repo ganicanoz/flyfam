@@ -80,9 +80,14 @@ type Fr24UsageLive = {
 };
 
 async function fetchFr24UsageLive(fr24Token: string | null): Promise<Fr24UsageLive | null> {
-  const usageUrl = Deno.env.get('ADMIN_FR24_USAGE_URL')?.trim();
-  if (!usageUrl) return null;
-  const headers: Record<string, string> = { Accept: 'application/json' };
+  if (!fr24Token?.trim()) return null;
+  const usageUrl =
+    Deno.env.get('ADMIN_FR24_USAGE_URL')?.trim() ||
+    'https://fr24api.flightradar24.com/api/usage';
+  const headers: Record<string, string> = {
+    Accept: 'application/json',
+    'Accept-Version': 'v1',
+  };
   if (fr24Token) headers.Authorization = `Bearer ${fr24Token}`;
   try {
     const res = await fetch(usageUrl, { method: 'GET', headers });
@@ -317,6 +322,138 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+    if (action === 'update_user_profile') {
+      const userId = typeof body?.user_id === 'string' ? body.user_id.trim() : '';
+      if (!userId) {
+        return new Response(JSON.stringify({ error: 'user_id is required' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      const { data: prof, error: profErr } = await adminClient.from('profiles').select('id, role').eq('id', userId).maybeSingle();
+      if (profErr || !prof) {
+        return new Response(JSON.stringify({ error: profErr?.message || 'Profile not found' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      const currentRole = prof.role === 'crew' || prof.role === 'family' ? prof.role : null;
+      if (!currentRole) {
+        return new Response(JSON.stringify({ error: 'Profile has invalid role' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      const nextRoleRaw = typeof body?.role === 'string' ? body.role.trim() : '';
+      const nextRole = nextRoleRaw === 'crew' || nextRoleRaw === 'family' ? nextRoleRaw : null;
+
+      const { data: crewRow } = await adminClient.from('crew_profiles').select('id').eq('user_id', userId).maybeSingle();
+      const hasCrew = !!crewRow?.id;
+
+      if (nextRole === 'family' && currentRole === 'crew' && hasCrew) {
+        return new Response(
+          JSON.stringify({
+            error:
+              'Cannot set app role to family while a crew profile exists (flights/crew data). Demotion is not supported from this panel.',
+          }),
+          {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          },
+        );
+      }
+
+      if (nextRole === 'crew' && currentRole === 'family') {
+        const { error: upErr } = await adminClient.from('profiles').update({ role: 'crew' }).eq('id', userId);
+        if (upErr) {
+          return new Response(JSON.stringify({ error: upErr.message || 'Role update failed' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+        if (!hasCrew) {
+          const cn = typeof body?.company_name === 'string' ? body.company_name.trim() || null : null;
+          const icaoRaw = typeof body?.airline_icao === 'string' ? body.airline_icao.trim().toUpperCase() : '';
+          const icao = icaoRaw ? icaoRaw.slice(0, 12) : null;
+          const { error: insErr } = await adminClient.from('crew_profiles').insert({
+            user_id: userId,
+            company_name: cn,
+            airline_icao: icao,
+            time_preference: 'local',
+          });
+          if (insErr) {
+            await adminClient.from('profiles').update({ role: 'family' }).eq('id', userId);
+            return new Response(JSON.stringify({ error: insErr.message || 'Failed to create crew profile' }), {
+              status: 400,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+          }
+        }
+      } else if (nextRole && nextRole !== currentRole) {
+        const { error: upErr } = await adminClient.from('profiles').update({ role: nextRole }).eq('id', userId);
+        if (upErr) {
+          return new Response(JSON.stringify({ error: upErr.message || 'Role update failed' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+      }
+
+      const wantsCompany = Object.prototype.hasOwnProperty.call(body ?? {}, 'company_name');
+      const wantsIcao = Object.prototype.hasOwnProperty.call(body ?? {}, 'airline_icao');
+      if (wantsCompany || wantsIcao) {
+        const { data: prof2 } = await adminClient.from('profiles').select('role').eq('id', userId).maybeSingle();
+        const effRole = prof2?.role === 'crew' || prof2?.role === 'family' ? prof2.role : null;
+        if (effRole !== 'crew') {
+          return new Response(JSON.stringify({ error: 'Company / ICAO apply only to crew users' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+        const { data: cp } = await adminClient.from('crew_profiles').select('id').eq('user_id', userId).maybeSingle();
+        const patch: Record<string, string | null> = {};
+        if (wantsCompany) {
+          patch.company_name = typeof body?.company_name === 'string' ? body.company_name.trim() || null : null;
+        }
+        if (wantsIcao) {
+          const raw = typeof body?.airline_icao === 'string' ? body.airline_icao.trim().toUpperCase() : '';
+          patch.airline_icao = raw ? raw.slice(0, 12) : null;
+        }
+        if (Object.keys(patch).length === 0) {
+          return new Response(JSON.stringify({ ok: true, action, user_id: userId }), {
+            status: 200,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+        if (!cp?.id) {
+          const { error: ins2 } = await adminClient.from('crew_profiles').insert({
+            user_id: userId,
+            company_name: patch.company_name ?? null,
+            airline_icao: patch.airline_icao ?? null,
+            time_preference: 'local',
+          });
+          if (ins2) {
+            return new Response(JSON.stringify({ error: ins2.message || 'Failed to create crew profile' }), {
+              status: 400,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+          }
+        } else {
+          const { error: cuErr } = await adminClient.from('crew_profiles').update(patch).eq('user_id', userId);
+          if (cuErr) {
+            return new Response(JSON.stringify({ error: cuErr.message || 'Crew profile update failed' }), {
+              status: 400,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+          }
+        }
+      }
+
+      return new Response(JSON.stringify({ ok: true, action, user_id: userId }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
     if (action === 'create_flight') {
       const payload = (body?.payload ?? {}) as Record<string, unknown>;
       const flightNumber = typeof payload.flight_number === 'string' ? payload.flight_number.trim().toUpperCase() : '';
@@ -522,20 +659,123 @@ Deno.serve(async (req) => {
   }
   const authById = new Map(authUsers.map((u) => [u.id, u]));
 
-  const { data: crewProfilesRows } = await adminClient.from('crew_profiles').select('id, user_id');
-  const crewIdByUserId = new Map((crewProfilesRows ?? []).map((r: { id: string; user_id: string }) => [r.user_id, r.id]));
+  const { data: crewProfilesRows } = await adminClient
+    .from('crew_profiles')
+    .select('id, user_id, company_name, airline_icao');
+  type CrewRow = { id: string; user_id: string; company_name: string | null; airline_icao: string | null };
+  const crewByUserId = new Map(
+    (crewProfilesRows ?? []).map((r: CrewRow) => [
+      r.user_id,
+      { id: r.id, company_name: r.company_name ?? null, airline_icao: r.airline_icao ?? null },
+    ]),
+  );
+  type AdminUserConnection = {
+    connection_id: string;
+    status: string;
+    side: 'crew' | 'family';
+    other_user_id: string;
+    other_full_name: string | null;
+    other_email: string | null;
+    /** Set when this user is the family side (linked crew profile company). */
+    linked_crew_company: string | null;
+  };
+
   const userRows = (profiles ?? []).map((p: { id: string; full_name?: string | null; role?: string | null }) => {
     const authU = authById.get(p.id);
+    const crew = crewByUserId.get(p.id);
     return {
       id: p.id,
       id_short: shortId(p.id),
       full_name: p.full_name ?? null,
       role: p.role ?? null,
-      crew_id: crewIdByUserId.get(p.id) ?? null,
+      crew_id: crew?.id ?? null,
+      company_name: crew?.company_name ?? null,
+      airline_icao: crew?.airline_icao ?? null,
       email: authU?.email ?? null,
       last_sign_in_at: authU?.last_sign_in_at ?? null,
+      connections: [] as AdminUserConnection[],
+      family_linked_crew_company: null as string | null,
     };
   });
+
+  const profileById = new Map(userRows.map((u) => [u.id, u]));
+  type CrewMeta = { user_id: string; company_name: string | null; airline_icao: string | null };
+  const crewProfileAirlineDisplay = (meta: CrewMeta): string | null => {
+    const n = String(meta.company_name ?? '').trim();
+    if (n) return n;
+    const ic = String(meta.airline_icao ?? '').trim();
+    return ic || null;
+  };
+  const crewMetaByCrewId = new Map(
+    (crewProfilesRows ?? []).map((r: CrewRow) => [
+      r.id,
+      { user_id: r.user_id, company_name: r.company_name ?? null, airline_icao: r.airline_icao ?? null } as CrewMeta,
+    ]),
+  );
+
+  const { data: familyConnectionRows } = await adminClient
+    .from('family_connections')
+    .select('id, crew_id, family_id, status');
+
+  const connectionsByUserId = new Map<string, AdminUserConnection[]>();
+  const pushConn = (userId: string, c: AdminUserConnection) => {
+    const arr = connectionsByUserId.get(userId) ?? [];
+    arr.push(c);
+    connectionsByUserId.set(userId, arr);
+  };
+
+  for (const fc of (familyConnectionRows ?? []) as Array<{
+    id: string;
+    crew_id: string;
+    family_id: string;
+    status: string;
+  }>) {
+    const meta = crewMetaByCrewId.get(fc.crew_id);
+    if (!meta) continue;
+    const crewUid = meta.user_id;
+    const famUid = fc.family_id;
+    const crewUser = profileById.get(crewUid);
+    const famUser = profileById.get(famUid);
+    const linkedAirline = crewProfileAirlineDisplay(meta);
+
+    pushConn(crewUid, {
+      connection_id: fc.id,
+      status: fc.status,
+      side: 'crew',
+      other_user_id: famUid,
+      other_full_name: famUser?.full_name ?? null,
+      other_email: famUser?.email ?? null,
+      linked_crew_company: null,
+    });
+    pushConn(famUid, {
+      connection_id: fc.id,
+      status: fc.status,
+      side: 'family',
+      other_user_id: crewUid,
+      other_full_name: crewUser?.full_name ?? null,
+      other_email: crewUser?.email ?? null,
+      linked_crew_company: linkedAirline,
+    });
+  }
+
+  const uniqNonEmpty = (values: (string | null | undefined)[]): string[] =>
+    [...new Set(values.map((x) => String(x ?? '').trim()).filter((x) => x.length > 0))];
+
+  const connStatusRank = (s: string) => (s === 'approved' ? 0 : s === 'pending' ? 1 : 2);
+
+  for (const u of userRows) {
+    const list = connectionsByUserId.get(u.id) ?? [];
+    list.sort((a, b) =>
+      connStatusRank(a.status) - connStatusRank(b.status) ||
+      String(a.other_full_name || a.other_email || '').localeCompare(String(b.other_full_name || b.other_email || '')),
+    );
+    u.connections = list;
+    if (String(u.role ?? '') === 'family') {
+      const famSide = list.filter((c) => c.side === 'family' && c.status !== 'declined');
+      const companies = uniqNonEmpty(famSide.map((c) => c.linked_crew_company));
+      u.family_linked_crew_company = companies.length ? companies.join(' · ') : null;
+    }
+  }
 
   const activeCutoffMs = Date.now() - 30 * 24 * 60 * 60 * 1000;
   const activeUsers30d = userRows.filter((u) => {
@@ -633,7 +873,11 @@ Deno.serve(async (req) => {
 
   const quotas = parseProviderQuotas(Deno.env.get('ADMIN_PROVIDER_QUOTAS_JSON'));
   const monthlyUsage = parseMonthlyUsage(Deno.env.get('ADMIN_PROVIDER_MONTHLY_USAGE_JSON'));
-  const fr24Token = Deno.env.get('FR24API_TOKEN') ?? Deno.env.get('EXPO_PUBLIC_FR24API_TOKEN') ?? null;
+  const fr24Token =
+    Deno.env.get('FR24_API_TOKEN')?.trim() ||
+    Deno.env.get('FR24API_TOKEN')?.trim() ||
+    Deno.env.get('EXPO_PUBLIC_FR24API_TOKEN')?.trim() ||
+    null;
   const fr24LiveUsage = await fetchFr24UsageLive(fr24Token);
   const providers = Array.from(
     new Set([
@@ -753,7 +997,7 @@ Deno.serve(async (req) => {
         endpoint_series_30d: fr24EndpointSeries,
       },
       notes: [
-        'FR24 live usage uses ADMIN_FR24_USAGE_URL and sums data[].credits (fallbacks to env JSON on error).',
+        'FR24 live usage: token from FR24_API_TOKEN / FR24API_TOKEN; URL from ADMIN_FR24_USAGE_URL or default /api/usage; sums data[].credits (fallbacks to env JSON on error).',
         'FR24 history is read from fr24_usage_metric_snapshots/fr24_usage_metric_points (filled by sync-fr24-usage-metrics cron).',
         'Monthly usage values come from ADMIN_PROVIDER_MONTHLY_USAGE_JSON if set.',
         'Quotas come from ADMIN_PROVIDER_QUOTAS_JSON if set.',
