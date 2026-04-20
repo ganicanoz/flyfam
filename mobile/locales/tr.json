@@ -101,7 +101,15 @@
     "deleteAccountAction": "Profili sil",
     "deleteAccountConfirmMessage": "Hesabınız ve ilişkili tüm veriler kalıcı olarak silinecek. Bu işlem geri alınamaz.",
     "deleteAccountFailed": "Profil silinemedi. Lütfen tekrar deneyin.",
-    "privacyPolicy": "Gizlilik Politikası"
+    "privacyPolicy": "Gizlilik Politikası",
+    "consentHistory": "Onay Geçmişim"
+  },
+  "consent": {
+    "title": "Onay Gerekli",
+    "subtitle": "FlyFam kullanmaya devam etmek için güncel KVKK ve kullanım/disclaimer metinlerini onaylayın.",
+    "historyTitle": "Onay Geçmişim",
+    "historyEmpty": "Henüz onay kaydı bulunmuyor.",
+    "errorNoUser": "Kullanıcı oturumu doğrulanamadı. Lütfen tekrar giriş yapın."
   },
   "editProfile": {
     "title": "Profili Düzenle",

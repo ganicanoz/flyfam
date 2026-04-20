@@ -101,7 +101,15 @@
     "deleteAccountAction": "Delete profile",
     "deleteAccountConfirmMessage": "Your account and all related data will be permanently deleted. This action cannot be undone.",
     "deleteAccountFailed": "Could not delete your profile. Please try again.",
-    "privacyPolicy": "Privacy Policy"
+    "privacyPolicy": "Privacy Policy",
+    "consentHistory": "My Consent History"
+  },
+  "consent": {
+    "title": "Consent Required",
+    "subtitle": "To continue using FlyFam, please accept the latest privacy/KVKK and terms/disclaimer texts.",
+    "historyTitle": "My Consent History",
+    "historyEmpty": "No consent records yet.",
+    "errorNoUser": "User session could not be verified. Please sign in again."
   },
   "editProfile": {
     "title": "Edit Profile",

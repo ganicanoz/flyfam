@@ -3,6 +3,7 @@ import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useSession } from '@/contexts/SessionContext';
+import { hasRequiredConsents } from '@/lib/consents';
 
 export default function Index() {
   const { session, profile, crewProfile, isLoading } = useSession();
@@ -11,28 +12,41 @@ export default function Index() {
   useEffect(() => {
     if (isLoading) return;
 
-    SplashScreen.hideAsync();
+    let cancelled = false;
+    const route = async () => {
+      await SplashScreen.hideAsync();
 
-    if (!session) {
-      router.replace('/(auth)/welcome');
-      return;
-    }
+      if (!session) {
+        router.replace('/(auth)/welcome');
+        return;
+      }
 
-    if (!profile) {
-      router.replace('/(auth)/welcome');
-      return;
-    }
+      if (!profile) {
+        router.replace('/(auth)/welcome');
+        return;
+      }
 
-    if (profile.role === 'crew' && !crewProfile) {
-      router.replace('/(auth)/complete-profile');
-      return;
-    }
+      const hasConsents = await hasRequiredConsents(profile.id);
+      if (!cancelled && !hasConsents) {
+        router.replace('/(auth)/consent');
+        return;
+      }
 
-    if (profile.role === 'crew') {
-      router.replace('/(app)/(crew)/roster');
-    } else {
-      router.replace('/(app)/(family)/dashboard');
-    }
+      if (profile.role === 'crew' && !crewProfile) {
+        router.replace('/(auth)/complete-profile');
+        return;
+      }
+
+      if (profile.role === 'crew') {
+        router.replace('/(app)/(crew)/roster');
+      } else {
+        router.replace('/(app)/(family)/dashboard');
+      }
+    };
+    route();
+    return () => {
+      cancelled = true;
+    };
   }, [session, profile, crewProfile, isLoading, router]);
 
   return (
