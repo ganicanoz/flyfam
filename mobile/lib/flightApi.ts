@@ -405,6 +405,7 @@ function toUtcIsoStrict(dt: string | null | undefined): string | undefined {
  * Landed yalnızca datetime_landed ≤ now ile (last_seen her zaman geçmişte olduğundan landed proxy değil).
  * - now < first_seen → Scheduled
  * - first_seen ≤ now < datetime_takeoff (veya takeoff null) → Taxi-Out
+ * - takeoff null ama first_seen + (altitude > 2000ft && gs > 200kt) → En-Route fallback
  * - datetime_takeoff ≤ now ve (datetime_landed yok veya now < landed) → En-Route
  * - datetime_landed ≤ now → Landed
  */
@@ -413,16 +414,22 @@ function deriveFr24LiveStatus(
   firstSeenUtc: string | undefined,
   datetimeTakeoffUtc: string | undefined,
   datetimeLandedUtc: string | undefined,
+  altitudeFt?: number,
+  groundSpeedKts?: number,
 ): FlightStatusApi {
   const first = firstSeenUtc ? new Date(firstSeenUtc).getTime() : 0;
   const takeoff = datetimeTakeoffUtc ? new Date(datetimeTakeoffUtc).getTime() : 0;
   const landed = datetimeLandedUtc ? new Date(datetimeLandedUtc).getTime() : 0;
+  const strongAirborne = (altitudeFt ?? -1) > 2000 && (groundSpeedKts ?? -1) > 200;
 
   if (first > 0 && nowMs < first) return 'scheduled';
-  if (first > 0 && (takeoff === 0 || nowMs < takeoff)) return 'taxi_out';
+  if (first > 0 && (takeoff === 0 || nowMs < takeoff)) {
+    if (takeoff === 0 && strongAirborne) return 'en_route';
+    return 'taxi_out';
+  }
   if (landed > 0 && nowMs >= landed) return 'landed';
   if (takeoff > 0 && (landed === 0 || nowMs < landed)) return 'en_route';
-  if (first > 0 && nowMs >= first) return 'taxi_out';
+  if (first > 0 && nowMs >= first) return strongAirborne ? 'en_route' : 'taxi_out';
   return 'scheduled';
 }
 
@@ -1086,6 +1093,10 @@ async function fetchFromFlightradar24(flightNumber: string, date: string): Promi
     const datetime_takeoff_utc = toUtcIsoAssumeUtc(takeoffRaw);
     const datetime_landed_utc = toUtcIsoAssumeUtc(landedRaw);
     const last_seen_utc = toUtcIsoAssumeUtc(lastSeenRaw);
+    const altitudeFtRaw = Number((f.altitude_ft ?? f.altitude ?? f.alt) as number | undefined);
+    const groundSpeedKtsRaw = Number((f.ground_speed ?? f.groundSpeed ?? f.speed) as number | undefined);
+    const altitudeFt = Number.isFinite(altitudeFtRaw) ? altitudeFtRaw : undefined;
+    const groundSpeedKts = Number.isFinite(groundSpeedKtsRaw) ? groundSpeedKtsRaw : undefined;
     const flightEnded = (f.flight_ended ?? f.flightEnded) as boolean | undefined;
     const originCity = getAirportDisplay(origin)?.city;
     const destinationCity = getAirportDisplay(destination)?.city;
@@ -1108,6 +1119,8 @@ async function fetchFromFlightradar24(flightNumber: string, date: string): Promi
       callsign: (f.callsign ?? f.callSign) as string | undefined,
       flightEnded,
       delayed: false,
+      altitudeFt,
+      groundSpeedKts,
       first_seen_utc: first_seen_utc ?? undefined,
       datetime_takeoff_utc: datetime_takeoff_utc ?? undefined,
       fr24_datetime_takeoff_utc: datetime_takeoff_utc ?? undefined,
@@ -1119,7 +1132,14 @@ async function fetchFromFlightradar24(flightNumber: string, date: string): Promi
       if (landedForBar) base.fr24_datetime_landed_utc = landedForBar;
     }
     if (flightEnded === false && (first_seen_utc || datetime_takeoff_utc || datetime_landed_utc)) {
-      base.flightStatus = deriveFr24LiveStatus(Date.now(), first_seen_utc, datetime_takeoff_utc, datetime_landed_utc);
+      base.flightStatus = deriveFr24LiveStatus(
+        Date.now(),
+        first_seen_utc,
+        datetime_takeoff_utc,
+        datetime_landed_utc,
+        altitudeFt,
+        groundSpeedKts,
+      );
     }
     // Bacak seçilen günden önceyse ve landed/parked ise eşleşme sayma (önceki gün verisi yok).
     const depForLegDate = depIso ?? first_seen_utc ?? datetime_takeoff_utc;

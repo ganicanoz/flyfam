@@ -88,6 +88,12 @@ interface Fr24Flight {
   lastSeen?: string;
   flight_ended?: boolean;
   flightEnded?: boolean;
+  altitude?: number;
+  alt?: number;
+  altitude_ft?: number;
+  ground_speed?: number;
+  groundSpeed?: number;
+  speed?: number;
   fr24_id?: string;
   fr24Id?: string;
   id?: string;
@@ -614,15 +620,21 @@ function deriveFr24LiveStatus(
   firstSeenUtc: string | undefined,
   datetimeTakeoffUtc: string | undefined,
   datetimeLandedUtc: string | undefined,
+  altitudeFt?: number,
+  groundSpeedKts?: number,
 ): DbLive {
   const first = firstSeenUtc ? new Date(firstSeenUtc).getTime() : 0;
   const takeoff = datetimeTakeoffUtc ? new Date(datetimeTakeoffUtc).getTime() : 0;
   const landed = datetimeLandedUtc ? new Date(datetimeLandedUtc).getTime() : 0;
+  const strongAirborne = (altitudeFt ?? -1) > 2000 && (groundSpeedKts ?? -1) > 200;
   if (first > 0 && nowMs < first) return 'scheduled';
-  if (first > 0 && (takeoff === 0 || nowMs < takeoff)) return 'taxi_out';
+  if (first > 0 && (takeoff === 0 || nowMs < takeoff)) {
+    if (takeoff === 0 && strongAirborne) return 'en_route';
+    return 'taxi_out';
+  }
   if (landed > 0 && nowMs >= landed) return 'landed';
   if (takeoff > 0 && (landed === 0 || nowMs < landed)) return 'en_route';
-  if (first > 0 && nowMs >= first) return 'taxi_out';
+  if (first > 0 && nowMs >= first) return strongAirborne ? 'en_route' : 'taxi_out';
   return 'scheduled';
 }
 
@@ -697,7 +709,11 @@ export async function pollRosterFlightEdge(
         const takeoff = toUtcIsoAssumeUtc((f.datetime_takeoff ?? f.datetimeTakeoff) as string | undefined);
         const landedTs = toUtcIsoAssumeUtc((f.datetime_landed ?? f.datetimeLanded) as string | undefined);
         const lastSeen = toUtcIsoAssumeUtc((f.last_seen ?? f.lastSeen) as string | undefined);
-        const live = deriveFr24LiveStatus(nowMs, firstSeen, takeoff, landedTs);
+        const altitudeFtRaw = Number((f.altitude_ft ?? f.altitude ?? f.alt) as number | undefined);
+        const groundSpeedKtsRaw = Number((f.ground_speed ?? f.groundSpeed ?? f.speed) as number | undefined);
+        const altitudeFt = Number.isFinite(altitudeFtRaw) ? altitudeFtRaw : undefined;
+        const groundSpeedKts = Number.isFinite(groundSpeedKtsRaw) ? groundSpeedKtsRaw : undefined;
+        const live = deriveFr24LiveStatus(nowMs, firstSeen, takeoff, landedTs, altitudeFt, groundSpeedKts);
         return {
           ...emptyBase(),
           flightStatus: dbLiveToFlightStatus(live),
