@@ -5,7 +5,8 @@ returns text language sql security definer set search_path = public as $$
 $$;
 
 -- crew_invitations: crew sends invite by email; family accepts/declines in app
-create table public.crew_invitations (
+-- Idempotent: safe to run when table already exists
+create table if not exists public.crew_invitations (
   id uuid primary key default gen_random_uuid(),
   crew_id uuid not null references public.crew_profiles(id) on delete cascade,
   family_email text not null,
@@ -13,19 +14,21 @@ create table public.crew_invitations (
   created_at timestamptz default now() not null
 );
 
-create index idx_crew_invitations_family_email on public.crew_invitations(family_email);
-create index idx_crew_invitations_crew on public.crew_invitations(crew_id);
-create index idx_crew_invitations_pending on public.crew_invitations(family_email, status) where status = 'pending';
+create index if not exists idx_crew_invitations_family_email on public.crew_invitations(family_email);
+create index if not exists idx_crew_invitations_crew on public.crew_invitations(crew_id);
+create index if not exists idx_crew_invitations_pending on public.crew_invitations(family_email, status) where status = 'pending';
 
 alter table public.crew_invitations enable row level security;
 
 -- Crew can manage own invitations
+drop policy if exists "Crew can manage own invitations" on public.crew_invitations;
 create policy "Crew can manage own invitations"
   on public.crew_invitations for all
   using (crew_id in (select id from public.crew_profiles where user_id = auth.uid()))
   with check (crew_id in (select id from public.crew_profiles where user_id = auth.uid()));
 
 -- Family can read invitations sent to their email (must match auth user)
+drop policy if exists "Family can read invitations for own email" on public.crew_invitations;
 create policy "Family can read invitations for own email"
   on public.crew_invitations for select
   using (
@@ -34,6 +37,7 @@ create policy "Family can read invitations for own email"
   );
 
 -- Family can update (accept/decline) invitations sent to their email
+drop policy if exists "Family can respond to own invitations" on public.crew_invitations;
 create policy "Family can respond to own invitations"
   on public.crew_invitations for update
   using (

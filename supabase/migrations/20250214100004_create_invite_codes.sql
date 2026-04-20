@@ -1,5 +1,6 @@
 -- invite_codes: codes crew shares for family to connect
-create table public.invite_codes (
+-- Idempotent: safe to run when table already exists
+create table if not exists public.invite_codes (
   id uuid primary key default gen_random_uuid(),
   crew_id uuid not null references public.crew_profiles(id) on delete cascade,
   code text not null unique,
@@ -9,6 +10,6 @@ create table public.invite_codes (
   created_at timestamptz default now() not null
 );
 
-create index idx_invite_codes_code on public.invite_codes(code);
+create index if not exists idx_invite_codes_code on public.invite_codes(code);
 
 comment on table public.invite_codes is 'Invite codes for family to connect to crew';

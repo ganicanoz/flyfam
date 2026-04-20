@@ -7,7 +7,8 @@ returns table (
   family_id uuid,
   crew_id uuid,
   status text,
-  other_name text
+  other_name text,
+  other_avatar_url text
 )
 language plpgsql
 security definer
@@ -22,7 +23,8 @@ begin
       fc.family_id,
       fc.crew_id,
       fc.status,
-      p.full_name::text as other_name
+      p.full_name::text as other_name,
+      p.avatar_url::text as other_avatar_url
     from public.family_connections fc
     join public.profiles p on p.id = fc.family_id
     where fc.crew_id in (select cp.id from public.crew_profiles cp where cp.user_id = auth.uid());
@@ -36,7 +38,8 @@ begin
     fc.family_id,
     fc.crew_id,
     fc.status,
-    p.full_name::text as other_name
+    p.full_name::text as other_name,
+    p.avatar_url::text as other_avatar_url
   from public.family_connections fc
   join public.crew_profiles cp on cp.id = fc.crew_id
   join public.profiles p on p.id = cp.user_id

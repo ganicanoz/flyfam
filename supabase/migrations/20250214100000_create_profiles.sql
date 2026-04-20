@@ -1,5 +1,6 @@
 -- profiles: extends auth.users with app-specific data
-create table public.profiles (
+-- Idempotent: safe to run when table already exists (e.g. existing DB)
+create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   role text not null check (role in ('crew', 'family')),
   full_name text,
@@ -17,6 +18,7 @@ begin
 end;
 $$ language plpgsql;
 
+drop trigger if exists profiles_updated_at on public.profiles;
 create trigger profiles_updated_at
   before update on public.profiles
   for each row execute function public.handle_updated_at();

@@ -19,7 +19,7 @@ begin
 end;
 $$;
 
-comment on function public.create_profile is 'Create app profile after signup; role must be crew or family';
+comment on function public.create_profile(text, text, text) is 'Create app profile after signup; role must be crew or family';
 
 -- create_crew_profile: called when crew completes onboarding
 create or replace function public.create_crew_profile(
@@ -47,7 +47,7 @@ begin
 end;
 $$;
 
-comment on function public.create_crew_profile is 'Create crew profile for crew user';
+comment on function public.create_crew_profile(text, text) is 'Create crew profile for crew user';
 
 -- generate_invite_code: crew generates a code for family to connect
 create or replace function public.generate_invite_code(
@@ -76,7 +76,7 @@ begin
 end;
 $$;
 
-comment on function public.generate_invite_code is 'Generate invite code for family to connect; default 7 day expiry';
+comment on function public.generate_invite_code(int) is 'Generate invite code for family to connect; default 7 day expiry';
 
 -- redeem_invite_code: family uses code to request connection
 create or replace function public.redeem_invite_code(p_code text)
@@ -119,7 +119,7 @@ begin
 end;
 $$;
 
-comment on function public.redeem_invite_code is 'Family redeems invite code to request connection to crew';
+comment on function public.redeem_invite_code(text) is 'Family redeems invite code to request connection to crew';
 
 -- approve_connection: crew approves a pending family connection
 create or replace function public.approve_connection(p_connection_id uuid)
@@ -151,4 +151,4 @@ begin
 end;
 $$;
 
-comment on function public.approve_connection is 'Crew approves a pending family connection';
+comment on function public.approve_connection(uuid) is 'Crew approves a pending family connection';

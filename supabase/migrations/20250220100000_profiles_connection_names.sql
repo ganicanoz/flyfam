@@ -1,7 +1,9 @@
 -- Allow reading profile (full_name) for connected users so Family page can show names.
 -- Crew: can read profiles of family members they are connected to (family_id in their connections).
 -- Family: can read profiles of crew they are connected to (crew's user_id via crew_profiles).
+-- Idempotent: drop then create so re-run is safe.
 
+drop policy if exists "Crew can read connected family profiles" on public.profiles;
 create policy "Crew can read connected family profiles"
   on public.profiles for select
   using (
@@ -12,6 +14,7 @@ create policy "Crew can read connected family profiles"
     )
   );
 
+drop policy if exists "Family can read connected crew profiles" on public.profiles;
 create policy "Family can read connected crew profiles"
   on public.profiles for select
   using (

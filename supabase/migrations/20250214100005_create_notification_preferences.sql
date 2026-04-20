@@ -1,5 +1,6 @@
 -- notification_preferences: per family user, per connection
-create table public.notification_preferences (
+-- Idempotent: safe to run when table already exists
+create table if not exists public.notification_preferences (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references public.profiles(id) on delete cascade,
   connection_id uuid not null references public.family_connections(id) on delete cascade,
@@ -13,6 +14,7 @@ create table public.notification_preferences (
   unique (user_id, connection_id)
 );
 
+drop trigger if exists notification_preferences_updated_at on public.notification_preferences;
 create trigger notification_preferences_updated_at
   before update on public.notification_preferences
   for each row execute function public.handle_updated_at();

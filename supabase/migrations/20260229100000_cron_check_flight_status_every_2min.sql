@@ -1,0 +1,17 @@
+-- NOTE: This migration is intentionally a no-op to avoid SQL syntax issues on projects
+-- where pg_cron / pg_net / Vault may not yet be configured.
+--
+-- How to schedule `check-flight-status-and-notify` (e.g. every 5 minutes):
+--
+-- Option A – External cron (cron-job.org, GitHub Actions, vb.)
+--   - URL:     https://<PROJECT_REF>.supabase.co/functions/v1/check-flight-status-and-notify
+--   - Method:  POST
+--   - Headers: x-cron-secret: <CRON_SECRET>
+--   - Schedule: Every 5 minutes (DB for Android & iOS; app polls DB every 1 min on Roster)
+--
+-- Option B – Supabase pg_cron (Dashboard → Database → Extensions → pg_cron, pg_net)
+--   - Follow Supabase docs “Scheduling Edge Functions” and use net.http_post(...)
+--     to call the same URL above every 5 minutes.
+--
+-- This comment-only file lets `supabase db push` succeed without forcing pg_cron
+-- setup in environments where it isn't ready yet.
