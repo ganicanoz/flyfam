@@ -77,7 +77,7 @@ export default function ConsentScreen() {
             </View>
             <Text style={styles.text}>{t('signUp.acceptPrivacyNotice')}</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => Alert.alert(t('signUp.privacyNoticeTitle'), t('signUp.privacyNoticeBody'))}>
+          <TouchableOpacity onPress={() => router.push('/(auth)/privacy-notice')}>
             <Text style={styles.link}>{t('signUp.readPrivacyNotice')}</Text>
           </TouchableOpacity>
 
@@ -87,7 +87,7 @@ export default function ConsentScreen() {
             </View>
             <Text style={styles.text}>{t('signUp.acceptTermsDisclaimer')}</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => Alert.alert(t('signUp.disclaimerTitle'), t('signUp.disclaimerBody'))}>
+          <TouchableOpacity onPress={() => router.push('/(auth)/terms-disclaimer')}>
             <Text style={styles.link}>{t('signUp.readDisclaimer')}</Text>
           </TouchableOpacity>
         </View>

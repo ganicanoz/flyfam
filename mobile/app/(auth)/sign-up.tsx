@@ -14,8 +14,7 @@ import {
 import { useRouter, Link } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { supabase } from '@/lib/supabase';
-
-const CONSENT_VERSION = '2026-04-v1';
+import { CONSENT_VERSION } from '@/lib/consents';
 
 export default function SignUp() {
   const { t, i18n } = useTranslation();
@@ -216,13 +215,7 @@ export default function SignUp() {
             <Text style={styles.consentText}>{t('signUp.acceptPrivacyNotice')}</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            onPress={() =>
-              Alert.alert(
-                t('signUp.privacyNoticeTitle'),
-                t('signUp.privacyNoticeBody'),
-                [{ text: t('common.ok') }]
-              )
-            }
+            onPress={() => router.push('/(auth)/privacy-notice')}
             disabled={loading}
           >
             <Text style={styles.consentLink}>{t('signUp.readPrivacyNotice')}</Text>
@@ -239,13 +232,7 @@ export default function SignUp() {
             <Text style={styles.consentText}>{t('signUp.acceptTermsDisclaimer')}</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            onPress={() =>
-              Alert.alert(
-                t('signUp.disclaimerTitle'),
-                t('signUp.disclaimerBody'),
-                [{ text: t('common.ok') }]
-              )
-            }
+            onPress={() => router.push('/(auth)/terms-disclaimer')}
             disabled={loading}
           >
             <Text style={styles.consentLink}>{t('signUp.readDisclaimer')}</Text>
