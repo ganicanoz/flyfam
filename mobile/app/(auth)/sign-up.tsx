@@ -12,24 +12,40 @@ import {
   ScrollView,
 } from 'react-native';
 import { useRouter, Link } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { supabase } from '@/lib/supabase';
 
+const CONSENT_VERSION = '2026-04-v1';
+
 export default function SignUp() {
+  const { t, i18n } = useTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [role, setRole] = useState<'crew' | 'family' | null>(null);
+  const [acceptPrivacyNotice, setAcceptPrivacyNotice] = useState(false);
+  const [acceptTermsDisclaimer, setAcceptTermsDisclaimer] = useState(false);
+  const [acceptMarketingConsent, setAcceptMarketingConsent] = useState(false);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
   const handleSignUp = async () => {
-    if (!email.trim() || !password || !fullName.trim() || !role) {
-      Alert.alert('Error', 'Please fill all fields and select a role');
+    if (!email.trim() || !password || !confirmPassword || !fullName.trim() || !role) {
+      Alert.alert(t('common.error'), t('signUp.errorFillAll'));
+      return;
+    }
+    if (!acceptPrivacyNotice || !acceptTermsDisclaimer) {
+      Alert.alert(t('common.error'), t('signUp.errorConsentRequired'));
       return;
     }
 
     if (password.length < 6) {
-      Alert.alert('Error', 'Password must be at least 6 characters');
+      Alert.alert(t('common.error'), t('signUp.errorPasswordLength'));
+      return;
+    }
+    if (password !== confirmPassword) {
+      Alert.alert(t('common.error'), t('signUp.errorPasswordMismatch'));
       return;
     }
 
@@ -42,7 +58,7 @@ export default function SignUp() {
     setLoading(false);
 
     if (authError) {
-      Alert.alert('Error', authError.message);
+      Alert.alert(t('common.error'), authError.message);
       return;
     }
 
@@ -56,16 +72,49 @@ export default function SignUp() {
       if (profileError) {
         console.error('Profile creation error:', profileError);
         Alert.alert(
-          'Account created',
-          'Please sign in. If you see issues, contact support.'
+          t('signUp.accountCreated'),
+          t('signUp.canSignInNow')
         );
+      }
+
+      const locale = i18n.language?.toLowerCase().startsWith('tr') ? 'tr' : 'en';
+      const consentRows = [
+        {
+          user_id: authData.user.id,
+          consent_type: 'privacy_notice',
+          accepted: true,
+          policy_version: CONSENT_VERSION,
+          locale,
+          source: 'signup',
+        },
+        {
+          user_id: authData.user.id,
+          consent_type: 'terms_disclaimer',
+          accepted: true,
+          policy_version: CONSENT_VERSION,
+          locale,
+          source: 'signup',
+        },
+        {
+          user_id: authData.user.id,
+          consent_type: 'marketing_optional',
+          accepted: acceptMarketingConsent,
+          policy_version: CONSENT_VERSION,
+          locale,
+          source: 'signup',
+        },
+      ];
+      const { error: consentError } = await supabase.from('user_consents').insert(consentRows);
+      if (consentError) {
+        console.error('Consent insert error:', consentError);
+        Alert.alert(t('common.error'), t('signUp.errorConsentSave'));
       }
     }
 
     Alert.alert(
-      'Account created',
-      'Please check your email to confirm your account, then sign in.',
-      [{ text: 'OK', onPress: () => router.replace('/(auth)/sign-in') }]
+      t('signUp.accountCreated'),
+      t('signUp.canSignInNow'),
+      [{ text: t('common.ok'), onPress: () => router.replace('/(auth)/sign-in') }]
     );
   };
 
@@ -75,12 +124,12 @@ export default function SignUp() {
       style={styles.container}
     >
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        <Text style={styles.title}>Sign Up</Text>
-        <Text style={styles.subtitle}>Create your account</Text>
+        <Text style={styles.title}>{t('signUp.title')}</Text>
+        <Text style={styles.subtitle}>{t('signUp.subtitle')}</Text>
 
         <TextInput
           style={styles.input}
-          placeholder="Full name"
+          placeholder={t('signUp.fullName')}
           placeholderTextColor="#71717a"
           value={fullName}
           onChangeText={setFullName}
@@ -89,7 +138,7 @@ export default function SignUp() {
 
         <TextInput
           style={styles.input}
-          placeholder="Email"
+          placeholder={t('signUp.email')}
           placeholderTextColor="#71717a"
           value={email}
           onChangeText={setEmail}
@@ -100,15 +149,24 @@ export default function SignUp() {
 
         <TextInput
           style={styles.input}
-          placeholder="Password (min 6 characters)"
+          placeholder={t('signUp.password')}
           placeholderTextColor="#71717a"
           value={password}
           onChangeText={setPassword}
           secureTextEntry
           editable={!loading}
         />
+        <TextInput
+          style={styles.input}
+          placeholder={t('signUp.confirmPassword')}
+          placeholderTextColor="#71717a"
+          value={confirmPassword}
+          onChangeText={setConfirmPassword}
+          secureTextEntry
+          editable={!loading}
+        />
 
-        <Text style={styles.label}>I am a</Text>
+        <Text style={styles.label}>{t('signUp.iAm')}</Text>
         <View style={styles.roleRow}>
           <TouchableOpacity
             style={[
@@ -124,7 +182,7 @@ export default function SignUp() {
                 role === 'crew' && styles.roleButtonTextActive,
               ]}
             >
-              Crew
+              {t('signUp.crew')}
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -141,8 +199,67 @@ export default function SignUp() {
                 role === 'family' && styles.roleButtonTextActive,
               ]}
             >
-              Family
+              {t('signUp.family')}
             </Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.consentBox}>
+          <TouchableOpacity
+            style={styles.consentRow}
+            onPress={() => setAcceptPrivacyNotice((v) => !v)}
+            disabled={loading}
+          >
+            <View style={[styles.checkbox, acceptPrivacyNotice && styles.checkboxChecked]}>
+              {acceptPrivacyNotice ? <Text style={styles.checkboxTick}>✓</Text> : null}
+            </View>
+            <Text style={styles.consentText}>{t('signUp.acceptPrivacyNotice')}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() =>
+              Alert.alert(
+                t('signUp.privacyNoticeTitle'),
+                t('signUp.privacyNoticeBody'),
+                [{ text: t('common.ok') }]
+              )
+            }
+            disabled={loading}
+          >
+            <Text style={styles.consentLink}>{t('signUp.readPrivacyNotice')}</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.consentRow}
+            onPress={() => setAcceptTermsDisclaimer((v) => !v)}
+            disabled={loading}
+          >
+            <View style={[styles.checkbox, acceptTermsDisclaimer && styles.checkboxChecked]}>
+              {acceptTermsDisclaimer ? <Text style={styles.checkboxTick}>✓</Text> : null}
+            </View>
+            <Text style={styles.consentText}>{t('signUp.acceptTermsDisclaimer')}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() =>
+              Alert.alert(
+                t('signUp.disclaimerTitle'),
+                t('signUp.disclaimerBody'),
+                [{ text: t('common.ok') }]
+              )
+            }
+            disabled={loading}
+          >
+            <Text style={styles.consentLink}>{t('signUp.readDisclaimer')}</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.consentRow}
+            onPress={() => setAcceptMarketingConsent((v) => !v)}
+            disabled={loading}
+          >
+            <View style={[styles.checkbox, acceptMarketingConsent && styles.checkboxChecked]}>
+              {acceptMarketingConsent ? <Text style={styles.checkboxTick}>✓</Text> : null}
+            </View>
+            <Text style={styles.consentText}>{t('signUp.acceptMarketingOptional')}</Text>
           </TouchableOpacity>
         </View>
 
@@ -154,13 +271,13 @@ export default function SignUp() {
           {loading ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={styles.buttonText}>Create account</Text>
+            <Text style={styles.buttonText}>{t('signUp.createAccount')}</Text>
           )}
         </TouchableOpacity>
 
         <Link href="/(auth)/welcome" asChild>
           <TouchableOpacity style={styles.link}>
-            <Text style={styles.linkText}>Back</Text>
+            <Text style={styles.linkText}>{t('common.back')}</Text>
           </TouchableOpacity>
         </Link>
       </ScrollView>
@@ -208,6 +325,53 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 12,
     marginBottom: 24,
+  },
+  consentBox: {
+    gap: 6,
+    marginBottom: 20,
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#27272a',
+    backgroundColor: '#111113',
+  },
+  consentRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#52525b',
+    backgroundColor: '#18181b',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 1,
+  },
+  checkboxChecked: {
+    borderColor: '#22c55e',
+    backgroundColor: '#14532d',
+  },
+  checkboxTick: {
+    color: '#22c55e',
+    fontSize: 14,
+    fontWeight: '700',
+    lineHeight: 16,
+  },
+  consentText: {
+    flex: 1,
+    color: '#d4d4d8',
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  consentLink: {
+    color: '#22c55e',
+    fontSize: 12,
+    marginBottom: 6,
+    marginLeft: 30,
   },
   roleButton: {
     flex: 1,
