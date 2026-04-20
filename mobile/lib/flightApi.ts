@@ -1673,12 +1673,19 @@ async function fetchFlightByNumberDirect(
         out = await fillScheduledFromAirLabs(out);
         return normalizeDestinationForFlight(raw, out);
       }
-      // ended bacaklarda datetime_landed boş gelebilir; last_seen'i landed kanıtı olarak kullan.
-      const landedIso = fr.datetime_landed_utc ?? fr.fr24_datetime_landed_utc ?? fr.last_seen_utc;
+      const landedIso = fr.datetime_landed_utc ?? fr.fr24_datetime_landed_utc;
       const landedMs = landedIso ? new Date(landedIso).getTime() : 0;
       const nowMs = Date.now();
       if (Number.isFinite(landedMs) && landedMs > 0 && nowMs >= landedMs) {
         out = { ...fr, flightStatus: 'landed' };
+      } else if (
+        fr.flightStatus === 'en_route' &&
+        fr.last_seen_utc &&
+        Number.isFinite(new Date(fr.last_seen_utc).getTime()) &&
+        nowMs >= new Date(fr.last_seen_utc).getTime()
+      ) {
+        // Yalnızca en_route görünen ended bacaklarda last_seen ile landed'a çek.
+        out = { ...fr, flightStatus: 'landed', fr24_datetime_landed_utc: fr.last_seen_utc };
       } else {
         out = { ...fr, flightStatus: 'scheduled' };
       }

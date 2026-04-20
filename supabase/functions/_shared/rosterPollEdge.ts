@@ -730,14 +730,13 @@ export async function pollRosterFlightEdge(
         attachAirLabsTimingFields(o, alEnded);
         return o;
       }
-      // FR24 ended + last_seen geçmişteyse landed'a çek.
-      // Bazı bacaklarda datetime_landed/actualIn boş geliyor; en_route'ta kalmasın.
-      if (Number.isFinite(endedLastSeenMs) && endedLastSeenMs > 0 && nowMs >= endedLastSeenMs) {
-        const o = { ...emptyBase(), flightStatus: 'landed', ...bar, lastTrackUtc: endedLastSeen };
-        if (alEnded) attachAirLabsTimingFields(o, alEnded);
-        return o;
-      }
       if (alEnded?.actualOut && (slE === 'scheduled' || !slE)) {
+        // Sadece en_route kalacak akışta last_seen ile landed'a yükselt.
+        if (Number.isFinite(endedLastSeenMs) && endedLastSeenMs > 0 && nowMs >= endedLastSeenMs) {
+          const o = { ...emptyBase(), flightStatus: 'landed', ...bar, lastTrackUtc: endedLastSeen };
+          attachAirLabsTimingFields(o, alEnded);
+          return o;
+        }
         const o = { ...emptyBase(), flightStatus: 'en_route', ...bar };
         attachAirLabsTimingFields(o, alEnded);
         return o;
