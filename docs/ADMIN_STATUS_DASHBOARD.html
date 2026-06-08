@@ -9,7 +9,7 @@
   <meta http-equiv="Expires" content="0" />
   <script>
     (function () {
-      var UI = '5';
+      var UI = '14';
       var p = new URLSearchParams(location.search);
       if (p.get('ui') !== UI) {
         p.set('ui', UI);
@@ -238,8 +238,102 @@
     .flight-edit-row { display: none; }
     .flight-edit-row.open { display: table-row; }
     .flight-edit-box { background: #f8fbff; border: 1px dashed #bfd3f3; border-radius: 8px; padding: 8px; }
-    .users-toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; align-items: end; }
+    .flight-detail-row { display: none; background: #fcfdff; }
+    .flight-detail-row.open { display: table-row; }
+    .flight-detail-box { border: 1px solid #e6edf8; border-radius: 6px; padding: 10px; }
+    .flight-detail-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .kv { margin: 0; line-height: 1.4; }
+    .kv code { font-size: 12px; }
+    .users-toolbar {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 10px;
+      align-items: end;
+      padding: 8px;
+      background: #f8fbff;
+      border: 1px solid #dbe7f7;
+      border-radius: 8px;
+    }
     .users-toolbar > div { min-width: 180px; }
+    .users-table-wrap {
+      border: 1px solid #dbe4f1;
+      border-radius: 10px;
+      overflow: auto;
+      background: #fff;
+    }
+    .users-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      font-size: 13px;
+    }
+    .users-table thead th {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      background: #f2f6fd;
+      color: #475569;
+      border-bottom: 1px solid #dbe4f1;
+      font-weight: 700;
+    }
+    .users-table tbody tr.user-row-main:nth-child(4n + 1) td { background: #ffffff; }
+    .users-table tbody tr.user-row-main:nth-child(4n + 3) td { background: #fbfdff; }
+    .users-table td { vertical-align: middle; }
+    .u-name {
+      font-weight: 600;
+      color: #0f172a;
+      line-height: 1.3;
+    }
+    .u-email {
+      color: #334155;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 12px;
+      word-break: break-all;
+    }
+    .u-platform { display: flex; flex-direction: column; gap: 2px; }
+    .u-version { display: flex; flex-direction: column; gap: 2px; }
+    .role-pill {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      border: 1px solid transparent;
+      letter-spacing: .02em;
+    }
+    .role-crew { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
+    .role-family { background: #f0fdf4; color: #166534; border-color: #bbf7d0; }
+    .u-actions {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      flex-wrap: wrap;
+      min-width: 340px;
+    }
+    .u-pass-input {
+      max-width: 150px;
+    }
+    .u-signin {
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums;
+    }
+    .user-row-main { cursor: pointer; }
+    .user-row-main:hover { background: #fafcff; }
+    .user-detail-row { display: none; background: #fcfdff; }
+    .user-detail-row.open { display: table-row; }
+    .user-detail-box {
+      border: 1px solid #e6edf8;
+      border-radius: 6px;
+      padding: 8px;
+      background: transparent;
+    }
+    .user-detail-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+    }
+    .user-detail-grid .mini { margin-bottom: 2px; }
     .conn-line { margin: 0; line-height: 1.4; }
     .conn-cell { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
     .conn-peer-name { font-weight: 600; word-break: break-word; }
@@ -256,6 +350,89 @@
     .conn-more-inline summary::-webkit-details-marker { display: none; }
     .view { display: none; }
     .view.active { display: block; }
+    a.fr24-link {
+      color: var(--brand);
+      font-weight: 600;
+      text-decoration: none;
+    }
+    a.fr24-link:hover { text-decoration: underline; }
+    a.board-link {
+      color: var(--brand);
+      font-weight: 700;
+      text-decoration: none;
+      cursor: pointer;
+    }
+    a.board-link:hover { text-decoration: underline; }
+    .admin-drawer.drawer-wide { width: min(760px, 100vw); }
+    .board-table { font-size: 12px; }
+    .board-table th { white-space: nowrap; }
+    .menu-link {
+      color: var(--brand);
+      font-weight: 700;
+      font-size: 12px;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+    .menu-link:hover { text-decoration: underline; }
+    .flights-selection-bar {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-bottom: 8px;
+      padding: 8px;
+      background: #f0f7ff;
+      border: 1px solid #bfd3f3;
+      border-radius: 8px;
+      font-size: 12px;
+    }
+    .flights-selection-bar strong { color: #1e3a8a; }
+    .drawer-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.35);
+      z-index: 40;
+    }
+    .admin-drawer {
+      position: fixed;
+      top: 0;
+      right: 0;
+      width: min(420px, 100vw);
+      height: 100vh;
+      z-index: 50;
+      background: #fff;
+      border-left: 1px solid var(--line);
+      box-shadow: -8px 0 24px rgba(15, 23, 42, 0.12);
+      display: flex;
+      flex-direction: column;
+    }
+    .drawer-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--line);
+      background: #f8fbff;
+    }
+    .drawer-head h3 { margin: 0; font-size: 16px; line-height: 1.3; }
+    .drawer-body {
+      flex: 1;
+      overflow: auto;
+      padding: 12px 14px 20px;
+    }
+    .drawer-section {
+      margin-bottom: 14px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid #e8eef7;
+    }
+    .drawer-section:last-child { border-bottom: 0; margin-bottom: 0; }
+    .drawer-section h4 { margin: 0 0 8px; font-size: 13px; color: #475569; }
+    .drawer-roster-table { font-size: 12px; }
+    .drawer-roster-table th, .drawer-roster-table td { padding: 4px 6px; }
+    .drawer-field { margin-bottom: 8px; }
+    .drawer-field label { display: block; font-size: 11px; color: var(--muted); margin-bottom: 3px; }
+    .drawer-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
     @media (max-width: 1100px) {
       .topbar-inner { grid-template-columns: 1fr; }
       .app { grid-template-columns: 1fr; min-height: auto; }
@@ -352,6 +529,7 @@
             <div class="num" id="flightsActive">-</div>
             <div class="mini">Total: <span id="flightsTotal">-</span> · active + semi_active</div>
             <div id="phaseSummary" class="mini" style="margin-top:6px;"></div>
+            <div id="phaseRefreshHealth" class="mini" style="margin-top:6px;"></div>
           </div>
           <div class="card">
             <h3>API quota / usage</h3>
@@ -380,7 +558,25 @@
               </select>
             </div>
           </div>
-          <table><thead><tr><th>#</th><th>Full name</th><th>Email</th><th>ID (short)</th><th>App role</th><th>Havayolu (app)</th><th>Bağlantılı</th><th>Last sign in</th><th>New password</th><th>Actions</th></tr></thead><tbody id="usersBody"></tbody></table>
+          <div class="users-table-wrap">
+            <table class="users-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Full name</th>
+                  <th>Email</th>
+                  <th>Role</th>
+                  <th>Platform</th>
+                  <th>Version</th>
+                  <th>Havayolu (app)</th>
+                  <th>Bağlantılı</th>
+                  <th>Last sign in</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="usersBody"></tbody>
+            </table>
+          </div>
           <p id="usersApiHint" class="mini" style="margin-top:10px;display:none;"></p>
         </div>
       </section>
@@ -425,7 +621,36 @@
               </div>
             </div>
             </div>
-            <table><thead><tr><th>Flight</th><th>Route</th><th>Date</th><th>Phase</th><th>Status</th><th>Crew</th><th>Action</th></tr></thead><tbody id="flightsBody"></tbody></table>
+            <div id="flightsSelectionBar" class="flights-selection-bar hidden">
+              <strong id="flightsSelectionCount">0 selected</strong>
+              <select id="bulkSelPhase" class="btnSmall" style="width:auto;">
+                <option value="">Bulk phase</option>
+                <option value="active">active</option>
+                <option value="semi_active">semi_active</option>
+                <option value="passive_future">passive_future</option>
+                <option value="passive_upcoming">passive_upcoming</option>
+                <option value="passive_past">passive_past</option>
+              </select>
+              <button type="button" id="btnBulkSelPhase" class="btnSmall">Apply phase</button>
+              <select id="bulkSelStatus" class="btnSmall" style="width:auto;">
+                <option value="">Bulk status</option>
+                <option value="scheduled">scheduled</option>
+                <option value="taxi_out">taxi_out</option>
+                <option value="en_route">en_route</option>
+                <option value="landed">landed</option>
+                <option value="parked">parked</option>
+                <option value="cancelled">cancelled</option>
+                <option value="diverted">diverted</option>
+              </select>
+              <button type="button" id="btnBulkSelStatus" class="btnSmall">Apply status</button>
+              <button type="button" id="btnBulkSelDelete" class="btnDanger btnSmall">Delete selected</button>
+              <button type="button" id="btnBulkSelClear" class="btnSmall">Clear</button>
+            </div>
+            <p id="flightsApiHint" class="mini" style="margin:8px 0;display:none;"></p>
+            <table><thead><tr>
+              <th style="width:28px;"><input type="checkbox" id="flightsSelectAll" title="Select all" /></th>
+              <th>Flight</th><th>DEP</th><th>ARR</th><th>Tail</th><th>Date</th><th>Delay</th><th>Phase</th><th>Status</th><th>Crew</th><th></th>
+            </tr></thead><tbody id="flightsBody"></tbody></table>
           </div>
         </div>
       </section>
@@ -433,10 +658,14 @@
       <section id="usageView" class="view">
         <div class="panel">
           <h3 style="margin:0 0 8px;">API usage / quota (monthly)</h3>
-            <p class="mini" style="margin-top:0;">Quotas and usage are read from function env: <code>ADMIN_PROVIDER_QUOTAS_JSON</code>, <code>ADMIN_PROVIDER_MONTHLY_USAGE_JSON</code>. For FR24 live usage set <code>ADMIN_FR24_USAGE_URL</code> to <code>https://fr24api.flightradar24.com/api/usage</code> (Bearer token; <code>Accept-Version: v1</code> is sent by the function).</p>
+            <p class="mini" style="margin-top:0;">Quotas: <code>ADMIN_PROVIDER_QUOTAS_JSON</code> + <code>ADMIN_PROVIDER_MONTHLY_USAGE_JSON</code>. FR24 Used: önce DB snapshot; canlı <code>/api/usage</code> dashboard yenilemede kapalı (429). Manuel sync veya <code>ADMIN_FR24_LIVE_ON_DASHBOARD=true</code>.</p>
+          <div id="fr24CachePanel" class="panel" style="margin-bottom:10px;background:#f0f7ff;border-color:#bfd3f3;">
+            <h3 style="margin:0 0 6px;">FR24 · son kayıtlı snapshot</h3>
+            <p id="fr24CacheSummary" class="mini" style="margin:0;">—</p>
+          </div>
           <div class="panel">
             <h3 style="margin:0 0 8px;">FR24 Login & Sync</h3>
-            <p class="mini" style="margin:0 0 8px;">If iframe login is blocked by FR24 security policy, use "Open FR24 login in new tab", then return and press "Fetch FR24 usage now".</p>
+            <p class="mini" style="margin:0 0 8px;">429 alırsan 15–60 dk bekle; token uçuş sorgularıyla paylaşılır. Tarayıcı kotası: “Open FR24 login in new tab”.</p>
             <div class="row" style="margin-bottom:8px;">
               <button id="btnFr24Open">Open FR24 login in new tab</button>
               <button id="btnFr24Fetch" class="btnPrimary">Fetch FR24 usage now</button>
@@ -450,6 +679,15 @@
       </section>
     </main>
   </div>
+
+  <div id="drawerBackdrop" class="drawer-backdrop hidden" aria-hidden="true"></div>
+  <aside id="adminDrawer" class="admin-drawer hidden" aria-hidden="true">
+    <div class="drawer-head">
+      <h3 id="drawerTitle">—</h3>
+      <button type="button" id="drawerClose" class="btnSmall" aria-label="Close">✕</button>
+    </div>
+    <div id="drawerBody" class="drawer-body"></div>
+  </aside>
 
   <script>
     const els = {
@@ -475,6 +713,7 @@
       flightsActive: document.getElementById('flightsActive'),
       flightsTotal: document.getElementById('flightsTotal'),
       phaseSummary: document.getElementById('phaseSummary'),
+      phaseRefreshHealth: document.getElementById('phaseRefreshHealth'),
       usageConfigured: document.getElementById('usageConfigured'),
       usageShortHint: document.getElementById('usageShortHint'),
       navButtons: Array.from(document.querySelectorAll('.nav-btn[data-view]')),
@@ -490,6 +729,7 @@
       btnFr24Open: document.getElementById('btnFr24Open'),
       btnFr24Fetch: document.getElementById('btnFr24Fetch'),
       fr24Status: document.getElementById('fr24Status'),
+      fr24CacheSummary: document.getElementById('fr24CacheSummary'),
       newFlightNo: document.getElementById('newFlightNo'),
       newFlightDate: document.getElementById('newFlightDate'),
       newOrigin: document.getElementById('newOrigin'),
@@ -510,14 +750,456 @@
     const SESSION_KEY = 'flyfam_admin_dashboard_session_v1';
     let accessToken = null;
     let lastUsers = [];
+    let lastFlights = [];
+    let selectedFlightIds = new Set();
+    let drawerUserId = null;
     let advancedVisible = false;
+    let hubBoardCacheRows = null;
+    let hubBoardCacheMeta = null;
+    let fr24FetchCooldownUntil = 0;
 
-    function escapeAttr(s) {
+    function escapeHtml(s) {
       return String(s ?? '')
         .replace(/&/g, '&amp;')
+        .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#39;')
         .replace(/</g, '&lt;');
+    }
+
+    function escapeAttr(s) {
+      return escapeHtml(s);
+    }
+
+    function normFlightCode(no) {
+      return String(no || '').trim().toLowerCase().replace(/\s+/g, '');
+    }
+    function fr24FlightUrl(flightNumber, flightDate) {
+      const code = normFlightCode(flightNumber);
+      if (!code) return null;
+      const base = 'https://www.flightradar24.com/data/flights/' + encodeURIComponent(code);
+      const d = String(flightDate || '').trim();
+      return d ? base + '?date=' + encodeURIComponent(d) : base;
+    }
+    function fr24AirportUrl(ap) {
+      const c = String(ap || '').trim().toUpperCase();
+      if (!c || c === '-') return null;
+      return 'https://www.flightradar24.com/data/airports/' + encodeURIComponent(c);
+    }
+    function fr24AircraftUrl(reg) {
+      const r = String(reg || '').trim().toLowerCase();
+      if (!r) return null;
+      return 'https://www.flightradar24.com/data/aircraft/' + encodeURIComponent(r);
+    }
+    function fr24Link(href, label, title) {
+      if (!href) return escapeHtml(label || '—');
+      return '<a class="fr24-link" href="' + escapeAttr(href) + '" target="_blank" rel="noopener noreferrer" title="' +
+        escapeAttr(title || 'Flightradar24') + '">' + escapeHtml(label) + '</a>';
+    }
+
+    function normAirportIata(ap) {
+      const raw = String(ap || '').trim().toUpperCase();
+      if (!raw || raw === '-') return null;
+      const m = raw.match(/\b([A-Z]{3,4})\b/);
+      return (m ? m[1] : raw).slice(0, 4);
+    }
+
+    function airportIataFromLeg(leg) {
+      if (!leg || typeof leg !== 'object') return null;
+      const ap = leg.airport;
+      if (!ap || typeof ap !== 'object') return null;
+      const code = ap.iata || ap.icao;
+      if (!code) return null;
+      return String(code).trim().toUpperCase().slice(0, 4);
+    }
+
+    function filterBoardRows(rows, hub, direction) {
+      const hubU = normAirportIata(hub);
+      if (!hubU) return [];
+      return (rows || []).filter((row) => {
+        if (direction === 'departure') {
+          return airportIataFromLeg(row.departure) === hubU;
+        }
+        return airportIataFromLeg(row.arrival) === hubU;
+      });
+    }
+
+    function boardRowSortKey(row, direction) {
+      const leg = direction === 'departure' ? row.departure : row.arrival;
+      if (!leg || typeof leg !== 'object') return '';
+      return String(
+        leg.scheduledTimeUtc || leg.scheduledTime || leg.predictedTimeUtc || leg.estimatedTimeUtc || '',
+      );
+    }
+
+    function fmtBoardTime(leg) {
+      if (!leg || typeof leg !== 'object') return '—';
+      const iso = leg.scheduledTimeUtc || leg.scheduledTime || leg.predictedTimeUtc || leg.estimatedTimeUtc;
+      if (!iso) return '—';
+      const t = new Date(iso).getTime();
+      if (!Number.isFinite(t)) return String(iso);
+      return new Date(t).toLocaleString('tr-TR', {
+        day: '2-digit',
+        month: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+      });
+    }
+
+    function boardPeerAirport(row, direction) {
+      const leg = direction === 'departure' ? row.arrival : row.departure;
+      return airportIataFromLeg(leg) || '—';
+    }
+
+    function boardFlightNumber(row) {
+      return String(row.number || '').trim() || '—';
+    }
+
+    function boardStatus(row) {
+      const st = row.status;
+      if (!st) return '—';
+      if (typeof st === 'string') return st;
+      if (typeof st === 'object') {
+        return String(st.text || st.general || st.unknown || '—');
+      }
+      return '—';
+    }
+
+    async function fetchHubBoardCache(force) {
+      if (!force && hubBoardCacheRows) {
+        return { rows: hubBoardCacheRows, meta: hubBoardCacheMeta };
+      }
+      const base = (els.supabaseUrl.value || '').replace(/\/$/, '');
+      const url =
+        base +
+        '/rest/v1/hub_airport_board_cache?id=eq.singleton&select=rows,row_count,fetched_at,anchor_day,slot_key,last_error';
+      const anon = els.anonKey.value || '';
+      const headers = { apikey: anon, accept: 'application/json' };
+      if (accessToken) headers.authorization = 'Bearer ' + accessToken;
+      const res = await fetch(url, { headers });
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error('Hub tahta önbelleği okunamadı (' + res.status + '): ' + txt);
+      }
+      const data = await res.json();
+      const row = Array.isArray(data) ? data[0] : null;
+      hubBoardCacheRows = row && Array.isArray(row.rows) ? row.rows : [];
+      hubBoardCacheMeta = row || null;
+      return { rows: hubBoardCacheRows, meta: hubBoardCacheMeta };
+    }
+
+    function renderAirportBoardTable(filtered, direction) {
+      if (!filtered.length) {
+        return (
+          '<p class="mini" style="margin:8px 0 0;">Bu meydan için önbellekte kayıt yok. ' +
+          'Hub tahtaları (SAW, IST, AYT, ESB, ADB, ECN) cron ile doldurulur; kısmi tur olabilir.</p>'
+        );
+      }
+      const peerHeader = direction === 'departure' ? 'Varış' : 'Kalkış';
+      const timeHeader = direction === 'departure' ? 'STD' : 'STA';
+      const sorted = filtered.slice().sort((a, b) => boardRowSortKey(a, direction).localeCompare(boardRowSortKey(b, direction)));
+      return (
+        '<div class="users-table-wrap" style="margin-top:8px;"><table class="board-table"><thead><tr>' +
+        '<th>Uçuş</th><th>' + peerHeader + '</th><th>' + timeHeader + '</th><th>Durum</th><th></th>' +
+        '</tr></thead><tbody>' +
+        sorted
+          .map((row) => {
+            const fn = boardFlightNumber(row);
+            const peer = boardPeerAirport(row, direction);
+            const leg = direction === 'departure' ? row.departure : row.arrival;
+            const time = fmtBoardTime(leg);
+            const st = boardStatus(row);
+            const fr = fr24FlightUrl(fn, '');
+            return (
+              '<tr>' +
+              '<td>' + fr24Link(fr, fn) + '</td>' +
+              '<td>' + escapeHtml(peer) + '</td>' +
+              '<td>' + escapeHtml(time) + '</td>' +
+              '<td>' + escapeHtml(st) + '</td>' +
+              '<td>' + fr24Link(fr24AirportUrl(peer), 'FR24', 'Flightradar24') + '</td>' +
+              '</tr>'
+            );
+          })
+          .join('') +
+        '</tbody></table></div>'
+      );
+    }
+
+    function airportBoardLink(airport, direction, label) {
+      const hub = normAirportIata(airport);
+      const text = label || airport || '—';
+      if (!hub) return escapeHtml(text);
+      const title = (direction === 'departure' ? 'Kalkış listesi: ' : 'İniş listesi: ') + hub;
+      return (
+        '<a href="#" class="board-link" data-action="open-airport-board" data-airport="' +
+        escapeAttr(hub) +
+        '" data-direction="' +
+        escapeAttr(direction) +
+        '" title="' +
+        escapeAttr(title) +
+        '">' +
+        escapeHtml(text) +
+        '</a>'
+      );
+    }
+
+    async function openAirportBoardDrawer(airport, direction) {
+      const hub = normAirportIata(airport);
+      if (!hub) return;
+      const dirLabel = direction === 'departure' ? 'Kalkışlar' : 'İnişler';
+      openDrawer(hub + ' · ' + dirLabel, '<p class="mini">Tahta yükleniyor…</p>', { wide: true });
+      try {
+        const { rows, meta } = await fetchHubBoardCache(false);
+        const filtered = filterBoardRows(rows, hub, direction);
+        let metaLine = '';
+        if (meta) {
+          const fetched = meta.fetched_at ? fmtDate(meta.fetched_at) : '—';
+          metaLine =
+            '<p class="mini" style="margin:0 0 8px;">Önbellek: ' +
+            escapeHtml(fetched) +
+            ' · gün ' +
+            escapeHtml(meta.anchor_day || '—') +
+            ' · slot ' +
+            escapeHtml(meta.slot_key || '—') +
+            ' · ' +
+            filtered.length +
+            ' uçuş (toplam ' +
+            (rows.length || 0) +
+            ')</p>';
+          if (meta.last_error) {
+            metaLine += '<p class="mini bad">Son sync hatası: ' + escapeHtml(meta.last_error) + '</p>';
+          }
+        }
+        const fr24Side =
+          ' <span class="mini">·</span> ' +
+          fr24Link(fr24AirportUrl(hub), 'FR24 meydan', 'Flightradar24 airport');
+        metaLine += '<p class="mini" style="margin:0;">' + fr24Side + '</p>';
+        openDrawer(hub + ' · ' + dirLabel, metaLine + renderAirportBoardTable(filtered, direction), { wide: true });
+      } catch (err) {
+        openDrawer(
+          hub + ' · ' + dirLabel,
+          '<p class="mini bad">' + escapeHtml(String(err.message || err)) + '</p>',
+          { wide: true },
+        );
+      }
+    }
+
+    function handleAirportBoardLinkClick(e) {
+      const target = e.target;
+      if (!(target instanceof HTMLElement)) return false;
+      const link = target.closest('a[data-action="open-airport-board"]');
+      if (!link) return false;
+      e.preventDefault();
+      const ap = link.getAttribute('data-airport');
+      const dir = link.getAttribute('data-direction');
+      if (ap && dir) void openAirportBoardDrawer(ap, dir);
+      return true;
+    }
+
+    function updateFlightsSelectionBar() {
+      const bar = document.getElementById('flightsSelectionBar');
+      const cnt = document.getElementById('flightsSelectionCount');
+      const n = selectedFlightIds.size;
+      if (bar) bar.classList.toggle('hidden', n === 0);
+      if (cnt) cnt.textContent = n + ' selected';
+      if (n > 0 && els.bulkFlightIds) {
+        els.bulkFlightIds.value = [...selectedFlightIds].join('\n');
+      }
+    }
+    function resolveBulkFlightIds() {
+      if (selectedFlightIds.size > 0) return [...selectedFlightIds];
+      return parseBulkIds();
+    }
+    function setFlightSelected(id, on) {
+      if (!id) return;
+      if (on) selectedFlightIds.add(id);
+      else selectedFlightIds.delete(id);
+      updateFlightsSelectionBar();
+    }
+
+    function closeDrawer() {
+      const backdrop = document.getElementById('drawerBackdrop');
+      const drawer = document.getElementById('adminDrawer');
+      drawerUserId = null;
+      if (backdrop) {
+        backdrop.classList.add('hidden');
+        backdrop.setAttribute('aria-hidden', 'true');
+      }
+      if (drawer) {
+        drawer.classList.add('hidden');
+        drawer.setAttribute('aria-hidden', 'true');
+      }
+    }
+    function openDrawer(title, html, opts) {
+      const backdrop = document.getElementById('drawerBackdrop');
+      const drawer = document.getElementById('adminDrawer');
+      const titleEl = document.getElementById('drawerTitle');
+      const bodyEl = document.getElementById('drawerBody');
+      if (titleEl) titleEl.textContent = title || '—';
+      if (bodyEl) bodyEl.innerHTML = html || '';
+      if (backdrop) {
+        backdrop.classList.remove('hidden');
+        backdrop.setAttribute('aria-hidden', 'false');
+      }
+      if (drawer) {
+        drawer.classList.toggle('drawer-wide', !!(opts && opts.wide));
+        drawer.classList.remove('hidden');
+        drawer.setAttribute('aria-hidden', 'false');
+      }
+    }
+
+    function renderUserDrawerPushSection(u) {
+      const devCount = Number(u.device_count || 0);
+      const plat = escapeAttr(u.device_platforms_text || '—');
+      const ver = escapeAttr(u.app_version || '—');
+      const deviceHint = devCount > 0
+        ? devCount + ' cihaz · ' + plat + (ver !== '—' ? ' · v' + ver : '')
+        : 'Kayıtlı push token yok — kullanıcı uygulamayı açıp bildirim izni vermeli.';
+      return (
+        '<div class="drawer-section">' +
+          '<h4>Push bildirimi</h4>' +
+          '<p class="mini" style="margin:0 0 8px;">' + escapeHtml(deviceHint) + '</p>' +
+          '<div class="drawer-field"><label>Başlık</label><input data-role="push-title" data-user-id="' + (u.id || '') + '" value="FlyFam" maxlength="100" /></div>' +
+          '<div class="drawer-field"><label>Mesaj</label><textarea data-role="push-body" data-user-id="' + (u.id || '') + '" rows="3" maxlength="500" placeholder="Bildirim metni…"></textarea></div>' +
+          '<div class="drawer-actions">' +
+            '<button type="button" class="btnPrimary btnSmall" data-action="send-push-notification" data-user-id="' + (u.id || '') + '"' +
+              (devCount > 0 ? '' : ' disabled title="Kayıtlı cihaz yok"') + '>Gönder</button>' +
+          '</div>' +
+        '</div>'
+      );
+    }
+
+    function renderUserDrawerEditSection(u) {
+      const appRole = String(u.role || '');
+      const isCrew = appRole === 'crew';
+      const crewSel = appRole === 'crew' ? ' selected' : '';
+      const famSel = appRole === 'family' ? ' selected' : '';
+      const companyVal = escapeAttr(u.company_name || '');
+      const famAir = escapeAttr(u.family_linked_crew_company || '');
+      return (
+        '<div class="drawer-section">' +
+          '<h4>Edit user</h4>' +
+          '<div class="drawer-field"><label>Email</label><div class="u-email">' + escapeAttr(u.email || '-') + '</div></div>' +
+          '<div class="drawer-field"><label>App role</label>' +
+            '<select data-role="app-role" data-user-id="' + (u.id || '') + '">' +
+              '<option value="crew"' + crewSel + '>crew</option>' +
+              '<option value="family"' + famSel + '>family</option>' +
+            '</select></div>' +
+          (isCrew
+            ? '<div class="drawer-field"><label>Airline (company)</label><input data-role="company-name" data-user-id="' + (u.id || '') + '" value="' + companyVal + '" /></div>'
+            : '<div class="drawer-field"><label>Linked crew airline</label><div class="mini">' + (famAir || '—') + '</div></div>') +
+          '<div class="drawer-field"><label>New password</label><input type="password" data-role="new-password" data-user-id="' + (u.id || '') + '" placeholder="Min 8 chars" autocomplete="new-password" /></div>' +
+          '<div class="drawer-actions">' +
+            '<button type="button" class="btnPrimary btnSmall" data-action="save-user-profile" data-user-id="' + (u.id || '') + '">Save</button>' +
+            '<button type="button" class="btnSmall" data-action="change-user-password" data-user-id="' + (u.id || '') + '">Set password</button>' +
+            '<button type="button" class="btnDanger btnSmall" data-action="delete-user" data-user-id="' + (u.id || '') + '" data-user-email="' + escapeAttr(u.email || '-') + '">Delete</button>' +
+          '</div>' +
+        '</div>'
+      );
+    }
+
+    function crewProfileIdsForUser(u) {
+      const ids = new Set();
+      if (!u) return ids;
+      if (u.crew_id) ids.add(String(u.crew_id));
+      if (String(u.role || '') === 'family' && Array.isArray(u.connections)) {
+        for (const c of u.connections) {
+          if (c.status === 'declined') continue;
+          const crewUser = lastUsers.find((x) => x.id === c.other_user_id);
+          if (crewUser?.crew_id) ids.add(String(crewUser.crew_id));
+        }
+      }
+      return ids;
+    }
+
+    function rosterFlightsForUser(userId) {
+      const u = lastUsers.find((x) => x.id === userId);
+      const crewIds = crewProfileIdsForUser(u);
+      if (crewIds.size === 0) return [];
+      return lastFlights
+        .filter((f) => (f.crew_ids || []).some((cid) => crewIds.has(String(cid))))
+        .sort((a, b) => String(b.flight_date || '').localeCompare(String(a.flight_date || '')));
+    }
+
+    function delayMinutesForFlight(f) {
+      const dep = Number(f.delay_dep_min);
+      const arr = Number(f.delay_arr_min);
+      if (Number.isFinite(dep) && dep > 0) return Math.round(dep);
+      if (Number.isFinite(arr) && arr > 0) return Math.round(arr);
+      return null;
+    }
+
+    function delayCellHtml(f) {
+      const mins = delayMinutesForFlight(f);
+      if (!mins) return '—';
+      return '<span class="badge b-bad">+' + mins + 'm</span>';
+    }
+
+    function renderUserRosterTable(flights) {
+      const rows = flights || [];
+      if (rows.length === 0) {
+        return '<p class="mini" style="margin:0;">No flights linked to this user.</p>';
+      }
+      return (
+        '<table class="drawer-roster-table"><thead><tr><th>Flight</th><th>DEP</th><th>ARR</th><th>Date</th><th>Delay</th><th>Phase</th></tr></thead><tbody>' +
+        rows.map((f) => (
+          '<tr>' +
+            '<td>' + fr24Link(fr24FlightUrl(f.flight_number, f.flight_date), f.flight_number || '—') + '</td>' +
+            '<td>' + airportBoardLink(f.origin_airport, 'departure', f.origin_airport || '—') + '</td>' +
+            '<td>' + airportBoardLink(f.destination_airport, 'arrival', f.destination_airport || '—') + '</td>' +
+            '<td>' + escapeHtml(f.flight_date || '—') + '</td>' +
+            '<td>' + delayCellHtml(f) + '</td>' +
+            '<td><span class="badge phase-' + (f.api_refresh_phase || 'unknown') + '">' + escapeHtml(f.api_refresh_phase || '—') + '</span></td>' +
+          '</tr>'
+        )).join('') +
+        '</tbody></table>'
+      );
+    }
+
+    async function loadUserRosterIntoDrawer(userId) {
+      const host = document.getElementById('userRosterHost');
+      if (!host) return;
+      host.textContent = 'Loading…';
+      let flights = rosterFlightsForUser(userId);
+      if (flights.length === 0) {
+        try {
+          const json = await callAdminAction('list_user_flights', { user_id: userId });
+          flights = (json.flights || []).map((f) => {
+            const full = lastFlights.find((x) => x.id === f.id);
+            return full ? Object.assign({}, full, f) : f;
+          });
+        } catch (err) {
+          const msg = String(err?.message || err);
+          if (!msg.includes('Unsupported action')) {
+            host.innerHTML = '<p class="mini bad">' + escapeHtml(msg) + '</p>';
+            return;
+          }
+        }
+      }
+      host.innerHTML = renderUserRosterTable(flights);
+    }
+
+    async function openUserDrawer(userId, focusEdit) {
+      const u = lastUsers.find((x) => x.id === userId);
+      if (!u) return;
+      drawerUserId = userId;
+      const title = (u.full_name || u.email || 'User').trim();
+      const html =
+        '<div class="drawer-section">' +
+          '<h4>Roster</h4>' +
+          '<div id="userRosterHost" class="mini">Loading…</div>' +
+        '</div>' +
+        renderUserDrawerPushSection(u) +
+        renderUserDrawerEditSection(u);
+      openDrawer(title, html);
+      void loadUserRosterIntoDrawer(userId);
+      if (focusEdit) {
+        const editHeading = document.querySelector('#drawerBody .drawer-section h4');
+        if (editHeading && editHeading.textContent === 'Edit user') {
+          editHeading.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }
     }
 
     /** Havayolu filtre seçenekleri: crew kendi şirket/ICAO; aile bağlı crew havayolu (birden fazlaysa ayrı seçenekler). */
@@ -728,9 +1410,50 @@
       return d.toLocaleString();
     }
 
+    function normalizeSupabaseUrl(raw) {
+      const u = String(raw || '').trim().replace(/\/+$/, '');
+      if (!u) return '';
+      if (!/^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(u) && !/^https:\/\/.+/i.test(u)) {
+        throw new Error('Supabase URL must be https://…supabase.co');
+      }
+      return u;
+    }
+
+    function currentAnonKey() {
+      const k = (els.anonKey?.value || readSession()?.anonKey || '').trim();
+      if (!k) throw new Error('Anon key is required');
+      return k;
+    }
+
+    function supabaseAuthHeaders(extra) {
+      const key = currentAnonKey();
+      const h = { apikey: key, Authorization: 'Bearer ' + (accessToken || '') };
+      if (extra) Object.assign(h, extra);
+      return h;
+    }
+
+    async function safeFetch(input, init) {
+      try {
+        return await fetch(input, init);
+      } catch (e) {
+        const msg = String(e?.message || e || '');
+        if (/failed to fetch|networkerror|load failed|network request failed/i.test(msg)) {
+          let hint = '';
+          if (location.protocol === 'file:') {
+            hint =
+              ' Paneli file:// ile açıyorsun — terminalde: cd docs && python3 -m http.server 8765 sonra http://localhost:8765/ADMIN_STATUS_DASHBOARD.html?ui=14';
+          } else {
+            hint = ' Supabase URL ve anon key kontrol et; VPN/eklenti engeli olabilir.';
+          }
+          throw new Error('Ağ hatası (Failed to fetch).' + hint);
+        }
+        throw e;
+      }
+    }
+
     async function signInWithParams(url, key, email, password) {
       if (!url || !key || !email || !password) throw new Error('URL, key, email, and password are required');
-      const res = await fetch(url + '/auth/v1/token?grant_type=password', {
+      const res = await safeFetch(normalizeSupabaseUrl(url) + '/auth/v1/token?grant_type=password', {
         method: 'POST',
         headers: { apikey: key, 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
@@ -754,11 +1477,13 @@
     }
 
     async function loadDashboard() {
-      const url = els.supabaseUrl.value.trim();
+      hubBoardCacheRows = null;
+      hubBoardCacheMeta = null;
+      const url = normalizeSupabaseUrl(els.supabaseUrl.value);
       if (!url) throw new Error('Supabase URL is required');
       if (!accessToken) throw new Error('Please login first');
-      const res = await fetch(url + '/functions/v1/admin-dashboard', {
-        headers: { Authorization: 'Bearer ' + accessToken },
+      const res = await safeFetch(url + '/functions/v1/admin-dashboard', {
+        headers: supabaseAuthHeaders({ Accept: 'application/json' }),
       });
       let json = null;
       try {
@@ -778,15 +1503,12 @@
     }
 
     async function callAdminAction(action, payload) {
-      const url = els.supabaseUrl.value.trim();
+      const url = normalizeSupabaseUrl(els.supabaseUrl.value);
       if (!url) throw new Error('Supabase URL is required');
       if (!accessToken) throw new Error('Please login first');
-      const res = await fetch(url + '/functions/v1/admin-dashboard', {
+      const res = await safeFetch(url + '/functions/v1/admin-dashboard', {
         method: 'POST',
-        headers: {
-          Authorization: 'Bearer ' + accessToken,
-          'Content-Type': 'application/json',
-        },
+        headers: supabaseAuthHeaders({ 'Content-Type': 'application/json', Accept: 'application/json' }),
         body: JSON.stringify({ action, ...payload }),
       });
       const json = await res.json().catch(() => null);
@@ -806,14 +1528,52 @@
         return 'FR24 sync failed (' + httpStatus + ')';
       }
       const bits = [];
+      if (json.rate_limited || json.status === 429 || httpStatus === 429) {
+        bits.push('FR24 kotası geçici dolu (429). 15–60 dk bekleyin; aşağıdaki snapshot satırına bakın veya tarayıcıda usage-metrics açın.');
+      }
       if (json.error) bits.push(String(json.error));
       else if (json.message) bits.push(String(json.message));
       if (json.hint) bits.push(String(json.hint));
       if (json.status != null && String(json.status) !== String(httpStatus)) {
         bits.push('FR24 upstream HTTP: ' + json.status);
       }
-      if (json.body_preview) bits.push(String(json.body_preview).trim().slice(0, 400));
-      return bits.length ? ('FR24 sync failed (' + httpStatus + '): ' + bits.join(' · ')) : ('FR24 sync failed (' + httpStatus + ')');
+      if (json.last_snapshot && json.last_snapshot.fetched_at) {
+        bits.push(
+          'Son snapshot: ' +
+            fmtDate(json.last_snapshot.fetched_at) +
+            ' · credits ' +
+            (json.last_snapshot.total_credits != null ? json.last_snapshot.total_credits : '—'),
+        );
+      }
+      if (json.body_preview && !json.rate_limited) bits.push(String(json.body_preview).trim().slice(0, 280));
+      return bits.length ? bits.join(' · ') : ('FR24 sync failed (' + httpStatus + ')');
+    }
+
+    function renderFr24CacheSummary(apiUsage) {
+      if (!els.fr24CacheSummary) return;
+      const snap = apiUsage?.fr24_history?.latest_snapshot;
+      const skipped = apiUsage?.fr24_live_skipped;
+      const fr24Row = (apiUsage?.providers || []).find((p) => p.provider === 'fr24');
+      if (!snap || !snap.fetched_at) {
+        els.fr24CacheSummary.innerHTML =
+          '<span class="bad">Henüz snapshot yok.</span> Başarılı bir sync sonrası veya kotayı tarayıcıda açınca burada görünür.' +
+          (skipped ? ' <span class="mini">(' + escapeHtml(skipped) + ')</span>' : '');
+        return;
+      }
+      const credits = snap.total_credits != null ? snap.total_credits : '—';
+      const calls = snap.total_calls != null ? snap.total_calls : '—';
+      const src = fr24Row?.source || 'snapshot';
+      els.fr24CacheSummary.innerHTML =
+        'Kayıt: <strong>' +
+        escapeHtml(fmtDate(snap.fetched_at)) +
+        '</strong> · credits <strong>' +
+        escapeHtml(String(credits)) +
+        '</strong> · calls ' +
+        escapeHtml(String(calls)) +
+        ' · tablo source: <code>' +
+        escapeHtml(src) +
+        '</code>' +
+        (skipped ? ' · <span class="mini">' + escapeHtml(skipped) + '</span>' : '');
     }
 
     async function triggerFr24Sync() {
@@ -834,8 +1594,15 @@
           writeSession(null);
           accessToken = null;
         }
-        throw new Error(formatFr24SyncError(json, res.status));
+        if (res.status === 429) {
+          fr24FetchCooldownUntil = Date.now() + 15 * 60 * 1000;
+        }
+        const err = new Error(formatFr24SyncError(json, res.status));
+        err.fr24Json = json;
+        err.httpStatus = res.status;
+        throw err;
       }
+      fr24FetchCooldownUntil = 0;
       return json;
     }
 
@@ -844,6 +1611,22 @@
         .sort((a, b) => String(a[0]).localeCompare(String(b[0])))
         .map(([k, v]) => '<span class="badge phase-' + k + '">' + k + ': ' + v + '</span>');
       els.phaseSummary.innerHTML = parts.join(' ');
+    }
+
+    function renderPhaseRefreshHealth(health) {
+      const h = health && health.phase_refresh ? health.phase_refresh : null;
+      if (!h) {
+        els.phaseRefreshHealth.innerHTML = '<span class="badge b-bad">phase refresh: missing</span>';
+        return;
+      }
+      const cls = h.healthy ? 'b-ok' : 'b-bad';
+      const status = escapeHtml(String(h.status || 'unknown'));
+      const okAt = h.last_success_at ? escapeHtml(String(h.last_success_at)) : '—';
+      const rows = h.last_rows_updated != null ? ' · rows: ' + escapeHtml(String(h.last_rows_updated)) : '';
+      const err = h.last_error ? ' · err: ' + escapeHtml(String(h.last_error)) : '';
+      els.phaseRefreshHealth.innerHTML =
+        '<span class="badge ' + cls + '">phase refresh: ' + status + '</span>' +
+        '<span class="mini" style="margin-left:8px;">last success: ' + okAt + rows + err + '</span>';
     }
 
     function upsertAirlineFilter(rows) {
@@ -881,34 +1664,29 @@
       });
       els.usersBody.innerHTML = filtered.map((u, idx) => {
         const appRole = String(u.role || '');
+        const roleBadgeCls = appRole === 'crew' ? 'role-crew' : (appRole === 'family' ? 'role-family' : '');
         const isCrew = appRole === 'crew';
-        const companyVal = escapeAttr(u.company_name || '');
-        const crewSel = appRole === 'crew' ? ' selected' : '';
-        const famSel = appRole === 'family' ? ' selected' : '';
-        const disCrew = isCrew ? '' : 'disabled ';
-        const famAir = escapeAttr(u.family_linked_crew_company || '');
-        const airlineCell = isCrew
-          ? ('<input data-role="company-name" data-user-id="' + (u.id || '') + '" value="' + companyVal + '" placeholder="e.g. Pegasus Airlines" ' + disCrew + '/>')
-          : ('<span class="mini" title="Linked crew airline(s) from family_connections (non-declined)">' +
-            (famAir ? famAir : '—') + '</span>');
+        const airlineLabel = isCrew
+          ? (u.company_name || u.airline_icao || '—')
+          : (u.family_linked_crew_company || '—');
         const connCell = renderConnectionsCell(u);
+        const plat = escapeAttr(u.device_platforms_text || '—');
+        const ver = escapeAttr(u.app_version || '—');
+        const build = escapeAttr(u.app_build || '—');
+        const os = escapeAttr(u.os_version || '—');
+        const devCount = Number(u.device_count || 0);
         return (
-          '<tr>' +
+          '<tr class="user-row-main" data-user-row-id="' + (u.id || '') + '">' +
             '<td>' + (idx + 1) + '</td>' +
-            '<td>' + escapeAttr(u.full_name || '-') + '</td>' +
-            '<td>' + escapeAttr(u.email || '-') + '</td>' +
-            '<td><code>' + (u.id_short || '-') + '</code></td>' +
-            '<td><select data-role="app-role" data-user-id="' + (u.id || '') + '">' +
-              '<option value="crew"' + crewSel + '>crew</option>' +
-              '<option value="family"' + famSel + '>family</option>' +
-            '</select></td>' +
-            '<td>' + airlineCell + '</td>' +
+            '<td><div class="u-name">' + escapeAttr(u.full_name || '-') + '</div></td>' +
+            '<td><div class="u-email">' + escapeAttr(u.email || '-') + '</div></td>' +
+            '<td><span class="role-pill ' + roleBadgeCls + '">' + escapeAttr(appRole || '-') + '</span></td>' +
+            '<td><div class="u-platform"><strong>' + plat + '</strong><span class="mini">devices: ' + String(devCount) + '</span></div></td>' +
+            '<td><div class="u-version"><strong>' + ver + '</strong><span class="mini">build: ' + build + ' · os: ' + os + '</span></div></td>' +
+            '<td class="mini">' + escapeAttr(airlineLabel) + '</td>' +
             '<td style="max-width:240px;">' + connCell + '</td>' +
-            '<td>' + fmtDate(u.last_sign_in_at) + '</td>' +
-            '<td><input type="password" data-role="new-password" data-user-id="' + (u.id || '') + '" placeholder="min 8 chars" autocomplete="new-password" /></td>' +
-            '<td><button class="btnSmall" data-action="save-user-profile" data-user-id="' + (u.id || '') + '">Save profile</button> ' +
-            '<button class="btnSmall" data-action="change-user-password" data-user-id="' + (u.id || '') + '">Set password</button> ' +
-            '<button class="btnDanger btnSmall" data-action="delete-user" data-user-id="' + (u.id || '') + '" data-user-email="' + escapeAttr(u.email || '-') + '">Delete</button></td>' +
+            '<td><span class="u-signin">' + fmtDate(u.last_sign_in_at) + '</span></td>' +
+            '<td><a href="#" class="menu-link" data-action="open-user-menu" data-user-id="' + (u.id || '') + '" onclick="return false;">Menu</a></td>' +
           '</tr>'
         );
       }).join('');
@@ -922,6 +1700,8 @@
     }
 
     function renderFlights(rows) {
+      lastFlights = rows || [];
+      if (!els.flightsBody) return;
       const phasePriority = { active: 0, semi_active: 1, passive_future: 2, passive_upcoming: 3, passive_past: 4 };
       const sorted = (rows || []).slice().sort((a, b) => {
         const pa = phasePriority[a.api_refresh_phase] ?? 9;
@@ -941,22 +1721,136 @@
           list.map((n) => '<div>' + n + '</div>').join('') +
           '</details>';
       }
+      function pair(label, value) {
+        return '<div class="kv"><span class="mini">' + escapeHtml(label) + ':</span> <code>' + escapeHtml(value == null ? '—' : String(value)) + '</code></div>';
+      }
+      function parseMs(v) {
+        if (!v) return NaN;
+        const ms = new Date(v).getTime();
+        return Number.isFinite(ms) ? ms : NaN;
+      }
+      function hasRevisedSignal(f) {
+        const estDep = parseMs(f.estimated_departure);
+        const schDep = parseMs(f.scheduled_departure);
+        const estArr = parseMs(f.estimated_arrival);
+        const schArr = parseMs(f.scheduled_arrival);
+        const depShift = Number.isFinite(estDep) && Number.isFinite(schDep) && Math.abs(estDep - schDep) >= 5 * 60 * 1000;
+        const arrShift = Number.isFinite(estArr) && Number.isFinite(schArr) && Math.abs(estArr - schArr) >= 5 * 60 * 1000;
+        return depShift || arrShift;
+      }
+      function dbSnapshotHtml(f) {
+        return [
+          pair('flight_id', f.id),
+          pair('updated_at', f.updated_at),
+          pair('created_at', f.created_at),
+          pair('api_refresh_phase', f.api_refresh_phase),
+          pair('phase_active_locked', f.phase_active_locked),
+          pair('flight_status', f.flight_status),
+          pair('internal_status', f.internal_status),
+          pair('scheduled_departure', f.scheduled_departure),
+          pair('estimated_departure', f.estimated_departure),
+          pair('actual_departure', f.actual_departure),
+          pair('scheduled_arrival', f.scheduled_arrival),
+          pair('estimated_arrival', f.estimated_arrival),
+          pair('actual_arrival', f.actual_arrival),
+          pair('delay_dep_min', f.delay_dep_min),
+          pair('delay_arr_min', f.delay_arr_min),
+          pair('revised_signal', hasRevisedSignal(f) ? 'yes' : 'no'),
+          pair('is_delayed', f.is_delayed),
+          pair('diverted_to', f.diverted_to),
+          pair('roster_entry_kind', f.roster_entry_kind),
+          pair('duty_rest_end', f.duty_rest_end),
+        ].join('');
+      }
+      function apiSnapshotHtml(f) {
+        return [
+          pair('fr24_first_seen_utc', f.fr24_first_seen_utc),
+          pair('fr24_datetime_takeoff_utc', f.fr24_datetime_takeoff_utc),
+          pair('fr24_datetime_landed_utc', f.fr24_datetime_landed_utc),
+          pair('fr24_progress_dep_utc', f.fr24_progress_dep_utc),
+          pair('fr24_progress_eta_utc', f.fr24_progress_eta_utc),
+          pair('airlabs_progress_percent', f.airlabs_progress_percent),
+        ].join('');
+      }
+      function rawJsonHtml(f) {
+        const dbObj = {
+          id: f.id,
+          flight_number: f.flight_number,
+          flight_date: f.flight_date,
+          api_refresh_phase: f.api_refresh_phase,
+          phase_active_locked: f.phase_active_locked,
+          flight_status: f.flight_status,
+          internal_status: f.internal_status,
+          scheduled_departure: f.scheduled_departure,
+          estimated_departure: f.estimated_departure,
+          actual_departure: f.actual_departure,
+          scheduled_arrival: f.scheduled_arrival,
+          estimated_arrival: f.estimated_arrival,
+          actual_arrival: f.actual_arrival,
+          delay_dep_min: f.delay_dep_min,
+          delay_arr_min: f.delay_arr_min,
+          revised_signal: hasRevisedSignal(f),
+          is_delayed: f.is_delayed,
+          diverted_to: f.diverted_to,
+          roster_entry_kind: f.roster_entry_kind,
+          duty_rest_end: f.duty_rest_end,
+          created_at: f.created_at,
+          updated_at: f.updated_at,
+        };
+        const apiObj = {
+          fr24_first_seen_utc: f.fr24_first_seen_utc,
+          fr24_datetime_takeoff_utc: f.fr24_datetime_takeoff_utc,
+          fr24_datetime_landed_utc: f.fr24_datetime_landed_utc,
+          fr24_progress_dep_utc: f.fr24_progress_dep_utc,
+          fr24_progress_eta_utc: f.fr24_progress_eta_utc,
+          airlabs_progress_percent: f.airlabs_progress_percent,
+        };
+        const raw = JSON.stringify({ db: dbObj, api_cached: apiObj }, null, 2);
+        return '<div style="margin-top:10px;"><div class="mini" style="margin-bottom:6px;">Raw JSON</div><pre style="margin:0;white-space:pre-wrap;word-break:break-word;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:8px;max-height:260px;overflow:auto;"><code>' + escapeHtml(raw) + '</code></pre></div>';
+      }
 
-      els.flightsBody.innerHTML = sorted.map((f) => (
-        '<tr>' +
-          '<td>' + (f.flight_number || '-') + '</td>' +
-          '<td><span class="route"><span>' + (f.origin_airport || '-') + '</span><span class="line"></span><span>' + (f.destination_airport || '-') + '</span></span></td>' +
-          '<td>' + (f.scheduled_departure ? fmtDate(f.scheduled_departure) : (f.flight_date || '-')) + '</td>' +
+      els.flightsBody.innerHTML = sorted.map((f) => {
+        const fid = f.id || '';
+        const reg = String(f.aircraft_registration || '').trim();
+        const checked = selectedFlightIds.has(fid) ? ' checked' : '';
+        const dateLabel = f.scheduled_departure ? fmtDate(f.scheduled_departure) : (f.flight_date || '-');
+        return (
+        '<tr class="flight-main-row" data-flight-id="' + fid + '">' +
+          '<td><input type="checkbox" class="flight-select" data-flight-id="' + fid + '"' + checked + ' /></td>' +
+          '<td>' + fr24Link(fr24FlightUrl(f.flight_number, f.flight_date), f.flight_number || '-') + '</td>' +
+          '<td>' + airportBoardLink(f.origin_airport, 'departure', f.origin_airport || '-') + '</td>' +
+          '<td>' + airportBoardLink(f.destination_airport, 'arrival', f.destination_airport || '-') + '</td>' +
+          '<td>' + (reg ? fr24Link(fr24AircraftUrl(reg), reg) : '—') + '</td>' +
+          '<td>' + escapeHtml(dateLabel) + '</td>' +
+          '<td>' + delayCellHtml(f) + '</td>' +
           '<td><span class="badge phase-' + (f.api_refresh_phase || 'unknown') + '">' + (f.api_refresh_phase || 'unknown') + '</span></td>' +
-          '<td><span class="badge">' + (f.flight_status || '-') + '</span></td>' +
+          '<td><span class="badge">' + (f.flight_status || '-') + '</span>' +
+            (hasRevisedSignal(f) ? ' <span class="badge b-ok">revised</span>' : '') +
+          '</td>' +
           '<td>' + crewCellHtml(f.crew_names) + '</td>' +
-          '<td>' +
-            '<button class="btnSmall" data-action="toggle-edit" data-flight-id="' + (f.id || '') + '">Modify flight</button>' +
-            '<button class="btnDanger btnSmall" data-action="delete-flight" data-flight-id="' + (f.id || '') + '" data-flight-no="' + (f.flight_number || '-') + '">Delete</button>' +
+          '<td><a href="#" class="menu-link" data-action="toggle-edit" data-flight-id="' + fid + '" onclick="return false;">Edit</a></td>' +
+        '</tr>' +
+        '<tr class="flight-detail-row" id="flight-detail-row-' + fid + '">' +
+          '<td colspan="11">' +
+            '<div class="flight-detail-box">' +
+              '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;">' +
+                '<strong>Flight Diagnostics (cached)</strong>' +
+                '<button class="btnSmall" data-action="refresh-flight-api" data-flight-id="' + fid + '" data-flight-no="' + escapeAttr(f.flight_number || '') + '" data-flight-date="' + escapeAttr(f.flight_date || '') + '">Güncel API Req</button>' +
+              '</div>' +
+              '<div class="flight-detail-grid">' +
+                '<div><div class="mini" style="margin-bottom:6px;">Son DB Kaydı</div>' + dbSnapshotHtml(f) + '</div>' +
+                '<div><div class="mini" style="margin-bottom:6px;">Son API Kaydı (DB cache alanları)</div>' + apiSnapshotHtml(f) + '</div>' +
+              '</div>' +
+              rawJsonHtml(f) +
+              '<div class="row" style="margin-top:8px;">' +
+                '<button class="btnSmall" data-action="toggle-flight-detail" data-flight-id="' + fid + '">Toggle details</button>' +
+                '<button class="btnDanger btnSmall" data-action="delete-flight" data-flight-id="' + fid + '" data-flight-no="' + escapeAttr(f.flight_number || '-') + '">Delete</button>' +
+              '</div>' +
+            '</div>' +
           '</td>' +
         '</tr>' +
-        '<tr class="flight-edit-row" id="edit-row-' + (f.id || '') + '">' +
-          '<td colspan="7">' +
+        '<tr class="flight-edit-row" id="edit-row-' + fid + '">' +
+          '<td colspan="11">' +
             '<div class="flight-edit-box">' +
             '<div class="row">' +
               '<select data-role="phase">' +
@@ -967,7 +1861,7 @@
                 '<option value="passive_upcoming">passive_upcoming</option>' +
                 '<option value="passive_past">passive_past</option>' +
               '</select>' +
-              '<button class="btnSmall" data-action="set-flight-phase" data-flight-id="' + (f.id || '') + '">Apply</button>' +
+              '<button class="btnSmall" data-action="set-flight-phase" data-flight-id="' + fid + '">Apply</button>' +
               '<select data-role="status">' +
                 '<option value="">Select status</option>' +
                 '<option value="scheduled">scheduled</option>' +
@@ -978,16 +1872,44 @@
                 '<option value="cancelled">cancelled</option>' +
                 '<option value="diverted">diverted</option>' +
               '</select>' +
-              '<button class="btnSmall" data-action="set-flight-status" data-flight-id="' + (f.id || '') + '">Apply</button>' +
+              '<button class="btnSmall" data-action="set-flight-status" data-flight-id="' + fid + '">Apply</button>' +
               '<select data-role="crew">' + (window.__crewOptionsHtml || '<option value="">Select crew</option>') + '</select>' +
-              '<button class="btnSmall" data-action="attach-crew" data-flight-id="' + (f.id || '') + '">Attach</button>' +
-              '<button class="btnSmall" data-action="detach-crew" data-flight-id="' + (f.id || '') + '">Detach</button>' +
-              '<button class="btnSmall" data-action="toggle-edit" data-flight-id="' + (f.id || '') + '">Close</button>' +
+              '<button class="btnSmall" data-action="attach-crew" data-flight-id="' + fid + '">Attach</button>' +
+              '<button class="btnSmall" data-action="detach-crew" data-flight-id="' + fid + '">Detach</button>' +
+              '<button class="btnSmall" data-action="toggle-edit" data-flight-id="' + fid + '">Close</button>' +
             '</div>' +
             '</div>' +
           '</td>' +
         '</tr>'
-      )).join('');
+        );
+      }).join('');
+      const selectAll = document.getElementById('flightsSelectAll');
+      if (selectAll) {
+        const allIds = sorted.map((f) => f.id).filter(Boolean);
+        selectAll.checked = allIds.length > 0 && allIds.every((id) => selectedFlightIds.has(id));
+        selectAll.indeterminate = selectedFlightIds.size > 0 && !selectAll.checked;
+      }
+      updateFlightsSelectionBar();
+    }
+
+    async function requestFreshFlightApi(flightNo, flightDate) {
+      const url = (els.supabaseUrl.value || '').replace(/\/$/, '') + '/functions/v1/flight-lookup';
+      const anon = els.anonKey.value || '';
+      const headers = {
+        'Content-Type': 'application/json',
+        apikey: anon,
+      };
+      if (accessToken) headers.authorization = 'Bearer ' + accessToken;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ flightNumber: flightNo, flightDate }),
+      });
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error('flight-lookup failed: ' + res.status + ' ' + txt);
+      }
+      return await res.json();
     }
 
     function renderUsage(rows) {
@@ -1024,6 +1946,7 @@
       els.flightsActive.textContent = data.flights?.active_now ?? '-';
       els.flightsTotal.textContent = data.flights?.total ?? '-';
       renderPhaseSummary(data.flights?.phase_summary || {});
+      renderPhaseRefreshHealth(data.health || {});
       const userRows = data.users?.rows || [];
       renderUsers(userRows);
       if (els.usersApiHint) {
@@ -1047,15 +1970,35 @@
       window.__crewOptionsHtml = '<option value="">Select crew</option>' + crewDirectory
         .map((c) => '<option value="' + c.crew_id + '">' + ((c.full_name || '-') + '</option>'))
         .join('');
-      renderFlights(data.flights?.rows || []);
+      try {
+        renderFlights(data.flights?.rows || []);
+        const flightsHint = document.getElementById('flightsApiHint');
+        if (flightsHint) {
+          const n = (data.flights?.rows || []).length;
+          flightsHint.style.display = n ? 'none' : 'block';
+          flightsHint.className = 'mini';
+          flightsHint.textContent = n ? '' : 'No flights in API response.';
+        }
+      } catch (flightRenderErr) {
+        const flightsHint = document.getElementById('flightsApiHint');
+        if (flightsHint) {
+          flightsHint.style.display = 'block';
+          flightsHint.className = 'mini bad';
+          flightsHint.textContent = 'Flight list render error: ' + String(flightRenderErr?.message || flightRenderErr);
+        }
+        if (els.flightsBody) els.flightsBody.innerHTML = '';
+      }
       renderUsage((data.api_usage?.providers || []).slice().sort((a, b) => String(a.provider).localeCompare(String(b.provider))));
+      renderFr24CacheSummary(data.api_usage);
       const qc = data.api_usage?.quota_configured_count ?? 0;
       const liveFr24 = data.api_usage?.has_live_fr24;
       els.usageConfigured.textContent = String(qc);
-      els.usageShortHint.textContent = liveFr24 ? 'FR24 live usage enabled' : 'FR24 live usage disabled';
+      els.usageShortHint.textContent = liveFr24
+        ? 'FR24 live on refresh'
+        : 'FR24: DB snapshot (live off)';
       const hint = qc > 0
-        ? ('Quota configuration found: ' + qc + ' provider(s)' + (liveFr24 ? ' · FR24 live: enabled' : ' · FR24 live: disabled'))
-        : ('No quota config: set ADMIN_PROVIDER_QUOTAS_JSON in Supabase function env. FR24 live is ' + (liveFr24 ? 'enabled' : 'disabled'));
+        ? ('Quota configuration found: ' + qc + ' provider(s)' + (liveFr24 ? ' · FR24 live: on' : ' · FR24: snapshot only'))
+        : ('No quota config: set ADMIN_PROVIDER_QUOTAS_JSON. FR24: ' + (liveFr24 ? 'live on' : 'snapshot / manual sync'));
       const quotaHint = document.getElementById('quotaHint');
       if (quotaHint) quotaHint.textContent = hint;
     }
@@ -1186,8 +2129,30 @@
     els.flightsBody.addEventListener('click', async (e) => {
       const target = e.target;
       if (!(target instanceof HTMLElement)) return;
-      const btn = target.closest('button[data-action]');
-      if (!btn) return;
+      if (handleAirportBoardLinkClick(e)) return;
+      const actionEl = target.closest('[data-action]');
+      const btn = actionEl && actionEl.matches('button[data-action]') ? actionEl : null;
+      const link = actionEl && actionEl.matches('a[data-action]') ? actionEl : null;
+      if (link) {
+        e.preventDefault();
+        const act = link.getAttribute('data-action');
+        const flightId = link.getAttribute('data-flight-id');
+        if (act === 'toggle-edit' && flightId) {
+          const row = document.getElementById('edit-row-' + flightId);
+          if (row) row.classList.toggle('open');
+        }
+        return;
+      }
+      if (!btn) {
+        if (target.closest('input,select,textarea,a,details,summary,button')) return;
+        const tr = target.closest('tr.flight-main-row');
+        if (!tr) return;
+        const id = tr.getAttribute('data-flight-id');
+        if (!id) return;
+        const row = document.getElementById('flight-detail-row-' + id);
+        if (row) row.classList.toggle('open');
+        return;
+      }
       const action = btn.getAttribute('data-action');
       const flightId = btn.getAttribute('data-flight-id');
       if (!flightId) return;
@@ -1196,6 +2161,25 @@
           const row = document.getElementById('edit-row-' + flightId);
           if (!row) return;
           row.classList.toggle('open');
+          return;
+        } else if (action === 'toggle-flight-detail') {
+          const row = document.getElementById('flight-detail-row-' + flightId);
+          if (!row) return;
+          row.classList.toggle('open');
+          return;
+        } else if (action === 'refresh-flight-api') {
+          const flightNo = btn.getAttribute('data-flight-no') || '';
+          const flightDate = btn.getAttribute('data-flight-date') || '';
+          if (!flightNo || !flightDate) throw new Error('Missing flight number/date');
+          setStatus('Flight API refresh running...', 'warn');
+          btn.disabled = true;
+          try {
+            await requestFreshFlightApi(flightNo, flightDate);
+            await loadDashboard();
+            setStatus('Flight API refreshed', 'ok');
+          } finally {
+            btn.disabled = false;
+          }
           return;
         } else if (action === 'delete-flight') {
           const flightNo = btn.getAttribute('data-flight-no') || '-';
@@ -1236,83 +2220,182 @@
         setStatus(String(err?.message || err), 'bad');
       }
     });
-    els.usersBody.addEventListener('change', (e) => {
-      const t = e.target;
-      if (!(t instanceof HTMLSelectElement)) return;
-      if (t.getAttribute('data-role') !== 'app-role') return;
-      const tr = t.closest('tr');
-      if (!tr) return;
-      const crew = t.value === 'crew';
-      tr.querySelectorAll('input[data-role="airline-icao"]').forEach((el) => {
-        el.disabled = !crew;
-      });
-    });
-    els.usersBody.addEventListener('click', async (e) => {
-      const target = e.target;
-      if (!(target instanceof HTMLElement)) return;
-      const btn = target.closest('button[data-action]');
-      if (!btn) return;
-      if (btn.getAttribute('data-action') === 'save-user-profile') {
-        const userId = btn.getAttribute('data-user-id');
-        if (!userId) return;
-        const tr = btn.closest('tr');
-        const roleEl = tr && tr.querySelector('select[data-role="app-role"]');
-        const companyEl = tr && tr.querySelector('input[data-role="company-name"]');
+    async function handleUserAction(btn) {
+      const action = btn.getAttribute('data-action');
+      const userId = btn.getAttribute('data-user-id');
+      if (!userId) return;
+      const root = document.getElementById('drawerBody') || document;
+      if (action === 'save-user-profile') {
+        const roleEl = root.querySelector('select[data-role="app-role"][data-user-id="' + userId + '"]');
+        const companyEl = root.querySelector('input[data-role="company-name"][data-user-id="' + userId + '"]');
         const role = roleEl && roleEl.value ? roleEl.value : '';
         if (role !== 'crew' && role !== 'family') {
           setStatus('Invalid app role', 'bad');
           return;
         }
-        try {
-          setStatus('Saving profile...', 'warn');
-          const payload = { user_id: userId, role };
-          if (role === 'crew') {
-            payload.company_name = companyEl ? String(companyEl.value) : '';
-          }
-          await callAdminAction('update_user_profile', payload);
-          await loadDashboard();
-          setStatus('Profile saved', 'ok');
-        } catch (err) {
-          setStatus(String(err?.message || err), 'bad');
-        }
+        setStatus('Saving profile...', 'warn');
+        const payload = { user_id: userId, role };
+        if (role === 'crew') payload.company_name = companyEl ? String(companyEl.value) : '';
+        await callAdminAction('update_user_profile', payload);
+        await loadDashboard();
+        if (drawerUserId === userId) await openUserDrawer(userId, true);
+        setStatus('Profile saved', 'ok');
         return;
       }
-      if (btn.getAttribute('data-action') === 'change-user-password') {
-        const userId = btn.getAttribute('data-user-id');
-        if (!userId) return;
-        const tr = btn.closest('tr');
-        const passwordEl = tr && tr.querySelector('input[data-role="new-password"]');
+      if (action === 'change-user-password') {
+        const passwordEl = root.querySelector('input[data-role="new-password"][data-user-id="' + userId + '"]');
         const newPassword = passwordEl && passwordEl.value ? passwordEl.value.trim() : '';
         if (!newPassword || newPassword.length < 8) {
           setStatus('New password must be at least 8 characters', 'bad');
           return;
         }
+        setStatus('Updating user password...', 'warn');
+        await callAdminAction('update_user_password', { user_id: userId, new_password: newPassword });
+        if (passwordEl) passwordEl.value = '';
+        setStatus('Password updated', 'ok');
+        return;
+      }
+      if (action === 'delete-user') {
+        const email = btn.getAttribute('data-user-email') || '-';
+        const ok = window.confirm('Delete this user and related data? (' + email + ')');
+        if (!ok) return;
+        setStatus('Deleting user...', 'warn');
+        await callAdminAction('delete_user', { user_id: userId });
+        closeDrawer();
+        await loadDashboard();
+        setStatus('User deleted', 'ok');
+        return;
+      }
+      if (action === 'send-push-notification') {
+        const titleEl = root.querySelector('input[data-role="push-title"][data-user-id="' + userId + '"]');
+        const bodyEl = root.querySelector('textarea[data-role="push-body"][data-user-id="' + userId + '"]');
+        const title = titleEl && titleEl.value ? String(titleEl.value).trim() : 'FlyFam';
+        const body = bodyEl && bodyEl.value ? String(bodyEl.value).trim() : '';
+        if (!body) {
+          setStatus('Bildirim metni gerekli', 'bad');
+          return;
+        }
+        const u = lastUsers.find((x) => x.id === userId);
+        const label = (u && (u.full_name || u.email)) || userId;
+        const ok = window.confirm('Push gönderilsin mi?\n\nAlıcı: ' + label + '\nBaşlık: ' + title + '\nMesaj: ' + body);
+        if (!ok) return;
+        setStatus('Push gönderiliyor…', 'warn');
+        const json = await callAdminAction('send_push_notification', { user_id: userId, title, body });
+        if (json.no_tokens) {
+          setStatus('Gönderilemedi: kayıtlı push token yok', 'bad');
+          return;
+        }
+        const sent = Number(json.sent || 0);
+        const total = Number(json.token_count || 0);
+        if (sent <= 0) {
+          const err = Array.isArray(json.expo_errors) && json.expo_errors.length ? json.expo_errors.join('; ') : 'Expo hata';
+          setStatus('Push başarısız: ' + err, 'bad');
+          return;
+        }
+        setStatus('Push gönderildi (' + sent + '/' + total + ' cihaz)', 'ok');
+        if (bodyEl) bodyEl.value = '';
+      }
+    }
+
+    els.usersBody.addEventListener('click', async (e) => {
+      const target = e.target;
+      if (!(target instanceof HTMLElement)) return;
+      const menuLink = target.closest('a[data-action="open-user-menu"]');
+      if (menuLink) {
+        e.preventDefault();
+        const userId = menuLink.getAttribute('data-user-id');
+        if (userId) void openUserDrawer(userId, true);
+        return;
+      }
+      if (target.closest('a,button,input,select,textarea,details,summary')) return;
+      const tr = target.closest('tr.user-row-main');
+      if (!tr) return;
+      const userId = tr.getAttribute('data-user-row-id');
+      if (userId) void openUserDrawer(userId, false);
+    });
+
+    const drawerBody = document.getElementById('drawerBody');
+    const drawerBackdrop = document.getElementById('drawerBackdrop');
+    const drawerClose = document.getElementById('drawerClose');
+    if (drawerClose) drawerClose.addEventListener('click', closeDrawer);
+    if (drawerBackdrop) drawerBackdrop.addEventListener('click', closeDrawer);
+    if (drawerBody) {
+      drawerBody.addEventListener('click', async (e) => {
+        const target = e.target;
+        if (!(target instanceof HTMLElement)) return;
+        if (handleAirportBoardLinkClick(e)) return;
+        const btn = target.closest('button[data-action]');
+        if (!btn) return;
         try {
-          setStatus('Updating user password...', 'warn');
-          await callAdminAction('update_user_password', { user_id: userId, new_password: newPassword });
-          if (passwordEl) passwordEl.value = '';
-          await loadDashboard();
-          setStatus('Password updated', 'ok');
+          await handleUserAction(btn);
         } catch (err) {
           setStatus(String(err?.message || err), 'bad');
         }
-        return;
-      }
-      if (btn.getAttribute('data-action') !== 'delete-user') return;
-      const userId = btn.getAttribute('data-user-id');
-      const email = btn.getAttribute('data-user-email') || '-';
-      if (!userId) return;
-      const ok = window.confirm('Do you want to delete this user with all related links? (' + email + ')');
-      if (!ok) return;
-      try {
-        setStatus('Deleting user...', 'warn');
-        await callAdminAction('delete_user', { user_id: userId });
-        await loadDashboard();
-        setStatus('User deleted', 'ok');
-      } catch (err) {
-        setStatus(String(err?.message || err), 'bad');
-      }
+      });
+    }
+
+    els.flightsBody.addEventListener('change', (e) => {
+      const t = e.target;
+      if (!(t instanceof HTMLInputElement)) return;
+      if (!t.classList.contains('flight-select')) return;
+      const id = t.getAttribute('data-flight-id');
+      setFlightSelected(id, t.checked);
     });
+
+    document.getElementById('flightsSelectAll')?.addEventListener('change', (e) => {
+      const t = e.target;
+      if (!(t instanceof HTMLInputElement)) return;
+      const ids = lastFlights.map((f) => f.id).filter(Boolean);
+      if (t.checked) ids.forEach((id) => selectedFlightIds.add(id));
+      else ids.forEach((id) => selectedFlightIds.delete(id));
+      renderFlights(lastFlights);
+    });
+
+
+    document.getElementById('btnBulkSelPhase')?.addEventListener('click', async () => {
+      try {
+        const ids = resolveBulkFlightIds();
+        const phase = document.getElementById('bulkSelPhase')?.value;
+        if (!ids.length) throw new Error('Select flights or enter IDs');
+        if (!phase) throw new Error('Select phase');
+        setStatus('Updating bulk phase...', 'warn');
+        await callAdminAction('bulk_update_flights', { flight_ids: ids, patch: { api_refresh_phase: phase } });
+        selectedFlightIds.clear();
+        await loadDashboard();
+        setStatus('Bulk phase updated', 'ok');
+      } catch (err) { setStatus(String(err?.message || err), 'bad'); }
+    });
+    document.getElementById('btnBulkSelStatus')?.addEventListener('click', async () => {
+      try {
+        const ids = resolveBulkFlightIds();
+        const status = document.getElementById('bulkSelStatus')?.value;
+        if (!ids.length) throw new Error('Select flights or enter IDs');
+        if (!status) throw new Error('Select status');
+        setStatus('Updating bulk status...', 'warn');
+        await callAdminAction('bulk_update_flights', { flight_ids: ids, patch: { flight_status: status } });
+        selectedFlightIds.clear();
+        await loadDashboard();
+        setStatus('Bulk status updated', 'ok');
+      } catch (err) { setStatus(String(err?.message || err), 'bad'); }
+    });
+    document.getElementById('btnBulkSelDelete')?.addEventListener('click', async () => {
+      try {
+        const ids = resolveBulkFlightIds();
+        if (!ids.length) throw new Error('Select flights or enter IDs');
+        const ok = window.confirm('Delete ' + ids.length + ' flight(s)?');
+        if (!ok) return;
+        setStatus('Bulk delete...', 'warn');
+        await callAdminAction('bulk_delete_flights', { flight_ids: ids });
+        selectedFlightIds.clear();
+        await loadDashboard();
+        setStatus('Bulk delete completed', 'ok');
+      } catch (err) { setStatus(String(err?.message || err), 'bad'); }
+    });
+    document.getElementById('btnBulkSelClear')?.addEventListener('click', () => {
+      selectedFlightIds.clear();
+      renderFlights(lastFlights);
+    });
+
     function parseBulkIds() {
       return String(els.bulkFlightIds.value || '')
         .split(/[\s,]+/)
@@ -1342,7 +2425,7 @@
     });
     els.btnBulkPhase.addEventListener('click', async () => {
       try {
-        const ids = parseBulkIds();
+        const ids = resolveBulkFlightIds();
         const phase = els.bulkPhase.value;
         if (!phase) throw new Error('Select phase');
         setStatus('Updating bulk phase...', 'warn');
@@ -1355,7 +2438,7 @@
     });
     els.btnBulkStatus.addEventListener('click', async () => {
       try {
-        const ids = parseBulkIds();
+        const ids = resolveBulkFlightIds();
         const status = els.bulkStatus.value;
         if (!status) throw new Error('Select status');
         setStatus('Updating bulk status...', 'warn');
@@ -1368,7 +2451,7 @@
     });
     els.btnBulkDelete.addEventListener('click', async () => {
       try {
-        const ids = parseBulkIds();
+        const ids = resolveBulkFlightIds();
         if (ids.length === 0) throw new Error('Enter at least one flight ID');
         const ok = window.confirm('Do you want to bulk delete ' + ids.length + ' flight(s)?');
         if (!ok) return;
@@ -1405,17 +2488,34 @@
     });
     els.btnFr24Fetch.addEventListener('click', async () => {
       try {
+        if (Date.now() < fr24FetchCooldownUntil) {
+          const mins = Math.ceil((fr24FetchCooldownUntil - Date.now()) / 60000);
+          setFr24Status('FR24 429 — ' + mins + ' dk sonra tekrar deneyin (veya tarayıcı usage sayfası)', 'warn');
+          return;
+        }
         setFr24Status('Fetching...', 'warn');
         await triggerFr24Sync();
         await loadDashboard();
         setFr24Status('Fetched successfully', 'ok');
       } catch (err) {
-        setFr24Status(String(err?.message || err), 'bad');
+        const msg = String(err?.message || err);
+        setFr24Status(msg, err?.httpStatus === 429 ? 'warn' : 'bad');
+        if (err?.httpStatus === 429) {
+          try {
+            await loadDashboard();
+          } catch (_) {}
+        }
       }
     });
 
     updateAdvancedVisibility();
     loadCfg();
+    if (location.protocol === 'file:') {
+      setStatus(
+        'Uyarı: file:// — giriş için yerel sunucu kullan (cd docs && python3 -m http.server 8765)',
+        'warn',
+      );
+    }
     (async () => {
       if (await tryRestoreSession()) {
         try {
