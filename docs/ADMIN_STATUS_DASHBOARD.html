@@ -9,7 +9,7 @@
   <meta http-equiv="Expires" content="0" />
   <script>
     (function () {
-      var UI = '14';
+      var UI = '15';
       var p = new URLSearchParams(location.search);
       if (p.get('ui') !== UI) {
         p.set('ui', UI);
@@ -1070,6 +1070,66 @@
       );
     }
 
+    function renderUserDrawerSubscriptionSection(u) {
+      const sub = u.subscription;
+      const isCrew = String(u.role || '') === 'crew';
+      if (!isCrew) {
+        if (!sub) {
+          return '<div class="drawer-section"><h4>Abonelik</h4><p class="mini">Onaylı crew bağlantısı ve abonelik yok.</p></div>';
+        }
+        const crewName = escapeHtml(sub.managed_crew_name || sub.managed_crew_user_id || 'crew');
+        const status = escapeHtml(sub.status || '—');
+        const slots = Number(sub.total_family_slots || 0);
+        const extra = Number(sub.extra_family_slots || 0);
+        return (
+          '<div class="drawer-section">' +
+            '<h4>Abonelik (salt okunur)</h4>' +
+            '<p class="mini">Aile kullanıcısı — abonelik crew hesabında yönetilir: <strong>' + crewName + '</strong></p>' +
+            '<p class="mini">Durum: <span class="badge">' + status + '</span> · Toplam slot: ' + slots + ' (ekstra: ' + extra + ')</p>' +
+            (sub.managed_crew_user_id
+              ? '<div class="drawer-actions"><button type="button" class="btnSmall" data-action="open-linked-crew-subscription" data-user-id="' + escapeAttr(sub.managed_crew_user_id) + '">Crew aboneliğini aç</button></div>'
+              : '') +
+          '</div>'
+        );
+      }
+      const status = sub?.status || 'active';
+      const extra = Number(sub?.extra_family_slots || 0);
+      const maxExtra = Number(sub?.max_extra_family_members || 10);
+      const base = Number(sub?.base_family_members || 1);
+      const total = Number(sub?.total_family_slots || (base + extra));
+      const usedA = Number(sub?.used_family_approved || 0);
+      const usedP = Number(sub?.used_family_pending || 0);
+      const available = Number(sub?.available_family_slots || 0);
+      const periodEnd = isoToDatetimeLocal(sub?.current_period_ends_at);
+      const canDecreaseExtra = extra > 0 && (base + extra - 1) >= usedA + usedP;
+      const canIncreaseExtra = extra < maxExtra;
+      return (
+        '<div class="drawer-section">' +
+          '<h4>Abonelik</h4>' +
+          '<p class="mini" style="margin:0 0 8px;">' +
+            'Temel ' + base + ' + ekstra ' + extra + ' = <strong>' + total + ' slot</strong> · ' +
+            'Kullanım: ' + usedA + ' onaylı, ' + usedP + ' bekleyen · Boş: ' + available +
+          '</p>' +
+          '<div class="drawer-field"><label>Durum</label>' +
+            '<select data-role="sub-status" data-user-id="' + (u.id || '') + '">' +
+              subscriptionStatusOptions(status) +
+            '</select></div>' +
+          '<div class="drawer-field"><label>Ekstra aile üyesi</label>' +
+            '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">' +
+              '<button type="button" class="btnSmall" data-action="adjust-extra-slot" data-user-id="' + (u.id || '') + '" data-delta="-1"' + (canDecreaseExtra ? '' : ' disabled') + '>− 1</button>' +
+              '<input data-role="sub-extra-slots" data-user-id="' + (u.id || '') + '" type="number" min="0" max="' + maxExtra + '" value="' + extra + '" style="width:72px;text-align:center;" />' +
+              '<button type="button" class="btnSmall" data-action="adjust-extra-slot" data-user-id="' + (u.id || '') + '" data-delta="1"' + (canIncreaseExtra ? '' : ' disabled') + '>+ 1</button>' +
+              '<span class="mini">max ' + maxExtra + '</span>' +
+            '</div></div>' +
+          '<div class="drawer-field"><label>Dönem bitişi</label>' +
+            '<input data-role="sub-period-end" data-user-id="' + (u.id || '') + '" type="datetime-local" value="' + escapeAttr(periodEnd) + '" /></div>' +
+          '<div class="drawer-actions">' +
+            '<button type="button" class="btnPrimary btnSmall" data-action="save-user-subscription" data-user-id="' + (u.id || '') + '">Aboneliği kaydet</button>' +
+          '</div>' +
+        '</div>'
+      );
+    }
+
     function renderUserDrawerEditSection(u) {
       const appRole = String(u.role || '');
       const isCrew = appRole === 'crew';
@@ -1190,6 +1250,7 @@
           '<h4>Roster</h4>' +
           '<div id="userRosterHost" class="mini">Loading…</div>' +
         '</div>' +
+        renderUserDrawerSubscriptionSection(u) +
         renderUserDrawerPushSection(u) +
         renderUserDrawerEditSection(u);
       openDrawer(title, html);
@@ -1408,6 +1469,27 @@
       const d = new Date(v);
       if (Number.isNaN(d.getTime())) return String(v);
       return d.toLocaleString();
+    }
+
+    function isoToDatetimeLocal(iso) {
+      if (!iso) return '';
+      const d = new Date(iso);
+      if (Number.isNaN(d.getTime())) return '';
+      const pad = (n) => String(n).padStart(2, '0');
+      return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+    }
+
+    function datetimeLocalToIso(val) {
+      if (!val) return null;
+      const d = new Date(val);
+      if (Number.isNaN(d.getTime())) return null;
+      return d.toISOString();
+    }
+
+    function subscriptionStatusOptions(selected) {
+      return ['trialing', 'active', 'past_due', 'canceled'].map((s) => (
+        '<option value="' + s + '"' + (selected === s ? ' selected' : '') + '>' + s + '</option>'
+      )).join('');
     }
 
     function normalizeSupabaseUrl(raw) {
@@ -2294,6 +2376,49 @@
         }
         setStatus('Push gönderildi (' + sent + '/' + total + ' cihaz)', 'ok');
         if (bodyEl) bodyEl.value = '';
+        return;
+      }
+      if (action === 'open-linked-crew-subscription') {
+        await openUserDrawer(userId, false);
+        return;
+      }
+      if (action === 'adjust-extra-slot') {
+        const delta = Number(btn.getAttribute('data-delta') || '0');
+        if (!Number.isFinite(delta) || delta === 0) return;
+        setStatus(delta > 0 ? 'Ekstra slot ekleniyor…' : 'Ekstra slot kaldırılıyor…', 'warn');
+        await callAdminAction('update_user_subscription', { user_id: userId, extra_family_delta: delta });
+        await loadDashboard();
+        if (drawerUserId === userId) await openUserDrawer(userId, false);
+        setStatus('Abonelik güncellendi', 'ok');
+        return;
+      }
+      if (action === 'save-user-subscription') {
+        const statusEl = root.querySelector('select[data-role="sub-status"][data-user-id="' + userId + '"]');
+        const extraEl = root.querySelector('input[data-role="sub-extra-slots"][data-user-id="' + userId + '"]');
+        const periodEl = root.querySelector('input[data-role="sub-period-end"][data-user-id="' + userId + '"]');
+        const status = statusEl && statusEl.value ? String(statusEl.value).trim() : '';
+        const extraRaw = extraEl ? Number(extraEl.value) : NaN;
+        const periodIso = periodEl ? datetimeLocalToIso(String(periodEl.value || '')) : null;
+        if (!status) {
+          setStatus('Abonelik durumu gerekli', 'bad');
+          return;
+        }
+        if (!Number.isFinite(extraRaw) || extraRaw < 0) {
+          setStatus('Geçersiz ekstra slot sayısı', 'bad');
+          return;
+        }
+        setStatus('Abonelik kaydediliyor…', 'warn');
+        const payload = {
+          user_id: userId,
+          plan_code: 'couple',
+          status,
+          extra_family_slots: Math.trunc(extraRaw),
+        };
+        if (periodEl && periodEl.value) payload.current_period_ends_at = periodIso;
+        await callAdminAction('update_user_subscription', payload);
+        await loadDashboard();
+        if (drawerUserId === userId) await openUserDrawer(userId, false);
+        setStatus('Abonelik kaydedildi', 'ok');
       }
     }
 

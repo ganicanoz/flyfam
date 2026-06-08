@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { sendExpoPush } from '../_shared/expoPush.ts';
 
 type Json = Record<string, unknown>;
 
@@ -79,6 +80,178 @@ type Fr24UsageLive = {
   fetchedAt: string;
 };
 
+type CrewSubRow = {
+  id: string;
+  crew_id: string;
+  plan_code: string;
+  extra_family_slots: number;
+  status: string;
+  trial_ends_at: string | null;
+  current_period_ends_at: string | null;
+  provider: string | null;
+};
+
+type PlanRow = {
+  code: string;
+  title: string;
+  max_family_members: number;
+  max_extra_family_members: number;
+  active: boolean;
+};
+
+type AdminSubscriptionSnapshot = {
+  crew_id: string;
+  plan_code: string | null;
+  plan_title: string | null;
+  status: string | null;
+  extra_family_slots: number;
+  base_family_members: number;
+  max_extra_family_members: number;
+  total_family_slots: number;
+  used_family_approved: number;
+  used_family_pending: number;
+  available_family_slots: number;
+  trial_ends_at: string | null;
+  current_period_ends_at: string | null;
+  premium_active: boolean | null;
+  provider: string | null;
+  read_only?: boolean;
+  managed_crew_user_id?: string | null;
+  managed_crew_name?: string | null;
+};
+
+const SUBSCRIPTION_STATUSES = new Set(['trialing', 'active', 'past_due', 'canceled']);
+
+function parseOptionalIso(raw: unknown): string | null | undefined {
+  if (raw === undefined) return undefined;
+  if (raw === null || raw === '') return null;
+  if (typeof raw !== 'string') return undefined;
+  const t = new Date(raw.trim()).getTime();
+  if (!Number.isFinite(t)) return undefined;
+  return new Date(t).toISOString();
+}
+
+function buildSubscriptionSnapshot(
+  crewId: string,
+  sub: CrewSubRow | null | undefined,
+  plan: PlanRow | null | undefined,
+  approved: number,
+  pending: number,
+  premiumActive: boolean | null,
+  extras?: { read_only?: boolean; managed_crew_user_id?: string | null; managed_crew_name?: string | null },
+): AdminSubscriptionSnapshot {
+  const base = plan?.max_family_members ?? 0;
+  const extra = sub?.extra_family_slots ?? 0;
+  const total = base + extra;
+  return {
+    crew_id: crewId,
+    plan_code: sub?.plan_code ?? null,
+    plan_title: plan?.title ?? null,
+    status: sub?.status ?? null,
+    extra_family_slots: extra,
+    base_family_members: base,
+    max_extra_family_members: plan?.max_extra_family_members ?? 0,
+    total_family_slots: total,
+    used_family_approved: approved,
+    used_family_pending: pending,
+    available_family_slots: Math.max(total - approved, 0),
+    trial_ends_at: sub?.trial_ends_at ?? null,
+    current_period_ends_at: sub?.current_period_ends_at ?? null,
+    premium_active: premiumActive,
+    provider: sub?.provider ?? null,
+    read_only: extras?.read_only,
+    managed_crew_user_id: extras?.managed_crew_user_id ?? null,
+    managed_crew_name: extras?.managed_crew_name ?? null,
+  };
+}
+
+async function resolveCrewForSubscriptionAdmin(
+  adminClient: ReturnType<typeof createClient>,
+  userId: string,
+): Promise<{ crewId: string; crewUserId: string } | { error: string; status?: number }> {
+  const { data: prof } = await adminClient.from('profiles').select('id, role').eq('id', userId).maybeSingle();
+  if (!prof) return { error: 'User not found', status: 404 };
+  if (String(prof.role ?? '') !== 'crew') {
+    return { error: 'Subscription can only be changed on a crew account', status: 400 };
+  }
+  const { data: crew } = await adminClient.from('crew_profiles').select('id, user_id').eq('user_id', userId).maybeSingle();
+  if (!crew?.id) return { error: 'User has no crew profile', status: 400 };
+  return { crewId: String(crew.id), crewUserId: String(crew.user_id) };
+}
+
+async function countFamilyUsage(
+  adminClient: ReturnType<typeof createClient>,
+  crewId: string,
+): Promise<{ approved: number; pending: number }> {
+  const { count: approved } = await adminClient
+    .from('family_connections')
+    .select('id', { count: 'exact', head: true })
+    .eq('crew_id', crewId)
+    .eq('status', 'approved');
+  const { count: pending } = await adminClient
+    .from('family_connections')
+    .select('id', { count: 'exact', head: true })
+    .eq('crew_id', crewId)
+    .eq('status', 'pending');
+  return { approved: approved ?? 0, pending: pending ?? 0 };
+}
+
+async function syncCrewEntitlement(
+  adminClient: ReturnType<typeof createClient>,
+  crewUserId: string,
+  status: string,
+): Promise<void> {
+  const premiumActive = status === 'trialing' || status === 'active';
+  await adminClient.from('user_entitlements').upsert(
+    {
+      user_id: crewUserId,
+      premium_active: premiumActive,
+      source: 'manual_admin_grant',
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: 'user_id' },
+  );
+}
+
+async function loadSubscriptionContext(
+  adminClient: ReturnType<typeof createClient>,
+  crewId: string,
+  crewUserId: string,
+): Promise<{ sub: CrewSubRow | null; plan: PlanRow | null; usage: { approved: number; pending: number }; premiumActive: boolean | null }> {
+  const [{ data: subRows }, { data: ent }] = await Promise.all([
+    adminClient
+      .from('crew_subscriptions')
+      .select('id, crew_id, plan_code, extra_family_slots, status, trial_ends_at, current_period_ends_at, provider')
+      .eq('crew_id', crewId)
+      .order('updated_at', { ascending: false })
+      .limit(1),
+    adminClient.from('user_entitlements').select('premium_active').eq('user_id', crewUserId).maybeSingle(),
+  ]);
+  const sub = (subRows?.[0] as CrewSubRow | undefined) ?? null;
+  let plan: PlanRow | null = null;
+  if (sub?.plan_code) {
+    const { data: planRow } = await adminClient
+      .from('app_subscription_plans')
+      .select('code, title, max_family_members, max_extra_family_members, active')
+      .eq('code', sub.plan_code)
+      .maybeSingle();
+    plan = (planRow as PlanRow | null) ?? null;
+  }
+  const usage = await countFamilyUsage(adminClient, crewId);
+  return {
+    sub,
+    plan,
+    usage,
+    premiumActive: typeof ent?.premium_active === 'boolean' ? ent.premium_active : null,
+  };
+}
+
+/** Dashboard refresh should not hammer /api/usage (same token as flight-summary → 429). */
+function fr24LiveOnDashboardEnabled(): boolean {
+  const v = (Deno.env.get('ADMIN_FR24_LIVE_ON_DASHBOARD') ?? '').trim().toLowerCase();
+  return v === '1' || v === 'true' || v === 'yes';
+}
+
 async function fetchFr24UsageLive(fr24Token: string | null): Promise<Fr24UsageLive | null> {
   if (!fr24Token?.trim()) return null;
   const usageUrl =
@@ -91,7 +264,12 @@ async function fetchFr24UsageLive(fr24Token: string | null): Promise<Fr24UsageLi
   if (fr24Token) headers.Authorization = `Bearer ${fr24Token}`;
   try {
     const res = await fetch(usageUrl, { method: 'GET', headers });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      if (res.status === 429) {
+        console.warn('[admin-dashboard] FR24 /api/usage rate limited (429) — use DB snapshot');
+      }
+      return null;
+    }
     const json = await res.json() as { data?: Array<Record<string, unknown>> };
     const rows = Array.isArray(json?.data) ? json.data : [];
     let creditsSum = 0;
@@ -205,6 +383,71 @@ Deno.serve(async (req) => {
       body = null;
     }
     const action = typeof body?.action === 'string' ? body.action : '';
+    if (action === 'list_user_flights') {
+      const userId = typeof body?.user_id === 'string' ? body.user_id.trim() : '';
+      if (!userId) {
+        return new Response(JSON.stringify({ error: 'user_id is required' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      const { data: prof } = await adminClient.from('profiles').select('id, role').eq('id', userId).maybeSingle();
+      if (!prof) {
+        return new Response(JSON.stringify({ error: 'User not found' }), {
+          status: 404,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      const crewIds = new Set<string>();
+      const { data: ownCrew } = await adminClient.from('crew_profiles').select('id').eq('user_id', userId).maybeSingle();
+      if (ownCrew?.id) crewIds.add(String(ownCrew.id));
+      if (String(prof.role ?? '') === 'family') {
+        const { data: links } = await adminClient
+          .from('family_connections')
+          .select('crew_id')
+          .eq('family_id', userId)
+          .neq('status', 'declined');
+        for (const row of links ?? []) {
+          if (row.crew_id) crewIds.add(String(row.crew_id));
+        }
+      }
+      if (crewIds.size === 0) {
+        return new Response(JSON.stringify({ ok: true, action, user_id: userId, flights: [] }), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      const { data: fcRows } = await adminClient
+        .from('flight_crew')
+        .select('flight_id')
+        .in('crew_id', [...crewIds]);
+      const flightIds = Array.from(new Set((fcRows ?? []).map((r: { flight_id: string }) => String(r.flight_id)).filter(Boolean)));
+      if (flightIds.length === 0) {
+        return new Response(JSON.stringify({ ok: true, action, user_id: userId, flights: [] }), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      const { data: flightRows, error: flErr } = await adminClient
+        .from('flights')
+        .select(
+          'id, flight_number, origin_airport, destination_airport, flight_date, api_refresh_phase, flight_status, scheduled_departure, delay_dep_min, delay_arr_min',
+        )
+        .in('id', flightIds)
+        .or('roster_entry_kind.eq.flight,roster_entry_kind.is.null')
+        .order('flight_date', { ascending: false })
+        .limit(200);
+      if (flErr) {
+        return new Response(JSON.stringify({ error: flErr.message || 'Flight list failed' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      return new Response(JSON.stringify({ ok: true, action, user_id: userId, flights: flightRows ?? [] }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
     if (action === 'delete_flight') {
       const flightId = typeof body?.flight_id === 'string' ? body.flight_id.trim() : '';
       if (!flightId) {
@@ -595,35 +838,452 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+    if (action === 'send_push_notification') {
+      let userId = typeof body?.user_id === 'string' ? body.user_id.trim() : '';
+      const emailRaw = typeof body?.email === 'string' ? normalizeEmail(body.email) : '';
+      if (!userId && emailRaw) {
+        let page = 1;
+        while (page <= 20) {
+          const { data, error } = await adminClient.auth.admin.listUsers({ page, perPage: 200 });
+          if (error || !data?.users?.length) break;
+          const hit = data.users.find((u) => normalizeEmail(u.email) === emailRaw);
+          if (hit?.id) {
+            userId = hit.id;
+            break;
+          }
+          if (data.users.length < 200) break;
+          page += 1;
+        }
+      }
+      if (!userId) {
+        return new Response(JSON.stringify({ error: 'user_id or email is required' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      const titleRaw = typeof body?.title === 'string' ? body.title.trim() : '';
+      const bodyRaw = typeof body?.body === 'string' ? body.body.trim() : '';
+      const title = titleRaw || 'FlyFam';
+      if (!bodyRaw) {
+        return new Response(JSON.stringify({ error: 'body is required' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      if (title.length > 100) {
+        return new Response(JSON.stringify({ error: 'title max 100 chars' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      if (bodyRaw.length > 500) {
+        return new Response(JSON.stringify({ error: 'body max 500 chars' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      const { data: prof } = await adminClient.from('profiles').select('id, full_name').eq('id', userId).maybeSingle();
+      if (!prof) {
+        return new Response(JSON.stringify({ error: 'User not found' }), {
+          status: 404,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      const { data: tokenRows, error: tokErr } = await adminClient
+        .from('device_tokens')
+        .select('token')
+        .eq('user_id', userId);
+      if (tokErr) {
+        return new Response(JSON.stringify({ error: tokErr.message || 'Token lookup failed' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      const tokens = Array.from(
+        new Set((tokenRows ?? []).map((r: { token: string }) => String(r.token || '').trim()).filter(Boolean)),
+      );
+      if (tokens.length === 0) {
+        return new Response(
+          JSON.stringify({
+            ok: true,
+            action,
+            user_id: userId,
+            sent: 0,
+            token_count: 0,
+            no_tokens: true,
+            message: 'User has no registered push tokens',
+          }),
+          {
+            status: 200,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          },
+        );
+      }
+      const pushResult = await sendExpoPush(tokens, title, bodyRaw);
+      console.log('[admin-dashboard] send_push_notification', {
+        user_id: userId,
+        requester: requesterEmail,
+        token_count: tokens.length,
+        sent: pushResult.sent,
+        errors: pushResult.errors,
+      });
+      return new Response(
+        JSON.stringify({
+          ok: true,
+          action,
+          user_id: userId,
+          full_name: prof.full_name ?? null,
+          sent: pushResult.sent,
+          token_count: tokens.length,
+          no_tokens: false,
+          expo_errors: pushResult.errors,
+        }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        },
+      );
+    }
+    if (action === 'get_user_subscription') {
+      const userId = typeof body?.user_id === 'string' ? body.user_id.trim() : '';
+      if (!userId) {
+        return new Response(JSON.stringify({ error: 'user_id is required' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      const { data: prof } = await adminClient.from('profiles').select('id, role, full_name').eq('id', userId).maybeSingle();
+      if (!prof) {
+        return new Response(JSON.stringify({ error: 'User not found' }), {
+          status: 404,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      if (String(prof.role ?? '') === 'crew') {
+        const resolved = await resolveCrewForSubscriptionAdmin(adminClient, userId);
+        if ('error' in resolved) {
+          return new Response(JSON.stringify({ error: resolved.error }), {
+            status: resolved.status ?? 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+        const ctx = await loadSubscriptionContext(adminClient, resolved.crewId, resolved.crewUserId);
+        const subscription = buildSubscriptionSnapshot(
+          resolved.crewId,
+          ctx.sub,
+          ctx.plan,
+          ctx.usage.approved,
+          ctx.usage.pending,
+          ctx.premiumActive,
+        );
+        return new Response(JSON.stringify({ ok: true, action, user_id: userId, subscription }), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      const { data: link } = await adminClient
+        .from('family_connections')
+        .select('crew_id')
+        .eq('family_id', userId)
+        .eq('status', 'approved')
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (!link?.crew_id) {
+        return new Response(JSON.stringify({ ok: true, action, user_id: userId, subscription: null }), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      const { data: crewProf } = await adminClient
+        .from('crew_profiles')
+        .select('id, user_id')
+        .eq('id', link.crew_id)
+        .maybeSingle();
+      if (!crewProf?.user_id) {
+        return new Response(JSON.stringify({ ok: true, action, user_id: userId, subscription: null }), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      const { data: crewUserProf } = await adminClient
+        .from('profiles')
+        .select('full_name')
+        .eq('id', crewProf.user_id)
+        .maybeSingle();
+      const ctx = await loadSubscriptionContext(adminClient, String(link.crew_id), String(crewProf.user_id));
+      const subscription = buildSubscriptionSnapshot(
+        String(link.crew_id),
+        ctx.sub,
+        ctx.plan,
+        ctx.usage.approved,
+        ctx.usage.pending,
+        ctx.premiumActive,
+        {
+          read_only: true,
+          managed_crew_user_id: String(crewProf.user_id),
+          managed_crew_name: crewUserProf?.full_name ?? null,
+        },
+      );
+      return new Response(JSON.stringify({ ok: true, action, user_id: userId, subscription }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    if (action === 'update_user_subscription') {
+      const userId = typeof body?.user_id === 'string' ? body.user_id.trim() : '';
+      if (!userId) {
+        return new Response(JSON.stringify({ error: 'user_id is required' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      const resolved = await resolveCrewForSubscriptionAdmin(adminClient, userId);
+      if ('error' in resolved) {
+        return new Response(JSON.stringify({ error: resolved.error }), {
+          status: resolved.status ?? 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      const hasPlan = Object.prototype.hasOwnProperty.call(body ?? {}, 'plan_code');
+      const hasStatus = Object.prototype.hasOwnProperty.call(body ?? {}, 'status');
+      const hasExtra = Object.prototype.hasOwnProperty.call(body ?? {}, 'extra_family_slots');
+      const hasExtraDelta = Object.prototype.hasOwnProperty.call(body ?? {}, 'extra_family_delta');
+      const hasTrialEnd = Object.prototype.hasOwnProperty.call(body ?? {}, 'trial_ends_at');
+      const hasPeriodEnd = Object.prototype.hasOwnProperty.call(body ?? {}, 'current_period_ends_at');
+      if (!hasPlan && !hasStatus && !hasExtra && !hasExtraDelta && !hasTrialEnd && !hasPeriodEnd) {
+        return new Response(JSON.stringify({ error: 'No subscription fields to update' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const ctx = await loadSubscriptionContext(adminClient, resolved.crewId, resolved.crewUserId);
+      let sub = ctx.sub;
+      let plan = ctx.plan;
+
+      const requestedPlanCode = hasPlan && typeof body?.plan_code === 'string'
+        ? body.plan_code.trim().toLowerCase()
+        : undefined;
+      if (requestedPlanCode !== undefined) {
+        const { data: planRow, error: planErr } = await adminClient
+          .from('app_subscription_plans')
+          .select('code, title, max_family_members, max_extra_family_members, active')
+          .eq('code', requestedPlanCode)
+          .maybeSingle();
+        if (planErr || !planRow || !planRow.active) {
+          return new Response(JSON.stringify({ error: 'Invalid or inactive plan_code' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+        plan = planRow as PlanRow;
+      } else if (!plan) {
+        const { data: defaultPlan } = await adminClient
+          .from('app_subscription_plans')
+          .select('code, title, max_family_members, max_extra_family_members, active')
+          .eq('code', 'couple')
+          .maybeSingle();
+        plan = (defaultPlan as PlanRow | null) ?? null;
+      }
+
+      const requestedStatus = hasStatus && typeof body?.status === 'string' ? body.status.trim() : undefined;
+      if (requestedStatus !== undefined && !SUBSCRIPTION_STATUSES.has(requestedStatus)) {
+        return new Response(JSON.stringify({ error: 'Invalid status' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      let nextExtra = sub?.extra_family_slots ?? 0;
+      if (hasExtra && typeof body?.extra_family_slots === 'number' && Number.isFinite(body.extra_family_slots)) {
+        nextExtra = Math.max(0, Math.trunc(body.extra_family_slots));
+      } else if (hasExtraDelta && typeof body?.extra_family_delta === 'number' && Number.isFinite(body.extra_family_delta)) {
+        nextExtra = Math.max(0, Math.trunc(nextExtra + body.extra_family_delta));
+      }
+
+      const maxExtra = plan?.max_extra_family_members ?? 10;
+      if (nextExtra > maxExtra) {
+        return new Response(JSON.stringify({ error: `extra_family_slots cannot exceed ${maxExtra}` }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const baseFamily = plan?.max_family_members ?? 1;
+      const totalSlots = baseFamily + nextExtra;
+      const usedTotal = ctx.usage.approved + ctx.usage.pending;
+      if (totalSlots < usedTotal) {
+        return new Response(
+          JSON.stringify({
+            error: `Cannot reduce capacity below current family usage (${ctx.usage.approved} approved + ${ctx.usage.pending} pending)`,
+          }),
+          {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          },
+        );
+      }
+
+      const trialEndsAt = parseOptionalIso(body?.trial_ends_at);
+      const periodEndsAt = parseOptionalIso(body?.current_period_ends_at);
+      if (hasTrialEnd && trialEndsAt === undefined) {
+        return new Response(JSON.stringify({ error: 'Invalid trial_ends_at' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      if (hasPeriodEnd && periodEndsAt === undefined) {
+        return new Response(JSON.stringify({ error: 'Invalid current_period_ends_at' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const nowIso = new Date().toISOString();
+      const defaultPeriodEnd = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
+      const nextStatus = requestedStatus ?? sub?.status ?? 'active';
+      const nextPlanCode = requestedPlanCode ?? sub?.plan_code ?? plan?.code ?? 'couple';
+
+      if (!sub) {
+        const insertRow = {
+          crew_id: resolved.crewId,
+          plan_code: nextPlanCode,
+          extra_family_slots: nextExtra,
+          status: nextStatus,
+          trial_started_at: nowIso,
+          trial_ends_at: hasTrialEnd ? trialEndsAt : defaultPeriodEnd,
+          current_period_ends_at: hasPeriodEnd ? periodEndsAt : defaultPeriodEnd,
+          provider: 'manual_admin_grant',
+        };
+        const { data: created, error: insErr } = await adminClient
+          .from('crew_subscriptions')
+          .insert(insertRow)
+          .select('id, crew_id, plan_code, extra_family_slots, status, trial_ends_at, current_period_ends_at, provider')
+          .single();
+        if (insErr || !created) {
+          return new Response(JSON.stringify({ error: insErr?.message || 'Failed to create subscription' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+        sub = created as CrewSubRow;
+      } else {
+        const patch: Record<string, unknown> = { updated_at: nowIso };
+        if (requestedPlanCode !== undefined) patch.plan_code = nextPlanCode;
+        if (requestedStatus !== undefined) patch.status = nextStatus;
+        if (hasExtra || hasExtraDelta) patch.extra_family_slots = nextExtra;
+        if (hasTrialEnd) patch.trial_ends_at = trialEndsAt;
+        if (hasPeriodEnd) patch.current_period_ends_at = periodEndsAt;
+        if (sub.provider !== 'manual_admin_grant') patch.provider = 'manual_admin_grant';
+        const { data: updated, error: upErr } = await adminClient
+          .from('crew_subscriptions')
+          .update(patch)
+          .eq('id', sub.id)
+          .select('id, crew_id, plan_code, extra_family_slots, status, trial_ends_at, current_period_ends_at, provider')
+          .single();
+        if (upErr || !updated) {
+          return new Response(JSON.stringify({ error: upErr?.message || 'Subscription update failed' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+        sub = updated as CrewSubRow;
+      }
+
+      if (!plan || plan.code !== sub.plan_code) {
+        const { data: planRow2 } = await adminClient
+          .from('app_subscription_plans')
+          .select('code, title, max_family_members, max_extra_family_members, active')
+          .eq('code', sub.plan_code)
+          .maybeSingle();
+        plan = (planRow2 as PlanRow | null) ?? plan;
+      }
+
+      await syncCrewEntitlement(adminClient, resolved.crewUserId, sub.status);
+      const usage = await countFamilyUsage(adminClient, resolved.crewId);
+      const { data: ent } = await adminClient
+        .from('user_entitlements')
+        .select('premium_active')
+        .eq('user_id', resolved.crewUserId)
+        .maybeSingle();
+      const subscription = buildSubscriptionSnapshot(
+        resolved.crewId,
+        sub,
+        plan,
+        usage.approved,
+        usage.pending,
+        typeof ent?.premium_active === 'boolean' ? ent.premium_active : null,
+      );
+      console.log('[admin-dashboard] update_user_subscription', {
+        user_id: userId,
+        crew_id: resolved.crewId,
+        requester: requesterEmail,
+        subscription,
+      });
+      return new Response(JSON.stringify({ ok: true, action, user_id: userId, subscription }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
     return new Response(JSON.stringify({ error: 'Unsupported action' }), {
       status: 400,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
 
+  try {
   const now = new Date();
   const nowIso = now.toISOString();
   const monthKey = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`;
 
+  const FLIGHTS_SELECT_FULL =
+    'id, flight_number, origin_airport, destination_airport, aircraft_registration, flight_date, scheduled_departure, scheduled_arrival, estimated_departure, estimated_arrival, actual_departure, actual_arrival, delay_dep_min, delay_arr_min, is_delayed, internal_status, diverted_to, api_refresh_phase, phase_active_locked, flight_status, fr24_progress_dep_utc, fr24_progress_eta_utc, fr24_datetime_takeoff_utc, fr24_datetime_landed_utc, fr24_first_seen_utc, airlabs_progress_percent, roster_entry_kind, duty_rest_end, created_at, updated_at';
+  const FLIGHTS_SELECT_NO_REG = FLIGHTS_SELECT_FULL.replace(', aircraft_registration', '');
+
+  async function fetchDashboardFlights() {
+    let q = adminClient
+      .from('flights')
+      .select(FLIGHTS_SELECT_FULL)
+      .or('roster_entry_kind.eq.flight,roster_entry_kind.is.null')
+      .order('flight_date', { ascending: false })
+      .limit(1500);
+    let res = await q;
+    if (res.error && /aircraft_registration/i.test(String(res.error.message ?? ''))) {
+      res = await adminClient
+        .from('flights')
+        .select(FLIGHTS_SELECT_NO_REG)
+        .or('roster_entry_kind.eq.flight,roster_entry_kind.is.null')
+        .order('flight_date', { ascending: false })
+        .limit(1500);
+    }
+    if (res.error) {
+      console.error('[admin-dashboard] flights select failed:', res.error.message);
+    }
+    return res.data;
+  }
+
   const [
     { data: profiles },
-    { data: flights },
+    flights,
+    { data: deviceTokens },
     { data: cooldownRows },
     { data: fr24Snapshots },
     { data: fr24Points },
+    { data: healthPings },
+    { data: crewSubscriptions },
+    { data: userEntitlements },
+    { data: subscriptionPlans },
   ] = await Promise.all([
     adminClient
       .from('profiles')
       .select('id, role, full_name, created_at, updated_at')
       .order('updated_at', { ascending: false })
       .limit(1000),
+    fetchDashboardFlights(),
     adminClient
-      .from('flights')
-      .select(
-        'id, flight_number, origin_airport, destination_airport, flight_date, scheduled_departure, scheduled_arrival, api_refresh_phase, flight_status',
-      )
-      .order('flight_date', { ascending: false })
-      .limit(1500),
+      .from('device_tokens')
+      .select('user_id, platform, app_version, app_build, os_version, last_used_at'),
     adminClient
       .from('flight_provider_cooldown')
       .select('provider, blocked_until, updated_at'),
@@ -639,6 +1299,20 @@ Deno.serve(async (req) => {
       .gte('metric_date', new Date(Date.now() - 35 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10))
       .order('metric_date', { ascending: true })
       .limit(5000),
+    adminClient
+      .from('system_health_pings')
+      .select('name,last_run_at,last_success_at,last_error,last_rows_updated,updated_at')
+      .eq('name', 'phase_refresh')
+      .limit(1),
+    adminClient
+      .from('crew_subscriptions')
+      .select('id, crew_id, plan_code, extra_family_slots, status, trial_ends_at, current_period_ends_at, provider, updated_at')
+      .order('updated_at', { ascending: false }),
+    adminClient.from('user_entitlements').select('user_id, premium_active'),
+    adminClient
+      .from('app_subscription_plans')
+      .select('code, title, max_family_members, max_extra_family_members, active')
+      .order('code', { ascending: true }),
   ]);
 
   // Auth emails and last_sign_in_at live in auth.users (Admin API).
@@ -662,6 +1336,30 @@ Deno.serve(async (req) => {
   const { data: crewProfilesRows } = await adminClient
     .from('crew_profiles')
     .select('id, user_id, company_name, airline_icao');
+  type DeviceTokenRow = {
+    user_id: string;
+    platform: string | null;
+    app_version?: string | null;
+    app_build?: string | null;
+    os_version?: string | null;
+    last_used_at?: string | null;
+  };
+  const deviceByUserId = new Map<string, DeviceTokenRow[]>();
+  for (const row of (deviceTokens ?? []) as DeviceTokenRow[]) {
+    const uid = String(row.user_id || '');
+    if (!uid) continue;
+    const arr = deviceByUserId.get(uid) ?? [];
+    arr.push(row);
+    deviceByUserId.set(uid, arr);
+  }
+  const newestDevice = (list: DeviceTokenRow[]): DeviceTokenRow | null =>
+    list
+      .slice()
+      .sort((a, b) => {
+        const ta = a.last_used_at ? new Date(a.last_used_at).getTime() : 0;
+        const tb = b.last_used_at ? new Date(b.last_used_at).getTime() : 0;
+        return tb - ta;
+      })[0] ?? null;
   type CrewRow = { id: string; user_id: string; company_name: string | null; airline_icao: string | null };
   const crewByUserId = new Map(
     (crewProfilesRows ?? []).map((r: CrewRow) => [
@@ -683,20 +1381,49 @@ Deno.serve(async (req) => {
   const userRows = (profiles ?? []).map((p: { id: string; full_name?: string | null; role?: string | null }) => {
     const authU = authById.get(p.id);
     const crew = crewByUserId.get(p.id);
+    const devices = deviceByUserId.get(p.id) ?? [];
+    const platforms = [...new Set(devices.map((d) => String(d.platform ?? '').trim()).filter(Boolean))];
+    const latestDevice = newestDevice(devices);
     return {
       id: p.id,
       id_short: shortId(p.id),
       full_name: p.full_name ?? null,
       role: p.role ?? null,
+      created_at: (p as { created_at?: string | null }).created_at ?? null,
+      updated_at: (p as { updated_at?: string | null }).updated_at ?? null,
       crew_id: crew?.id ?? null,
       company_name: crew?.company_name ?? null,
       airline_icao: crew?.airline_icao ?? null,
       email: authU?.email ?? null,
       last_sign_in_at: authU?.last_sign_in_at ?? null,
+      device_platforms: platforms,
+      device_platforms_text: platforms.join(', ') || null,
+      app_version: latestDevice?.app_version ?? null,
+      app_build: latestDevice?.app_build ?? null,
+      os_version: latestDevice?.os_version ?? null,
+      device_last_used_at: latestDevice?.last_used_at ?? null,
+      device_count: devices.length,
       connections: [] as AdminUserConnection[],
       family_linked_crew_company: null as string | null,
+      subscription: null as AdminSubscriptionSnapshot | null,
     };
   });
+
+  const planByCode = new Map(
+    ((subscriptionPlans ?? []) as PlanRow[]).map((p) => [String(p.code), p]),
+  );
+  const entitlementByUserId = new Map(
+    ((userEntitlements ?? []) as Array<{ user_id: string; premium_active: boolean }>).map((e) => [
+      String(e.user_id),
+      !!e.premium_active,
+    ]),
+  );
+  const subByCrewId = new Map<string, CrewSubRow>();
+  for (const row of (crewSubscriptions ?? []) as Array<CrewSubRow & { updated_at?: string }>) {
+    const crewId = String(row.crew_id || '');
+    if (!crewId || subByCrewId.has(crewId)) continue;
+    subByCrewId.set(crewId, row);
+  }
 
   const profileById = new Map(userRows.map((u) => [u.id, u]));
   type CrewMeta = { user_id: string; company_name: string | null; airline_icao: string | null };
@@ -762,6 +1489,8 @@ Deno.serve(async (req) => {
     [...new Set(values.map((x) => String(x ?? '').trim()).filter((x) => x.length > 0))];
 
   const connStatusRank = (s: string) => (s === 'approved' ? 0 : s === 'pending' ? 1 : 2);
+  const familyApprovedByCrew = new Map<string, number>();
+  const familyPendingByCrew = new Map<string, number>();
 
   for (const u of userRows) {
     const list = connectionsByUserId.get(u.id) ?? [];
@@ -777,6 +1506,51 @@ Deno.serve(async (req) => {
     }
   }
 
+  for (const fc of (familyConnectionRows ?? []) as Array<{ crew_id: string; status: string }>) {
+    const crewId = String(fc.crew_id || '');
+    if (!crewId) continue;
+    if (fc.status === 'approved') {
+      familyApprovedByCrew.set(crewId, (familyApprovedByCrew.get(crewId) ?? 0) + 1);
+    } else if (fc.status === 'pending') {
+      familyPendingByCrew.set(crewId, (familyPendingByCrew.get(crewId) ?? 0) + 1);
+    }
+  }
+
+  const attachSubscriptionForCrew = (
+    crewId: string,
+    crewUserId: string | null,
+    extras?: { read_only?: boolean; managed_crew_user_id?: string | null; managed_crew_name?: string | null },
+  ): AdminSubscriptionSnapshot => {
+    const sub = subByCrewId.get(crewId) ?? null;
+    const plan = sub?.plan_code ? planByCode.get(sub.plan_code) ?? null : null;
+    return buildSubscriptionSnapshot(
+      crewId,
+      sub,
+      plan,
+      familyApprovedByCrew.get(crewId) ?? 0,
+      familyPendingByCrew.get(crewId) ?? 0,
+      crewUserId ? entitlementByUserId.get(crewUserId) ?? null : null,
+      extras,
+    );
+  };
+
+  for (const u of userRows) {
+    if (u.crew_id) {
+      u.subscription = attachSubscriptionForCrew(String(u.crew_id), u.id);
+      continue;
+    }
+    if (String(u.role ?? '') !== 'family') continue;
+    const approvedConn = u.connections.find((c) => c.side === 'family' && c.status === 'approved');
+    if (!approvedConn) continue;
+    const crewUser = profileById.get(approvedConn.other_user_id);
+    if (!crewUser?.crew_id) continue;
+    u.subscription = attachSubscriptionForCrew(String(crewUser.crew_id), crewUser.id, {
+      read_only: true,
+      managed_crew_user_id: crewUser.id,
+      managed_crew_name: crewUser.full_name ?? null,
+    });
+  }
+
   const activeCutoffMs = Date.now() - 30 * 24 * 60 * 60 * 1000;
   const activeUsers30d = userRows.filter((u) => {
     const t = u.last_sign_in_at ? new Date(u.last_sign_in_at).getTime() : 0;
@@ -788,22 +1562,64 @@ Deno.serve(async (req) => {
     flight_number?: string | null;
     origin_airport?: string | null;
     destination_airport?: string | null;
+    aircraft_registration?: string | null;
     flight_date?: string | null;
     scheduled_departure?: string | null;
     scheduled_arrival?: string | null;
+    estimated_departure?: string | null;
+    estimated_arrival?: string | null;
+    actual_departure?: string | null;
+    actual_arrival?: string | null;
+    delay_dep_min?: number | null;
+    delay_arr_min?: number | null;
+    is_delayed?: boolean | null;
+    internal_status?: string | null;
+    diverted_to?: string | null;
     api_refresh_phase?: string | null;
+    phase_active_locked?: boolean | null;
     flight_status?: string | null;
+    fr24_progress_dep_utc?: string | null;
+    fr24_progress_eta_utc?: string | null;
+    fr24_datetime_takeoff_utc?: string | null;
+    fr24_datetime_landed_utc?: string | null;
+    fr24_first_seen_utc?: string | null;
+    airlabs_progress_percent?: number | null;
+    roster_entry_kind?: string | null;
+    duty_rest_end?: string | null;
+    created_at?: string | null;
+    updated_at?: string | null;
   }) => ({
     id: f.id,
     id_short: shortId(f.id),
     flight_number: f.flight_number ?? null,
     origin_airport: f.origin_airport ?? null,
     destination_airport: f.destination_airport ?? null,
+    aircraft_registration: f.aircraft_registration ?? null,
     flight_date: f.flight_date ?? null,
     scheduled_departure: f.scheduled_departure ?? null,
     scheduled_arrival: f.scheduled_arrival ?? null,
+    estimated_departure: f.estimated_departure ?? null,
+    estimated_arrival: f.estimated_arrival ?? null,
+    actual_departure: f.actual_departure ?? null,
+    actual_arrival: f.actual_arrival ?? null,
+    delay_dep_min: f.delay_dep_min ?? null,
+    delay_arr_min: f.delay_arr_min ?? null,
+    is_delayed: f.is_delayed ?? null,
+    internal_status: f.internal_status ?? null,
+    diverted_to: f.diverted_to ?? null,
     api_refresh_phase: f.api_refresh_phase ?? null,
+    phase_active_locked: f.phase_active_locked ?? null,
     flight_status: f.flight_status ?? null,
+    fr24_progress_dep_utc: f.fr24_progress_dep_utc ?? null,
+    fr24_progress_eta_utc: f.fr24_progress_eta_utc ?? null,
+    fr24_datetime_takeoff_utc: f.fr24_datetime_takeoff_utc ?? null,
+    fr24_datetime_landed_utc: f.fr24_datetime_landed_utc ?? null,
+    fr24_first_seen_utc: f.fr24_first_seen_utc ?? null,
+    airlabs_progress_percent: f.airlabs_progress_percent ?? null,
+    roster_entry_kind: f.roster_entry_kind ?? null,
+    duty_rest_end: f.duty_rest_end ?? null,
+    created_at: f.created_at ?? null,
+    updated_at: f.updated_at ?? null,
     crew_names: [] as string[],
     crew_ids: [] as string[],
   }));
@@ -878,7 +1694,17 @@ Deno.serve(async (req) => {
     Deno.env.get('FR24API_TOKEN')?.trim() ||
     Deno.env.get('EXPO_PUBLIC_FR24API_TOKEN')?.trim() ||
     null;
-  const fr24LiveUsage = await fetchFr24UsageLive(fr24Token);
+  const fr24CooldownRow = (cooldownRows ?? []).find(
+    (r: { provider: string }) => String(r.provider ?? '').toLowerCase() === 'fr24',
+  ) as { blocked_until?: string | null } | undefined;
+  const fr24InCooldown = !!(
+    fr24CooldownRow?.blocked_until &&
+    new Date(fr24CooldownRow.blocked_until).getTime() > Date.now()
+  );
+  const fr24LiveUsage =
+    fr24LiveOnDashboardEnabled() && !fr24InCooldown
+      ? await fetchFr24UsageLive(fr24Token)
+      : null;
   const providers = Array.from(
     new Set([
       ...Object.keys(quotas),
@@ -891,23 +1717,41 @@ Deno.serve(async (req) => {
     ]),
   );
 
+  const latestFr24Snapshot = ((fr24Snapshots ?? []) as Array<{
+    fetched_at?: string | null;
+    total_calls?: number | null;
+    total_credits?: number | null;
+    endpoint_count?: number | null;
+  }>).at(-1) ?? null;
+  const fr24SnapshotCredits = latestFr24Snapshot?.total_credits ?? null;
+  const fr24SnapshotCalls = latestFr24Snapshot?.total_calls ?? null;
+
   const apiUsage = providers.map((provider) => {
     const quota = quotas[provider] ?? null;
     const fallbackUsed = monthlyUsage[provider] ?? null;
     const liveUsed = provider === 'fr24' ? fr24LiveUsage?.usedCredits ?? null : null;
-    const used = liveUsed ?? fallbackUsed;
+    const snapshotUsed = provider === 'fr24' ? fr24SnapshotCredits : null;
+    const used = liveUsed ?? snapshotUsed ?? fallbackUsed;
     const remaining = quota != null && used != null ? Math.max(0, quota - used) : null;
     const cooldown = (cooldownRows ?? []).find(
       (r: { provider: string }) => normalizeEmail(r.provider) === provider,
     ) as { blocked_until?: string | null; updated_at?: string | null } | undefined;
+    const fr24Source =
+      liveUsed != null ? 'live' : snapshotUsed != null ? 'snapshot' : 'fallback';
     return {
       provider,
       month: monthKey,
       quota_monthly: quota,
       used_monthly: used,
-      source: liveUsed != null ? 'live' : 'fallback',
-      last_updated: provider === 'fr24' ? fr24LiveUsage?.fetchedAt ?? null : null,
-      fr24_request_count: provider === 'fr24' ? fr24LiveUsage?.requestCount ?? null : null,
+      source: provider === 'fr24' ? fr24Source : liveUsed != null ? 'live' : 'fallback',
+      last_updated:
+        provider === 'fr24'
+          ? fr24LiveUsage?.fetchedAt ?? latestFr24Snapshot?.fetched_at ?? null
+          : null,
+      fr24_request_count:
+        provider === 'fr24'
+          ? fr24LiveUsage?.requestCount ?? fr24SnapshotCalls ?? null
+          : null,
       fr24_endpoint_count: provider === 'fr24' ? fr24LiveUsage?.endpointCount ?? 0 : 0,
       remaining_monthly: remaining,
       blocked_until: cooldown?.blocked_until ?? null,
@@ -948,12 +1792,18 @@ Deno.serve(async (req) => {
   const fr24EndpointSeries = [...fr24HistoryByEndpointDateMap.values()]
     .sort((a, b) => (a.endpoint === b.endpoint ? a.date.localeCompare(b.date) : a.endpoint.localeCompare(b.endpoint)));
 
-  const latestFr24Snapshot = ((fr24Snapshots ?? []) as Array<{
-    fetched_at?: string | null;
-    total_calls?: number | null;
-    total_credits?: number | null;
-    endpoint_count?: number | null;
-  }>).at(-1) ?? null;
+  const phaseRefreshPing = ((healthPings ?? []) as Array<{
+    name?: string | null;
+    last_run_at?: string | null;
+    last_success_at?: string | null;
+    last_error?: string | null;
+    last_rows_updated?: number | null;
+    updated_at?: string | null;
+  }>)[0] ?? null;
+  const phaseSuccessMs = phaseRefreshPing?.last_success_at
+    ? new Date(phaseRefreshPing.last_success_at).getTime()
+    : NaN;
+  const phaseHealthy = Number.isFinite(phaseSuccessMs) && Date.now() - phaseSuccessMs <= 6 * 60 * 1000;
 
   const response: Json = {
     ok: true,
@@ -972,6 +1822,9 @@ Deno.serve(async (req) => {
           role: u.role,
         })),
     },
+    subscriptions: {
+      plans: (subscriptionPlans ?? []) as PlanRow[],
+    },
     flights: {
       total: flightRows.length,
       active_now: activeFlightRows.length,
@@ -984,6 +1837,11 @@ Deno.serve(async (req) => {
       providers: apiUsage,
       quota_configured_count: quotaConfiguredCount,
       has_live_fr24: !!fr24LiveUsage,
+      fr24_live_skipped: !fr24LiveOnDashboardEnabled()
+        ? 'ADMIN_FR24_LIVE_ON_DASHBOARD not enabled (default off — avoids /api/usage 429)'
+        : fr24InCooldown
+          ? 'FR24 provider cooldown active'
+          : null,
       fr24_history: {
         latest_snapshot: latestFr24Snapshot
           ? {
@@ -997,11 +1855,33 @@ Deno.serve(async (req) => {
         endpoint_series_30d: fr24EndpointSeries,
       },
       notes: [
-        'FR24 live usage: token from FR24_API_TOKEN / FR24API_TOKEN; URL from ADMIN_FR24_USAGE_URL or default /api/usage; sums data[].credits (fallbacks to env JSON on error).',
-        'FR24 history is read from fr24_usage_metric_snapshots/fr24_usage_metric_points (filled by sync-fr24-usage-metrics cron).',
+        'FR24 live on dashboard refresh is OFF by default (set ADMIN_FR24_LIVE_ON_DASHBOARD=true to enable). Used column prefers live → last DB snapshot → ADMIN_PROVIDER_MONTHLY_USAGE_JSON.',
+        'FR24 history is read from fr24_usage_metric_snapshots/fr24_usage_metric_points (filled by sync-fr24-usage-metrics or admin “Fetch FR24 usage”).',
+        'If sync returns 429, wait before retrying — flight-status cron and manual sync share the same FR24 token quota.',
         'Monthly usage values come from ADMIN_PROVIDER_MONTHLY_USAGE_JSON if set.',
         'Quotas come from ADMIN_PROVIDER_QUOTAS_JSON if set.',
       ],
+    },
+    health: {
+      phase_refresh: phaseRefreshPing
+        ? {
+            status: phaseHealthy ? 'ok' : 'stale',
+            healthy: phaseHealthy,
+            last_run_at: phaseRefreshPing.last_run_at ?? null,
+            last_success_at: phaseRefreshPing.last_success_at ?? null,
+            last_error: phaseRefreshPing.last_error ?? null,
+            last_rows_updated: phaseRefreshPing.last_rows_updated ?? null,
+            updated_at: phaseRefreshPing.updated_at ?? null,
+          }
+        : {
+            status: 'missing',
+            healthy: false,
+            last_run_at: null,
+            last_success_at: null,
+            last_error: 'phase_refresh ping not found',
+            last_rows_updated: null,
+            updated_at: null,
+          },
     },
   };
 
@@ -1009,5 +1889,13 @@ Deno.serve(async (req) => {
     status: 200,
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error('[admin-dashboard] GET error:', msg);
+    return new Response(JSON.stringify({ error: msg || 'Dashboard load failed' }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
 });
 
