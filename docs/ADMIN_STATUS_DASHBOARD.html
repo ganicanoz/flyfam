@@ -9,7 +9,7 @@
   <meta http-equiv="Expires" content="0" />
   <script>
     (function () {
-      var UI = '16';
+      var UI = '17';
       var p = new URLSearchParams(location.search);
       if (p.get('ui') !== UI) {
         p.set('ui', UI);
@@ -282,14 +282,25 @@
     .users-table td { vertical-align: middle; }
     .u-name {
       font-weight: 600;
-      color: #0f172a;
       line-height: 1.3;
     }
     .u-email {
-      color: #334155;
       font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
       font-size: 12px;
       word-break: break-all;
+    }
+    a.u-name-link,
+    a.u-email-link {
+      color: #1d4ed8;
+      text-decoration: none;
+      cursor: pointer;
+    }
+    a.u-name-link:hover,
+    a.u-email-link:hover {
+      text-decoration: underline;
+    }
+    a.u-email-link {
+      font-weight: 500;
     }
     .u-platform { display: flex; flex-direction: column; gap: 2px; }
     .u-version { display: flex; flex-direction: column; gap: 2px; }
@@ -318,7 +329,6 @@
       white-space: nowrap;
       font-variant-numeric: tabular-nums;
     }
-    .user-row-main { cursor: pointer; }
     .user-row-main:hover { background: #fafcff; }
     .user-detail-row { display: none; background: #fcfdff; }
     .user-detail-row.open { display: table-row; }
@@ -731,6 +741,7 @@
     let lastFlights = [];
     let selectedFlightIds = new Set();
     let drawerUserId = null;
+    let drawerUserMode = 'details';
     let hubBoardCacheRows = null;
     let hubBoardCacheMeta = null;
     let fr24FetchCooldownUntil = 0;
@@ -1217,22 +1228,31 @@
       host.innerHTML = renderUserRosterTable(flights);
     }
 
-    async function openUserDrawer(userId, focusEdit) {
+    async function openUserDrawer(userId, mode, focusEdit) {
       const u = lastUsers.find((x) => x.id === userId);
       if (!u) return;
+      const drawerMode = mode === 'roster' ? 'roster' : 'details';
       drawerUserId = userId;
+      drawerUserMode = drawerMode;
       const title = (u.full_name || u.email || 'User').trim();
-      const html =
-        '<div class="drawer-section">' +
-          '<h4>Roster</h4>' +
-          '<div id="userRosterHost" class="mini">Loading…</div>' +
-        '</div>' +
-        renderUserDrawerSubscriptionSection(u) +
-        renderUserDrawerPushSection(u) +
-        renderUserDrawerEditSection(u);
+      let html = '';
+      if (drawerMode === 'roster') {
+        html =
+          '<div class="drawer-section">' +
+            '<h4>Roster</h4>' +
+            '<div id="userRosterHost" class="mini">Loading…</div>' +
+          '</div>';
+      } else {
+        html =
+          renderUserDrawerSubscriptionSection(u) +
+          renderUserDrawerPushSection(u) +
+          renderUserDrawerEditSection(u);
+      }
       openDrawer(title, html);
-      void loadUserRosterIntoDrawer(userId);
-      if (focusEdit) {
+      if (drawerMode === 'roster') {
+        void loadUserRosterIntoDrawer(userId);
+      }
+      if (focusEdit && drawerMode === 'details') {
         const editHeading = document.querySelector('#drawerBody .drawer-section h4');
         if (editHeading && editHeading.textContent === 'Edit user') {
           editHeading.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1653,18 +1673,20 @@
         const build = escapeAttr(u.app_build || '—');
         const os = escapeAttr(u.os_version || '—');
         const devCount = Number(u.device_count || 0);
+        const nameText = escapeHtml(u.full_name || '-');
+        const emailText = escapeHtml(u.email || '-');
         return (
           '<tr class="user-row-main" data-user-row-id="' + (u.id || '') + '">' +
             '<td>' + (idx + 1) + '</td>' +
-            '<td><div class="u-name">' + escapeAttr(u.full_name || '-') + '</div></td>' +
-            '<td><div class="u-email">' + escapeAttr(u.email || '-') + '</div></td>' +
+            '<td><a href="#" class="u-name-link" data-action="open-user-details" data-user-id="' + (u.id || '') + '" onclick="return false;">' + nameText + '</a></td>' +
+            '<td><a href="#" class="u-email-link" data-action="open-user-details" data-user-id="' + (u.id || '') + '" onclick="return false;">' + emailText + '</a></td>' +
             '<td><span class="role-pill ' + roleBadgeCls + '">' + escapeAttr(appRole || '-') + '</span></td>' +
             '<td><div class="u-platform"><strong>' + plat + '</strong><span class="mini">devices: ' + String(devCount) + '</span></div></td>' +
             '<td><div class="u-version"><strong>' + ver + '</strong><span class="mini">build: ' + build + ' · os: ' + os + '</span></div></td>' +
             '<td class="mini">' + escapeAttr(airlineLabel) + '</td>' +
             '<td style="max-width:240px;">' + connCell + '</td>' +
             '<td><span class="u-signin">' + fmtDate(u.last_sign_in_at) + '</span></td>' +
-            '<td><a href="#" class="menu-link" data-action="open-user-menu" data-user-id="' + (u.id || '') + '" onclick="return false;">Menu</a></td>' +
+            '<td><a href="#" class="menu-link" data-action="open-user-roster" data-user-id="' + (u.id || '') + '" onclick="return false;">Roster</a></td>' +
           '</tr>'
         );
       }).join('');
@@ -2139,7 +2161,7 @@
         if (role === 'crew') payload.company_name = companyEl ? String(companyEl.value) : '';
         await callAdminAction('update_user_profile', payload);
         await loadDashboard();
-        if (drawerUserId === userId) await openUserDrawer(userId, true);
+        if (drawerUserId === userId) await openUserDrawer(userId, drawerUserMode, true);
         setStatus('Profile saved', 'ok');
         return;
       }
@@ -2198,7 +2220,7 @@
         return;
       }
       if (action === 'open-linked-crew-subscription') {
-        await openUserDrawer(userId, false);
+        await openUserDrawer(userId, 'details', false);
         return;
       }
       if (action === 'adjust-extra-slot') {
@@ -2207,7 +2229,7 @@
         setStatus(delta > 0 ? 'Ekstra slot ekleniyor…' : 'Ekstra slot kaldırılıyor…', 'warn');
         await callAdminAction('update_user_subscription', { user_id: userId, extra_family_delta: delta });
         await loadDashboard();
-        if (drawerUserId === userId) await openUserDrawer(userId, false);
+        if (drawerUserId === userId) await openUserDrawer(userId, drawerUserMode, false);
         setStatus('Abonelik güncellendi', 'ok');
         return;
       }
@@ -2236,7 +2258,7 @@
         if (periodEl && periodEl.value) payload.current_period_ends_at = periodIso;
         await callAdminAction('update_user_subscription', payload);
         await loadDashboard();
-        if (drawerUserId === userId) await openUserDrawer(userId, false);
+        if (drawerUserId === userId) await openUserDrawer(userId, drawerUserMode, false);
         setStatus('Abonelik kaydedildi', 'ok');
       }
     }
@@ -2244,18 +2266,13 @@
     els.usersBody.addEventListener('click', async (e) => {
       const target = e.target;
       if (!(target instanceof HTMLElement)) return;
-      const menuLink = target.closest('a[data-action="open-user-menu"]');
-      if (menuLink) {
+      const userLink = target.closest('a[data-action="open-user-details"], a[data-action="open-user-roster"]');
+      if (userLink) {
         e.preventDefault();
-        const userId = menuLink.getAttribute('data-user-id');
-        if (userId) void openUserDrawer(userId, true);
-        return;
+        const userId = userLink.getAttribute('data-user-id');
+        const mode = userLink.getAttribute('data-action') === 'open-user-roster' ? 'roster' : 'details';
+        if (userId) void openUserDrawer(userId, mode, false);
       }
-      if (target.closest('a,button,input,select,textarea,details,summary')) return;
-      const tr = target.closest('tr.user-row-main');
-      if (!tr) return;
-      const userId = tr.getAttribute('data-user-row-id');
-      if (userId) void openUserDrawer(userId, false);
     });
 
     const drawerBody = document.getElementById('drawerBody');
