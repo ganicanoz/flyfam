@@ -8,6 +8,8 @@ on:
     paths:
       - 'support/**'
       - 'docs/ADMIN_STATUS_DASHBOARD.html'
+      - 'docs/BASE44_ADMIN_LIVE.html'
+      - 'docs/BASE44_ADMIN_EMBED.html'
       - 'docs/admin/**'
       - '.github/workflows/deploy-support.yml'
   workflow_dispatch:
@@ -35,9 +37,11 @@ jobs:
       # Destek sayfasındaki admin linki …/ADMIN_STATUS_DASHBOARD.html bekliyor; dosya docs/’ta.
       - name: Copy admin dashboard for GitHub Pages
         run: |
-          if [ -f docs/ADMIN_STATUS_DASHBOARD.html ]; then
-            cp -f docs/ADMIN_STATUS_DASHBOARD.html support/
-          fi
+          for f in ADMIN_STATUS_DASHBOARD.html BASE44_ADMIN_LIVE.html BASE44_ADMIN_EMBED.html; do
+            if [ -f "docs/$f" ]; then
+              cp -f "docs/$f" support/
+            fi
+          done
         shell: bash
 
       # Uzak repoda docs/admin varsa support/admin altına kopyala (yoksa atla).
@@ -76,6 +80,7 @@ jobs:
       - name: Verify admin HTML in artifact
         run: |
           test -f support/ADMIN_STATUS_DASHBOARD.html
+          test -f support/BASE44_ADMIN_LIVE.html
           test "$(wc -c < support/ADMIN_STATUS_DASHBOARD.html)" -ge 8000
 
       - name: Setup Pages
