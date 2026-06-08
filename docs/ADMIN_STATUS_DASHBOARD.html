@@ -9,7 +9,7 @@
   <meta http-equiv="Expires" content="0" />
   <script>
     (function () {
-      var UI = '15';
+      var UI = '16';
       var p = new URLSearchParams(location.search);
       if (p.get('ui') !== UI) {
         p.set('ui', UI);
@@ -459,45 +459,21 @@
       </div>
       <div class="panel" style="margin:0;">
         <div class="auth-grid">
-          <div id="quickLoginRow" class="hidden" style="grid-column: span 12;">
-            <div class="row" style="align-items: flex-end;">
-              <div style="flex: 1; min-width: 200px;">
-                <label class="mini">Panel PIN</label>
-                <input id="panelPinOnly" type="password" autocomplete="off" placeholder="Your saved panel PIN" />
+          <div style="grid-column: span 12;">
+            <div class="row" style="align-items: flex-end; flex-wrap: wrap; gap: 8px;">
+              <div style="flex: 1; min-width: 220px;">
+                <label class="mini">Panel şifresi</label>
+                <input id="panelPassword" type="password" autocomplete="current-password" placeholder="••••••••••••" />
               </div>
-              <button type="button" id="btnQuickLogin" class="btnPrimary">Login</button>
+              <button type="button" id="btnLogin" class="btnPrimary">Giriş</button>
             </div>
-            <p class="mini topbar-hint">Uses saved Supabase settings on this browser. Open "+ Advanced" to view fields, clear saved login, or edit Supabase URL, key, and admin email.</p>
-          </div>
-          <div id="advancedAuthFields" class="advanced-auth-fields">
-            <div class="auth-field" style="grid-column: span 3;"><label class="mini">Supabase URL</label><input id="supabaseUrl" placeholder="https://xxx.supabase.co" /></div>
-            <div class="auth-field" style="grid-column: span 3;"><label class="mini">Anon key</label><input id="anonKey" placeholder="eyJhbGciOi..." /></div>
-            <div class="auth-field" style="grid-column: span 2;"><label class="mini">Admin Email</label><input id="email" placeholder="admin@..." /></div>
-            <div class="auth-field" style="grid-column: span 2;"><label class="mini">Supabase password</label><input id="password" type="password" /></div>
+            <p class="mini topbar-hint" style="margin-top:8px;">Yalnızca yetkili admin hesabı. Şifre tarayıcıya kaydedilmez; oturum süresi dolunca tekrar girilir.</p>
           </div>
           <div class="auth-actions">
             <span id="status" class="mini" aria-live="polite"></span>
-            <button type="button" id="btnLogin" class="btnPrimary">Login + Refresh</button>
-            <button type="button" id="btnRefresh">Refresh</button>
-            <button type="button" id="btnLogout">Logout</button>
-            <button type="button" id="btnToggleAdvanced">+ Advanced</button>
+            <button type="button" id="btnRefresh">Yenile</button>
+            <button type="button" id="btnLogout">Çıkış</button>
           </div>
-          <div id="quickLoginSetup" style="grid-column: span 12;" class="mini hidden">
-            <div class="row" style="align-items: flex-end; flex-wrap: wrap; gap: 6px;">
-              <div style="min-width: 200px; flex: 1;">
-                <label class="mini">Panel PIN (quick unlock)</label>
-                <input id="panelPinSetup" type="password" autocomplete="new-password" placeholder="Choose a PIN for this browser" />
-              </div>
-              <label class="row" style="align-items: center; gap: 6px; cursor: pointer; user-select: none;">
-                <input id="chkRememberSupabasePw" type="checkbox" />
-                <span>Remember Supabase user password on this device</span>
-              </label>
-              <button type="button" id="btnSaveQuickLogin">Save quick login</button>
-              <button type="button" id="btnClearQuickLogin" class="btnDanger">Clear quick login</button>
-            </div>
-            <p class="mini" style="margin: 2px 0 0;">Panel PIN is only for this HTML page on this device. Anyone with browser access can open DevTools; do not reuse a high‑value password.</p>
-          </div>
-          <div id="advancedHint" style="grid-column: span 12;" class="mini hidden">Advanced fields are hidden. Click "+ Advanced" to edit Supabase URL, key, and admin email.</div>
         </div>
       </div>
     </div>
@@ -690,23 +666,26 @@
   </aside>
 
   <script>
+    /** Embedded admin backend config (anon key is public; panel password never stored here). */
+    const FLYFAM_ADMIN = Object.freeze({
+      supabaseUrl: 'https://slmgmcpluanezvkgkozw.supabase.co',
+      anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNsbWdtY3BsdWFuZXp2a2drb3p3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEwODgxNzYsImV4cCI6MjA4NjY2NDE3Nn0.6dFDTjZSEXUSBp4WY10VbPRjk4tQwFczU_Ps9UPXubY',
+      email: 'ganicanoz@gmail.com',
+    });
+
+    function adminUrl() {
+      return FLYFAM_ADMIN.supabaseUrl.replace(/\/$/, '');
+    }
+
+    function adminAnonKey() {
+      return FLYFAM_ADMIN.anonKey;
+    }
+
     const els = {
-      supabaseUrl: document.getElementById('supabaseUrl'),
-      anonKey: document.getElementById('anonKey'),
-      email: document.getElementById('email'),
-      password: document.getElementById('password'),
-      panelPinOnly: document.getElementById('panelPinOnly'),
-      panelPinSetup: document.getElementById('panelPinSetup'),
-      chkRememberSupabasePw: document.getElementById('chkRememberSupabasePw'),
-      quickLoginSetup: document.getElementById('quickLoginSetup'),
+      panelPassword: document.getElementById('panelPassword'),
       btnLogin: document.getElementById('btnLogin'),
-      btnQuickLogin: document.getElementById('btnQuickLogin'),
-      btnSaveQuickLogin: document.getElementById('btnSaveQuickLogin'),
-      btnClearQuickLogin: document.getElementById('btnClearQuickLogin'),
       btnRefresh: document.getElementById('btnRefresh'),
       btnLogout: document.getElementById('btnLogout'),
-      btnToggleAdvanced: document.getElementById('btnToggleAdvanced'),
-      advancedHint: document.getElementById('advancedHint'),
       status: document.getElementById('status'),
       usersActive: document.getElementById('usersActive'),
       usersTotal: document.getElementById('usersTotal'),
@@ -746,14 +725,12 @@
       btnBulkDelete: document.getElementById('btnBulkDelete'),
     };
 
-    const STORAGE_KEY = 'flyfam_admin_dashboard_cfg_v1';
-    const SESSION_KEY = 'flyfam_admin_dashboard_session_v1';
+    const SESSION_KEY = 'flyfam_admin_dashboard_session_v2';
     let accessToken = null;
     let lastUsers = [];
     let lastFlights = [];
     let selectedFlightIds = new Set();
     let drawerUserId = null;
-    let advancedVisible = false;
     let hubBoardCacheRows = null;
     let hubBoardCacheMeta = null;
     let fr24FetchCooldownUntil = 0;
@@ -870,11 +847,11 @@
       if (!force && hubBoardCacheRows) {
         return { rows: hubBoardCacheRows, meta: hubBoardCacheMeta };
       }
-      const base = (els.supabaseUrl.value || '').replace(/\/$/, '');
+      const base = adminUrl();
       const url =
         base +
         '/rest/v1/hub_airport_board_cache?id=eq.singleton&select=rows,row_count,fetched_at,anchor_day,slot_key,last_error';
-      const anon = els.anonKey.value || '';
+      const anon = adminAnonKey();
       const headers = { apikey: anon, accept: 'application/json' };
       if (accessToken) headers.authorization = 'Bearer ' + accessToken;
       const res = await fetch(url, { headers });
@@ -1315,21 +1292,6 @@
       );
     }
 
-    function readCfg() {
-      try {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        if (!raw) return {};
-        const cfg = JSON.parse(raw);
-        return cfg && typeof cfg === 'object' ? cfg : {};
-      } catch {
-        return {};
-      }
-    }
-
-    function persistCfg(cfg) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(cfg));
-    }
-
     function readSession() {
       try {
         const s = JSON.parse(localStorage.getItem(SESSION_KEY) || 'null');
@@ -1344,22 +1306,24 @@
       else localStorage.setItem(SESSION_KEY, JSON.stringify(sess));
     }
 
-    function persistAuthSession(url, anonKey, email, authJson) {
+    function persistAuthSession(authJson) {
       const exp =
         authJson.expires_at != null
           ? Number(authJson.expires_at)
           : Math.floor(Date.now() / 1000) + Number(authJson.expires_in || 3600);
       writeSession({
-        supabaseUrl: url,
-        anonKey,
-        email,
+        supabaseUrl: adminUrl(),
+        anonKey: adminAnonKey(),
+        email: FLYFAM_ADMIN.email,
         access_token: authJson.access_token,
         refresh_token: typeof authJson.refresh_token === 'string' ? authJson.refresh_token : null,
         expires_at: exp,
       });
     }
 
-    async function refreshAccessToken(url, anonKey, refreshToken) {
+    async function refreshAccessToken(refreshToken) {
+      const url = adminUrl();
+      const anonKey = adminAnonKey();
       const res = await fetch(url + '/auth/v1/token?grant_type=refresh_token', {
         method: 'POST',
         headers: { apikey: anonKey, 'Content-Type': 'application/json' },
@@ -1369,26 +1333,21 @@
       if (!res.ok || !json.access_token) {
         throw new Error(json.error_description || json.msg || 'Session refresh failed');
       }
-      const email = readSession()?.email || els.email.value.trim();
-      persistAuthSession(url, anonKey, email, json);
+      persistAuthSession(json);
       accessToken = json.access_token;
       return accessToken;
     }
 
     async function tryRestoreSession() {
       const sess = readSession();
-      if (!sess?.access_token || !sess.supabaseUrl || !sess.anonKey) return false;
-      if (!els.supabaseUrl.value.trim() && sess.supabaseUrl) els.supabaseUrl.value = sess.supabaseUrl;
-      if (!els.anonKey.value.trim() && sess.anonKey) els.anonKey.value = sess.anonKey;
-      if (!els.email.value.trim() && sess.email) els.email.value = sess.email;
-      if (els.supabaseUrl.value.trim() !== sess.supabaseUrl || els.anonKey.value.trim() !== sess.anonKey) {
+      if (!sess?.access_token || sess.supabaseUrl !== adminUrl() || sess.anonKey !== adminAnonKey()) {
         return false;
       }
       const now = Math.floor(Date.now() / 1000);
       const exp = Number(sess.expires_at || 0);
       if (sess.refresh_token && exp < now + 300) {
         try {
-          await refreshAccessToken(sess.supabaseUrl, sess.anonKey, sess.refresh_token);
+          await refreshAccessToken(sess.refresh_token);
         } catch {
           writeSession(null);
           accessToken = null;
@@ -1404,42 +1363,6 @@
       return true;
     }
 
-    function saveCfgBasics() {
-      const cur = readCfg();
-      cur.supabaseUrl = els.supabaseUrl.value.trim();
-      cur.anonKey = els.anonKey.value.trim();
-      cur.email = els.email.value.trim();
-      persistCfg(cur);
-    }
-
-    function loadCfg() {
-      try {
-        const cfg = readCfg();
-        els.supabaseUrl.value = cfg.supabaseUrl || '';
-        els.anonKey.value = cfg.anonKey || '';
-        els.email.value = cfg.email || '';
-      } catch {}
-      updateAuthLayout();
-    }
-
-    function quickLoginPossible(cfg) {
-      const c = cfg || readCfg();
-      return !!(c.panelPin && c.supabasePassword && c.supabaseUrl && c.anonKey && c.email);
-    }
-
-    function updateAuthLayout() {
-      const q = quickLoginPossible();
-      const elQuick = document.getElementById('quickLoginRow');
-      const elAdv = document.getElementById('advancedAuthFields');
-      if (elQuick) elQuick.classList.toggle('hidden', !q);
-      if (elAdv) elAdv.classList.toggle('hidden', q && !advancedVisible);
-      if (els.btnLogin) els.btnLogin.classList.toggle('hidden', q && !advancedVisible);
-      if (els.btnQuickLogin) els.btnQuickLogin.classList.toggle('hidden', !(q && !advancedVisible));
-      if (els.advancedHint) {
-        els.advancedHint.classList.toggle('hidden', advancedVisible || q);
-      }
-    }
-
     function setStatus(msg, level) {
       els.status.textContent = msg;
       els.status.className = 'mini ' + (level || '');
@@ -1448,20 +1371,6 @@
       if (!els.fr24Status) return;
       els.fr24Status.textContent = msg;
       els.fr24Status.className = 'mini ' + (level || '');
-    }
-    function updateAdvancedVisibility() {
-      const fields = [els.supabaseUrl, els.anonKey, els.email];
-      fields.forEach((el) => {
-        if (!el || !el.parentElement) return;
-        el.parentElement.classList.toggle('hidden', !advancedVisible);
-      });
-      if (els.quickLoginSetup) {
-        els.quickLoginSetup.classList.toggle('hidden', !advancedVisible);
-      }
-      if (els.btnToggleAdvanced) {
-        els.btnToggleAdvanced.textContent = advancedVisible ? '- Advanced' : '+ Advanced';
-      }
-      updateAuthLayout();
     }
 
     function fmtDate(v) {
@@ -1502,9 +1411,7 @@
     }
 
     function currentAnonKey() {
-      const k = (els.anonKey?.value || readSession()?.anonKey || '').trim();
-      if (!k) throw new Error('Anon key is required');
-      return k;
+      return adminAnonKey();
     }
 
     function supabaseAuthHeaders(extra) {
@@ -1533,37 +1440,28 @@
       }
     }
 
-    async function signInWithParams(url, key, email, password) {
-      if (!url || !key || !email || !password) throw new Error('URL, key, email, and password are required');
-      const res = await safeFetch(normalizeSupabaseUrl(url) + '/auth/v1/token?grant_type=password', {
+    async function signInWithPanelPassword(password) {
+      if (!password) throw new Error('Panel şifresi gerekli');
+      const url = adminUrl();
+      const res = await safeFetch(url + '/functions/v1/admin-panel-login', {
         method: 'POST',
-        headers: { apikey: key, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        headers: { apikey: adminAnonKey(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password }),
       });
-      const json = await res.json();
-      if (!res.ok || !json.access_token) {
-        throw new Error(json.error_description || json.msg || 'Login failed');
+      const json = await res.json().catch(() => null);
+      if (!res.ok || !json?.access_token) {
+        throw new Error((json && json.error) || 'Giriş başarısız');
       }
       accessToken = json.access_token;
-      persistAuthSession(url, key, email, json);
+      persistAuthSession(json);
       return accessToken;
-    }
-
-    async function signIn() {
-      return signInWithParams(
-        els.supabaseUrl.value.trim(),
-        els.anonKey.value.trim(),
-        els.email.value.trim(),
-        els.password.value
-      );
     }
 
     async function loadDashboard() {
       hubBoardCacheRows = null;
       hubBoardCacheMeta = null;
-      const url = normalizeSupabaseUrl(els.supabaseUrl.value);
-      if (!url) throw new Error('Supabase URL is required');
-      if (!accessToken) throw new Error('Please login first');
+      const url = adminUrl();
+      if (!accessToken) throw new Error('Önce giriş yapın');
       const res = await safeFetch(url + '/functions/v1/admin-dashboard', {
         headers: supabaseAuthHeaders({ Accept: 'application/json' }),
       });
@@ -1585,9 +1483,8 @@
     }
 
     async function callAdminAction(action, payload) {
-      const url = normalizeSupabaseUrl(els.supabaseUrl.value);
-      if (!url) throw new Error('Supabase URL is required');
-      if (!accessToken) throw new Error('Please login first');
+      const url = adminUrl();
+      if (!accessToken) throw new Error('Önce giriş yapın');
       const res = await safeFetch(url + '/functions/v1/admin-dashboard', {
         method: 'POST',
         headers: supabaseAuthHeaders({ 'Content-Type': 'application/json', Accept: 'application/json' }),
@@ -1659,9 +1556,8 @@
     }
 
     async function triggerFr24Sync() {
-      const url = els.supabaseUrl.value.trim();
-      if (!url) throw new Error('Supabase URL is required');
-      if (!accessToken) throw new Error('Please login first');
+      const url = adminUrl();
+      if (!accessToken) throw new Error('Önce giriş yapın');
       const res = await fetch(url + '/functions/v1/sync-fr24-usage-metrics', {
         method: 'POST',
         headers: {
@@ -1975,8 +1871,8 @@
     }
 
     async function requestFreshFlightApi(flightNo, flightDate) {
-      const url = (els.supabaseUrl.value || '').replace(/\/$/, '') + '/functions/v1/flight-lookup';
-      const anon = els.anonKey.value || '';
+      const url = adminUrl() + '/functions/v1/flight-lookup';
+      const anon = adminAnonKey();
       const headers = {
         'Content-Type': 'application/json',
         apikey: anon,
@@ -2087,43 +1983,13 @@
 
     async function loginAndRefresh() {
       try {
-        setStatus('Login...', 'warn');
-        saveCfgBasics();
-        await signIn();
-        setStatus('Loading dashboard...', 'warn');
+        const password = els.panelPassword && els.panelPassword.value ? String(els.panelPassword.value) : '';
+        setStatus('Giriş yapılıyor…', 'warn');
+        await signInWithPanelPassword(password);
+        setStatus('Panel yükleniyor…', 'warn');
         await loadDashboard();
-        setStatus('OK', 'ok');
-      } catch (e) {
-        setStatus(String(e.message || e), 'bad');
-      }
-    }
-
-    async function quickLogin() {
-      const cfg = readCfg();
-      if (!quickLoginPossible(cfg)) {
-        setStatus('Open "+ Advanced" and use Save quick login (with remember password) first.', 'bad');
-        return;
-      }
-      const pin = els.panelPinOnly && els.panelPinOnly.value ? els.panelPinOnly.value : '';
-      if (!pin) {
-        setStatus('Enter panel PIN', 'bad');
-        return;
-      }
-      if (pin !== cfg.panelPin) {
-        setStatus('Wrong panel PIN', 'bad');
-        return;
-      }
-      try {
-        setStatus('Login...', 'warn');
-        els.supabaseUrl.value = cfg.supabaseUrl || '';
-        els.anonKey.value = cfg.anonKey || '';
-        els.email.value = cfg.email || '';
-        saveCfgBasics();
-        await signInWithParams(cfg.supabaseUrl, cfg.anonKey, cfg.email, cfg.supabasePassword);
-        setStatus('Loading dashboard...', 'warn');
-        await loadDashboard();
-        if (els.panelPinOnly) els.panelPinOnly.value = '';
-        setStatus('OK', 'ok');
+        if (els.panelPassword) els.panelPassword.value = '';
+        setStatus('Giriş OK', 'ok');
       } catch (e) {
         setStatus(String(e.message || e), 'bad');
       }
@@ -2131,7 +1997,11 @@
 
     async function refreshOnly() {
       try {
-        setStatus('Refreshing...', 'warn');
+        if (!accessToken) {
+          setStatus('Önce giriş yapın', 'bad');
+          return;
+        }
+        setStatus('Yenileniyor…', 'warn');
         await loadDashboard();
         setStatus('OK', 'ok');
       } catch (e) {
@@ -2142,68 +2012,17 @@
     function logout() {
       accessToken = null;
       writeSession(null);
-      els.password.value = '';
-      if (els.panelPinOnly) els.panelPinOnly.value = '';
-      setStatus('Logged out', '');
+      if (els.panelPassword) els.panelPassword.value = '';
+      setStatus('Çıkış yapıldı', '');
     }
 
     els.btnLogin.addEventListener('click', loginAndRefresh);
-    if (els.btnQuickLogin) els.btnQuickLogin.addEventListener('click', quickLogin);
-    if (els.panelPinOnly) {
-      els.panelPinOnly.addEventListener('keydown', (e) => {
+    if (els.panelPassword) {
+      els.panelPassword.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {
           e.preventDefault();
-          quickLogin();
+          loginAndRefresh();
         }
-      });
-    }
-    if (els.btnSaveQuickLogin) {
-      els.btnSaveQuickLogin.addEventListener('click', () => {
-        const pin = els.panelPinSetup && els.panelPinSetup.value ? els.panelPinSetup.value : '';
-        if (!pin) {
-          setStatus('Enter a panel PIN to save', 'bad');
-          return;
-        }
-        const url = els.supabaseUrl.value.trim();
-        const key = els.anonKey.value.trim();
-        const email = els.email.value.trim();
-        if (!url || !key || !email) {
-          setStatus('Supabase URL, anon key, and email are required', 'bad');
-          return;
-        }
-        const cur = readCfg();
-        cur.supabaseUrl = url;
-        cur.anonKey = key;
-        cur.email = email;
-        cur.panelPin = pin;
-        if (els.chkRememberSupabasePw && els.chkRememberSupabasePw.checked) {
-          const pw = els.password.value;
-          if (!pw) {
-            setStatus('Enter Supabase password or turn off remember', 'bad');
-            return;
-          }
-          cur.supabasePassword = pw;
-        } else {
-          delete cur.supabasePassword;
-        }
-        persistCfg(cur);
-        setStatus('Quick login saved on this device', 'ok');
-        updateAuthLayout();
-      });
-    }
-    if (els.btnClearQuickLogin) {
-      els.btnClearQuickLogin.addEventListener('click', () => {
-        const ok = window.confirm('Remove panel PIN and saved Supabase password from this browser?');
-        if (!ok) return;
-        const cur = readCfg();
-        delete cur.panelPin;
-        delete cur.supabasePassword;
-        persistCfg(cur);
-        if (els.panelPinSetup) els.panelPinSetup.value = '';
-        if (els.panelPinOnly) els.panelPinOnly.value = '';
-        if (els.chkRememberSupabasePw) els.chkRememberSupabasePw.checked = false;
-        setStatus('Quick login cleared', 'ok');
-        updateAuthLayout();
       });
     }
     els.btnRefresh.addEventListener('click', refreshOnly);
@@ -2604,10 +2423,6 @@
     });
     els.userTypeFilter.addEventListener('change', () => renderUsers(lastUsers));
     els.airlineFilter.addEventListener('change', () => renderUsers(lastUsers));
-    els.btnToggleAdvanced.addEventListener('click', () => {
-      advancedVisible = !advancedVisible;
-      updateAdvancedVisibility();
-    });
     els.btnFr24Open.addEventListener('click', () => {
       window.open('https://fr24api.flightradar24.com/usage-metrics?period=30d', '_blank', 'noopener,noreferrer');
     });
@@ -2633,8 +2448,6 @@
       }
     });
 
-    updateAdvancedVisibility();
-    loadCfg();
     if (location.protocol === 'file:') {
       setStatus(
         'Uyarı: file:// — giriş için yerel sunucu kullan (cd docs && python3 -m http.server 8765)',
