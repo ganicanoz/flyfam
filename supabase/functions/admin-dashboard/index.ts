@@ -383,6 +383,158 @@ Deno.serve(async (req) => {
       body = null;
     }
     const action = typeof body?.action === 'string' ? body.action : '';
+    if (action === 'list_ops_history') {
+      const daysRaw = Number(body?.days ?? 7);
+      const days = Number.isFinite(daysRaw) ? Math.min(90, Math.max(1, Math.floor(daysRaw))) : 7;
+      const flightNumber =
+        typeof body?.flight_number === 'string' ? body.flight_number.trim().toUpperCase() : '';
+      const q =
+        typeof body?.q === 'string' ? body.q.trim().toLowerCase() : '';
+      const sinceIso = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+      const sinceDate = sinceIso.slice(0, 10);
+
+      let opsQ = adminClient
+        .from('flight_ops_log')
+        .select(
+          'id, logged_at, event, flight_id, crew_id, flight_number, flight_date, origin_airport, destination_airport, flight_status, api_refresh_phase, scheduled_departure, scheduled_arrival, estimated_departure, estimated_arrival, actual_departure, actual_arrival, fr24_first_seen_utc, fr24_datetime_takeoff_utc, fr24_datetime_landed_utc, delay_dep_min, delay_arr_min, aircraft_registration, note',
+        )
+        .gte('logged_at', sinceIso)
+        .order('logged_at', { ascending: false })
+        .limit(800);
+      if (flightNumber) opsQ = opsQ.ilike('flight_number', `%${flightNumber}%`);
+
+      let archQ = adminClient
+        .from('flights_archive')
+        .select(
+          'original_flight_id, crew_id, flight_number, flight_date, scheduled_departure, scheduled_arrival, flight_status, api_refresh_phase, archived_at, archived_reason, flight_snapshot',
+        )
+        .or(`archived_at.gte.${sinceIso},flight_date.gte.${sinceDate}`)
+        .order('archived_at', { ascending: false })
+        .limit(500);
+      if (flightNumber) archQ = archQ.ilike('flight_number', `%${flightNumber}%`);
+
+      const [{ data: opsRows, error: opsErr }, { data: archRows, error: archErr }, { data: crewProfiles }] =
+        await Promise.all([
+          opsQ,
+          archQ,
+          adminClient.from('crew_profiles').select('id, user_id, company_name').limit(2000),
+        ]);
+      if (opsErr) {
+        return new Response(JSON.stringify({ error: opsErr.message }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      if (archErr) {
+        return new Response(JSON.stringify({ error: archErr.message }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const userIds = Array.from(
+        new Set((crewProfiles ?? []).map((c: { user_id?: string | null }) => c.user_id).filter(Boolean)),
+      ) as string[];
+      const { data: nameRows } = userIds.length
+        ? await adminClient.from('profiles').select('id, full_name').in('id', userIds)
+        : { data: [] as Array<{ id: string; full_name: string | null }> };
+      const nameByUser = new Map((nameRows ?? []).map((p) => [p.id, p.full_name ?? null]));
+      const crewLabel = new Map(
+        (crewProfiles ?? []).map((c: { id: string; user_id?: string | null; company_name?: string | null }) => [
+          c.id,
+          {
+            user_id: c.user_id ?? null,
+            company_name: c.company_name ?? null,
+            full_name: c.user_id ? nameByUser.get(c.user_id) ?? null : null,
+          },
+        ]),
+      );
+
+      const matchQ = (parts: Array<string | null | undefined>) => {
+        if (!q) return true;
+        return parts.some((p) => String(p ?? '').toLowerCase().includes(q));
+      };
+
+      const events = (opsRows ?? [])
+        .map((r) => {
+          const crew = r.crew_id ? crewLabel.get(String(r.crew_id)) : null;
+          return {
+            ...r,
+            crew_name: crew?.full_name ?? null,
+            crew_company: crew?.company_name ?? null,
+          };
+        })
+        .filter((r) =>
+          matchQ([
+            r.flight_number,
+            r.origin_airport,
+            r.destination_airport,
+            r.flight_status,
+            r.event,
+            r.note,
+            r.crew_name,
+            r.aircraft_registration,
+          ]),
+        );
+
+      const archives = (archRows ?? [])
+        .map((r) => {
+          const snap = (r.flight_snapshot && typeof r.flight_snapshot === 'object'
+            ? r.flight_snapshot
+            : {}) as Record<string, unknown>;
+          const crew = r.crew_id ? crewLabel.get(String(r.crew_id)) : null;
+          return {
+            original_flight_id: r.original_flight_id,
+            crew_id: r.crew_id,
+            flight_number: r.flight_number,
+            flight_date: r.flight_date,
+            scheduled_departure: r.scheduled_departure,
+            scheduled_arrival: r.scheduled_arrival,
+            flight_status: r.flight_status,
+            api_refresh_phase: r.api_refresh_phase,
+            archived_at: r.archived_at,
+            archived_reason: r.archived_reason,
+            origin_airport: (snap.origin_airport as string | null | undefined) ?? null,
+            destination_airport: (snap.destination_airport as string | null | undefined) ?? null,
+            fr24_first_seen_utc: (snap.fr24_first_seen_utc as string | null | undefined) ?? null,
+            fr24_datetime_takeoff_utc: (snap.fr24_datetime_takeoff_utc as string | null | undefined) ?? null,
+            fr24_datetime_landed_utc: (snap.fr24_datetime_landed_utc as string | null | undefined) ?? null,
+            delay_dep_min: (snap.delay_dep_min as number | null | undefined) ?? null,
+            delay_arr_min: (snap.delay_arr_min as number | null | undefined) ?? null,
+            aircraft_registration: (snap.aircraft_registration as string | null | undefined) ?? null,
+            estimated_arrival: (snap.estimated_arrival as string | null | undefined) ?? null,
+            actual_arrival: (snap.actual_arrival as string | null | undefined) ?? null,
+            crew_name: crew?.full_name ?? null,
+            crew_company: crew?.company_name ?? null,
+          };
+        })
+        .filter((r) =>
+          matchQ([
+            r.flight_number,
+            r.origin_airport,
+            r.destination_airport,
+            r.flight_status,
+            r.archived_reason,
+            r.crew_name,
+            r.aircraft_registration,
+          ]),
+        );
+
+      return new Response(
+        JSON.stringify({
+          ok: true,
+          action,
+          days,
+          since: sinceIso,
+          events,
+          archives,
+        }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        },
+      );
+    }
     if (action === 'list_user_flights') {
       const userId = typeof body?.user_id === 'string' ? body.user_id.trim() : '';
       if (!userId) {

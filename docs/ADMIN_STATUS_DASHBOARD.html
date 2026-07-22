@@ -9,7 +9,7 @@
   <meta http-equiv="Expires" content="0" />
   <script>
     (function () {
-      var UI = '17';
+      var UI = '18';
       var p = new URLSearchParams(location.search);
       if (p.get('ui') !== UI) {
         p.set('ui', UI);
@@ -496,6 +496,7 @@
         <button class="nav-btn active" data-view="overviewView">Overview</button>
         <button class="nav-btn" data-view="usersView">Users</button>
         <button class="nav-btn" data-view="flightsView">Flights</button>
+        <button class="nav-btn" data-view="historyView">History log</button>
         <button class="nav-btn" data-view="usageView">Quota / Usage</button>
         <a class="nav-external" href="./admin/splash-preview.html" target="_blank" rel="noopener">Splash · video önizleme</a>
       </nav>
@@ -641,6 +642,68 @@
         </div>
       </section>
 
+      <section id="historyView" class="view">
+        <div class="panel">
+          <h3 style="margin:0 0 8px;">History / ops log</h3>
+          <p class="mini" style="margin-top:0;">
+            Silinen uçuşların arşivi + durum/faz milestone log’u. Sistem doğru mu diye geçmişe bakmak için.
+            Ops event’ler canlı uçuş değişince yazılır; arşiv satırı silinince / 30s cron ile kalır (90 gün).
+          </p>
+          <div class="users-toolbar" style="margin-bottom:10px;">
+            <div>
+              <label class="mini">Son kaç gün</label>
+              <select id="historyDays">
+                <option value="3">3</option>
+                <option value="7" selected>7</option>
+                <option value="14">14</option>
+                <option value="30">30</option>
+                <option value="90">90</option>
+              </select>
+            </div>
+            <div>
+              <label class="mini">Kaynak</label>
+              <select id="historySource">
+                <option value="events">Ops events</option>
+                <option value="archives" selected>Archived flights</option>
+                <option value="all">Both</option>
+              </select>
+            </div>
+            <div>
+              <label class="mini">Uçuş no</label>
+              <input id="historyFlightNo" type="text" placeholder="PC2072" style="min-width:110px;" />
+            </div>
+            <div>
+              <label class="mini">Ara (crew / rota / status)</label>
+              <input id="historyQ" type="text" placeholder="gani, GZP, landed…" style="min-width:160px;" />
+            </div>
+            <div style="align-self:end;">
+              <button type="button" id="btnHistoryLoad" class="btnPrimary">Yükle</button>
+              <span id="historyStatus" class="mini"></span>
+            </div>
+          </div>
+          <div class="users-table-wrap">
+            <table class="users-table">
+              <thead>
+                <tr>
+                  <th>Zaman</th>
+                  <th>Tür</th>
+                  <th>Uçuş</th>
+                  <th>Tarih</th>
+                  <th>Rota</th>
+                  <th>Status / phase</th>
+                  <th>STD → STA</th>
+                  <th>FR24 takeoff / land</th>
+                  <th>Delay d/a</th>
+                  <th>Crew</th>
+                  <th>Not</th>
+                </tr>
+              </thead>
+              <tbody id="historyBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
       <section id="usageView" class="view">
         <div class="panel">
           <h3 style="margin:0 0 8px;">API usage / quota (monthly)</h3>
@@ -715,6 +778,13 @@
       airlineFilter: document.getElementById('airlineFilter'),
       flightsBody: document.getElementById('flightsBody'),
       usageBody: document.getElementById('usageBody'),
+      historyBody: document.getElementById('historyBody'),
+      historyDays: document.getElementById('historyDays'),
+      historySource: document.getElementById('historySource'),
+      historyFlightNo: document.getElementById('historyFlightNo'),
+      historyQ: document.getElementById('historyQ'),
+      historyStatus: document.getElementById('historyStatus'),
+      btnHistoryLoad: document.getElementById('btnHistoryLoad'),
       btnFr24Open: document.getElementById('btnFr24Open'),
       btnFr24Fetch: document.getElementById('btnFr24Fetch'),
       fr24Status: document.getElementById('fr24Status'),
@@ -1940,6 +2010,94 @@
       }).join('');
     }
 
+    function fmtShortTs(v) {
+      if (!v) return '—';
+      const d = new Date(v);
+      if (!Number.isFinite(d.getTime())) return '—';
+      return d.toISOString().replace('T', ' ').replace(/\.\d{3}Z$/, 'Z');
+    }
+
+    function renderHistoryTable(json) {
+      if (!els.historyBody) return;
+      const source = (els.historySource && els.historySource.value) || 'archives';
+      const rows = [];
+      if (source === 'events' || source === 'all') {
+        (json.events || []).forEach((e) => {
+          rows.push({
+            when: e.logged_at,
+            kind: 'event:' + (e.event || '—'),
+            flight_number: e.flight_number,
+            flight_date: e.flight_date,
+            route: ((e.origin_airport || '—') + '→' + (e.destination_airport || '—')),
+            statusPhase: (e.flight_status || '—') + ' / ' + (e.api_refresh_phase || '—'),
+            stdSta: fmtShortTs(e.scheduled_departure) + ' → ' + fmtShortTs(e.scheduled_arrival),
+            fr24: fmtShortTs(e.fr24_datetime_takeoff_utc) + ' / ' + fmtShortTs(e.fr24_datetime_landed_utc),
+            delay: String(e.delay_dep_min ?? '—') + ' / ' + String(e.delay_arr_min ?? '—'),
+            crew: e.crew_name || e.crew_id || '—',
+            note: e.note || (e.aircraft_registration ? ('reg ' + e.aircraft_registration) : '—'),
+          });
+        });
+      }
+      if (source === 'archives' || source === 'all') {
+        (json.archives || []).forEach((a) => {
+          rows.push({
+            when: a.archived_at,
+            kind: 'archive:' + (a.archived_reason || '—'),
+            flight_number: a.flight_number,
+            flight_date: a.flight_date,
+            route: ((a.origin_airport || '—') + '→' + (a.destination_airport || '—')),
+            statusPhase: (a.flight_status || '—') + ' / ' + (a.api_refresh_phase || '—'),
+            stdSta: fmtShortTs(a.scheduled_departure) + ' → ' + fmtShortTs(a.scheduled_arrival),
+            fr24: fmtShortTs(a.fr24_datetime_takeoff_utc) + ' / ' + fmtShortTs(a.fr24_datetime_landed_utc),
+            delay: String(a.delay_dep_min ?? '—') + ' / ' + String(a.delay_arr_min ?? '—'),
+            crew: a.crew_name || a.crew_id || '—',
+            note: a.aircraft_registration ? ('reg ' + a.aircraft_registration) : '—',
+          });
+        });
+      }
+      rows.sort((a, b) => new Date(b.when).getTime() - new Date(a.when).getTime());
+      if (!rows.length) {
+        els.historyBody.innerHTML = '<tr><td colspan="11" class="mini">Kayıt yok. Filtreyi genişlet veya ops event birikmesini bekle.</td></tr>';
+        return;
+      }
+      els.historyBody.innerHTML = rows.map((r) => (
+        '<tr>' +
+          '<td class="mini">' + escapeHtml(fmtShortTs(r.when)) + '</td>' +
+          '<td><code>' + escapeHtml(r.kind) + '</code></td>' +
+          '<td><strong>' + escapeHtml(r.flight_number || '—') + '</strong></td>' +
+          '<td>' + escapeHtml(r.flight_date || '—') + '</td>' +
+          '<td>' + escapeHtml(r.route) + '</td>' +
+          '<td class="mini">' + escapeHtml(r.statusPhase) + '</td>' +
+          '<td class="mini">' + escapeHtml(r.stdSta) + '</td>' +
+          '<td class="mini">' + escapeHtml(r.fr24) + '</td>' +
+          '<td class="mini">' + escapeHtml(r.delay) + '</td>' +
+          '<td class="mini">' + escapeHtml(r.crew) + '</td>' +
+          '<td class="mini">' + escapeHtml(r.note) + '</td>' +
+        '</tr>'
+      )).join('');
+    }
+
+    async function loadHistory() {
+      if (!els.historyStatus) return;
+      els.historyStatus.textContent = 'yükleniyor…';
+      els.historyStatus.className = 'mini warn';
+      try {
+        const json = await callAdminAction('list_ops_history', {
+          days: Number((els.historyDays && els.historyDays.value) || 7),
+          flight_number: (els.historyFlightNo && els.historyFlightNo.value) || '',
+          q: (els.historyQ && els.historyQ.value) || '',
+        });
+        renderHistoryTable(json);
+        const nEvents = (json.events || []).length;
+        const nArch = (json.archives || []).length;
+        els.historyStatus.textContent = nEvents + ' event · ' + nArch + ' archive';
+        els.historyStatus.className = 'mini ok';
+      } catch (err) {
+        els.historyStatus.textContent = String(err?.message || err);
+        els.historyStatus.className = 'mini bad';
+      }
+    }
+
     function renderDashboard(data) {
       els.usersActive.textContent = data.users?.active_30d ?? '-';
       els.usersTotal.textContent = data.users?.total ?? '-';
@@ -2427,6 +2585,9 @@
     function switchView(viewId) {
       els.views.forEach((v) => v.classList.toggle('active', v.id === viewId));
       els.navButtons.forEach((b) => b.classList.toggle('active', b.dataset.view === viewId));
+      if (viewId === 'historyView' && accessToken) {
+        loadHistory().catch(() => {});
+      }
     }
     function switchFlightsSubview(subviewId) {
       els.flightSubViews.forEach((v) => v.classList.toggle('active', v.id === subviewId));
@@ -2437,6 +2598,13 @@
     });
     els.flightsSubButtons.forEach((btn) => {
       btn.addEventListener('click', () => switchFlightsSubview(btn.dataset.subview));
+    });
+    els.btnHistoryLoad?.addEventListener('click', () => {
+      loadHistory().catch((err) => setStatus(String(err?.message || err), 'bad'));
+    });
+    els.historySource?.addEventListener('change', () => {
+      // Re-render from last payload if present; otherwise reload.
+      loadHistory().catch(() => {});
     });
     els.userTypeFilter.addEventListener('change', () => renderUsers(lastUsers));
     els.airlineFilter.addEventListener('change', () => renderUsers(lastUsers));
