@@ -20,8 +20,8 @@ import { colors } from '@/theme/colors';
 import { AIRLINES } from '@/constants/airlines';
 import { LOCALE_LABELS, type Locale } from '@/lib/i18n';
 import { deleteMyAccount } from '@/lib/accountDeletion';
-
-const PRIVACY_POLICY_URL = 'https://sites.google.com/view/flyfamapp/ana-sayfa';
+import { PRIVACY_POLICY_URL } from '@/lib/legalUrls';
+import { getAppVersionLabel } from '@/lib/appVersion';
 
 export default function CrewProfileScreen() {
   const { t } = useTranslation();
@@ -196,12 +196,21 @@ export default function CrewProfileScreen() {
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.policyLink}
+            onPress={() => router.push('/(app)/terms-disclaimer')}
+          >
+            <Text style={[styles.policyLinkText, { color: colors.primary }]}>{t('profile.termsDisclaimer')}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.policyLink}
             onPress={() => {
               router.push('/(app)/consent-history');
             }}
           >
             <Text style={[styles.policyLinkText, { color: colors.primary }]}>{t('profile.consentHistory')}</Text>
           </TouchableOpacity>
+          <Text style={[styles.appVersion, { color: colors.textMuted }]}>
+            {t('profile.appVersion', { version: getAppVersionLabel() })}
+          </Text>
         </View>
 
         <RosterListTasksModal
@@ -336,6 +345,12 @@ const styles = StyleSheet.create({
     fontSize: 13,
     textDecorationLine: 'underline',
     fontWeight: '600',
+  },
+  appVersion: {
+    marginTop: 10,
+    textAlign: 'center',
+    fontSize: 11,
+    fontWeight: '500',
   },
   signOutContent: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   signOutText: { color: colors.white, fontWeight: '700', fontSize: 16 },

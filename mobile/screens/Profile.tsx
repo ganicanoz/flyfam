@@ -1,66 +1,314 @@
-import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  Alert,
+  Image,
+  ScrollView,
+  Pressable,
+} from 'react-native';
+import { useLayoutEffect, useState, useCallback } from 'react';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useTranslation } from 'react-i18next';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useSession } from '../contexts/SessionContext';
-import { colors } from '../theme/colors';
+import { useAdminRoster } from '../contexts/AdminRosterContext';
+import { colors, cycleThemePreference, useThemeMode, useThemePreference } from '../theme/colors';
 import { AIRLINES } from '../constants/airlines';
+import { normalizeCrewAirlineIcaoTypo } from '../lib/pdfRosterImport';
+import { LOCALE_LABELS, type Locale } from '../lib/i18n';
+import { deleteMyAccount } from '../lib/accountDeletion';
+import { fetchMySubscriptionAccess, type SubscriptionAccess } from '../lib/subscriptionAccess';
+import { pushRootScreen } from '../lib/pushRootScreen';
+import { getAppVersionLabel } from '../lib/appVersion';
 
 export default function Profile() {
+  const { t } = useTranslation();
+  const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
   const { profile, crewProfile, session, signOut } = useSession();
+  const { onProfileSecretTap } = useAdminRoster();
+  const themeMode = useThemeMode();
+  const isDark = themeMode === 'dark';
+  const themePreference = useThemePreference();
+  const [deletingAccount, setDeletingAccount] = useState(false);
+  const [subscriptionAccess, setSubscriptionAccess] = useState<SubscriptionAccess | null>(null);
 
-  const airlineName =
-    crewProfile?.airline_icao
-      ? AIRLINES.find((a) => a.icao === crewProfile.airline_icao)?.name ?? crewProfile.company_name
-      : crewProfile?.company_name ?? null;
+  const onProfileCardPress = () => {
+    if (onProfileSecretTap()) {
+      (navigation as { navigate: (name: string) => void }).navigate('Roster');
+    }
+  };
+
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <TouchableOpacity
+          onPress={() => {
+            void cycleThemePreference();
+          }}
+          style={[
+            styles.themeToggle,
+            {
+              backgroundColor: 'rgba(255,255,255,0.22)',
+              borderColor: 'rgba(255,255,255,0.4)',
+            },
+          ]}
+          accessibilityRole="button"
+          accessibilityLabel={
+            themePreference === 'system'
+              ? 'Sistem temasi'
+              : themePreference === 'light'
+                ? 'Aydinlik mod (sabit)'
+                : 'Koyu mod (sabit)'
+          }
+        >
+          <Ionicons
+            name={
+              themePreference === 'system'
+                ? 'contrast-outline'
+                : themePreference === 'light'
+                  ? 'sunny-outline'
+                  : 'moon-outline'
+            }
+            size={18}
+            color={
+              themePreference === 'dark' ? '#F7C948' : colors.onPrimary
+            }
+          />
+        </TouchableOpacity>
+      ),
+    });
+  }, [navigation, themePreference, isDark]);
+
+  const airlineIcaoNorm = crewProfile?.airline_icao
+    ? normalizeCrewAirlineIcaoTypo(crewProfile.airline_icao)
+    : '';
+  const airline =
+    airlineIcaoNorm.length > 0
+      ? AIRLINES.find((a) => a.icao.toUpperCase() === airlineIcaoNorm.toUpperCase()) ?? null
+      : null;
+  const airlineName = airline?.name ?? crewProfile?.company_name ?? null;
+
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      if (profile?.role !== 'crew') return () => {};
+      fetchMySubscriptionAccess()
+        .then((x) => {
+          if (!cancelled) setSubscriptionAccess(x);
+        })
+        .catch(() => {
+          if (!cancelled) setSubscriptionAccess(null);
+        });
+      return () => {
+        cancelled = true;
+      };
+    }, [profile?.role])
+  );
+
+  const handleDeleteAccount = () => {
+    Alert.alert(t('profile.deleteAccountTitle'), t('profile.deleteAccountConfirmMessage'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      {
+        text: t('profile.deleteAccountAction'),
+        style: 'destructive',
+        onPress: async () => {
+          setDeletingAccount(true);
+          const result = await deleteMyAccount();
+          setDeletingAccount(false);
+          if (!result.ok) {
+            Alert.alert(t('common.error'), result.error || t('profile.deleteAccountFailed'));
+            return;
+          }
+          await signOut();
+        },
+      },
+    ]);
+  };
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <View style={styles.card}>
-        <Text style={[styles.label, { color: colors.textSecondary }]}>Name</Text>
-        <Text style={[styles.value, { color: colors.text }]}>{profile?.full_name ?? '—'}</Text>
-
-        {session?.user?.email && (
-          <>
-            <Text style={[styles.label, { color: colors.textSecondary }]}>Email</Text>
-            <Text style={[styles.value, { color: colors.text }]}>{session.user.email}</Text>
-          </>
-        )}
-
-        {crewProfile && (
-          <>
-            <Text style={[styles.label, { color: colors.textSecondary }]}>Airline</Text>
-            <Text style={[styles.value, { color: colors.text }]}>
-              {airlineName ?? 'Not set'}
-            </Text>
-            {crewProfile.airline_icao && (
-              <Text style={[styles.icao, { color: colors.textMuted }]}>
-                ICAO: {crewProfile.airline_icao}
+    <View style={[styles.root, { backgroundColor: colors.background }]}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator
+      >
+        <Pressable
+          onPress={onProfileCardPress}
+          style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}
+        >
+          <View style={styles.cardTopRow}>
+            <View style={styles.cardDetails}>
+              <Text style={[styles.label, styles.labelFirst, { color: colors.textSecondary }]}>{t('profile.name')}</Text>
+              <Text style={[styles.value, styles.valueInColumn, { color: colors.text }]} numberOfLines={3}>
+                {profile?.full_name ?? '—'}
               </Text>
-            )}
-          </>
+
+              {session?.user?.email && (
+                <>
+                  <Text style={[styles.label, { color: colors.textSecondary }]}>{t('profile.email')}</Text>
+                  <Text
+                    style={[styles.value, styles.valueInColumn, { color: colors.text }]}
+                    numberOfLines={3}
+                    ellipsizeMode="tail"
+                  >
+                    {session.user.email}
+                  </Text>
+                </>
+              )}
+
+              <Text style={[styles.label, { color: colors.textSecondary }]}>{t('profile.language')}</Text>
+              <Text style={[styles.value, styles.valueInColumn, { color: colors.text }]} numberOfLines={2}>
+                {profile?.locale ? LOCALE_LABELS[profile.locale as Locale] : LOCALE_LABELS.en}
+              </Text>
+
+              {crewProfile && (
+                <>
+                  <Text style={[styles.label, { color: colors.textSecondary }]}>{t('profile.airline')}</Text>
+                  {airline ? (
+                    <View style={styles.airlineRow}>
+                      <Image source={{ uri: airline.logoUrl }} style={styles.airlineLogo} />
+                      <Text
+                        style={[styles.value, styles.airlineNameText, styles.valueInColumn, { color: colors.text }]}
+                        numberOfLines={2}
+                        ellipsizeMode="tail"
+                      >
+                        {airline.name}
+                      </Text>
+                    </View>
+                  ) : (
+                    <Text style={[styles.value, styles.valueInColumn, { color: colors.text }]} numberOfLines={2}>
+                      {airlineName ?? t('profile.notSet')}
+                    </Text>
+                  )}
+                </>
+              )}
+
+              <Text style={[styles.label, { color: colors.textSecondary }]}>{t('profile.accountType')}</Text>
+              <Text style={[styles.value, styles.valueInColumn, { color: colors.text }]} numberOfLines={2}>
+                {profile?.role === 'crew' ? t('signUp.crew') : t('signUp.family')}
+              </Text>
+
+            </View>
+
+            <View style={styles.cardAvatarWrap}>
+              {profile?.avatar_url ? (
+                <Image
+                  key={profile.avatar_url}
+                  source={{ uri: profile.avatar_url }}
+                  style={styles.cardAvatarImage}
+                  resizeMode="cover"
+                  onError={(e) => {
+                    console.warn('[Profile avatar] load error', profile.avatar_url, e.nativeEvent?.error);
+                  }}
+                />
+              ) : (
+                <View style={[styles.cardAvatarFallback, { backgroundColor: colors.surfaceAlt, borderColor: colors.border }]}>
+                  <Text style={[styles.cardAvatarInitial, { color: colors.primary }]}>
+                    {(profile?.full_name || session?.user?.email || '?')
+                      .trim()
+                      .charAt(0)
+                      .toUpperCase()}
+                  </Text>
+                </View>
+              )}
+            </View>
+          </View>
+        </Pressable>
+      </ScrollView>
+
+      <View
+        style={[
+          styles.footer,
+          { paddingBottom: 12, borderTopColor: colors.border, backgroundColor: colors.background },
+        ]}
+      >
+        {profile?.role === 'crew' && (
+          <TouchableOpacity
+            style={[styles.manageSubscriptionButton, { borderColor: colors.primary, backgroundColor: colors.surface }]}
+            onPress={() => pushRootScreen(navigation as never, 'Plans')}
+          >
+            <View style={styles.editButtonContent}>
+              <Ionicons name="card-outline" size={20} color={colors.primary} />
+              <Text style={[styles.manageSubscriptionButtonText, { color: colors.primary }]}>
+                {t('profile.manageSubscription')}
+              </Text>
+            </View>
+          </TouchableOpacity>
         )}
 
-        <Text style={[styles.label, { color: colors.textSecondary }]}>Account type</Text>
-        <Text style={[styles.value, { color: colors.text }]}>
-          {profile?.role === 'crew' ? 'Crew' : 'Family'}
+        <TouchableOpacity
+          style={[styles.editButton, { backgroundColor: colors.primary }]}
+          onPress={() => pushRootScreen(navigation as never, 'EditProfile')}
+        >
+          <View style={styles.editButtonContent}>
+            <Ionicons name="pencil" size={22} color={colors.white} />
+            <Text style={styles.editButtonText}>{t('profile.editProfileAction')}</Text>
+          </View>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.signOut}
+          onPress={() =>
+            Alert.alert(t('profile.signOutConfirmTitle'), t('profile.signOutConfirmMessage'), [
+              { text: t('common.cancel'), style: 'cancel' },
+              {
+                text: t('profile.signOut'),
+                style: 'destructive',
+                onPress: () => void signOut(),
+              },
+            ])
+          }
+        >
+          <View style={styles.signOutContent}>
+            <Ionicons name="log-out-outline" size={20} color={colors.white} />
+            <Text style={styles.signOutText}>{t('profile.signOut')}</Text>
+          </View>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.deleteAccount, deletingAccount && styles.buttonDisabled]}
+          onPress={handleDeleteAccount}
+          disabled={deletingAccount}
+        >
+          <View style={styles.signOutContent}>
+            <Ionicons name="trash-outline" size={20} color={colors.white} />
+            <Text style={styles.signOutText}>{t('profile.deleteAccountAction')}</Text>
+          </View>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.policyLink}
+          onPress={() => pushRootScreen(navigation as never, 'PrivacyNotice')}
+        >
+          <Text style={[styles.policyLinkText, { color: colors.primary }]}>{t('profile.privacyPolicy')}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.policyLink}
+          onPress={() => pushRootScreen(navigation as never, 'TermsDisclaimer')}
+        >
+          <Text style={[styles.policyLinkText, { color: colors.primary }]}>{t('profile.termsDisclaimer')}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.policyLink}
+          onPress={() => pushRootScreen(navigation as never, 'ConsentHistory')}
+        >
+          <Text style={[styles.policyLinkText, { color: colors.primary }]}>{t('profile.consentHistory')}</Text>
+        </TouchableOpacity>
+        <Text style={[styles.appVersion, { color: colors.textMuted }]} accessibilityRole="text">
+          {t('profile.appVersion', { version: getAppVersionLabel() })}
         </Text>
       </View>
-
-      <TouchableOpacity
-        style={styles.signOut}
-        onPress={() =>
-          Alert.alert('Sign out', 'Are you sure?', [
-            { text: 'Cancel', style: 'cancel' },
-            { text: 'Sign out', style: 'destructive', onPress: signOut },
-          ])
-        }
-      >
-        <Text style={[styles.signOutText, { color: colors.error }]}>Sign out</Text>
-      </TouchableOpacity>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 24 },
+  root: { flex: 1 },
+  scroll: { flex: 1 },
+  scrollContent: { padding: 24, paddingBottom: 16 },
   card: {
     backgroundColor: colors.surface,
     borderRadius: 12,
@@ -68,9 +316,126 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
-  label: { fontSize: 12, marginBottom: 4, marginTop: 16 },
+  cardTopRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 14,
+  },
+  /** Uzun e-posta / isim satırlarının avatar sütununa taşmaması için (RN flex shrink). */
+  cardDetails: {
+    flex: 1,
+    minWidth: 0,
+  },
+  cardAvatarWrap: {
+    flexShrink: 0,
+  },
+  cardAvatarImage: {
+    width: 112,
+    height: 140,
+    borderRadius: 12,
+  },
+  cardAvatarFallback: {
+    width: 112,
+    height: 140,
+    borderRadius: 12,
+    backgroundColor: colors.surfaceAlt,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  cardAvatarInitial: { fontSize: 20, fontWeight: '700', color: colors.primary },
+  airlineRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 4,
+  },
+  airlineLogo: {
+    width: 28,
+    height: 28,
+    borderRadius: 6,
+  },
+  airlineNameText: {
+    flex: 1,
+  },
+  manageSubscriptionButton: {
+    borderWidth: 1,
+    borderRadius: 10,
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    marginBottom: 12,
+  },
+  manageSubscriptionButtonText: { fontWeight: '700', fontSize: 15 },
+  label: { fontSize: 14, marginBottom: 4, marginTop: 16, fontWeight: '700' },
+  labelFirst: { marginTop: 0 },
   value: { fontSize: 16 },
-  icao: { fontSize: 12, marginTop: 2 },
-  signOut: { marginTop: 32, padding: 16, alignItems: 'center' },
-  signOutText: { fontSize: 16, fontWeight: '600' },
+  valueInColumn: { flexShrink: 1 },
+  footer: {
+    paddingHorizontal: 24,
+    paddingTop: 14,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+    backgroundColor: colors.background,
+  },
+  editButton: {
+    backgroundColor: colors.primary,
+    paddingVertical: 11,
+    paddingHorizontal: 16,
+    borderRadius: 9,
+    alignItems: 'center',
+  },
+  editButtonContent: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  editButtonText: { color: colors.onPrimary, fontWeight: '700', fontSize: 15 },
+  signOut: {
+    marginTop: 8,
+    backgroundColor: colors.error,
+    paddingVertical: 11,
+    paddingHorizontal: 16,
+    borderRadius: 9,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#7A0000',
+  },
+  deleteAccount: {
+    marginTop: 8,
+    backgroundColor: '#8B0000',
+    paddingVertical: 11,
+    paddingHorizontal: 16,
+    borderRadius: 9,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#5A0000',
+  },
+  buttonDisabled: { opacity: 0.7 },
+  policyLink: {
+    marginTop: 12,
+    alignItems: 'center',
+    paddingVertical: 1,
+  },
+  policyLinkText: {
+    fontSize: 12,
+    textDecorationLine: 'underline',
+    fontWeight: '600',
+  },
+  signOutContent: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  signOutText: { color: colors.white, fontWeight: '700', fontSize: 15 },
+  appVersion: {
+    marginTop: 10,
+    marginBottom: 2,
+    textAlign: 'center',
+    fontSize: 11,
+    fontWeight: '500',
+    letterSpacing: 0.2,
+  },
+  themeToggle: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    marginRight: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+  },
 });

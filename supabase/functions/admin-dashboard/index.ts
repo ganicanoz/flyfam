@@ -1378,6 +1378,324 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+    if (action === 'list_user_activity') {
+      const daysRaw = Number(body?.days ?? 30);
+      const days = Number.isFinite(daysRaw) ? Math.min(90, Math.max(1, Math.floor(daysRaw))) : 30;
+      const sinceIso = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+      const roleFilter =
+        typeof body?.role === 'string' && (body.role === 'crew' || body.role === 'family')
+          ? body.role
+          : 'all';
+
+      const [
+        { data: eventRows, error: evErr },
+        { data: profiles },
+        { data: deviceTokens },
+        { data: crewProfiles },
+      ] = await Promise.all([
+        adminClient
+          .from('user_activity_events')
+          .select('id, user_id, event_type, occurred_at, meta')
+          .gte('occurred_at', sinceIso)
+          .order('occurred_at', { ascending: false })
+          .limit(5000),
+        adminClient.from('profiles').select('id, role, full_name').limit(2000),
+        adminClient
+          .from('device_tokens')
+          .select('user_id, platform, app_version, app_build, last_used_at'),
+        adminClient.from('crew_profiles').select('user_id, company_name, airline_icao').limit(2000),
+      ]);
+
+      if (evErr) {
+        const msg = String(evErr.message || '');
+        if (/user_activity_events|does not exist|schema cache/i.test(msg)) {
+          return new Response(
+            JSON.stringify({
+              ok: false,
+              error:
+                'user_activity_events tablosu yok. Migration uygulayın: 20260725140000_user_activity_events.sql',
+              hint: msg,
+            }),
+            { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+          );
+        }
+        return new Response(JSON.stringify({ error: msg }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const authUsers: Array<{ id: string; email: string | null; last_sign_in_at: string | null }> = [];
+      let page = 1;
+      while (page <= 20) {
+        const { data, error } = await adminClient.auth.admin.listUsers({ page, perPage: 200 });
+        if (error || !data?.users?.length) break;
+        for (const u of data.users) {
+          authUsers.push({
+            id: u.id,
+            email: u.email ?? null,
+            last_sign_in_at: (u as { last_sign_in_at?: string | null }).last_sign_in_at ?? null,
+          });
+        }
+        if (data.users.length < 200) break;
+        page += 1;
+      }
+      const authById = new Map(authUsers.map((u) => [u.id, u]));
+      const profileById = new Map((profiles ?? []).map((p) => [p.id, p]));
+      const crewByUser = new Map(
+        (crewProfiles ?? []).map((c: { user_id: string; company_name?: string | null; airline_icao?: string | null }) => [
+          c.user_id,
+          c,
+        ]),
+      );
+
+      type DevTok = {
+        user_id: string;
+        platform: string | null;
+        app_version?: string | null;
+        app_build?: string | null;
+        last_used_at?: string | null;
+      };
+      const deviceByUser = new Map<string, DevTok[]>();
+      for (const d of (deviceTokens ?? []) as DevTok[]) {
+        if (!deviceByUser.has(d.user_id)) deviceByUser.set(d.user_id, []);
+        deviceByUser.get(d.user_id)!.push(d);
+      }
+
+      const dayKey = (iso: string) => iso.slice(0, 10);
+      const now = Date.now();
+      const startOfTodayUtc = new Date();
+      startOfTodayUtc.setUTCHours(0, 0, 0, 0);
+      const todayKey = startOfTodayUtc.toISOString().slice(0, 10);
+      const weekAgo = now - 7 * 24 * 60 * 60 * 1000;
+      const monthAgo = now - 30 * 24 * 60 * 60 * 1000;
+
+      const dailyMap = new Map<
+        string,
+        { app_opens: number; unique_opens: Set<string>; roster_imports: number; family_pushes: number }
+      >();
+      for (let i = 0; i < days; i++) {
+        const d = new Date(startOfTodayUtc.getTime() - i * 24 * 60 * 60 * 1000);
+        const k = d.toISOString().slice(0, 10);
+        dailyMap.set(k, {
+          app_opens: 0,
+          unique_opens: new Set(),
+          roster_imports: 0,
+          family_pushes: 0,
+        });
+      }
+
+      type Agg = {
+        opens: number;
+        opens_7d: number;
+        opens_30d: number;
+        last_app_open_at: string | null;
+        roster_imports: number;
+        last_roster_import_at: string | null;
+        family_pushes: number;
+        last_family_push_at: string | null;
+      };
+      const aggByUser = new Map<string, Agg>();
+      const ensureAgg = (uid: string): Agg => {
+        let a = aggByUser.get(uid);
+        if (!a) {
+          a = {
+            opens: 0,
+            opens_7d: 0,
+            opens_30d: 0,
+            last_app_open_at: null,
+            roster_imports: 0,
+            last_roster_import_at: null,
+            family_pushes: 0,
+            last_family_push_at: null,
+          };
+          aggByUser.set(uid, a);
+        }
+        return a;
+      };
+
+      const dauSet = new Set<string>();
+      const wauSet = new Set<string>();
+      const mauSet = new Set<string>();
+
+      for (const ev of eventRows ?? []) {
+        const uid = String(ev.user_id);
+        const prof = profileById.get(uid);
+        if (roleFilter !== 'all' && String(prof?.role ?? '') !== roleFilter) continue;
+        const t = new Date(ev.occurred_at).getTime();
+        const dk = dayKey(String(ev.occurred_at));
+        const bucket = dailyMap.get(dk);
+        const a = ensureAgg(uid);
+
+        if (ev.event_type === 'app_open') {
+          a.opens += 1;
+          if (t >= weekAgo) a.opens_7d += 1;
+          if (t >= monthAgo) a.opens_30d += 1;
+          if (!a.last_app_open_at || ev.occurred_at > a.last_app_open_at) a.last_app_open_at = ev.occurred_at;
+          if (bucket) {
+            bucket.app_opens += 1;
+            bucket.unique_opens.add(uid);
+          }
+          if (dk === todayKey) dauSet.add(uid);
+          if (t >= weekAgo) wauSet.add(uid);
+          if (t >= monthAgo) mauSet.add(uid);
+        } else if (ev.event_type === 'roster_import') {
+          a.roster_imports += 1;
+          if (!a.last_roster_import_at || ev.occurred_at > a.last_roster_import_at) {
+            a.last_roster_import_at = ev.occurred_at;
+          }
+          if (bucket) bucket.roster_imports += 1;
+        } else if (ev.event_type === 'family_push') {
+          a.family_pushes += 1;
+          if (!a.last_family_push_at || ev.occurred_at > a.last_family_push_at) {
+            a.last_family_push_at = ev.occurred_at;
+          }
+          if (bucket) bucket.family_pushes += 1;
+        }
+      }
+
+      // Proxy active: device last_used within 7d (until app_open accumulates)
+      const deviceActive7d = new Set<string>();
+      for (const [uid, toks] of deviceByUser) {
+        const prof = profileById.get(uid);
+        if (roleFilter !== 'all' && String(prof?.role ?? '') !== roleFilter) continue;
+        for (const d of toks) {
+          const t = d.last_used_at ? new Date(d.last_used_at).getTime() : 0;
+          if (t >= weekAgo) deviceActive7d.add(uid);
+        }
+      }
+      const active7d = new Set([...wauSet, ...deviceActive7d]);
+
+      const daily = [...dailyMap.entries()]
+        .sort((a, b) => a[0].localeCompare(b[0]))
+        .map(([date, b]) => ({
+          date,
+          app_opens: b.app_opens,
+          unique_users: b.unique_opens.size,
+          roster_imports: b.roster_imports,
+          family_pushes: b.family_pushes,
+        }));
+
+      const userIds = new Set<string>([
+        ...aggByUser.keys(),
+        ...deviceByUser.keys(),
+        ...(profiles ?? []).map((p) => p.id),
+      ]);
+
+      const users = [...userIds]
+        .map((uid) => {
+          const prof = profileById.get(uid);
+          if (!prof) return null;
+          if (roleFilter !== 'all' && String(prof.role ?? '') !== roleFilter) return null;
+          const a = aggByUser.get(uid);
+          const auth = authById.get(uid);
+          const crew = crewByUser.get(uid);
+          const toks = deviceByUser.get(uid) ?? [];
+          let lastDevice: string | null = null;
+          let platform: string | null = null;
+          let appVersion: string | null = null;
+          let appBuild: string | null = null;
+          for (const d of toks) {
+            if (d.last_used_at && (!lastDevice || d.last_used_at > lastDevice)) {
+              lastDevice = d.last_used_at;
+              platform = d.platform;
+              appVersion = d.app_version ?? null;
+              appBuild = d.app_build ?? null;
+            }
+          }
+          if (!platform && toks[0]) {
+            platform = toks[0].platform;
+            appVersion = toks[0].app_version ?? null;
+            appBuild = toks[0].app_build ?? null;
+          }
+          const lastOpen = a?.last_app_open_at ?? null;
+          const lastSeenCandidates = [lastOpen, lastDevice, auth?.last_sign_in_at ?? null].filter(Boolean) as string[];
+          const last_seen_at =
+            lastSeenCandidates.length > 0
+              ? lastSeenCandidates.reduce((best, cur) => (cur > best ? cur : best))
+              : null;
+          const lastSeenMs = last_seen_at ? new Date(last_seen_at).getTime() : 0;
+          const active_7d = lastSeenMs >= weekAgo;
+          const active_30d = lastSeenMs >= monthAgo;
+          return {
+            user_id: uid,
+            full_name: prof.full_name ?? null,
+            email: auth?.email ?? null,
+            role: prof.role ?? null,
+            airline_icao: crew?.airline_icao ?? null,
+            company_name: crew?.company_name ?? null,
+            platform,
+            app_version: appVersion,
+            app_build: appBuild,
+            last_app_open_at: lastOpen,
+            last_device_at: lastDevice,
+            last_sign_in_at: auth?.last_sign_in_at ?? null,
+            last_seen_at,
+            active_7d,
+            active_30d,
+            opens_7d: a?.opens_7d ?? 0,
+            opens_30d: a?.opens_30d ?? 0,
+            last_roster_import_at: a?.last_roster_import_at ?? null,
+            roster_imports_period: a?.roster_imports ?? 0,
+            last_family_push_at: a?.last_family_push_at ?? null,
+            family_pushes_period: a?.family_pushes ?? 0,
+          };
+        })
+        .filter(Boolean)
+        .sort((a, b) => {
+          const ta = a!.last_seen_at ? new Date(a!.last_seen_at).getTime() : 0;
+          const tb = b!.last_seen_at ? new Date(b!.last_seen_at).getTime() : 0;
+          return tb - ta;
+        });
+
+      const recent = (eventRows ?? [])
+        .slice(0, 120)
+        .map((ev) => {
+          const prof = profileById.get(ev.user_id);
+          if (roleFilter !== 'all' && String(prof?.role ?? '') !== roleFilter) return null;
+          const auth = authById.get(ev.user_id);
+          return {
+            id: ev.id,
+            occurred_at: ev.occurred_at,
+            event_type: ev.event_type,
+            user_id: ev.user_id,
+            full_name: prof?.full_name ?? null,
+            email: auth?.email ?? null,
+            role: prof?.role ?? null,
+            meta: ev.meta ?? {},
+          };
+        })
+        .filter(Boolean);
+
+      const rosterImportsPeriod = (eventRows ?? []).filter((e) => e.event_type === 'roster_import').length;
+      const familyPushesPeriod = (eventRows ?? []).filter((e) => e.event_type === 'family_push').length;
+
+      return new Response(
+        JSON.stringify({
+          ok: true,
+          action,
+          days,
+          since: sinceIso,
+          role: roleFilter,
+          summary: {
+            dau: dauSet.size,
+            wau: wauSet.size,
+            mau: mauSet.size,
+            active_7d: active7d.size,
+            active_7d_device_proxy: deviceActive7d.size,
+            users_in_table: users.length,
+            roster_imports_period: rosterImportsPeriod,
+            family_pushes_period: familyPushesPeriod,
+            events_loaded: (eventRows ?? []).length,
+          },
+          daily,
+          users,
+          recent,
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
+
     return new Response(JSON.stringify({ error: 'Unsupported action' }), {
       status: 400,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

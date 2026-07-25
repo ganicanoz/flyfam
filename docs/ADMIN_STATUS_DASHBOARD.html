@@ -9,7 +9,7 @@
   <meta http-equiv="Expires" content="0" />
   <script>
     (function () {
-      var UI = '18';
+      var UI = '19';
       var p = new URLSearchParams(location.search);
       if (p.get('ui') !== UI) {
         p.set('ui', UI);
@@ -158,9 +158,76 @@
     .hidden { display: none !important; }
     .grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 8px; }
     .kpi-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+    .kpi-row.kpi-row-5 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
     .card { background: var(--panel-soft); border: 1px solid #2f3b49; border-radius: 8px; padding: 10px; }
     .card h3 { margin: 0; font-size: 13px; color: var(--muted); font-weight: 600; }
     .num { font-size: 24px; font-weight: 700; margin-top: 2px; }
+    .act-chart-wrap {
+      margin-top: 12px;
+      padding: 14px 12px 8px;
+      background: var(--panel-soft);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+    }
+    .act-chart {
+      display: flex;
+      align-items: flex-end;
+      gap: 4px;
+      height: 140px;
+      padding: 0 2px;
+    }
+    .act-bar-col {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      height: 100%;
+      justify-content: flex-end;
+      gap: 4px;
+    }
+    .act-bar {
+      width: 100%;
+      max-width: 28px;
+      border-radius: 4px 4px 2px 2px;
+      background: linear-gradient(180deg, #60a5fa, #2563eb);
+      min-height: 2px;
+    }
+    .act-bar-label {
+      font-size: 9px;
+      color: var(--muted);
+      white-space: nowrap;
+      height: 16px;
+      line-height: 16px;
+    }
+    .act-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 10px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .act-legend > span:first-child::before {
+      content: '';
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 2px;
+      margin-right: 6px;
+      vertical-align: -1px;
+      background: #2563eb;
+    }
+    .pill {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .pill-ok { background: #dcfce7; color: #166534; }
+    .pill-warn { background: #ffedd5; color: #9a3412; }
+    .pill-muted { background: #e2e8f0; color: #475569; }
     .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
     input, select, textarea {
       background: #ffffff;
@@ -448,6 +515,7 @@
       .app { grid-template-columns: 1fr; min-height: auto; }
       .sidebar { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--line); top: 0; }
       .kpi-row { grid-template-columns: 1fr; }
+      .kpi-row.kpi-row-5 { grid-template-columns: 1fr 1fr; }
     }
     @media (max-width: 1400px) {
       .topbar .advanced-auth-fields > .auth-field { grid-column: span 6 !important; }
@@ -494,11 +562,11 @@
       <p class="sub">Details on the left, summary on home</p>
       <nav class="menu">
         <button class="nav-btn active" data-view="overviewView">Overview</button>
+        <button class="nav-btn" data-view="activityView">Activity</button>
         <button class="nav-btn" data-view="usersView">Users</button>
         <button class="nav-btn" data-view="flightsView">Flights</button>
         <button class="nav-btn" data-view="historyView">History log</button>
         <button class="nav-btn" data-view="usageView">Quota / Usage</button>
-        <a class="nav-external" href="./admin/splash-preview.html" target="_blank" rel="noopener">Splash · video önizleme</a>
       </nav>
     </aside>
     <main class="main">
@@ -522,6 +590,108 @@
             <h3>API quota / usage</h3>
             <div class="num" id="usageConfigured">-</div>
             <div class="mini" id="usageShortHint">Quota summary</div>
+          </div>
+        </div>
+      </section>
+
+      <section id="activityView" class="view">
+        <div class="panel">
+          <h3 style="margin:0 0 8px;">Kullanıcı aktivitesi</h3>
+          <p class="mini" style="margin-top:0;">
+            Uygulama açılışı (<code>app_open</code>, saatlik throttle), roster PDF import ve aileye giden push’lar.
+            Aktif = son 7 günde açılış veya cihaz token yenilemesi. Yeni event’ler uygulama güncellemesinden sonra birikir.
+          </p>
+          <div class="users-toolbar" style="margin-bottom:10px;">
+            <div>
+              <label class="mini">Son kaç gün</label>
+              <select id="activityDays">
+                <option value="7">7</option>
+                <option value="14">14</option>
+                <option value="30" selected>30</option>
+                <option value="90">90</option>
+              </select>
+            </div>
+            <div>
+              <label class="mini">Rol</label>
+              <select id="activityRole">
+                <option value="all">Tümü</option>
+                <option value="crew" selected>crew</option>
+                <option value="family">family</option>
+              </select>
+            </div>
+            <div style="align-self:end;">
+              <button type="button" id="btnActivityLoad" class="btnPrimary">Yükle</button>
+              <span id="activityStatus" class="mini"></span>
+            </div>
+          </div>
+          <div class="kpi-row kpi-row-5" style="margin-bottom:12px;">
+            <div class="card">
+              <h3>Bugün (DAU)</h3>
+              <div class="num" id="actDau">-</div>
+              <div class="mini">app_open · UTC gün</div>
+            </div>
+            <div class="card">
+              <h3>7 gün (WAU)</h3>
+              <div class="num" id="actWau">-</div>
+              <div class="mini">unique app_open</div>
+            </div>
+            <div class="card">
+              <h3>Aktif 7g</h3>
+              <div class="num" id="actActive7">-</div>
+              <div class="mini">açılış + cihaz proxy</div>
+            </div>
+            <div class="card">
+              <h3>Roster import</h3>
+              <div class="num" id="actImports">-</div>
+              <div class="mini">seçilen dönemde</div>
+            </div>
+            <div class="card">
+              <h3>Aile push</h3>
+              <div class="num" id="actPushes">-</div>
+              <div class="mini">seçilen dönemde</div>
+            </div>
+          </div>
+          <div class="act-chart-wrap">
+            <div class="mini" style="margin-bottom:8px;"><strong>Günlük unique açılış</strong> (mavi çubuk)</div>
+            <div class="act-chart" id="activityChart"></div>
+            <div class="act-legend">
+              <span>Unique kullanıcı / gün</span>
+              <span id="activityChartHint" class="mini"></span>
+            </div>
+          </div>
+          <h3 style="margin:16px 0 8px;">Kullanıcılar</h3>
+          <div class="users-table-wrap">
+            <table class="users-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Ad</th>
+                  <th>Email</th>
+                  <th>Rol</th>
+                  <th>Durum</th>
+                  <th>Son görülme</th>
+                  <th>Açılış 7g</th>
+                  <th>Son import</th>
+                  <th>Son aile push</th>
+                  <th>Sürüm</th>
+                </tr>
+              </thead>
+              <tbody id="activityUsersBody"></tbody>
+            </table>
+          </div>
+          <h3 style="margin:16px 0 8px;">Son olaylar</h3>
+          <div class="users-table-wrap">
+            <table class="users-table">
+              <thead>
+                <tr>
+                  <th>Zaman</th>
+                  <th>Olay</th>
+                  <th>Kullanıcı</th>
+                  <th>Detay</th>
+                </tr>
+              </thead>
+              <tbody id="activityRecentBody"></tbody>
+            </table>
           </div>
         </div>
       </section>
@@ -785,6 +955,19 @@
       historyQ: document.getElementById('historyQ'),
       historyStatus: document.getElementById('historyStatus'),
       btnHistoryLoad: document.getElementById('btnHistoryLoad'),
+      btnActivityLoad: document.getElementById('btnActivityLoad'),
+      activityDays: document.getElementById('activityDays'),
+      activityRole: document.getElementById('activityRole'),
+      activityStatus: document.getElementById('activityStatus'),
+      actDau: document.getElementById('actDau'),
+      actWau: document.getElementById('actWau'),
+      actActive7: document.getElementById('actActive7'),
+      actImports: document.getElementById('actImports'),
+      actPushes: document.getElementById('actPushes'),
+      activityChart: document.getElementById('activityChart'),
+      activityChartHint: document.getElementById('activityChartHint'),
+      activityUsersBody: document.getElementById('activityUsersBody'),
+      activityRecentBody: document.getElementById('activityRecentBody'),
       btnFr24Open: document.getElementById('btnFr24Open'),
       btnFr24Fetch: document.getElementById('btnFr24Fetch'),
       fr24Status: document.getElementById('fr24Status'),
@@ -2098,6 +2281,128 @@
       }
     }
 
+    function eventTypeLabel(t) {
+      if (t === 'app_open') return 'Açılış';
+      if (t === 'roster_import') return 'Roster import';
+      if (t === 'family_push') return 'Aile push';
+      return t || '—';
+    }
+
+    function renderActivityChart(daily) {
+      if (!els.activityChart) return;
+      const rows = daily || [];
+      if (!rows.length) {
+        els.activityChart.innerHTML = '<div class="mini" style="align-self:center;">Henüz günlük veri yok</div>';
+        if (els.activityChartHint) els.activityChartHint.textContent = '';
+        return;
+      }
+      const max = Math.max(1, ...rows.map((d) => Number(d.unique_users || 0)));
+      const showEvery = rows.length > 20 ? Math.ceil(rows.length / 12) : 1;
+      els.activityChart.innerHTML = rows.map((d, i) => {
+        const u = Number(d.unique_users || 0);
+        const h = Math.max(2, Math.round((u / max) * 100));
+        const label = i % showEvery === 0 || i === rows.length - 1
+          ? String(d.date || '').slice(5)
+          : '';
+        const title = escapeAttr((d.date || '') + ': ' + u + ' unique · ' + (d.app_opens || 0) + ' open · ' + (d.roster_imports || 0) + ' import · ' + (d.family_pushes || 0) + ' push');
+        return (
+          '<div class="act-bar-col" title="' + title + '">' +
+            '<div class="act-bar" style="height:' + h + '%"></div>' +
+            '<div class="act-bar-label">' + escapeHtml(label) + '</div>' +
+          '</div>'
+        );
+      }).join('');
+      if (els.activityChartHint) {
+        els.activityChartHint.textContent = 'max ' + max + ' / gün';
+      }
+    }
+
+    function renderActivity(json) {
+      const s = json.summary || {};
+      if (els.actDau) els.actDau.textContent = s.dau != null ? s.dau : '-';
+      if (els.actWau) els.actWau.textContent = s.wau != null ? s.wau : '-';
+      if (els.actActive7) els.actActive7.textContent = s.active_7d != null ? s.active_7d : '-';
+      if (els.actImports) els.actImports.textContent = s.roster_imports_period != null ? s.roster_imports_period : '-';
+      if (els.actPushes) els.actPushes.textContent = s.family_pushes_period != null ? s.family_pushes_period : '-';
+      renderActivityChart(json.daily || []);
+
+      const users = json.users || [];
+      if (els.activityUsersBody) {
+        if (!users.length) {
+          els.activityUsersBody.innerHTML = '<tr><td colspan="10" class="mini">Kullanıcı yok veya henüz event birikmedi.</td></tr>';
+        } else {
+          els.activityUsersBody.innerHTML = users.map((u, idx) => {
+            let pill = '<span class="pill pill-muted">pasif</span>';
+            if (u.active_7d) pill = '<span class="pill pill-ok">aktif 7g</span>';
+            else if (u.active_30d) pill = '<span class="pill pill-warn">30g</span>';
+            const ver = [u.app_version, u.app_build ? '(' + u.app_build + ')' : ''].filter(Boolean).join(' ') || '—';
+            const plat = u.platform ? String(u.platform) + ' · ' : '';
+            return (
+              '<tr>' +
+                '<td class="mini">' + (idx + 1) + '</td>' +
+                '<td><strong>' + escapeHtml(u.full_name || '—') + '</strong></td>' +
+                '<td class="mini">' + escapeHtml(u.email || '—') + '</td>' +
+                '<td>' + escapeHtml(u.role || '—') + '</td>' +
+                '<td>' + pill + '</td>' +
+                '<td class="mini">' + escapeHtml(fmtShortTs(u.last_seen_at)) + '</td>' +
+                '<td>' + escapeHtml(String(u.opens_7d ?? 0)) + '</td>' +
+                '<td class="mini">' + escapeHtml(fmtShortTs(u.last_roster_import_at)) + '</td>' +
+                '<td class="mini">' + escapeHtml(fmtShortTs(u.last_family_push_at)) + '</td>' +
+                '<td class="mini">' + escapeHtml(plat + ver) + '</td>' +
+              '</tr>'
+            );
+          }).join('');
+        }
+      }
+
+      const recent = json.recent || [];
+      if (els.activityRecentBody) {
+        if (!recent.length) {
+          els.activityRecentBody.innerHTML = '<tr><td colspan="4" class="mini">Henüz olay yok. Migration + yeni app build sonrası dolacak.</td></tr>';
+        } else {
+          els.activityRecentBody.innerHTML = recent.map((r) => {
+            const meta = r.meta && typeof r.meta === 'object' ? r.meta : {};
+            const bits = [];
+            if (meta.kind) bits.push(String(meta.kind));
+            if (meta.sent != null) bits.push('sent ' + meta.sent);
+            if (meta.ok != null) bits.push('ok ' + meta.ok);
+            if (meta.imported_flights != null) bits.push('flights ' + meta.imported_flights);
+            if (meta.platform) bits.push(String(meta.platform));
+            if (meta.app_version) bits.push('v' + meta.app_version);
+            const who = (r.full_name || r.email || r.user_id || '—');
+            return (
+              '<tr>' +
+                '<td class="mini">' + escapeHtml(fmtShortTs(r.occurred_at)) + '</td>' +
+                '<td><code>' + escapeHtml(eventTypeLabel(r.event_type)) + '</code></td>' +
+                '<td class="mini">' + escapeHtml(who) + (r.role ? ' · ' + escapeHtml(r.role) : '') + '</td>' +
+                '<td class="mini">' + escapeHtml(bits.join(' · ') || '—') + '</td>' +
+              '</tr>'
+            );
+          }).join('');
+        }
+      }
+    }
+
+    async function loadActivity() {
+      if (!els.activityStatus) return;
+      els.activityStatus.textContent = 'yükleniyor…';
+      els.activityStatus.className = 'mini warn';
+      try {
+        const json = await callAdminAction('list_user_activity', {
+          days: Number((els.activityDays && els.activityDays.value) || 30),
+          role: (els.activityRole && els.activityRole.value) || 'crew',
+        });
+        renderActivity(json);
+        const s = json.summary || {};
+        els.activityStatus.textContent =
+          (s.events_loaded || 0) + ' event · ' + (s.active_7d || 0) + ' aktif 7g';
+        els.activityStatus.className = 'mini ok';
+      } catch (err) {
+        els.activityStatus.textContent = String(err?.message || err);
+        els.activityStatus.className = 'mini bad';
+      }
+    }
+
     function renderDashboard(data) {
       els.usersActive.textContent = data.users?.active_30d ?? '-';
       els.usersTotal.textContent = data.users?.total ?? '-';
@@ -2588,6 +2893,9 @@
       if (viewId === 'historyView' && accessToken) {
         loadHistory().catch(() => {});
       }
+      if (viewId === 'activityView' && accessToken) {
+        loadActivity().catch(() => {});
+      }
     }
     function switchFlightsSubview(subviewId) {
       els.flightSubViews.forEach((v) => v.classList.toggle('active', v.id === subviewId));
@@ -2601,6 +2909,15 @@
     });
     els.btnHistoryLoad?.addEventListener('click', () => {
       loadHistory().catch((err) => setStatus(String(err?.message || err), 'bad'));
+    });
+    els.btnActivityLoad?.addEventListener('click', () => {
+      loadActivity().catch((err) => setStatus(String(err?.message || err), 'bad'));
+    });
+    els.activityDays?.addEventListener('change', () => {
+      loadActivity().catch(() => {});
+    });
+    els.activityRole?.addEventListener('change', () => {
+      loadActivity().catch(() => {});
     });
     els.historySource?.addEventListener('change', () => {
       // Re-render from last payload if present; otherwise reload.
