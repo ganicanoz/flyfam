@@ -47,6 +47,7 @@
     "successTitle": "E-posta doğrulandı",
     "successMessage": "Hesabınız doğrulandı. FlyFam'e devam edebilirsiniz.",
     "expired": "Doğrulama bağlantısının süresi dolmuş veya geçersiz. Aşağıdaki «Doğrulama mailini tekrar gönder» ile yeni bağlantı isteyebilirsiniz.",
+    "pkceMismatch": "Bu doğrulama bağlantısı bu cihazda tamamlanamadı. «Doğrulama mailini tekrar gönder» ile yeni bir link isteyin; link FlyFam uygulamasını açmalı.",
     "failed": "Bağlantı işlenemedi. Maildeki linke tekrar dokunun; FlyFam uygulaması açılmalı (tarayıcıda Supabase sayfası kalırsa uygulamayı manuel açın).",
     "networkTitle": "Bağlantı sorunu",
     "networkMessage": "Doğrulama bağlantısı açılırken bağlantı kısa süre kesildi. FlyFam sizi zaten içeri aldıysa devam edebilirsiniz. Değilse birkaç saniye bekleyip maildeki linke tekrar dokunun."
@@ -438,9 +439,15 @@
     "baseStatusOn": "Etkin",
     "baseStatusOff": "Etkin değil",
     "extraFamilyTitle": "Ek aile üyesi",
-    "extraFamilyAddonHint": "İhtiyaç olursa add-on olarak eklenir. Temel aboneliğin yerine geçmez."
-    ,"buyExtraFamily": "Ek aile üyesi satın al",
+    "extraFamilyAddonHint": "Her App Store satın alımı +1 aile slotu ekler. Aktif temel abonelik gerekir.",
+    "buyExtraFamily": "Ek aile üyesi satın al",
     "removeOneExtraFamily": "1 ek aile üyesini kaldır",
+    "addonNeedsBase": "Önce temel aboneliği alın; ardından ek aile üyesi ekleyebilirsiniz.",
+    "addonAtCap": "Ek aile üyesi üst sınırına ulaştınız.",
+    "addonIosOnly": "Ek aile üyesi satın alma şu an yalnızca iOS’ta.",
+    "addonSavedTitle": "Add-on alındı",
+    "addonSavedMessage": "Hesabınıza bir ek aile slotu eklendi.",
+    "addonCannotRemoveInUse": "Bağlı aile üyelerinin kullandığı slotları kaldıramazsınız.",
     "restorePurchases": "Satın alımları geri yükle",
     "restoreDoneTitle": "Geri yükleme tamamlandı",
     "restoreDoneMessage": "Satın alımlar kontrol edildi ve abonelik durumu yenilendi.",
@@ -449,7 +456,7 @@
     "legalSubscriptionTitle": "Temel Abonelik — 1 ekip üyesi + 1 aile üyesi",
     "legalSubscriptionLength": "Fatura dönemi: aylık, App Store abonelik ayarlarından iptal edilene kadar otomatik yenilenir.",
     "legalSubscriptionPrice": "Fiyat: onaylamadan önce App Store ödeme ekranında gösterilir (bölgesel fiyatlandırma).",
-    "legalAddonPrice": "Ek aile üyesi add-on: aylık otomatik yenilenen ek paket (bölgesel fiyat, satın alma anında gösterilir).",
+    "legalAddonPrice": "Ek aile üyesi add-on: her ekstra slot için tek seferlik App Store satın alımı (bölgesel fiyat, satın alma anında gösterilir).",
     "autoRenewDisclaimer": "Ödeme Apple ID hesabınıza yansır. Abonelik, mevcut dönem bitiminden en az 24 saat önce iptal edilmezse otomatik yenilenir. Ayarlar → Apple Kimliği → Abonelikler üzerinden yönetebilir veya iptal edebilirsiniz."
   },
   "nav": {

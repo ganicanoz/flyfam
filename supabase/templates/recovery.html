@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta http-equiv="x-ua-compatible" content="ie=edge" />
+  <title>Şifrenizi sıfırlayın / Reset your password</title>
+</head>
+<body style="margin:0;padding:0;background:#EEF3F9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;color:#0B1220;-webkit-font-smoothing:antialiased;">
+  <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">FlyFam — Şifre sıfırlama · Password reset</div>
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#EEF3F9;padding:36px 16px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:560px;background:#FFFFFF;border-radius:22px;border:1px solid #E1EAF5;box-shadow:0 10px 40px rgba(11,18,32,0.07);overflow:hidden;">
+          <tr>
+            <td style="background:linear-gradient(165deg,#D8E8FD 0%,#B4CCFB 38%,#9BB8F5 68%,#7BA8EE 100%);padding:40px 28px 34px;text-align:center;">
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" style="margin:0 auto 18px;">
+                <tr>
+                  <td align="center" style="background:#FFFFFF;border-radius:20px;border:3px solid rgba(255,255,255,0.85);padding:6px;line-height:0;">
+                    <img src="https://slmgmcpluanezvkgkozw.supabase.co/storage/v1/object/public/admin-static/brand/flyfam-email-logo.png" width="80" height="80" alt="FlyFam" style="display:block;border:0;border-radius:14px;outline:none;text-decoration:none;" />
+                  </td>
+                </tr>
+              </table>
+              <div style="font-size:30px;font-weight:800;letter-spacing:-0.03em;color:#0B1220;line-height:1.1;">FlyFam</div>
+              <div lang="en" style="font-size:11px;font-weight:600;letter-spacing:0.14em;color:#1D4FA3;margin-top:10px;opacity:0.9;">CREW ROSTER &middot; FAMILY FLIGHT TRACKING</div>
+            </td>
+          </tr>
+          <tr>
+            <td lang="tr" style="padding:32px 28px 8px;">
+              <span style="display:inline-block;background:#F1F6FF;color:#1D4FA3;font-size:11px;font-weight:700;letter-spacing:0.06em;padding:5px 11px;border-radius:6px;border:1px solid #BFD9FF;">T&#252;rk&#231;e</span>
+              <div style="font-size:22px;font-weight:700;line-height:1.3;color:#0B1220;padding:18px 0 12px;">Şifrenizi sıfırlayın</div>
+              <div style="font-size:16px;line-height:1.65;color:#22324C;padding-bottom:16px;">FlyFam hesabınız için şifre sıfırlama talebi aldık. Yeni şifre belirlemek için düğmeye dokunun. Bu talebi siz yapmadıysanız bu e-postayı yok sayın.</div>
+              <div style="font-size:14px;line-height:1.5;color:#6B7A90;padding:14px 16px;background:#F1F6FF;border-radius:12px;border:1px solid #D6E4F7;">
+                <span style="color:#93A8C6;">Hesap / Account</span><br />
+                <strong style="color:#0B1220;font-size:15px;">{{ .Email }}</strong>
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:10px 28px 26px;text-align:center;">
+              <a href="https://ganicanoz.github.io/flyfam/auth-callback.html?token_hash={{ .TokenHash }}&amp;type=recovery" style="display:inline-block;background:#1D4FA3;color:#ffffff !important;text-decoration:none;font-weight:700;font-size:16px;line-height:1.35;padding:16px 38px;border-radius:12px;box-shadow:0 4px 16px rgba(29,79,163,0.32);">Reset password<br /><span style="font-size:13px;font-weight:500;opacity:0.92;">&#350;ifremi s&#305;f&#305;rla</span></a>
+              <div style="font-size:12px;color:#6B7A90;margin-top:14px;line-height:1.45;">K&#305;sa s&#252;re taray&#305;c&#305; a&#231;&#305;labilir; ard&#305;ndan FlyFam a&#231;&#305;l&#305;r. Ba&#287;lant&#305; s&#305;n&#305;rl&#305; s&#252;re ge&#231;erlidir.<br />A brief browser step is normal; then FlyFam opens. Link expires soon.</div>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:0 28px;"><div style="border-top:1px solid #E1EAF5;height:1px;"></div></td>
+          </tr>
+          <tr>
+            <td lang="en" style="padding:26px 28px 8px;">
+              <span style="display:inline-block;background:#E8F8EF;color:#166534;font-size:11px;font-weight:700;letter-spacing:0.06em;padding:5px 11px;border-radius:6px;border:1px solid #BBF7D0;">ENGLISH</span>
+              <div style="font-size:22px;font-weight:700;line-height:1.3;color:#0B1220;padding:18px 0 12px;">Reset your password</div>
+              <div style="font-size:16px;line-height:1.65;color:#22324C;">We received a request to reset your FlyFam password. Use the button above to set a new password. If you did not request this, ignore this email.</div>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:22px 28px 30px;background:#F1F6FF;border-top:1px solid #E1EAF5;">
+              <p style="margin:0 0 10px;font-size:12px;line-height:1.55;color:#6B7A90;"><strong style="color:#1D4FA3;">TR:</strong> Buton çalışmazsa: <a href="https://ganicanoz.github.io/flyfam/auth-callback.html?token_hash={{ .TokenHash }}&amp;type=recovery" style="color:#1D4FA3;font-weight:600;text-decoration:underline;">şifre sıfırlama bağlantısı</a></p>
+              <p style="margin:0 0 14px;font-size:12px;line-height:1.55;color:#6B7A90;"><strong style="color:#1D4FA3;">EN:</strong> If the button does not work: <a href="https://ganicanoz.github.io/flyfam/auth-callback.html?token_hash={{ .TokenHash }}&amp;type=recovery" style="color:#1D4FA3;font-weight:600;text-decoration:underline;">password reset link</a></p>
+              <p style="margin:22px 0 0;font-size:11px;color:#93A8C6;text-align:center;">© FlyFam</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

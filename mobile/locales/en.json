@@ -47,6 +47,7 @@
     "successTitle": "Email verified",
     "successMessage": "Your account is verified. You can continue in FlyFam.",
     "expired": "This verification link has expired or is invalid. Tap «Resend verification email» below to get a new one.",
+    "pkceMismatch": "This verification link could not be completed on this device. Tap «Resend verification email» for a new link; it should open the FlyFam app.",
     "failed": "We could not process this link. Tap the link again; the FlyFam app should open (if you only see a browser page, open the app manually).",
     "networkTitle": "Connection issue",
     "networkMessage": "The connection dropped briefly while opening your verification link. If FlyFam already signed you in, you can continue. Otherwise wait a few seconds and tap the link in your email again."
@@ -438,9 +439,15 @@
     "baseStatusOn": "Active",
     "baseStatusOff": "Inactive",
     "extraFamilyTitle": "Extra family members",
-    "extraFamilyAddonHint": "Add only if needed, as an add-on. It does not replace the base subscription.",
+    "extraFamilyAddonHint": "Each App Store purchase adds +1 family slot. Requires an active base subscription.",
     "buyExtraFamily": "Buy extra family member",
     "removeOneExtraFamily": "Remove 1 extra family member",
+    "addonNeedsBase": "Buy the base subscription first, then you can add family members.",
+    "addonAtCap": "You already have the maximum number of extra family members.",
+    "addonIosOnly": "Extra family purchases are currently available on iOS only.",
+    "addonSavedTitle": "Add-on purchased",
+    "addonSavedMessage": "An extra family slot was added to your account.",
+    "addonCannotRemoveInUse": "You cannot remove slots that are already used by connected family members.",
     "restorePurchases": "Restore Purchases",
     "restoreDoneTitle": "Restore completed",
     "restoreDoneMessage": "Your purchases were checked and subscription status was refreshed.",
@@ -449,7 +456,7 @@
     "legalSubscriptionTitle": "Base Subscription — 1 crew member + 1 family member",
     "legalSubscriptionLength": "Billing period: monthly, auto-renewable until canceled in App Store settings.",
     "legalSubscriptionPrice": "Price: shown on the App Store payment sheet before you confirm (regional pricing).",
-    "legalAddonPrice": "Extra family member add-on: monthly auto-renewable add-on (regional pricing, shown at purchase).",
+    "legalAddonPrice": "Extra family member add-on: one-time App Store purchase per extra slot (regional pricing, shown at purchase).",
     "autoRenewDisclaimer": "Payment is charged to your Apple ID account. Subscription renews automatically unless canceled at least 24 hours before the end of the current period. Manage or cancel in Settings → Apple ID → Subscriptions."
   },
   "nav": {

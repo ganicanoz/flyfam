@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex,nofollow" />
+  <title>FlyFam · doğrulama</title>
+  <style>
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+      background: #eef3f9;
+      color: #0b1220;
+      padding: 24px;
+      text-align: center;
+    }
+    .card {
+      max-width: 420px;
+      background: #fff;
+      border: 1px solid #e1eaf5;
+      border-radius: 18px;
+      padding: 28px 22px;
+      box-shadow: 0 10px 40px rgba(11, 18, 32, 0.07);
+    }
+    h1 { font-size: 22px; margin: 0 0 10px; }
+    p { margin: 0 0 16px; color: #22324c; line-height: 1.5; font-size: 15px; }
+    a.btn {
+      display: inline-block;
+      background: #1d4fa3;
+      color: #fff !important;
+      text-decoration: none;
+      font-weight: 700;
+      padding: 14px 28px;
+      border-radius: 12px;
+    }
+    .mini { font-size: 12px; color: #6b7a90; margin-top: 14px; }
+  </style>
+  <script>
+    (function () {
+      var q = window.location.search || '';
+      var hash = window.location.hash || '';
+      if (!q && hash.indexOf('#') === 0) {
+        var raw = hash.slice(1);
+        if (raw.charAt(0) === '/') raw = raw.slice(1);
+        if (raw.indexOf('?') >= 0) q = raw.slice(raw.indexOf('?'));
+        else if (raw.indexOf('=') >= 0) q = '?' + raw;
+      }
+      var deep = 'flyfam://auth/callback' + q;
+      if (hash && hash.indexOf('access_token') >= 0) deep += hash;
+      window.__flyfamDeepLink = deep;
+      try {
+        window.location.replace(deep);
+      } catch (e) {}
+      window.setTimeout(function () {
+        var a = document.getElementById('openApp');
+        var f = document.getElementById('fallback');
+        if (a) a.setAttribute('href', deep);
+        if (f) f.style.display = 'block';
+      }, 600);
+    })();
+  </script>
+</head>
+<body>
+  <div class="card">
+    <h1>FlyFam açılıyor…</h1>
+    <p>E-posta doğrulaması tamamlanıyor. Uygulama otomatik açılmazsa aşağıdaki düğmeyi kullanın.</p>
+    <div id="fallback" style="display:none">
+      <a class="btn" id="openApp" href="flyfam://auth/callback">FlyFam’i aç</a>
+      <p class="mini">Uygulama yüklü değilse App Store / Play Store’dan FlyFam’i indirin, sonra maildeki linke tekrar dokunun.</p>
+    </div>
+  </div>
+</body>
+</html>
