@@ -9,7 +9,7 @@
   <meta http-equiv="Expires" content="0" />
   <script>
     (function () {
-      var UI = '19';
+      var UI = '20';
       var p = new URLSearchParams(location.search);
       if (p.get('ui') !== UI) {
         p.set('ui', UI);
@@ -159,11 +159,18 @@
     .grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 8px; }
     .kpi-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
     .kpi-row.kpi-row-5 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+    .kpi-row.kpi-row-6 { grid-template-columns: repeat(6, minmax(0, 1fr)); }
     .card { background: var(--panel-soft); border: 1px solid #2f3b49; border-radius: 8px; padding: 10px; }
     .card h3 { margin: 0; font-size: 13px; color: var(--muted); font-weight: 600; }
     .num { font-size: 24px; font-weight: 700; margin-top: 2px; }
-    .act-chart-wrap {
+    .act-charts-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
       margin-top: 12px;
+    }
+    .act-chart-wrap {
+      margin-top: 0;
       padding: 14px 12px 8px;
       background: var(--panel-soft);
       border: 1px solid var(--line);
@@ -186,6 +193,15 @@
       justify-content: flex-end;
       gap: 4px;
     }
+    .act-bar-stack {
+      width: 100%;
+      max-width: 28px;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      height: 100%;
+      gap: 1px;
+    }
     .act-bar {
       width: 100%;
       max-width: 28px;
@@ -193,6 +209,11 @@
       background: linear-gradient(180deg, #60a5fa, #2563eb);
       min-height: 2px;
     }
+    .act-bar.bar-open { background: linear-gradient(180deg, #60a5fa, #2563eb); }
+    .act-bar.bar-screen { background: linear-gradient(180deg, #34d399, #059669); }
+    .act-bar.bar-push { background: linear-gradient(180deg, #fbbf24, #d97706); }
+    .act-bar.bar-admin { background: linear-gradient(180deg, #c084fc, #7c3aed); }
+    .act-bar.bar-import { background: linear-gradient(180deg, #fb7185, #e11d48); }
     .act-bar-label {
       font-size: 9px;
       color: var(--muted);
@@ -208,6 +229,51 @@
       font-size: 12px;
       color: var(--muted);
     }
+    .act-legend-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 2px;
+      margin-right: 4px;
+      vertical-align: middle;
+    }
+    .top-screens {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-top: 8px;
+    }
+    .top-screen-row {
+      display: grid;
+      grid-template-columns: 110px 1fr 40px;
+      gap: 8px;
+      align-items: center;
+      font-size: 12px;
+    }
+    .top-screen-bar-bg {
+      height: 8px;
+      background: #e2e8f0;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .top-screen-bar-fg {
+      height: 100%;
+      background: linear-gradient(90deg, #34d399, #059669);
+      border-radius: 4px;
+    }
+    .sub-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .sub-badge.active { background: #dcfce7; color: #166534; }
+    .sub-badge.trialing { background: #dbeafe; color: #1e40af; }
+    .sub-badge.past_due, .sub-badge.canceled, .sub-badge.cancelled { background: #fee2e2; color: #991b1b; }
+    .sub-badge.none { background: #e2e8f0; color: #475569; }
     .act-legend > span:first-child::before {
       content: '';
       display: inline-block;
@@ -516,6 +582,8 @@
       .sidebar { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--line); top: 0; }
       .kpi-row { grid-template-columns: 1fr; }
       .kpi-row.kpi-row-5 { grid-template-columns: 1fr 1fr; }
+      .kpi-row.kpi-row-6 { grid-template-columns: 1fr 1fr; }
+      .act-charts-grid { grid-template-columns: 1fr; }
     }
     @media (max-width: 1400px) {
       .topbar .advanced-auth-fields > .auth-field { grid-column: span 6 !important; }
@@ -563,6 +631,7 @@
       <nav class="menu">
         <button class="nav-btn active" data-view="overviewView">Overview</button>
         <button class="nav-btn" data-view="activityView">Activity</button>
+        <button class="nav-btn" data-view="broadcastView">Broadcast</button>
         <button class="nav-btn" data-view="usersView">Users</button>
         <button class="nav-btn" data-view="flightsView">Flights</button>
         <button class="nav-btn" data-view="historyView">History log</button>
@@ -598,8 +667,8 @@
         <div class="panel">
           <h3 style="margin:0 0 8px;">Kullanıcı aktivitesi</h3>
           <p class="mini" style="margin-top:0;">
-            Uygulama açılışı (<code>app_open</code>, saatlik throttle), roster PDF import ve aileye giden push’lar.
-            Aktif = son 7 günde açılış veya cihaz token yenilemesi. Yeni event’ler uygulama güncellemesinden sonra birikir.
+            Günlük ürün kullanımı: uygulama açılışı, ekran görüntüleme, aile push ve admin broadcast.
+            <code>screen_view</code> yeni app sürümünden sonra birikir. Aktif = son 7g açılış/ekran veya cihaz token.
           </p>
           <div class="users-toolbar" style="margin-bottom:10px;">
             <div>
@@ -624,16 +693,16 @@
               <span id="activityStatus" class="mini"></span>
             </div>
           </div>
-          <div class="kpi-row kpi-row-5" style="margin-bottom:12px;">
+          <div class="kpi-row kpi-row-6" style="margin-bottom:12px;">
             <div class="card">
               <h3>Bugün (DAU)</h3>
               <div class="num" id="actDau">-</div>
-              <div class="mini">app_open · UTC gün</div>
+              <div class="mini">açılış / ekran · UTC</div>
             </div>
             <div class="card">
               <h3>7 gün (WAU)</h3>
               <div class="num" id="actWau">-</div>
-              <div class="mini">unique app_open</div>
+              <div class="mini">unique engaged</div>
             </div>
             <div class="card">
               <h3>Aktif 7g</h3>
@@ -641,8 +710,8 @@
               <div class="mini">açılış + cihaz proxy</div>
             </div>
             <div class="card">
-              <h3>Roster import</h3>
-              <div class="num" id="actImports">-</div>
+              <h3>Ekran view</h3>
+              <div class="num" id="actScreens">-</div>
               <div class="mini">seçilen dönemde</div>
             </div>
             <div class="card">
@@ -650,16 +719,38 @@
               <div class="num" id="actPushes">-</div>
               <div class="mini">seçilen dönemde</div>
             </div>
-          </div>
-          <div class="act-chart-wrap">
-            <div class="mini" style="margin-bottom:8px;"><strong>Günlük unique açılış</strong> (mavi çubuk)</div>
-            <div class="act-chart" id="activityChart"></div>
-            <div class="act-legend">
-              <span>Unique kullanıcı / gün</span>
-              <span id="activityChartHint" class="mini"></span>
+            <div class="card">
+              <h3>Admin push</h3>
+              <div class="num" id="actAdminPushes">-</div>
+              <div class="mini">broadcast + tekil</div>
             </div>
           </div>
-          <h3 style="margin:16px 0 8px;">Kullanıcılar</h3>
+          <div class="act-charts-grid">
+            <div class="act-chart-wrap">
+              <div class="mini" style="margin-bottom:8px;"><strong>Günlük aktif kullanıcı</strong></div>
+              <div class="act-chart" id="activityChart"></div>
+              <div class="act-legend">
+                <span><span class="act-legend-dot" style="background:#2563eb;"></span>Unique açılış</span>
+                <span><span class="act-legend-dot" style="background:#059669;"></span>Ekran kullanan</span>
+                <span id="activityChartHint" class="mini"></span>
+              </div>
+            </div>
+            <div class="act-chart-wrap">
+              <div class="mini" style="margin-bottom:8px;"><strong>Günlük push &amp; import</strong></div>
+              <div class="act-chart" id="activityPushChart"></div>
+              <div class="act-legend">
+                <span><span class="act-legend-dot" style="background:#d97706;"></span>Aile push</span>
+                <span><span class="act-legend-dot" style="background:#7c3aed;"></span>Admin push</span>
+                <span><span class="act-legend-dot" style="background:#e11d48;"></span>Roster import</span>
+                <span id="activityPushChartHint" class="mini"></span>
+              </div>
+            </div>
+          </div>
+          <div class="act-chart-wrap" style="margin-top:12px;">
+            <div class="mini" style="margin-bottom:4px;"><strong>En çok kullanılan ekranlar</strong></div>
+            <div id="activityTopScreens" class="top-screens"><div class="mini">Yükle sonrası görünür</div></div>
+          </div>
+          <h3 style="margin:16px 0 8px;">Aktif kullanıcılar <span class="mini">(özet — grafikler asıl odak)</span></h3>
           <div class="users-table-wrap">
             <table class="users-table">
               <thead>
@@ -671,8 +762,8 @@
                   <th>Durum</th>
                   <th>Son görülme</th>
                   <th>Açılış 7g</th>
+                  <th>Ekran 7g</th>
                   <th>Son import</th>
-                  <th>Son aile push</th>
                   <th>Sürüm</th>
                 </tr>
               </thead>
@@ -692,6 +783,46 @@
               </thead>
               <tbody id="activityRecentBody"></tbody>
             </table>
+          </div>
+        </div>
+      </section>
+
+      <section id="broadcastView" class="view">
+        <div class="panel">
+          <h3 style="margin:0 0 8px;">Grup bildirimi</h3>
+          <p class="mini" style="margin-top:0;">
+            Rol ve/veya havayoluna göre toplu Expo push. Opsiyonel link (TestFlight / APK) bildirime
+            <code>data.url</code> olarak eklenir; uygulamada tıklanınca açılır.
+          </p>
+          <div class="grid" style="margin-top:10px;">
+            <div style="grid-column: span 3;">
+              <label class="mini">Rol</label>
+              <select id="broadcastRole">
+                <option value="all">Tümü</option>
+                <option value="crew" selected>crew</option>
+                <option value="family">family</option>
+              </select>
+            </div>
+            <div style="grid-column: span 3;">
+              <label class="mini">Havayolu ICAO (opsiyonel)</label>
+              <input id="broadcastAirline" placeholder="örn. THY / PGT" />
+            </div>
+            <div style="grid-column: span 6;">
+              <label class="mini">Başlık</label>
+              <input id="broadcastTitle" value="FlyFam" maxlength="100" />
+            </div>
+            <div style="grid-column: span 8;">
+              <label class="mini">Mesaj</label>
+              <textarea id="broadcastBody" rows="3" maxlength="500" placeholder="Yeni test sürümü hazır…"></textarea>
+            </div>
+            <div style="grid-column: span 8;">
+              <label class="mini">Link (opsiyonel)</label>
+              <input id="broadcastUrl" placeholder="https://testflight.apple.com/join/…" />
+            </div>
+            <div style="grid-column: span 4; display:flex; align-items:end; gap:8px; flex-wrap:wrap;">
+              <button type="button" id="btnBroadcastSend" class="btnPrimary">Gönder</button>
+              <span id="broadcastStatus" class="mini"></span>
+            </div>
           </div>
         </div>
       </section>
@@ -723,6 +854,8 @@
                   <th>Full name</th>
                   <th>Email</th>
                   <th>Role</th>
+                  <th>Abonelik</th>
+                  <th>Slot</th>
                   <th>Platform</th>
                   <th>Version</th>
                   <th>Havayolu (app)</th>
@@ -962,12 +1095,23 @@
       actDau: document.getElementById('actDau'),
       actWau: document.getElementById('actWau'),
       actActive7: document.getElementById('actActive7'),
-      actImports: document.getElementById('actImports'),
+      actScreens: document.getElementById('actScreens'),
       actPushes: document.getElementById('actPushes'),
+      actAdminPushes: document.getElementById('actAdminPushes'),
       activityChart: document.getElementById('activityChart'),
       activityChartHint: document.getElementById('activityChartHint'),
+      activityPushChart: document.getElementById('activityPushChart'),
+      activityPushChartHint: document.getElementById('activityPushChartHint'),
+      activityTopScreens: document.getElementById('activityTopScreens'),
       activityUsersBody: document.getElementById('activityUsersBody'),
       activityRecentBody: document.getElementById('activityRecentBody'),
+      broadcastRole: document.getElementById('broadcastRole'),
+      broadcastAirline: document.getElementById('broadcastAirline'),
+      broadcastTitle: document.getElementById('broadcastTitle'),
+      broadcastBody: document.getElementById('broadcastBody'),
+      broadcastUrl: document.getElementById('broadcastUrl'),
+      btnBroadcastSend: document.getElementById('btnBroadcastSend'),
+      broadcastStatus: document.getElementById('broadcastStatus'),
       btnFr24Open: document.getElementById('btnFr24Open'),
       btnFr24Fetch: document.getElementById('btnFr24Fetch'),
       fr24Status: document.getElementById('fr24Status'),
@@ -1290,6 +1434,25 @@
       }
     }
 
+    function renderUserDrawerAuthEmailSection(u) {
+      const confirmed = !!u.email_confirmed;
+      const confirmLabel = confirmed
+        ? '<span class="pill pill-ok">email onaylı</span>'
+        : '<span class="pill pill-warn">email onaylanmamış</span>';
+      return (
+        '<div class="drawer-section">' +
+          '<h4>Auth e-posta</h4>' +
+          '<p class="mini" style="margin:0 0 8px;">' + confirmLabel +
+            (u.email_confirmed_at ? ' · ' + escapeHtml(fmtShortTs(u.email_confirmed_at)) : '') +
+          '</p>' +
+          '<div class="drawer-actions">' +
+            '<button type="button" class="btnSmall" data-action="send-auth-email" data-email-type="signup" data-user-id="' + (u.id || '') + '">Onay maili gönder</button>' +
+            '<button type="button" class="btnSmall" data-action="send-auth-email" data-email-type="recovery" data-user-id="' + (u.id || '') + '">Şifre yenileme maili</button>' +
+          '</div>' +
+        '</div>'
+      );
+    }
+
     function renderUserDrawerPushSection(u) {
       const devCount = Number(u.device_count || 0);
       const plat = escapeAttr(u.device_platforms_text || '—');
@@ -1303,6 +1466,7 @@
           '<p class="mini" style="margin:0 0 8px;">' + escapeHtml(deviceHint) + '</p>' +
           '<div class="drawer-field"><label>Başlık</label><input data-role="push-title" data-user-id="' + (u.id || '') + '" value="FlyFam" maxlength="100" /></div>' +
           '<div class="drawer-field"><label>Mesaj</label><textarea data-role="push-body" data-user-id="' + (u.id || '') + '" rows="3" maxlength="500" placeholder="Bildirim metni…"></textarea></div>' +
+          '<div class="drawer-field"><label>Link (opsiyonel)</label><input data-role="push-url" data-user-id="' + (u.id || '') + '" placeholder="https://testflight.apple.com/join/…" /></div>' +
           '<div class="drawer-actions">' +
             '<button type="button" class="btnPrimary btnSmall" data-action="send-push-notification" data-user-id="' + (u.id || '') + '"' +
               (devCount > 0 ? '' : ' disabled title="Kayıtlı cihaz yok"') + '>Gönder</button>' +
@@ -1366,6 +1530,7 @@
             '<input data-role="sub-period-end" data-user-id="' + (u.id || '') + '" type="datetime-local" value="' + escapeAttr(periodEnd) + '" /></div>' +
           '<div class="drawer-actions">' +
             '<button type="button" class="btnPrimary btnSmall" data-action="save-user-subscription" data-user-id="' + (u.id || '') + '">Aboneliği kaydet</button>' +
+            '<button type="button" class="btnSmall" data-action="grant-base-subscription" data-user-id="' + (u.id || '') + '">Temel abonelik ver (active)</button>' +
           '</div>' +
         '</div>'
       );
@@ -1498,6 +1663,7 @@
       } else {
         html =
           renderUserDrawerSubscriptionSection(u) +
+          renderUserDrawerAuthEmailSection(u) +
           renderUserDrawerPushSection(u) +
           renderUserDrawerEditSection(u);
       }
@@ -1928,12 +2094,32 @@
         const devCount = Number(u.device_count || 0);
         const nameText = escapeHtml(u.full_name || '-');
         const emailText = escapeHtml(u.email || '-');
+        const sub = u.subscription;
+        let subHtml = '<span class="sub-badge none">—</span>';
+        let slotHtml = '—';
+        if (sub) {
+          const st = String(sub.status || 'none');
+          const cls = st === 'active' || st === 'trialing' ? st : (st === 'past_due' || st === 'canceled' || st === 'cancelled' ? st : 'none');
+          const ro = sub.read_only ? ' · aile' : '';
+          subHtml = '<span class="sub-badge ' + escapeAttr(cls) + '">' + escapeHtml(st) + escapeHtml(ro) + '</span>';
+          const extra = Number(sub.extra_family_slots || 0);
+          const total = Number(sub.total_family_slots || 0);
+          const used = Number(sub.used_family_approved || 0) + Number(sub.used_family_pending || 0);
+          slotHtml = '<div class="mini"><strong>' + total + '</strong> toplam<br/>+' + extra + ' add-on · ' + used + ' dolu</div>';
+        } else if (isCrew) {
+          subHtml = '<span class="sub-badge none">yok</span>';
+        }
+        const emailOk = u.email_confirmed
+          ? ''
+          : ' <span class="pill pill-warn" title="Email onaylanmamış">!</span>';
         return (
           '<tr class="user-row-main" data-user-row-id="' + (u.id || '') + '">' +
             '<td>' + (idx + 1) + '</td>' +
             '<td><a href="#" class="u-name-link" data-action="open-user-details" data-user-id="' + (u.id || '') + '" onclick="return false;">' + nameText + '</a></td>' +
-            '<td><a href="#" class="u-email-link" data-action="open-user-details" data-user-id="' + (u.id || '') + '" onclick="return false;">' + emailText + '</a></td>' +
+            '<td><a href="#" class="u-email-link" data-action="open-user-details" data-user-id="' + (u.id || '') + '" onclick="return false;">' + emailText + '</a>' + emailOk + '</td>' +
             '<td><span class="role-pill ' + roleBadgeCls + '">' + escapeAttr(appRole || '-') + '</span></td>' +
+            '<td>' + subHtml + '</td>' +
+            '<td>' + slotHtml + '</td>' +
             '<td><div class="u-platform"><strong>' + plat + '</strong><span class="mini">devices: ' + String(devCount) + '</span></div></td>' +
             '<td><div class="u-version"><strong>' + ver + '</strong><span class="mini">build: ' + build + ' · os: ' + os + '</span></div></td>' +
             '<td class="mini">' + escapeAttr(airlineLabel) + '</td>' +
@@ -2285,36 +2471,76 @@
       if (t === 'app_open') return 'Açılış';
       if (t === 'roster_import') return 'Roster import';
       if (t === 'family_push') return 'Aile push';
+      if (t === 'screen_view') return 'Ekran';
+      if (t === 'admin_push') return 'Admin push';
       return t || '—';
     }
 
-    function renderActivityChart(daily) {
-      if (!els.activityChart) return;
-      const rows = daily || [];
-      if (!rows.length) {
-        els.activityChart.innerHTML = '<div class="mini" style="align-self:center;">Henüz günlük veri yok</div>';
-        if (els.activityChartHint) els.activityChartHint.textContent = '';
+    function renderDailyBarChart(el, hintEl, rows, pickers) {
+      if (!el) return;
+      const list = rows || [];
+      if (!list.length) {
+        el.innerHTML = '<div class="mini" style="align-self:center;">Henüz günlük veri yok</div>';
+        if (hintEl) hintEl.textContent = '';
         return;
       }
-      const max = Math.max(1, ...rows.map((d) => Number(d.unique_users || 0)));
-      const showEvery = rows.length > 20 ? Math.ceil(rows.length / 12) : 1;
-      els.activityChart.innerHTML = rows.map((d, i) => {
-        const u = Number(d.unique_users || 0);
-        const h = Math.max(2, Math.round((u / max) * 100));
-        const label = i % showEvery === 0 || i === rows.length - 1
+      const series = pickers.map((p) => list.map((d) => Number(p.value(d) || 0)));
+      const max = Math.max(1, ...series.flat());
+      const showEvery = list.length > 20 ? Math.ceil(list.length / 12) : 1;
+      el.innerHTML = list.map((d, i) => {
+        const label = i % showEvery === 0 || i === list.length - 1
           ? String(d.date || '').slice(5)
           : '';
-        const title = escapeAttr((d.date || '') + ': ' + u + ' unique · ' + (d.app_opens || 0) + ' open · ' + (d.roster_imports || 0) + ' import · ' + (d.family_pushes || 0) + ' push');
+        const bars = pickers.map((p, si) => {
+          const v = series[si][i];
+          const h = Math.max(v > 0 ? 2 : 0, Math.round((v / max) * 100));
+          return '<div class="act-bar ' + p.cls + '" style="height:' + h + '%"></div>';
+        }).join('');
+        const titleBits = pickers.map((p, si) => p.label + ' ' + series[si][i]).join(' · ');
         return (
-          '<div class="act-bar-col" title="' + title + '">' +
-            '<div class="act-bar" style="height:' + h + '%"></div>' +
+          '<div class="act-bar-col" title="' + escapeAttr((d.date || '') + ': ' + titleBits) + '">' +
+            '<div class="act-bar-stack">' + bars + '</div>' +
             '<div class="act-bar-label">' + escapeHtml(label) + '</div>' +
           '</div>'
         );
       }).join('');
-      if (els.activityChartHint) {
-        els.activityChartHint.textContent = 'max ' + max + ' / gün';
+      if (hintEl) hintEl.textContent = 'max ' + max + ' / gün';
+    }
+
+    function renderActivityChart(daily) {
+      renderDailyBarChart(els.activityChart, els.activityChartHint, daily, [
+        { cls: 'bar-open', label: 'unique open', value: (d) => d.unique_users },
+        { cls: 'bar-screen', label: 'screen users', value: (d) => d.unique_screen_users },
+      ]);
+    }
+
+    function renderActivityPushChart(daily) {
+      renderDailyBarChart(els.activityPushChart, els.activityPushChartHint, daily, [
+        { cls: 'bar-push', label: 'family push', value: (d) => d.family_pushes },
+        { cls: 'bar-admin', label: 'admin push', value: (d) => d.admin_pushes },
+        { cls: 'bar-import', label: 'import', value: (d) => d.roster_imports },
+      ]);
+    }
+
+    function renderTopScreens(rows) {
+      if (!els.activityTopScreens) return;
+      const list = rows || [];
+      if (!list.length) {
+        els.activityTopScreens.innerHTML = '<div class="mini">Henüz screen_view yok (yeni app sürümü gerekir).</div>';
+        return;
       }
+      const max = Math.max(1, ...list.map((r) => Number(r.count || 0)));
+      els.activityTopScreens.innerHTML = list.map((r) => {
+        const c = Number(r.count || 0);
+        const pct = Math.round((c / max) * 100);
+        return (
+          '<div class="top-screen-row">' +
+            '<code>' + escapeHtml(r.screen || '—') + '</code>' +
+            '<div class="top-screen-bar-bg"><div class="top-screen-bar-fg" style="width:' + pct + '%"></div></div>' +
+            '<strong>' + c + '</strong>' +
+          '</div>'
+        );
+      }).join('');
     }
 
     function renderActivity(json) {
@@ -2322,16 +2548,24 @@
       if (els.actDau) els.actDau.textContent = s.dau != null ? s.dau : '-';
       if (els.actWau) els.actWau.textContent = s.wau != null ? s.wau : '-';
       if (els.actActive7) els.actActive7.textContent = s.active_7d != null ? s.active_7d : '-';
-      if (els.actImports) els.actImports.textContent = s.roster_imports_period != null ? s.roster_imports_period : '-';
+      if (els.actScreens) els.actScreens.textContent = s.screen_views_period != null ? s.screen_views_period : '-';
       if (els.actPushes) els.actPushes.textContent = s.family_pushes_period != null ? s.family_pushes_period : '-';
+      if (els.actAdminPushes) els.actAdminPushes.textContent = s.admin_pushes_period != null ? s.admin_pushes_period : '-';
       renderActivityChart(json.daily || []);
+      renderActivityPushChart(json.daily || []);
+      renderTopScreens(json.top_screens || []);
 
       const users = json.users || [];
       if (els.activityUsersBody) {
         if (!users.length) {
           els.activityUsersBody.innerHTML = '<tr><td colspan="10" class="mini">Kullanıcı yok veya henüz event birikmedi.</td></tr>';
         } else {
-          els.activityUsersBody.innerHTML = users.map((u, idx) => {
+          const ranked = users.slice().sort((a, b) => {
+            const aa = (a.active_7d ? 2 : 0) + (a.opens_7d || 0) + (a.screen_views_7d || 0);
+            const bb = (b.active_7d ? 2 : 0) + (b.opens_7d || 0) + (b.screen_views_7d || 0);
+            return bb - aa;
+          }).slice(0, 40);
+          els.activityUsersBody.innerHTML = ranked.map((u, idx) => {
             let pill = '<span class="pill pill-muted">pasif</span>';
             if (u.active_7d) pill = '<span class="pill pill-ok">aktif 7g</span>';
             else if (u.active_30d) pill = '<span class="pill pill-warn">30g</span>';
@@ -2346,8 +2580,8 @@
                 '<td>' + pill + '</td>' +
                 '<td class="mini">' + escapeHtml(fmtShortTs(u.last_seen_at)) + '</td>' +
                 '<td>' + escapeHtml(String(u.opens_7d ?? 0)) + '</td>' +
+                '<td>' + escapeHtml(String(u.screen_views_7d ?? 0)) + '</td>' +
                 '<td class="mini">' + escapeHtml(fmtShortTs(u.last_roster_import_at)) + '</td>' +
-                '<td class="mini">' + escapeHtml(fmtShortTs(u.last_family_push_at)) + '</td>' +
                 '<td class="mini">' + escapeHtml(plat + ver) + '</td>' +
               '</tr>'
             );
@@ -2363,10 +2597,12 @@
           els.activityRecentBody.innerHTML = recent.map((r) => {
             const meta = r.meta && typeof r.meta === 'object' ? r.meta : {};
             const bits = [];
+            if (meta.screen) bits.push(String(meta.screen));
             if (meta.kind) bits.push(String(meta.kind));
             if (meta.sent != null) bits.push('sent ' + meta.sent);
             if (meta.ok != null) bits.push('ok ' + meta.ok);
             if (meta.imported_flights != null) bits.push('flights ' + meta.imported_flights);
+            if (meta.url) bits.push(String(meta.url).slice(0, 40));
             if (meta.platform) bits.push(String(meta.platform));
             if (meta.app_version) bits.push('v' + meta.app_version);
             const who = (r.full_name || r.email || r.user_id || '—');
@@ -2655,18 +2891,22 @@
       if (action === 'send-push-notification') {
         const titleEl = root.querySelector('input[data-role="push-title"][data-user-id="' + userId + '"]');
         const bodyEl = root.querySelector('textarea[data-role="push-body"][data-user-id="' + userId + '"]');
+        const urlEl = root.querySelector('input[data-role="push-url"][data-user-id="' + userId + '"]');
         const title = titleEl && titleEl.value ? String(titleEl.value).trim() : 'FlyFam';
         const body = bodyEl && bodyEl.value ? String(bodyEl.value).trim() : '';
+        const url = urlEl && urlEl.value ? String(urlEl.value).trim() : '';
         if (!body) {
           setStatus('Bildirim metni gerekli', 'bad');
           return;
         }
         const u = lastUsers.find((x) => x.id === userId);
         const label = (u && (u.full_name || u.email)) || userId;
-        const ok = window.confirm('Push gönderilsin mi?\n\nAlıcı: ' + label + '\nBaşlık: ' + title + '\nMesaj: ' + body);
+        const ok = window.confirm('Push gönderilsin mi?\n\nAlıcı: ' + label + '\nBaşlık: ' + title + '\nMesaj: ' + body + (url ? '\nLink: ' + url : ''));
         if (!ok) return;
         setStatus('Push gönderiliyor…', 'warn');
-        const json = await callAdminAction('send_push_notification', { user_id: userId, title, body });
+        const payload = { user_id: userId, title, body };
+        if (url) payload.url = url;
+        const json = await callAdminAction('send_push_notification', payload);
         if (json.no_tokens) {
           setStatus('Gönderilemedi: kayıtlı push token yok', 'bad');
           return;
@@ -2680,6 +2920,35 @@
         }
         setStatus('Push gönderildi (' + sent + '/' + total + ' cihaz)', 'ok');
         if (bodyEl) bodyEl.value = '';
+        return;
+      }
+      if (action === 'send-auth-email') {
+        const emailType = btn.getAttribute('data-email-type') || '';
+        if (emailType !== 'signup' && emailType !== 'recovery') return;
+        const u = lastUsers.find((x) => x.id === userId);
+        const label = (u && (u.full_name || u.email)) || userId;
+        const what = emailType === 'recovery' ? 'şifre yenileme' : 'email onay';
+        const ok = window.confirm(what + ' maili gönderilsin mi?\n\n' + label);
+        if (!ok) return;
+        setStatus('Auth maili gönderiliyor…', 'warn');
+        const json = await callAdminAction('send_auth_email', { user_id: userId, email_type: emailType });
+        setStatus((json.message || 'Mail kuyruğa alındı') + ' · ' + (json.email || ''), 'ok');
+        return;
+      }
+      if (action === 'grant-base-subscription') {
+        const ok = window.confirm('Temel abonelik (couple / active) verilsin mi?');
+        if (!ok) return;
+        setStatus('Temel abonelik veriliyor…', 'warn');
+        const periodEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+        await callAdminAction('update_user_subscription', {
+          user_id: userId,
+          plan_code: 'couple',
+          status: 'active',
+          current_period_ends_at: periodEnd,
+        });
+        await loadDashboard();
+        if (drawerUserId === userId) await openUserDrawer(userId, drawerUserMode, false);
+        setStatus('Temel abonelik verildi', 'ok');
         return;
       }
       if (action === 'open-linked-crew-subscription') {
@@ -2918,6 +3187,57 @@
     });
     els.activityRole?.addEventListener('change', () => {
       loadActivity().catch(() => {});
+    });
+    els.btnBroadcastSend?.addEventListener('click', async () => {
+      const title = String(els.broadcastTitle?.value || 'FlyFam').trim() || 'FlyFam';
+      const body = String(els.broadcastBody?.value || '').trim();
+      const url = String(els.broadcastUrl?.value || '').trim();
+      const role = String(els.broadcastRole?.value || 'all');
+      const airline = String(els.broadcastAirline?.value || '').trim().toUpperCase();
+      if (!body) {
+        setStatus('Broadcast mesajı gerekli', 'bad');
+        if (els.broadcastStatus) {
+          els.broadcastStatus.textContent = 'mesaj gerekli';
+          els.broadcastStatus.className = 'mini bad';
+        }
+        return;
+      }
+      const ok = window.confirm(
+        'Grup push gönderilsin mi?\n\nRol: ' + role +
+        (airline ? '\nAirline: ' + airline : '') +
+        '\nBaşlık: ' + title +
+        '\nMesaj: ' + body +
+        (url ? '\nLink: ' + url : ''),
+      );
+      if (!ok) return;
+      if (els.broadcastStatus) {
+        els.broadcastStatus.textContent = 'gönderiliyor…';
+        els.broadcastStatus.className = 'mini warn';
+      }
+      setStatus('Grup push gönderiliyor…', 'warn');
+      try {
+        const payload = { title, body, role };
+        if (airline) payload.airline_icao = airline;
+        if (url) payload.url = url;
+        const json = await callAdminAction('send_group_push', payload);
+        const msg =
+          'Eşleşen ' + (json.users_matched || 0) +
+          ' · tokenlı ' + (json.users_with_tokens || 0) +
+          ' · gönderilen ' + (json.sent || 0);
+        if (els.broadcastStatus) {
+          els.broadcastStatus.textContent = msg;
+          els.broadcastStatus.className = 'mini ok';
+        }
+        setStatus('Broadcast: ' + msg, 'ok');
+        if (els.broadcastBody) els.broadcastBody.value = '';
+      } catch (err) {
+        const m = String(err?.message || err);
+        if (els.broadcastStatus) {
+          els.broadcastStatus.textContent = m;
+          els.broadcastStatus.className = 'mini bad';
+        }
+        setStatus(m, 'bad');
+      }
     });
     els.historySource?.addEventListener('change', () => {
       // Re-render from last payload if present; otherwise reload.

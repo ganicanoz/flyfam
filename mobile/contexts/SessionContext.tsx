@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useRef, useState } from 'r
 import { AppState, type AppStateStatus } from 'react-native';
 import { Session } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
-import { registerPushTokenForUser } from '@/lib/pushNotifications';
+import { registerPushTokenForUser, installPushUrlOpenHandler } from '@/lib/pushNotifications';
 import { triggerAirportBoardCacheRefreshIfDue } from '@/lib/airportBoardCache';
 import { applyStoredOrProfileLocale, getStoredLocale, type Locale } from '@/lib/i18n';
 import { registerPasswordRecoveryHandler } from '@/lib/passwordRecoveryBridge';
@@ -115,6 +115,10 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     return registerPasswordRecoveryHandler(setNeedsPasswordUpdate);
+  }, []);
+
+  useEffect(() => {
+    return installPushUrlOpenHandler();
   }, []);
 
   useEffect(() => {

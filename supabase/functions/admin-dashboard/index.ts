@@ -1016,6 +1016,7 @@ Deno.serve(async (req) => {
       const titleRaw = typeof body?.title === 'string' ? body.title.trim() : '';
       const bodyRaw = typeof body?.body === 'string' ? body.body.trim() : '';
       const title = titleRaw || 'FlyFam';
+      const url = typeof body?.url === 'string' ? body.url.trim() : '';
       if (!bodyRaw) {
         return new Response(JSON.stringify({ error: 'body is required' }), {
           status: 400,
@@ -1071,14 +1072,23 @@ Deno.serve(async (req) => {
           },
         );
       }
-      const pushResult = await sendExpoPush(tokens, title, bodyRaw);
+      const dataPayload = url ? { url } : null;
+      const pushResult = await sendExpoPush(tokens, title, bodyRaw, dataPayload);
       console.log('[admin-dashboard] send_push_notification', {
         user_id: userId,
         requester: requesterEmail,
         token_count: tokens.length,
         sent: pushResult.sent,
         errors: pushResult.errors,
+        url: url || null,
       });
+      if (pushResult.sent > 0) {
+        await adminClient.from('user_activity_events').insert({
+          user_id: userId,
+          event_type: 'admin_push',
+          meta: { title, body: bodyRaw, url: url || null, sent: pushResult.sent, source: 'admin_single' },
+        });
+      }
       return new Response(
         JSON.stringify({
           ok: true,
@@ -1094,6 +1104,211 @@ Deno.serve(async (req) => {
           status: 200,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         },
+      );
+    }
+    if (action === 'send_auth_email') {
+      const emailType = typeof body?.email_type === 'string' ? body.email_type.trim() : '';
+      if (emailType !== 'signup' && emailType !== 'recovery') {
+        return new Response(JSON.stringify({ error: 'email_type must be signup or recovery' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      let userId = typeof body?.user_id === 'string' ? body.user_id.trim() : '';
+      let email = typeof body?.email === 'string' ? normalizeEmail(body.email) : '';
+      if (userId && !email) {
+        const { data: authUser } = await adminClient.auth.admin.getUserById(userId);
+        email = normalizeEmail(authUser?.user?.email ?? '');
+      }
+      if (!email && !userId) {
+        return new Response(JSON.stringify({ error: 'user_id or email is required' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      if (!email) {
+        return new Response(JSON.stringify({ error: 'User has no email' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      const redirectTo =
+        typeof body?.redirect_to === 'string' && body.redirect_to.trim()
+          ? body.redirect_to.trim()
+          : 'https://ganicanoz.github.io/flyfam/auth-callback.html';
+      const anonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
+      if (!anonKey) {
+        return new Response(JSON.stringify({ error: 'Missing SUPABASE_ANON_KEY' }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      const authUrl = `${Deno.env.get('SUPABASE_URL')}/auth/v1/${emailType === 'recovery' ? 'recover' : 'resend'}`;
+      const authBody =
+        emailType === 'recovery'
+          ? { email, redirect_to: redirectTo }
+          : { type: 'signup', email, options: { email_redirect_to: redirectTo } };
+      const res = await fetch(authUrl, {
+        method: 'POST',
+        headers: {
+          apikey: anonKey,
+          Authorization: `Bearer ${anonKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(authBody),
+      });
+      const text = await res.text();
+      let parsed: Record<string, unknown> | null = null;
+      try {
+        parsed = text ? (JSON.parse(text) as Record<string, unknown>) : null;
+      } catch {
+        parsed = null;
+      }
+      if (!res.ok) {
+        const msg =
+          (parsed && (parsed.error_description || parsed.msg || parsed.error || parsed.message)) ||
+          text.slice(0, 300) ||
+          `Auth HTTP ${res.status}`;
+        return new Response(JSON.stringify({ error: String(msg) }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      console.log('[admin-dashboard] send_auth_email', {
+        email_type: emailType,
+        email,
+        requester: requesterEmail,
+      });
+      return new Response(
+        JSON.stringify({
+          ok: true,
+          action,
+          email_type: emailType,
+          email,
+          user_id: userId || null,
+          message:
+            emailType === 'recovery'
+              ? 'Password recovery email queued via Supabase Auth SMTP'
+              : 'Signup confirmation email queued via Supabase Auth SMTP',
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
+    if (action === 'send_group_push') {
+      const titleRaw = typeof body?.title === 'string' ? body.title.trim() : '';
+      const bodyRaw = typeof body?.body === 'string' ? body.body.trim() : '';
+      const title = titleRaw || 'FlyFam';
+      const url = typeof body?.url === 'string' ? body.url.trim() : '';
+      const roleFilter =
+        typeof body?.role === 'string' && (body.role === 'crew' || body.role === 'family')
+          ? body.role
+          : 'all';
+      const airlineFilter =
+        typeof body?.airline_icao === 'string' ? body.airline_icao.trim().toUpperCase() : '';
+      if (!bodyRaw) {
+        return new Response(JSON.stringify({ error: 'body is required' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      if (title.length > 100 || bodyRaw.length > 500) {
+        return new Response(JSON.stringify({ error: 'title max 100 / body max 500 chars' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      let profileQ = adminClient.from('profiles').select('id, role, full_name').limit(2000);
+      if (roleFilter !== 'all') profileQ = profileQ.eq('role', roleFilter);
+      const { data: profiles, error: pErr } = await profileQ;
+      if (pErr) {
+        return new Response(JSON.stringify({ error: pErr.message }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      let userIds = (profiles ?? []).map((p) => p.id as string);
+      if (airlineFilter) {
+        const { data: crews } = await adminClient
+          .from('crew_profiles')
+          .select('user_id, airline_icao')
+          .limit(2000);
+        const allowed = new Set(
+          (crews ?? [])
+            .filter((c) => String(c.airline_icao || '').toUpperCase() === airlineFilter)
+            .map((c) => c.user_id as string),
+        );
+        if (roleFilter === 'family') {
+          // Family users linked to that airline's crew
+          const { data: conns } = await adminClient
+            .from('family_connections')
+            .select('family_id, crew_id, status')
+            .eq('status', 'approved')
+            .limit(3000);
+          const { data: crewRows } = await adminClient.from('crew_profiles').select('id, user_id, airline_icao').limit(2000);
+          const crewIdByAirline = new Set(
+            (crewRows ?? [])
+              .filter((c) => String(c.airline_icao || '').toUpperCase() === airlineFilter)
+              .map((c) => c.id as string),
+          );
+          const familyIds = new Set(
+            (conns ?? [])
+              .filter((c) => crewIdByAirline.has(String(c.crew_id)))
+              .map((c) => c.family_id as string),
+          );
+          userIds = userIds.filter((id) => familyIds.has(id));
+        } else {
+          userIds = userIds.filter((id) => allowed.has(id));
+        }
+      }
+      if (userIds.length === 0) {
+        return new Response(
+          JSON.stringify({ ok: true, action, sent: 0, users_matched: 0, users_with_tokens: 0 }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        );
+      }
+      const { data: tokenRows } = await adminClient
+        .from('device_tokens')
+        .select('user_id, token')
+        .in('user_id', userIds);
+      const tokensByUser = new Map<string, string[]>();
+      for (const row of tokenRows ?? []) {
+        const uid = String((row as { user_id: string }).user_id);
+        const tok = String((row as { token: string }).token || '').trim();
+        if (!tok) continue;
+        if (!tokensByUser.has(uid)) tokensByUser.set(uid, []);
+        tokensByUser.get(uid)!.push(tok);
+      }
+      const allTokens = Array.from(
+        new Set([...tokensByUser.values()].flat()),
+      );
+      const dataPayload = url ? { url } : null;
+      const pushResult = await sendExpoPush(allTokens, title, bodyRaw, dataPayload);
+      const activityRows = [...tokensByUser.keys()].map((uid) => ({
+        user_id: uid,
+        event_type: 'admin_push',
+        meta: {
+          title,
+          body: bodyRaw,
+          url: url || null,
+          source: 'admin_group',
+          role: roleFilter,
+          airline_icao: airlineFilter || null,
+        },
+      }));
+      if (activityRows.length) {
+        await adminClient.from('user_activity_events').insert(activityRows);
+      }
+      return new Response(
+        JSON.stringify({
+          ok: true,
+          action,
+          users_matched: userIds.length,
+          users_with_tokens: tokensByUser.size,
+          token_count: allTokens.length,
+          sent: pushResult.sent,
+          expo_errors: pushResult.errors,
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
     if (action === 'get_user_subscription') {
@@ -1470,18 +1685,29 @@ Deno.serve(async (req) => {
       const weekAgo = now - 7 * 24 * 60 * 60 * 1000;
       const monthAgo = now - 30 * 24 * 60 * 60 * 1000;
 
-      const dailyMap = new Map<
-        string,
-        { app_opens: number; unique_opens: Set<string>; roster_imports: number; family_pushes: number }
-      >();
+      type DailyBucket = {
+        app_opens: number;
+        unique_opens: Set<string>;
+        unique_engaged: Set<string>;
+        roster_imports: number;
+        family_pushes: number;
+        screen_views: number;
+        unique_screen_users: Set<string>;
+        admin_pushes: number;
+      };
+      const dailyMap = new Map<string, DailyBucket>();
       for (let i = 0; i < days; i++) {
         const d = new Date(startOfTodayUtc.getTime() - i * 24 * 60 * 60 * 1000);
         const k = d.toISOString().slice(0, 10);
         dailyMap.set(k, {
           app_opens: 0,
           unique_opens: new Set(),
+          unique_engaged: new Set(),
           roster_imports: 0,
           family_pushes: 0,
+          screen_views: 0,
+          unique_screen_users: new Set(),
+          admin_pushes: 0,
         });
       }
 
@@ -1494,6 +1720,9 @@ Deno.serve(async (req) => {
         last_roster_import_at: string | null;
         family_pushes: number;
         last_family_push_at: string | null;
+        screen_views: number;
+        screen_views_7d: number;
+        last_screen_view_at: string | null;
       };
       const aggByUser = new Map<string, Agg>();
       const ensureAgg = (uid: string): Agg => {
@@ -1508,6 +1737,9 @@ Deno.serve(async (req) => {
             last_roster_import_at: null,
             family_pushes: 0,
             last_family_push_at: null,
+            screen_views: 0,
+            screen_views_7d: 0,
+            last_screen_view_at: null,
           };
           aggByUser.set(uid, a);
         }
@@ -1517,6 +1749,7 @@ Deno.serve(async (req) => {
       const dauSet = new Set<string>();
       const wauSet = new Set<string>();
       const mauSet = new Set<string>();
+      const topScreens = new Map<string, number>();
 
       for (const ev of eventRows ?? []) {
         const uid = String(ev.user_id);
@@ -1535,6 +1768,7 @@ Deno.serve(async (req) => {
           if (bucket) {
             bucket.app_opens += 1;
             bucket.unique_opens.add(uid);
+            bucket.unique_engaged.add(uid);
           }
           if (dk === todayKey) dauSet.add(uid);
           if (t >= weekAgo) wauSet.add(uid);
@@ -1544,13 +1778,37 @@ Deno.serve(async (req) => {
           if (!a.last_roster_import_at || ev.occurred_at > a.last_roster_import_at) {
             a.last_roster_import_at = ev.occurred_at;
           }
-          if (bucket) bucket.roster_imports += 1;
+          if (bucket) {
+            bucket.roster_imports += 1;
+            bucket.unique_engaged.add(uid);
+          }
         } else if (ev.event_type === 'family_push') {
           a.family_pushes += 1;
           if (!a.last_family_push_at || ev.occurred_at > a.last_family_push_at) {
             a.last_family_push_at = ev.occurred_at;
           }
           if (bucket) bucket.family_pushes += 1;
+        } else if (ev.event_type === 'screen_view') {
+          a.screen_views += 1;
+          if (t >= weekAgo) a.screen_views_7d += 1;
+          if (!a.last_screen_view_at || ev.occurred_at > a.last_screen_view_at) {
+            a.last_screen_view_at = ev.occurred_at;
+          }
+          const screen =
+            ev.meta && typeof ev.meta === 'object' && typeof (ev.meta as { screen?: unknown }).screen === 'string'
+              ? String((ev.meta as { screen: string }).screen)
+              : 'unknown';
+          topScreens.set(screen, (topScreens.get(screen) ?? 0) + 1);
+          if (bucket) {
+            bucket.screen_views += 1;
+            bucket.unique_screen_users.add(uid);
+            bucket.unique_engaged.add(uid);
+          }
+          if (dk === todayKey) dauSet.add(uid);
+          if (t >= weekAgo) wauSet.add(uid);
+          if (t >= monthAgo) mauSet.add(uid);
+        } else if (ev.event_type === 'admin_push') {
+          if (bucket) bucket.admin_pushes += 1;
         }
       }
 
@@ -1572,8 +1830,12 @@ Deno.serve(async (req) => {
           date,
           app_opens: b.app_opens,
           unique_users: b.unique_opens.size,
+          unique_engaged: b.unique_engaged.size,
           roster_imports: b.roster_imports,
           family_pushes: b.family_pushes,
+          screen_views: b.screen_views,
+          unique_screen_users: b.unique_screen_users.size,
+          admin_pushes: b.admin_pushes,
         }));
 
       const userIds = new Set<string>([
@@ -1639,6 +1901,8 @@ Deno.serve(async (req) => {
             roster_imports_period: a?.roster_imports ?? 0,
             last_family_push_at: a?.last_family_push_at ?? null,
             family_pushes_period: a?.family_pushes ?? 0,
+            screen_views_7d: a?.screen_views_7d ?? 0,
+            last_screen_view_at: a?.last_screen_view_at ?? null,
           };
         })
         .filter(Boolean)
@@ -1669,6 +1933,12 @@ Deno.serve(async (req) => {
 
       const rosterImportsPeriod = (eventRows ?? []).filter((e) => e.event_type === 'roster_import').length;
       const familyPushesPeriod = (eventRows ?? []).filter((e) => e.event_type === 'family_push').length;
+      const screenViewsPeriod = (eventRows ?? []).filter((e) => e.event_type === 'screen_view').length;
+      const adminPushesPeriod = (eventRows ?? []).filter((e) => e.event_type === 'admin_push').length;
+      const top_screens = [...topScreens.entries()]
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 12)
+        .map(([screen, count]) => ({ screen, count }));
 
       return new Response(
         JSON.stringify({
@@ -1686,9 +1956,12 @@ Deno.serve(async (req) => {
             users_in_table: users.length,
             roster_imports_period: rosterImportsPeriod,
             family_pushes_period: familyPushesPeriod,
+            screen_views_period: screenViewsPeriod,
+            admin_pushes_period: adminPushesPeriod,
             events_loaded: (eventRows ?? []).length,
           },
           daily,
+          top_screens,
           users,
           recent,
         }),
@@ -1786,7 +2059,12 @@ Deno.serve(async (req) => {
   ]);
 
   // Auth emails and last_sign_in_at live in auth.users (Admin API).
-  const authUsers: Array<{ id: string; email: string | null; last_sign_in_at: string | null }> = [];
+  const authUsers: Array<{
+    id: string;
+    email: string | null;
+    last_sign_in_at: string | null;
+    email_confirmed_at: string | null;
+  }> = [];
   let page = 1;
   while (page <= 20) {
     const { data, error } = await adminClient.auth.admin.listUsers({ page, perPage: 200 });
@@ -1796,6 +2074,7 @@ Deno.serve(async (req) => {
         id: u.id,
         email: u.email ?? null,
         last_sign_in_at: (u as { last_sign_in_at?: string | null }).last_sign_in_at ?? null,
+        email_confirmed_at: (u as { email_confirmed_at?: string | null }).email_confirmed_at ?? null,
       });
     }
     if (data.users.length < 200) break;
@@ -1866,6 +2145,8 @@ Deno.serve(async (req) => {
       airline_icao: crew?.airline_icao ?? null,
       email: authU?.email ?? null,
       last_sign_in_at: authU?.last_sign_in_at ?? null,
+      email_confirmed_at: authU?.email_confirmed_at ?? null,
+      email_confirmed: !!authU?.email_confirmed_at,
       device_platforms: platforms,
       device_platforms_text: platforms.join(', ') || null,
       app_version: latestDevice?.app_version ?? null,

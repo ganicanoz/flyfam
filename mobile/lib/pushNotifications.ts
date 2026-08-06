@@ -2,7 +2,7 @@
  * Push notification registration for family users.
  * Registers the device with Expo Push and saves the token to Supabase (device_tokens).
  */
-import { Platform } from 'react-native';
+import { Linking, Platform } from 'react-native';
 import Constants from 'expo-constants';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
@@ -62,7 +62,9 @@ export async function getPushTokenWithReason(): Promise<{ token: string | null; 
     if (Platform.OS === 'android') {
       await Notifications.setNotificationChannelAsync('default', {
         name: 'FlyFam',
-        importance: Notifications.AndroidImportance.DEFAULT,
+        importance: Notifications.AndroidImportance.HIGH,
+        enableVibrate: true,
+        sound: 'default',
       });
     }
     return { token };
@@ -100,28 +102,80 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
 }
 
 /**
- * Save or update the push token for the current user (family). Call when family user is signed in.
+ * Save or update the push token for the current user.
+ * Also updates the user's timezone_iana so notifications and roster day grouping are locale-aware.
  */
 export async function savePushTokenToSupabase(userId: string, token: string): Promise<void> {
   const platform = Platform.OS === 'ios' ? 'ios' : Platform.OS === 'android' ? 'android' : null;
   if (!platform) return;
+  const appVersion = String((Constants as any)?.expoConfig?.version ?? '').trim() || null;
+  const appBuild = String((Constants as any)?.nativeBuildVersion ?? '').trim() || null;
+  const osVersion = String((Device as any)?.osVersion ?? '').trim() || null;
 
   const { error } = await supabase.from('device_tokens').upsert(
     {
       user_id: userId,
       token,
       platform,
+      app_version: appVersion,
+      app_build: appBuild,
+      os_version: osVersion,
       last_used_at: new Date().toISOString(),
     },
     { onConflict: 'user_id,token', ignoreDuplicates: false }
   );
   if (error) console.warn('[Push] Failed to save token:', error.message);
+
+  try {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    if (tz) {
+      await supabase.from('profiles').update({ timezone_iana: tz }).eq('id', userId);
+    }
+  } catch {
+    // Ignore if timezone or profiles update fails (e.g. column not yet migrated)
+  }
 }
 
-/**
- * Register for push and persist token. Call only for family users when signed in.
- */
+/** Register for push and persist token for signed-in user (crew/family). */
+export async function registerPushTokenForUser(userId: string): Promise<void> {
+  const res = await getPushTokenWithReason();
+  if (res.token) {
+    await savePushTokenToSupabase(userId, res.token);
+    if (__DEV__) console.log('[Push] Token registered and saved for user', userId.slice(0, 8) + '…');
+  } else if (res.reason) {
+    console.warn('[Push] Could not register token for user:', res.reason);
+  }
+}
+
+function extractPushUrl(data: unknown): string | null {
+  if (!data || typeof data !== 'object') return null;
+  const url = (data as { url?: unknown }).url;
+  if (typeof url !== 'string') return null;
+  const t = url.trim();
+  if (!/^https?:\/\//i.test(t)) return null;
+  return t;
+}
+
+/** Open optional `data.url` from admin / deep-link pushes (TestFlight, APK, etc.). */
+export function installPushUrlOpenHandler(): () => void {
+  const open = (data: unknown) => {
+    const url = extractPushUrl(data);
+    if (!url) return;
+    Linking.openURL(url).catch(() => {});
+  };
+
+  const sub = Notifications.addNotificationResponseReceivedListener((response) => {
+    open(response.notification.request.content.data);
+  });
+
+  void Notifications.getLastNotificationResponseAsync().then((response) => {
+    if (response) open(response.notification.request.content.data);
+  });
+
+  return () => sub.remove();
+}
+
+// Backward-compatible alias.
 export async function registerPushTokenForFamilyUser(userId: string): Promise<void> {
-  const token = await registerForPushNotificationsAsync();
-  if (token) await savePushTokenToSupabase(userId, token);
+  return registerPushTokenForUser(userId);
 }
