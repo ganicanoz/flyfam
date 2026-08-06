@@ -443,7 +443,7 @@ function timeToMinutesLoose(hhmm: string | null | undefined): number | null {
 /** Saatlik görevler — çok günlü genişletmede ara günler 00:00–23:59 üretilmez (PDF başlangıç/bitiş korunur). */
 function isTimedDutyOffCode(code: string): boolean {
   const u = normalizeCode(code);
-  return u === 'MEET' || u === 'RSV';
+  return u === 'MEET' || u === 'RSV' || u === 'SDM' || u === 'SEM';
 }
 
 /**
