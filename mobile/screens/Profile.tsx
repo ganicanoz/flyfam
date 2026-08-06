@@ -8,14 +8,14 @@ import {
   ScrollView,
   Pressable,
 } from 'react-native';
-import { useLayoutEffect, useState, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useSession } from '../contexts/SessionContext';
 import { useAdminRoster } from '../contexts/AdminRosterContext';
-import { colors, cycleThemePreference, useThemeMode, useThemePreference } from '../theme/colors';
+import { colors, setThemePreference, useThemeMode, useThemePreference, type ThemePreference } from '../theme/colors';
 import { AIRLINES } from '../constants/airlines';
 import { normalizeCrewAirlineIcaoTypo } from '../lib/pdfRosterImport';
 import { LOCALE_LABELS, type Locale } from '../lib/i18n';
@@ -31,7 +31,7 @@ export default function Profile() {
   const { profile, crewProfile, session, signOut } = useSession();
   const { onProfileSecretTap } = useAdminRoster();
   const themeMode = useThemeMode();
-  const isDark = themeMode === 'dark';
+  void themeMode;
   const themePreference = useThemePreference();
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [subscriptionAccess, setSubscriptionAccess] = useState<SubscriptionAccess | null>(null);
@@ -41,47 +41,6 @@ export default function Profile() {
       (navigation as { navigate: (name: string) => void }).navigate('Roster');
     }
   };
-
-  useLayoutEffect(() => {
-    navigation.setOptions({
-      headerRight: () => (
-        <TouchableOpacity
-          onPress={() => {
-            void cycleThemePreference();
-          }}
-          style={[
-            styles.themeToggle,
-            {
-              backgroundColor: 'rgba(255,255,255,0.22)',
-              borderColor: 'rgba(255,255,255,0.4)',
-            },
-          ]}
-          accessibilityRole="button"
-          accessibilityLabel={
-            themePreference === 'system'
-              ? 'Sistem temasi'
-              : themePreference === 'light'
-                ? 'Aydinlik mod (sabit)'
-                : 'Koyu mod (sabit)'
-          }
-        >
-          <Ionicons
-            name={
-              themePreference === 'system'
-                ? 'contrast-outline'
-                : themePreference === 'light'
-                  ? 'sunny-outline'
-                  : 'moon-outline'
-            }
-            size={18}
-            color={
-              themePreference === 'dark' ? '#F7C948' : colors.onPrimary
-            }
-          />
-        </TouchableOpacity>
-      ),
-    });
-  }, [navigation, themePreference, isDark]);
 
   const airlineIcaoNorm = crewProfile?.airline_icao
     ? normalizeCrewAirlineIcaoTypo(crewProfile.airline_icao)
@@ -129,11 +88,17 @@ export default function Profile() {
     ]);
   };
 
+  const themeOptions: { key: ThemePreference; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
+    { key: 'system', label: t('profile.themeSystem'), icon: 'contrast-outline' },
+    { key: 'light', label: t('profile.themeLight'), icon: 'sunny-outline' },
+    { key: 'dark', label: t('profile.themeDark'), icon: 'moon-outline' },
+  ];
+
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: 28 + Math.max(insets.bottom, 8) }]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator
       >
@@ -192,7 +157,6 @@ export default function Profile() {
               <Text style={[styles.value, styles.valueInColumn, { color: colors.text }]} numberOfLines={2}>
                 {profile?.role === 'crew' ? t('signUp.crew') : t('signUp.family')}
               </Text>
-
             </View>
 
             <View style={styles.cardAvatarWrap}>
@@ -218,15 +182,52 @@ export default function Profile() {
               )}
             </View>
           </View>
-        </Pressable>
-      </ScrollView>
 
-      <View
-        style={[
-          styles.footer,
-          { paddingBottom: 12, borderTopColor: colors.border, backgroundColor: colors.background },
-        ]}
-      >
+          <TouchableOpacity
+            style={[styles.editInCard, { backgroundColor: colors.primary }]}
+            onPress={() => pushRootScreen(navigation as never, 'EditProfile')}
+          >
+            <View style={styles.editButtonContent}>
+              <Ionicons name="pencil" size={18} color={colors.onPrimary} />
+              <Text style={styles.editButtonText}>{t('profile.editProfileAction')}</Text>
+            </View>
+          </TouchableOpacity>
+        </Pressable>
+
+        <View style={[styles.settingsCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <Text style={[styles.settingsTitle, { color: colors.text }]}>{t('profile.appearanceTitle')}</Text>
+          <Text style={[styles.settingsHint, { color: colors.textSecondary }]}>{t('profile.appearanceHint')}</Text>
+          <View style={styles.themeRow}>
+            {themeOptions.map((opt) => {
+              const selected = themePreference === opt.key;
+              return (
+                <TouchableOpacity
+                  key={opt.key}
+                  style={[
+                    styles.themeChip,
+                    {
+                      backgroundColor: selected ? colors.primary : colors.background,
+                      borderColor: selected ? colors.primary : colors.border,
+                    },
+                  ]}
+                  onPress={() => void setThemePreference(opt.key)}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected }}
+                >
+                  <Ionicons
+                    name={opt.icon}
+                    size={16}
+                    color={selected ? colors.onPrimary : colors.text}
+                  />
+                  <Text style={[styles.themeChipText, { color: selected ? colors.onPrimary : colors.text }]}>
+                    {opt.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+
         {profile?.role === 'crew' && (
           <TouchableOpacity
             style={[styles.manageSubscriptionButton, { borderColor: colors.primary, backgroundColor: colors.surface }]}
@@ -236,20 +237,13 @@ export default function Profile() {
               <Ionicons name="card-outline" size={20} color={colors.primary} />
               <Text style={[styles.manageSubscriptionButtonText, { color: colors.primary }]}>
                 {t('profile.manageSubscription')}
+                {subscriptionAccess?.subscription_status
+                  ? ` · ${subscriptionAccess.subscription_status}`
+                  : ''}
               </Text>
             </View>
           </TouchableOpacity>
         )}
-
-        <TouchableOpacity
-          style={[styles.editButton, { backgroundColor: colors.primary }]}
-          onPress={() => pushRootScreen(navigation as never, 'EditProfile')}
-        >
-          <View style={styles.editButtonContent}>
-            <Ionicons name="pencil" size={22} color={colors.white} />
-            <Text style={styles.editButtonText}>{t('profile.editProfileAction')}</Text>
-          </View>
-        </TouchableOpacity>
 
         <TouchableOpacity
           style={styles.signOut}
@@ -300,7 +294,7 @@ export default function Profile() {
         <Text style={[styles.appVersion, { color: colors.textMuted }]} accessibilityRole="text">
           {t('profile.appVersion', { version: getAppVersionLabel() })}
         </Text>
-      </View>
+      </ScrollView>
     </View>
   );
 }
@@ -308,7 +302,7 @@ export default function Profile() {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   scroll: { flex: 1 },
-  scrollContent: { padding: 24, paddingBottom: 16 },
+  scrollContent: { padding: 24 },
   card: {
     backgroundColor: colors.surface,
     borderRadius: 12,
@@ -321,7 +315,6 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     gap: 14,
   },
-  /** Uzun e-posta / isim satırlarının avatar sütununa taşmaması için (RN flex shrink). */
   cardDetails: {
     flex: 1,
     minWidth: 0,
@@ -359,37 +352,50 @@ const styles = StyleSheet.create({
   airlineNameText: {
     flex: 1,
   },
-  manageSubscriptionButton: {
-    borderWidth: 1,
-    borderRadius: 10,
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    marginBottom: 12,
-  },
-  manageSubscriptionButtonText: { fontWeight: '700', fontSize: 15 },
-  label: { fontSize: 14, marginBottom: 4, marginTop: 16, fontWeight: '700' },
-  labelFirst: { marginTop: 0 },
-  value: { fontSize: 16 },
-  valueInColumn: { flexShrink: 1 },
-  footer: {
-    paddingHorizontal: 24,
-    paddingTop: 14,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.border,
-    backgroundColor: colors.background,
-  },
-  editButton: {
+  editInCard: {
+    marginTop: 16,
     backgroundColor: colors.primary,
     paddingVertical: 11,
     paddingHorizontal: 16,
     borderRadius: 9,
     alignItems: 'center',
   },
+  settingsCard: {
+    marginTop: 16,
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+  },
+  settingsTitle: { fontSize: 16, fontWeight: '700', marginBottom: 4 },
+  settingsHint: { fontSize: 13, marginBottom: 12, lineHeight: 18 },
+  themeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  themeChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  themeChipText: { fontSize: 13, fontWeight: '700' },
+  manageSubscriptionButton: {
+    borderWidth: 1,
+    borderRadius: 10,
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    marginTop: 16,
+  },
+  manageSubscriptionButtonText: { fontWeight: '700', fontSize: 15 },
+  label: { fontSize: 14, marginBottom: 4, marginTop: 16, fontWeight: '700' },
+  labelFirst: { marginTop: 0 },
+  value: { fontSize: 16 },
+  valueInColumn: { flexShrink: 1 },
   editButtonContent: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   editButtonText: { color: colors.onPrimary, fontWeight: '700', fontSize: 15 },
   signOut: {
-    marginTop: 8,
+    marginTop: 20,
     backgroundColor: colors.error,
     paddingVertical: 11,
     paddingHorizontal: 16,
@@ -422,20 +428,10 @@ const styles = StyleSheet.create({
   signOutContent: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   signOutText: { color: colors.white, fontWeight: '700', fontSize: 15 },
   appVersion: {
-    marginTop: 10,
+    marginTop: 14,
     marginBottom: 2,
     textAlign: 'center',
     fontSize: 11,
     fontWeight: '500',
-    letterSpacing: 0.2,
-  },
-  themeToggle: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    marginRight: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
   },
 });

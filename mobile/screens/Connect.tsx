@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -8,10 +8,10 @@ import {
   ActivityIndicator,
   ScrollView,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { useNavigation } from '@react-navigation/native';
-import { useSession } from '../contexts/SessionContext';
 import { supabase } from '../lib/supabase';
-import { colors } from '../theme/colors';
+import { colors, useThemeMode } from '../theme/colors';
 
 type Invitation = {
   id: string;
@@ -23,8 +23,11 @@ type Invitation = {
   } | null;
 };
 
+/** Legacy stack screen — Family tab now hosts inline invites; keep for deep links / old nav. */
 export default function Connect() {
-  const { profile } = useSession();
+  const { t } = useTranslation();
+  const themeMode = useThemeMode();
+  const styles = useMemo(() => createStyles(), [themeMode]);
   const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [loading, setLoading] = useState(true);
   const [responding, setResponding] = useState<string | null>(null);
@@ -40,7 +43,7 @@ export default function Connect() {
         console.error(error);
         setInvitations([]);
       } else {
-        setInvitations(data ?? []);
+        setInvitations((data ?? []) as Invitation[]);
       }
       setLoading(false);
     };
@@ -52,11 +55,15 @@ export default function Connect() {
     const { error } = await supabase.rpc('accept_crew_invitation', { p_invitation_id: id });
     setResponding(null);
     if (error) {
-      Alert.alert('Error', error.message);
+      Alert.alert(t('common.error'), error.message);
       return;
     }
     setInvitations((prev) => prev.filter((i) => i.id !== id));
-    Alert.alert('Connected!', 'You can now see their flights.', [{ text: 'OK', onPress: () => navigation.goBack() }]);
+    Alert.alert(
+      t('connect.connected'),
+      `${t('connect.connectedMessage')}\n\n${t('connect.subscriptionNotice')}`,
+      [{ text: t('common.ok'), onPress: () => navigation.goBack() }],
+    );
   };
 
   const decline = async (id: string) => {
@@ -64,53 +71,57 @@ export default function Connect() {
     const { error } = await supabase.rpc('decline_crew_invitation', { p_invitation_id: id });
     setResponding(null);
     if (error) {
-      Alert.alert('Error', error.message);
+      Alert.alert(t('common.error'), error.message);
       return;
     }
     setInvitations((prev) => prev.filter((i) => i.id !== id));
   };
 
-  const crewLabel = (inv: Invitation) => inv.crew_profiles?.company_name ?? 'Crew member';
+  const crewLabel = (inv: Invitation) => inv.crew_profiles?.company_name ?? t('connect.crewMember');
 
   return (
-    <ScrollView style={[styles.container, { backgroundColor: colors.background }]} contentContainerStyle={styles.content}>
-      <Text style={[styles.title, { color: colors.text }]}>Invitations</Text>
-      <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-        Crew members can invite you by email. Accept to see their flights.
-      </Text>
+    <ScrollView
+      style={[styles.container, { backgroundColor: colors.background }]}
+      contentContainerStyle={styles.content}
+    >
+      <Text style={[styles.title, { color: colors.text }]}>{t('connect.title')}</Text>
+      <Text style={[styles.subtitle, { color: colors.textSecondary }]}>{t('connect.subtitle')}</Text>
 
       {loading ? (
         <ActivityIndicator color={colors.primary} style={{ marginTop: 32 }} />
       ) : invitations.length === 0 ? (
-        <View style={styles.emptyBox}>
-          <Text style={[styles.emptyTitle, { color: colors.text }]}>No pending invitations</Text>
-          <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
-            When a crew member sends you an invitation, it will appear here. Make sure they have your correct email.
-          </Text>
+        <View style={[styles.emptyBox, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <Text style={[styles.emptyTitle, { color: colors.text }]}>{t('connect.noPending')}</Text>
+          <Text style={[styles.emptyText, { color: colors.textSecondary }]}>{t('connect.noPendingHint')}</Text>
         </View>
       ) : (
         <View style={styles.list}>
           {invitations.map((inv) => (
-            <View key={inv.id} style={styles.card}>
+            <View
+              key={inv.id}
+              style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}
+            >
               <Text style={[styles.cardTitle, { color: colors.text }]}>{crewLabel(inv)}</Text>
-              <Text style={[styles.cardEmail, { color: colors.textMuted }]}>invited {inv.family_email}</Text>
+              <Text style={[styles.cardEmail, { color: colors.textSecondary }]}>
+                {t('connect.invited')} {inv.family_email}
+              </Text>
               <View style={styles.actions}>
                 <TouchableOpacity
-                  style={[styles.declineBtn, responding === inv.id && styles.buttonDisabled]}
+                  style={[styles.declineBtn, { borderColor: colors.border }, responding === inv.id && styles.buttonDisabled]}
                   onPress={() => decline(inv.id)}
                   disabled={!!responding}
                 >
-                  <Text style={[styles.declineBtnText, { color: colors.textSecondary }]}>Decline</Text>
+                  <Text style={[styles.declineBtnText, { color: colors.text }]}>{t('connect.decline')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[styles.acceptBtn, responding === inv.id && styles.buttonDisabled]}
+                  style={[styles.acceptBtn, { backgroundColor: colors.primary }, responding === inv.id && styles.buttonDisabled]}
                   onPress={() => accept(inv.id)}
                   disabled={!!responding}
                 >
                   {responding === inv.id ? (
-                    <ActivityIndicator color="#fff" size="small" />
+                    <ActivityIndicator color={colors.onPrimary} size="small" />
                   ) : (
-                    <Text style={styles.acceptBtnText}>Accept</Text>
+                    <Text style={[styles.acceptBtnText, { color: colors.onPrimary }]}>{t('connect.accept')}</Text>
                   )}
                 </TouchableOpacity>
               </View>
@@ -118,44 +129,36 @@ export default function Connect() {
           ))}
         </View>
       )}
-
-      <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-        <Text style={[styles.backBtnText, { color: colors.primary }]}>Back to roster</Text>
-      </TouchableOpacity>
     </ScrollView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1 },
-  content: { padding: 24, paddingBottom: 48 },
-  title: { fontSize: 24, fontWeight: '700', marginBottom: 4 },
-  subtitle: { fontSize: 15, marginBottom: 24 },
-  emptyBox: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: 24,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  emptyTitle: { fontSize: 16, fontWeight: '600', marginBottom: 8 },
-  emptyText: { fontSize: 14, lineHeight: 22 },
-  list: { gap: 12 },
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  cardTitle: { fontSize: 17, fontWeight: '600' },
-  cardEmail: { fontSize: 13, marginTop: 4 },
-  actions: { flexDirection: 'row', gap: 12, marginTop: 16 },
-  declineBtn: { flex: 1, padding: 12, borderRadius: 10, borderWidth: 1, borderColor: colors.border, alignItems: 'center' },
-  declineBtnText: { fontWeight: '600' },
-  acceptBtn: { flex: 1, backgroundColor: colors.primary, padding: 12, borderRadius: 10, alignItems: 'center' },
-  acceptBtnText: { color: colors.white, fontWeight: '600' },
-  buttonDisabled: { opacity: 0.7 },
-  backBtn: { marginTop: 24, alignItems: 'center' },
-  backBtnText: { fontSize: 15, fontWeight: '600' },
-});
+function createStyles() {
+  return StyleSheet.create({
+    container: { flex: 1 },
+    content: { padding: 24, paddingBottom: 48 },
+    title: { fontSize: 24, fontWeight: '700', marginBottom: 4 },
+    subtitle: { fontSize: 15, marginBottom: 24, lineHeight: 22 },
+    emptyBox: {
+      borderRadius: 12,
+      padding: 24,
+      borderWidth: 1,
+    },
+    emptyTitle: { fontSize: 16, fontWeight: '600', marginBottom: 8 },
+    emptyText: { fontSize: 14, lineHeight: 22 },
+    list: { gap: 12 },
+    card: {
+      borderRadius: 12,
+      padding: 20,
+      borderWidth: 1,
+    },
+    cardTitle: { fontSize: 17, fontWeight: '600' },
+    cardEmail: { fontSize: 13, marginTop: 4 },
+    actions: { flexDirection: 'row', gap: 12, marginTop: 16 },
+    declineBtn: { flex: 1, padding: 12, borderRadius: 10, borderWidth: 1, alignItems: 'center' },
+    declineBtnText: { fontWeight: '700' },
+    acceptBtn: { flex: 1, padding: 12, borderRadius: 10, alignItems: 'center' },
+    acceptBtnText: { fontWeight: '700' },
+    buttonDisabled: { opacity: 0.7 },
+  });
+}

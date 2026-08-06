@@ -41,7 +41,7 @@ import Plans from './screens/Plans';
 import Consent from './screens/Consent';
 import PrivacyNotice from './screens/PrivacyNotice';
 import TermsDisclaimer from './screens/TermsDisclaimer';
-import { hasRequiredConsents } from './lib/consents';
+import { hasRequiredConsents, flushPendingSignupConsents } from './lib/consents';
 import { withStackBackButton } from './lib/stackHeaderOptions';
 
 const Stack = createNativeStackNavigator();
@@ -60,16 +60,22 @@ function RosterTabScreen() {
 function MainTabs() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
-  const tabBarBottom = Platform.OS === 'android' ? 10 + insets.bottom : 10;
   const mode = useThemeMode();
   void mode;
   const fontScale = useFontScaleMultiplier();
   const headerTitleFont = Math.round(20 * fontScale);
-  const tabLabelFont = Math.round(13 * fontScale);
+  const tabLabelFont = Math.round(12 * fontScale);
+  const floatBottom = Math.max(insets.bottom, 10) + 6;
   const screenOptions = {
-    headerStyle: { backgroundColor: colors.primary },
+    headerStyle: {
+      backgroundColor: colors.primary,
+      height: 52 + Math.max(insets.top, 0),
+    },
+    headerStatusBarHeight: Math.max(insets.top, 0),
     headerTintColor: colors.onPrimary,
     headerTitleStyle: { fontWeight: '800' as const, fontSize: headerTitleFont },
+    headerLeftContainerStyle: { paddingLeft: 8 },
+    headerRightContainerStyle: { paddingRight: 8 },
     contentStyle: { backgroundColor: 'transparent' },
   };
   return (
@@ -78,15 +84,30 @@ function MainTabs() {
         ...screenOptions,
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textMuted,
-        sceneContainerStyle: { backgroundColor: 'transparent' },
-        tabBarStyle: {
-          backgroundColor: colors.surface,
-          borderTopColor: colors.border,
-          borderTopWidth: 1,
-          height: 74 + (Platform.OS === 'android' ? insets.bottom : 0),
-          paddingTop: 10,
-          paddingBottom: tabBarBottom,
+        sceneStyle: {
+          backgroundColor: 'transparent',
+          paddingBottom: 72 + floatBottom,
         },
+        tabBarStyle: {
+          position: 'absolute',
+          left: 14,
+          right: 14,
+          bottom: floatBottom,
+          height: 64,
+          borderRadius: 22,
+          backgroundColor: colors.surface,
+          borderTopWidth: 0,
+          borderWidth: 1,
+          borderColor: colors.border,
+          paddingTop: 6,
+          paddingBottom: 8,
+          elevation: 12,
+          shadowColor: '#0f172a',
+          shadowOpacity: 0.18,
+          shadowRadius: 16,
+          shadowOffset: { width: 0, height: 8 },
+        },
+        tabBarItemStyle: { borderRightWidth: 0 },
         tabBarLabelStyle: { fontSize: tabLabelFont, fontWeight: '700' },
       }}
     >
@@ -95,13 +116,11 @@ function MainTabs() {
         component={RosterTabScreen}
         options={{
           tabBarLabel: t('nav.rosterTab'),
-          tabBarItemStyle: { borderRightColor: colors.border, borderRightWidth: 1 },
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="calendar-outline" size={size ?? 26} color={color} />
+            <Ionicons name="calendar-outline" size={size ?? 24} color={color} />
           ),
           headerShown: true,
           title: t('nav.roster'),
-          headerBackTitle: t('common.back'),
         }}
       />
       <Tab.Screen
@@ -110,11 +129,9 @@ function MainTabs() {
         options={{
           headerShown: true,
           title: t('nav.family'),
-          headerBackTitle: t('common.back'),
           tabBarLabel: t('nav.family'),
-          tabBarItemStyle: { borderRightColor: colors.border, borderRightWidth: 1 },
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="people-outline" size={size ?? 26} color={color} />
+            <Ionicons name="people-outline" size={size ?? 24} color={color} />
           ),
         }}
       />
@@ -124,11 +141,9 @@ function MainTabs() {
         options={{
           headerShown: true,
           title: t('nav.profile'),
-          headerBackTitle: t('common.back'),
           tabBarLabel: t('nav.profile'),
-          tabBarItemStyle: { borderRightWidth: 0 },
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="person-outline" size={size ?? 26} color={color} />
+            <Ionicons name="person-outline" size={size ?? 24} color={color} />
           ),
         }}
       />
@@ -138,6 +153,7 @@ function MainTabs() {
 
 function RootNavigator() {
   const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
   const { session, profile, crewProfile, isLoading, needsPasswordUpdate } = useSession();
   const [consentCheck, setConsentCheck] = useState<'unknown' | 'required' | 'ok'>('unknown');
   const mode = useThemeMode();
@@ -145,11 +161,17 @@ function RootNavigator() {
   const fontScale = useFontScaleMultiplier();
 
   const screenOptions = {
-    headerStyle: { backgroundColor: colors.primary },
+    headerStyle: {
+      backgroundColor: colors.primary,
+      height: 52 + Math.max(insets.top, 0),
+    },
+    headerStatusBarHeight: Math.max(insets.top, 0),
     headerTintColor: colors.onPrimary,
     headerTitleStyle: { fontWeight: '800' as const, fontSize: Math.round(20 * fontScale) },
     headerBackVisible: true,
     gestureEnabled: true,
+    headerLeftContainerStyle: { paddingLeft: 8 },
+    headerRightContainerStyle: { paddingRight: 8 },
     // Opaque content on pushed screens: transparent + ImageBackground can break
     // header/back taps and iOS swipe-back on physical devices (OK in simulator).
     contentStyle: { backgroundColor: colors.background },
@@ -179,6 +201,14 @@ function RootNavigator() {
       return () => {};
     }
     (async () => {
+      try {
+        await flushPendingSignupConsents({
+          userId: profile.id,
+          email: session.user.email,
+        });
+      } catch {
+        // ignore stash flush errors; fall through to DB check
+      }
       const ok = await hasRequiredConsents(profile.id);
       if (!cancelled) setConsentCheck(ok ? 'ok' : 'required');
     })();
