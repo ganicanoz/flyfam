@@ -791,8 +791,8 @@
         <div class="panel">
           <h3 style="margin:0 0 8px;">Grup bildirimi</h3>
           <p class="mini" style="margin-top:0;">
-            Rol ve/veya havayoluna göre toplu Expo push. Opsiyonel link (TestFlight / APK) bildirime
-            <code>data.url</code> olarak eklenir; uygulamada tıklanınca açılır.
+            Rol, platform (iOS / Android) ve/veya havayoluna göre toplu Expo push. Opsiyonel link
+            (TestFlight / APK) bildirime <code>data.url</code> olarak eklenir; uygulamada tıklanınca açılır.
           </p>
           <div class="grid" style="margin-top:10px;">
             <div style="grid-column: span 3;">
@@ -804,10 +804,18 @@
               </select>
             </div>
             <div style="grid-column: span 3;">
+              <label class="mini">Platform</label>
+              <select id="broadcastPlatform">
+                <option value="all" selected>Tümü (iOS + Android)</option>
+                <option value="ios">Yalnızca iOS</option>
+                <option value="android">Yalnızca Android</option>
+              </select>
+            </div>
+            <div style="grid-column: span 3;">
               <label class="mini">Havayolu ICAO (opsiyonel)</label>
               <input id="broadcastAirline" placeholder="örn. THY / PGT" />
             </div>
-            <div style="grid-column: span 6;">
+            <div style="grid-column: span 3;">
               <label class="mini">Başlık</label>
               <input id="broadcastTitle" value="FlyFam" maxlength="100" />
             </div>
@@ -1106,6 +1114,7 @@
       activityUsersBody: document.getElementById('activityUsersBody'),
       activityRecentBody: document.getElementById('activityRecentBody'),
       broadcastRole: document.getElementById('broadcastRole'),
+      broadcastPlatform: document.getElementById('broadcastPlatform'),
       broadcastAirline: document.getElementById('broadcastAirline'),
       broadcastTitle: document.getElementById('broadcastTitle'),
       broadcastBody: document.getElementById('broadcastBody'),
@@ -3193,6 +3202,7 @@
       const body = String(els.broadcastBody?.value || '').trim();
       const url = String(els.broadcastUrl?.value || '').trim();
       const role = String(els.broadcastRole?.value || 'all');
+      const platform = String(els.broadcastPlatform?.value || 'all');
       const airline = String(els.broadcastAirline?.value || '').trim().toUpperCase();
       if (!body) {
         setStatus('Broadcast mesajı gerekli', 'bad');
@@ -3202,8 +3212,11 @@
         }
         return;
       }
+      const platformLabel =
+        platform === 'ios' ? 'iOS' : platform === 'android' ? 'Android' : 'iOS + Android';
       const ok = window.confirm(
         'Grup push gönderilsin mi?\n\nRol: ' + role +
+        '\nPlatform: ' + platformLabel +
         (airline ? '\nAirline: ' + airline : '') +
         '\nBaşlık: ' + title +
         '\nMesaj: ' + body +
@@ -3216,14 +3229,15 @@
       }
       setStatus('Grup push gönderiliyor…', 'warn');
       try {
-        const payload = { title, body, role };
+        const payload = { title, body, role, platform };
         if (airline) payload.airline_icao = airline;
         if (url) payload.url = url;
         const json = await callAdminAction('send_group_push', payload);
         const msg =
           'Eşleşen ' + (json.users_matched || 0) +
           ' · tokenlı ' + (json.users_with_tokens || 0) +
-          ' · gönderilen ' + (json.sent || 0);
+          ' · gönderilen ' + (json.sent || 0) +
+          ' · platform ' + (json.platform || platform);
         if (els.broadcastStatus) {
           els.broadcastStatus.textContent = msg;
           els.broadcastStatus.className = 'mini ok';

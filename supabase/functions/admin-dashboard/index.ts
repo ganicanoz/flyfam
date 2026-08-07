@@ -1205,6 +1205,10 @@ Deno.serve(async (req) => {
           : 'all';
       const airlineFilter =
         typeof body?.airline_icao === 'string' ? body.airline_icao.trim().toUpperCase() : '';
+      const platformRaw =
+        typeof body?.platform === 'string' ? body.platform.trim().toLowerCase() : 'all';
+      const platformFilter =
+        platformRaw === 'ios' || platformRaw === 'android' ? platformRaw : 'all';
       if (!bodyRaw) {
         return new Response(JSON.stringify({ error: 'body is required' }), {
           status: 400,
@@ -1266,10 +1270,14 @@ Deno.serve(async (req) => {
           { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
         );
       }
-      const { data: tokenRows } = await adminClient
+      let tokenQ = adminClient
         .from('device_tokens')
-        .select('user_id, token')
+        .select('user_id, token, platform')
         .in('user_id', userIds);
+      if (platformFilter !== 'all') {
+        tokenQ = tokenQ.eq('platform', platformFilter);
+      }
+      const { data: tokenRows } = await tokenQ;
       const tokensByUser = new Map<string, string[]>();
       for (const row of tokenRows ?? []) {
         const uid = String((row as { user_id: string }).user_id);
@@ -1293,6 +1301,7 @@ Deno.serve(async (req) => {
           source: 'admin_group',
           role: roleFilter,
           airline_icao: airlineFilter || null,
+          platform: platformFilter,
         },
       }));
       if (activityRows.length) {
@@ -1305,6 +1314,7 @@ Deno.serve(async (req) => {
           users_matched: userIds.length,
           users_with_tokens: tokensByUser.size,
           token_count: allTokens.length,
+          platform: platformFilter,
           sent: pushResult.sent,
           expo_errors: pushResult.errors,
         }),
