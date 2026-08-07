@@ -9,7 +9,7 @@
   <meta http-equiv="Expires" content="0" />
   <script>
     (function () {
-      var UI = '20';
+      var UI = '21';
       var p = new URLSearchParams(location.search);
       if (p.get('ui') !== UI) {
         p.set('ui', UI);
@@ -1878,7 +1878,7 @@
           let hint = '';
           if (location.protocol === 'file:') {
             hint =
-              ' Paneli file:// ile açıyorsun — terminalde: cd docs && python3 -m http.server 8765 sonra http://localhost:8765/ADMIN_STATUS_DASHBOARD.html?ui=14';
+              ' Paneli file:// ile açıyorsun — terminalde: cd docs && python3 -m http.server 8765 sonra http://localhost:8765/ADMIN_STATUS_DASHBOARD.html?ui=21';
           } else {
             hint = ' Supabase URL ve anon key kontrol et; VPN/eklenti engeli olabilir.';
           }

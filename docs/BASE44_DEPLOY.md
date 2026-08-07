@@ -25,7 +25,7 @@ Base44 editör → AI chat’e yapıştırın:
 Create a hidden admin page at route /AdminPanel. Full viewport height iframe embedding https://ganicanoz.github.io/flyfam/BASE44_ADMIN_LIVE.html. Hide from public navigation and sitemap. Do not add links in the main marketing menu. Page title: FlyFam Admin.
 ```
 
-Alternatif (yeni sekme, iframe yok): menüde yalnızca sizin göreceğiniz bir link → `https://ganicanoz.github.io/flyfam/ADMIN_STATUS_DASHBOARD.html?ui=19`
+Alternatif (yeni sekme, iframe yok): menüde yalnızca sizin göreceğiniz bir link → `https://ganicanoz.github.io/flyfam/ADMIN_STATUS_DASHBOARD.html?ui=21`
 
 ## Recommended: GitHub Pages (free, HTTPS)
 
