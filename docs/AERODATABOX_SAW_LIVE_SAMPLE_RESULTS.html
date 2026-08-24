@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SAW — AeroDataBox canlı örnek sonuçlar (2026-04-02)</title>
+  <style>
+    body { font-family: system-ui, sans-serif; background: #0b1020; color: #e2e8f0; margin: 0; padding: 24px; line-height: 1.5; max-width: 960px; margin-inline: auto; }
+    h1 { font-size: 1.25rem; margin: 0 0 8px; }
+    .meta { color: #94a3b8; font-size: 0.9rem; margin-bottom: 24px; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.85rem; background: #151b2e; border-radius: 10px; overflow: hidden; }
+    th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #2d3a52; vertical-align: top; }
+    th { background: #1e293b; color: #f8fafc; font-weight: 700; }
+    tr:last-child td { border-bottom: none; }
+    code { background: #0f172a; padding: 2px 6px; border-radius: 4px; font-size: 0.8rem; }
+    pre { background: #0f172a; padding: 14px; border-radius: 8px; overflow-x: auto; font-size: 0.75rem; border: 1px solid #334155; }
+    .ok { color: #4ade80; }
+    .warn { color: #fbbf24; }
+    .bad { color: #f87171; }
+    .note { margin-top: 20px; padding: 14px; background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 8px; font-size: 0.88rem; }
+    a { color: #38bdf8; }
+  </style>
+</head>
+<body>
+  <h1>SAW — AeroDataBox (RapidAPI) canlı sorgu özeti</h1>
+  <p class="meta">
+    Örnek tarih: <strong>2026-04-02</strong> (Europe/Istanbul yerel pencereler). İstekler
+    <code>x-rapidapi-host: aerodatabox.p.rapidapi.com</code> ile atıldı.
+    Tekrar üretmek için: <code>node scripts/fetch-adb-saw-board.js 2026-04-02 PC2009 PC2008</code>
+  </p>
+
+  <h2 style="font-size:1rem;margin:24px 0 10px;">API kısıtları (gözlemlenen)</h2>
+  <table>
+    <thead>
+      <tr><th>Durum</th><th>Açıklama</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="bad">400</td>
+        <td>Tek istekte <strong>24 saatlik</strong> aralık (ör. <code>2026-04-02T00:00</code> → <code>2026-04-02T23:59</code>) reddedildi: dönen mesajda sürenin <strong>12 saati aşmaması</strong> isteniyor.</td>
+      </tr>
+      <tr>
+        <td class="bad">404</td>
+        <td>Sadece gün tarihi ile path (ör. <code>.../iata/SAW/2026-04-02?direction=Arrival</code>) bu ortamda <strong>404</strong> döndü — tam zaman aralığı kullanmak gerekiyor.</td>
+      </tr>
+      <tr>
+        <td class="warn">429</td>
+        <td>Arka arkaya birden fazla çağrıda RapidAPI <strong>saniye başına limit</strong> tetiklenebiliyor; scriptler araya ~2,5 sn koymalı.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2 style="font-size:1rem;margin:24px 0 10px;">Atılan sorgular ve sonuçlar</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Sorgu</th>
+        <th>HTTP</th>
+        <th>Kayıt</th>
+        <th>Not</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>Arrival</code> · <code>2026-04-02T18:00</code> → <code>2026-04-03T06:00</code> (gece tahtası)</td>
+        <td class="ok">200</td>
+        <td>153 varış</td>
+        <td><strong>PC2009</strong> bu pencerede <strong>yok</strong> (planlı SAW varışı ~14:40 yerel).</td>
+      </tr>
+      <tr>
+        <td><code>Arrival</code> · <code>2026-04-02T00:00</code> → <code>2026-04-02T12:00</code></td>
+        <td class="ok">200</td>
+        <td>127 varış</td>
+        <td>PC2009 sabah öncesi inişler.</td>
+      </tr>
+      <tr>
+        <td><code>Arrival</code> · <code>2026-04-02T12:00</code> → <code>2026-04-03T00:00</code></td>
+        <td class="ok">200</td>
+        <td>208 varış</td>
+        <td><strong class="ok">PC2009 bulundu</strong> — özet aşağıda.</td>
+      </tr>
+      <tr>
+        <td><code>Departure</code> · <code>2026-04-02T00:00</code> → <code>2026-04-02T12:00</code></td>
+        <td class="ok">200</td>
+        <td>157 kalkış</td>
+        <td><strong class="ok">PC2008 bulundu</strong> — <code>Departed</code>.</td>
+      </tr>
+      <tr>
+        <td><code>Departure</code> · <code>2026-04-02T12:00</code> → <code>2026-04-03T00:00</code></td>
+        <td class="ok">200</td>
+        <td>180 kalkış</td>
+        <td>PC2008 bu dilimde yok (kalkış ~11:20 yerel).</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2 style="font-size:1rem;margin:24px 0 10px;">PC2009 — SAW varış tahtası (öğleden sonra dilimi)</h2>
+  <p class="meta">Kayıt: AYT → SAW · Sorgu anındaki <code>status</code> (canlı veri değişir).</p>
+  <pre>{
+  "number": "PC 2009",
+  "status": "Expected",
+  "departure": {
+    "airport": { "iata": "AYT", "icao": "LTAI" },
+    "scheduledTime": { "utc": "2026-04-02 10:25Z", "local": "2026-04-02 13:25+03:00" },
+    "revisedTime": { "utc": "2026-04-02 10:55Z", "local": "2026-04-02 13:55+03:00" }
+  },
+  "arrival": {
+    "scheduledTime": { "utc": "2026-04-02 11:40Z", "local": "2026-04-02 14:40+03:00" }
+  },
+  "airline": { "iata": "PC", "icao": "PGT", "name": "Pegasus" }
+}</pre>
+
+  <h2 style="font-size:1rem;margin:24px 0 10px;">PC2008 — SAW kalkış tahtası (sabah dilimi)</h2>
+  <pre>{
+  "number": "PC 2008",
+  "status": "Departed",
+  "departure": {
+    "scheduledTime": { "utc": "2026-04-02 08:20Z", "local": "2026-04-02 11:20+03:00" }
+  },
+  "arrival": {
+    "scheduledTime": { "utc": "2026-04-02 09:40Z", "local": "2026-04-02 12:40+03:00" }
+  }
+}</pre>
+
+  <div class="note">
+    <strong>FlyFam çıkarımı:</strong> Uçuş numarası ile <code>/flights/number/…</code> yanıtı “blind” kaldığında,
+    hedef meydan için <strong>doğru 12 saatlik</strong> varış/kalkış penceresi ile tahta sorgusu PC2009’u listeleyebiliyor.
+    Gün boyu kapsamak için <strong>en az 2 istek</strong> (00–12 ve 12–24) gerekir. Karşılaştırma tablosu:
+    <a href="./AERODATABOX_AIRPORT_ENDPOINTS_COMPARISON.html">AERODATABOX_AIRPORT_ENDPOINTS_COMPARISON.html</a>
+  </div>
+</body>
+</html>

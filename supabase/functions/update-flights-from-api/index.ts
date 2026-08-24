@@ -6,12 +6,21 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, content-type' };
 
+function internalStatusMirrorForDbFlightStatus(flightStatus: string): string {
+  const s = String(flightStatus ?? '').toLowerCase();
+  if (s === 'parked') return 'landed';
+  if (s === 'departed') return 'en_route';
+  if (['scheduled', 'taxi_out', 'en_route', 'landed', 'cancelled'].includes(s)) return s;
+  if (s === 'canceled') return 'cancelled';
+  return 'scheduled';
+}
+
 function extractMissingColumn(msg: string): string | null {
   const s = String(msg ?? '');
-  // e.g. "column flights.schedule_unconfirmed does not exist"
+  // e.g. "column flights.fr24_progress_dep_utc does not exist"
   const m1 = s.match(/column\s+\w+\.(\w+)\s+does not exist/i);
   if (m1?.[1]) return m1[1];
-  // e.g. "Could not find the 'schedule_unconfirmed' column"
+  // e.g. "Could not find the 'airlabs_progress_percent' column"
   const m2 = s.match(/Could not find the '([^']+)' column/i);
   if (m2?.[1]) return m2[1];
   return null;
@@ -49,13 +58,20 @@ interface FlightUpdate {
   scheduled_arrival?: string | null;
   actual_departure?: string | null;
   actual_arrival?: string | null;
+  delay_dep_min?: number | null;
+  delay_arr_min?: number | null;
   flight_status?: string | null;
   origin_city?: string | null;
   destination_city?: string | null;
   is_delayed?: boolean | null;
-  schedule_unconfirmed?: boolean | null;
-  schedule_source_hint?: string | null;
   diverted_to?: string | null;
+  fr24_progress_dep_utc?: string | null;
+  fr24_progress_eta_utc?: string | null;
+  fr24_datetime_takeoff_utc?: string | null;
+  fr24_datetime_landed_utc?: string | null;
+  fr24_first_seen_utc?: string | null;
+  airlabs_progress_percent?: number | null;
+  aircraft_registration?: string | null;
 }
 
 Deno.serve(async (req) => {
@@ -89,15 +105,16 @@ Deno.serve(async (req) => {
   }
 
   const flightIds = updates.map((u) => u.flightId).filter(Boolean);
-  const { data: flights } = await supabase.from('flights').select('id, crew_id').in('id', flightIds);
-  const crewIds = new Set((flights ?? []).map((f) => f.crew_id));
   const { data: conns } = await supabase
     .from('family_connections')
     .select('crew_id')
     .eq('family_id', user.id)
     .eq('status', 'approved');
   const allowedCrewIds = new Set((conns ?? []).map((c) => c.crew_id));
-  const allowedFlightIds = new Set((flights ?? []).filter((f) => allowedCrewIds.has(f.crew_id)).map((f) => f.id));
+  const { data: fcRows } = await supabase.from('flight_crew').select('flight_id, crew_id').in('flight_id', flightIds);
+  const allowedFlightIds = new Set(
+    (fcRows ?? []).filter((r) => allowedCrewIds.has(r.crew_id)).map((r) => r.flight_id)
+  );
 
   let applied = 0;
   for (const u of updates) {
@@ -106,13 +123,50 @@ Deno.serve(async (req) => {
     const payloadScheduled: Record<string, unknown> = {};
     if (u.scheduled_departure !== undefined) payloadScheduled.scheduled_departure = u.scheduled_departure;
     if (u.scheduled_arrival !== undefined) payloadScheduled.scheduled_arrival = u.scheduled_arrival;
-    if (u.flight_status !== undefined) payloadScheduled.flight_status = u.flight_status;
+    if (u.flight_status !== undefined) {
+      payloadScheduled.flight_status = u.flight_status;
+      if (typeof u.flight_status === 'string') {
+        payloadScheduled.internal_status = internalStatusMirrorForDbFlightStatus(u.flight_status);
+      }
+    }
     if (u.origin_city !== undefined) payloadScheduled.origin_city = u.origin_city;
     if (u.destination_city !== undefined) payloadScheduled.destination_city = u.destination_city;
     if (u.is_delayed !== undefined) payloadScheduled.is_delayed = u.is_delayed;
-    if (u.schedule_unconfirmed !== undefined) payloadScheduled.schedule_unconfirmed = u.schedule_unconfirmed;
-    if (u.schedule_source_hint !== undefined) payloadScheduled.schedule_source_hint = u.schedule_source_hint;
+    if (u.delay_dep_min !== undefined) payloadScheduled.delay_dep_min = u.delay_dep_min;
+    if (u.delay_arr_min !== undefined) payloadScheduled.delay_arr_min = u.delay_arr_min;
     if (u.diverted_to !== undefined) payloadScheduled.diverted_to = u.diverted_to;
+    if (u.fr24_progress_dep_utc !== undefined) payloadScheduled.fr24_progress_dep_utc = u.fr24_progress_dep_utc;
+    if (u.fr24_progress_eta_utc !== undefined) payloadScheduled.fr24_progress_eta_utc = u.fr24_progress_eta_utc;
+    if (u.fr24_datetime_takeoff_utc !== undefined) payloadScheduled.fr24_datetime_takeoff_utc = u.fr24_datetime_takeoff_utc;
+    if (u.fr24_datetime_landed_utc !== undefined) payloadScheduled.fr24_datetime_landed_utc = u.fr24_datetime_landed_utc;
+    if (u.fr24_first_seen_utc !== undefined) payloadScheduled.fr24_first_seen_utc = u.fr24_first_seen_utc;
+    if (u.airlabs_progress_percent !== undefined) payloadScheduled.airlabs_progress_percent = u.airlabs_progress_percent;
+    if (u.aircraft_registration !== undefined) {
+      const reg = typeof u.aircraft_registration === 'string' ? u.aircraft_registration.trim().toUpperCase() : u.aircraft_registration;
+      payloadScheduled.aircraft_registration = reg || null;
+    }
+
+    if (typeof u.scheduled_departure === 'string' && u.scheduled_departure.length >= 10) {
+      const utcDay = u.scheduled_departure.trim().slice(0, 10);
+      if (/^\d{4}-\d{2}-\d{2}$/.test(utcDay)) {
+        const { data: existing } = await supabase
+          .from('flights')
+          .select('flight_number, flight_date')
+          .eq('id', u.flightId)
+          .single();
+        if (existing && existing.flight_date !== utcDay) {
+          const fn = String(existing.flight_number ?? '');
+          const { data: clash } = await supabase
+            .from('flights')
+            .select('id')
+            .eq('flight_number', fn)
+            .eq('flight_date', utcDay)
+            .neq('id', u.flightId)
+            .maybeSingle();
+          if (!clash) payloadScheduled.flight_date = utcDay;
+        }
+      }
+    }
 
     const payloadActual: Record<string, unknown> = {};
     if (u.actual_departure !== undefined) payloadActual.actual_departure = u.actual_departure;

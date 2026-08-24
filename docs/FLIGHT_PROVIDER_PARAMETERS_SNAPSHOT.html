@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>FlyFam — Parametre matrisi (snapshot)</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f8fafc; color: #1e293b; margin: 0; padding: 24px; line-height: 1.5; }
+  .page-header { background: #0f172a; color: #fff; padding: 22px 24px; margin: -24px -24px 24px -24px; }
+  .page-header h1 { font-size: 18px; margin: 0; }
+  .page-header p { font-size: 12px; color: #94a3b8; margin: 8px 0 0; max-width: 960px; }
+  .flight-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px 20px; margin-bottom: 20px; }
+  .flight-card h2 { margin: 0 0 8px; font-size: 17px; }
+  .flight-card .date { font-weight: 400; color: #64748b; font-size: 14px; }
+  .phase-hint { font-size: 12px; color: #64748b; margin: 0 0 16px; }
+  code { background: #f1f5f9; padding: 1px 5px; border-radius: 4px; font-size: 11px; }
+  .param-matrix { margin-top: 4px; }
+  .param-matrix h3 { font-size: 14px; margin: 0 0 10px; color: #0f172a; }
+  .matrix-date { font-weight: 400; color: #64748b; font-size: 12px; }
+  .matrix-note { font-size: 11px; color: #b45309; margin: 0 0 10px; }
+  .matrix-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 0 -4px; }
+  table.matrix { width: 100%; min-width: 920px; border-collapse: collapse; font-size: 10px; }
+  table.matrix th, table.matrix td { padding: 7px 8px; border-bottom: 1px solid #e2e8f0; text-align: left; vertical-align: top; }
+  table.matrix th { background: #1e293b; color: #f8fafc; font-weight: 600; white-space: nowrap; }
+  table.matrix th.pdf, table.matrix td.pdf { background: #f0fdf4; border-left: 2px solid #86efac; border-right: 1px solid #bbf7d0; }
+  table.matrix th.num, table.matrix td.num { width: 28px; text-align: center; color: #64748b; font-weight: 700; }
+  table.matrix th.lbl, table.matrix td.lbl { min-width: 140px; font-weight: 600; color: #334155; }
+  table.matrix tbody tr:nth-child(even) td { background: #fafafa; }
+  table.matrix tbody tr:nth-child(even) td.pdf { background: #ecfdf5; }
+  .matrix-foot { font-size: 10px; color: #94a3b8; margin: 10px 0 0; }
+  .footer { font-size: 11px; color: #94a3b8; margin-top: 24px; }
+</style>
+</head>
+<body>
+<header class="page-header">
+  <h1>Parametre × sağlayıcı — canlı snapshot</h1>
+  <p><code>node scripts/flight-provider-snapshot-report.js</code> · Tarih: <strong>2026-04-21</strong> · Uçuşlar: PC901. PDF/DB sütunu: Supabase <code>flights</code> (service role). Şema ile uyum: <code>docs/FLIGHT_PROVIDER_PARAMETERS_TABLE.md</code>.</p>
+</header>
+<section class="flight-card">
+        <h2>PC901 <span class="date">2026-04-21</span></h2>
+        <p class="phase-hint">Faz (basit): <code>semi_active? (STD yok)</code> · 2026-04-21T11:11:11.939Z</p>
+        <div class="param-matrix">
+    <h3>Parametre × kaynak <span class="matrix-date">(2026-04-21)</span></h3>
+    
+    <div class="matrix-scroll">
+      <table class="matrix">
+        <thead>
+          <tr>
+            <th class="num">No</th>
+            <th class="lbl">Parametre</th>
+            <th class="pdf">PDF / DB <code>flights</code></th>
+            <th>AirLabs</th>
+            <th>AeroDataBox</th>
+            <th>FR24 light</th>
+            <th>AeroAPI</th>
+            <th>FlightAPI</th>
+          </tr>
+        </thead>
+        <tbody><tr><td class="num">1</td><td class="lbl">Uçuş kodu</td><td class="pdf">PC901</td><td>—</td><td>—</td><td>PC901</td><td>—</td><td>PC901</td></tr><tr><td class="num">2</td><td class="lbl">Kalkış meydanı (IATA/ICAO)</td><td class="pdf">SAW</td><td>—</td><td>—</td><td>LTFJ</td><td>—</td><td>—</td></tr><tr><td class="num">3</td><td class="lbl">Varış meydanı (IATA/ICAO)</td><td class="pdf">VIE</td><td>—</td><td>—</td><td>LOWW</td><td>—</td><td>—</td></tr><tr><td class="num">4</td><td class="lbl">STD (UTC)</td><td class="pdf">2026-04-21T08:20:00+00:00</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr><tr><td class="num">5</td><td class="lbl">STA (UTC)</td><td class="pdf">2026-04-21T10:40:00+00:00</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr><tr><td class="num">6</td><td class="lbl">ETD (UTC)</td><td class="pdf">—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr><tr><td class="num">7</td><td class="lbl">ETA (UTC)</td><td class="pdf">—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr><tr><td class="num">8</td><td class="lbl">ATD (UTC)</td><td class="pdf">—</td><td>—</td><td>—</td><td>2026-04-21T08:34:54Z</td><td>—</td><td>—</td></tr><tr><td class="num">9</td><td class="lbl">ATA (UTC)</td><td class="pdf">—</td><td>—</td><td>—</td><td>2026-04-21T10:32:31Z</td><td>—</td><td>—</td></tr><tr><td class="num">10</td><td class="lbl">Anormal durum (iptal / aktarma)</td><td class="pdf">scheduled</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr><tr><td class="num">11</td><td class="lbl">Transponder açılış (UTC)</td><td class="pdf">—</td><td>—</td><td>—</td><td>2026-04-21T08:18:00Z</td><td>—</td><td>—</td></tr><tr><td class="num">12</td><td class="lbl">Kalkış zamanı (UTC) (operasyonel)</td><td class="pdf">—</td><td>—</td><td>—</td><td>2026-04-21T08:34:54Z</td><td>—</td><td>—</td></tr><tr><td class="num">13</td><td class="lbl">İniş zamanı (UTC) (operasyonel)</td><td class="pdf">—</td><td>—</td><td>—</td><td>2026-04-21T10:32:31Z</td><td>—</td><td>—</td></tr><tr><td class="num">14</td><td class="lbl">Son görülme / transponder kapanış (UTC)</td><td class="pdf">—</td><td>—</td><td>—</td><td>2026-04-21T10:45:51Z</td><td>—</td><td>—</td></tr><tr><td class="num">15</td><td class="lbl">`api_refresh_phase` · `phase_active_locked`</td><td class="pdf">passive_future · locked=false</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr></tbody>
+      </table>
+    </div>
+    <p class="matrix-foot">PDF sütunu: Supabase <code>flights</code> (ilk eşleşen satır). Satır 15 yalnızca DB tetikleyicisi; API’ler doğrudan yazmaz.</p>
+  </div>
+      </section>
+<p class="footer">docs/FLIGHT_PROVIDER_PARAMETERS_SNAPSHOT.html</p>
+</body>
+</html>

@@ -21,7 +21,9 @@ Family users receive push notifications for their connected crew’s flights.
 ### Backend
 
 - **Supabase Edge Function** `notify-family` sends notifications via the Expo Push API.
-- **Depart / land** are triggered from the **crew** app when the crew taps **Update** and the flight API returns status `en_route` or `landed`. The function is called with the crew’s JWT.
+- **Crew’s only job:** add flights and tap **Send flights to my family**. Crew does not open the app for updates; detection and notifications run in the background.
+- **Depart / land** are detected **automatically** in the background:
+  - **check-flight-status-and-notify** Edge Function is called either by an **external cron** (e.g. every **5 min**, for API cost; or 2–3 min if preferred) with header `x-cron-secret`, or by the **app in background** (when the OS runs the app’s background fetch task) with the user’s JWT. It fetches FR24, updates the DB, and sends took_off/landed to family via notify-family.
 - **Today's flights** is sent when crew taps **Send flights to my family** on Roster. Optional: cron can send it daily with x-cron-secret.
 
 ## Optional: Daily digest cron
@@ -43,6 +45,19 @@ Run once per day (e.g. 06:00 in the crew’s timezone or UTC). The function find
 
 3. Use a cron service (e.g. cron-job.org, GitHub Actions, or Supabase pg_cron + `net.http_post` if available) to call this once per day.
 
+## Automatic depart/land detection (no crew action)
+
+So that family gets “took off” and “landed” without the crew opening the app:
+
+1. **External cron (required):** Call **check-flight-status-and-notify** every **5 minutes** (or 2–3 min; 5 min reduces API cost):
+   - **URL:** `https://<project-ref>.supabase.co/functions/v1/check-flight-status-and-notify`
+   - **Method:** POST  
+   - **Headers:** `Content-Type: application/json`, `x-cron-secret: <CRON_SECRET>`
+   - Use cron-job.org, GitHub Actions, or pg_cron (Supabase Pro) with this URL and secret.
+2. **App background (fallback):** The app registers a background fetch task. When the OS runs it (e.g. when the app is in background), the app calls the same Edge Function with the user’s JWT. Rate limit: once per 2 minutes when triggered by JWT.
+
+Crew only adds flights and sends to family; the cron does detection and notifications in the background.
+
 ## API (Edge Function)
 
 - **POST** with JWT (crew):
@@ -55,3 +70,26 @@ Run once per day (e.g. 06:00 in the crew’s timezone or UTC). The function find
 ## Preferences
 
 Family users can control notifications per connection in **notification_preferences** (today_flights, took_off, landed, etc.). Default is enabled. The UI for these preferences can be added in the family dashboard or profile.
+
+## Otomatik bildirim (Kalktı/İndi) gitmiyorsa
+
+1. **notify-family için CRON_SECRET**  
+   Cron, `check-flight-status-and-notify` çalıştıktan sonra **notify-family**'yi `x-cron-secret` header'ı ile çağırır. **notify-family** bu isteği kabul etmek için kendi secret'ında **CRON_SECRET** tanımlı olmalı ve **check-flight-status-and-notify** ile aynı değerde olmalı.  
+   - Supabase Dashboard → Edge Functions → **notify-family** → **Secrets**  
+   - `CRON_SECRET` ekle veya güncelle; değeri **check-flight-status-and-notify** ile aynı olsun (cron-job.org’daki `x-cron-secret` ile aynı).
+   - notify-family Logs’ta "Cron request rejected: CRON_SECRET missing or mismatch" görüyorsan bu secret eksik/yanlış demektir.
+
+2. **Aile kullanıcısının push token’ı**  
+   Aile hesabı giriş yaptıktan sonra uygulama Expo push token’ı alıp `device_tokens` tablosuna yazmalı. Token yoksa bildirim gönderilmez.  
+   - Supabase → Table Editor → **device_tokens** → aile kullanıcısının `user_id`’si ile kayıt var mı kontrol et.
+
+3. **Bağlantı onaylı mı?**  
+   **family_connections** tablosunda ilgili crew–family satırında `status = 'approved'` olmalı.
+
+4. **Cron gerçekten tetikliyor mu?**  
+   check-flight-status-and-notify için Supabase Logs’ta 200 dönüyor mu bak. Yanıtta `processed`, `updated`, `tookOffSent`, `landedSent` değerlerine bak.  
+   - **Otomatik statü değişmiyorsa:** `processed > 0` ama `updated = 0` ise FR24 bu uçuşlar için veri dönmüyor olabilir. Logs’ta "no FR24 data" + flight_number/flight_date satırları varsa o uçuşlar FR24’te bulunamıyor (tarih aralığı veya uçuş numarası formatı).  
+   - **Bildirim gitmiyorsa:** check-flight-status Logs’ta "notify-family took_off failed" veya "notify-family landed failed" + status/body varsa notify-family 401/500 dönüyor demektir; önce CRON_SECRET’ı notify-family’de kontrol et, sonra notify-family Logs’a bak.
+
+5. **Detaylı cron kurulumu**  
+   Bkz. [CRON_CHECK.md](./CRON_CHECK.md).

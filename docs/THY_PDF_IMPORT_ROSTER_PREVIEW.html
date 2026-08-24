@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>FlyFam — THY PDF içe aktarma önizlemesi (GMT)</title>
+  <style>
+    :root {
+      --bg: rgba(238, 243, 249, 0.92);
+      --surface: #ffffff;
+      --surface-alt: #f1f6ff;
+      --primary: #5aa6ff;
+      --accent: #1d4fa3;
+      --text: #0b1220;
+      --text-secondary: #22324c;
+      --text-muted: #6b7a90;
+      --border: #e1eaf5;
+      --success: #2e7d32;
+      --warn-bg: #fff8e6;
+      --warn-border: #e6c200;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.45;
+      padding: 20px 16px 48px;
+    }
+    .wrap { max-width: 520px; margin: 0 auto; }
+    h1 {
+      font-size: 1.35rem;
+      font-weight: 700;
+      color: var(--accent);
+      margin: 0 0 8px;
+    }
+    .sub {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      margin-bottom: 16px;
+    }
+    .legend {
+      background: var(--warn-bg);
+      border: 1px solid var(--warn-border);
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-size: 0.82rem;
+      color: var(--text-secondary);
+      margin-bottom: 20px;
+    }
+    .legend strong { color: var(--text); }
+    .legend code { font-size: 0.78em; background: #fff; padding: 1px 5px; border-radius: 4px; }
+    .section-date {
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+      margin: 20px 0 10px;
+      padding-left: 4px;
+    }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px 16px;
+      margin-bottom: 10px;
+      box-shadow: 0 1px 3px rgba(11, 18, 32, 0.06);
+    }
+    .card-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+    .fn {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--accent);
+      letter-spacing: -0.02em;
+    }
+    .fn .p-badge {
+      display: inline-block;
+      margin-left: 6px;
+      font-size: 0.65rem;
+      font-weight: 800;
+      vertical-align: super;
+      color: #c62828;
+      border: 1px solid #ffcdd2;
+      background: #ffebee;
+      padding: 2px 5px;
+      border-radius: 4px;
+      letter-spacing: 0;
+    }
+    .route {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .route span { color: var(--text-muted); font-weight: 500; margin: 0 4px; }
+    .rows {
+      display: grid;
+      gap: 6px;
+      font-size: 0.88rem;
+      color: var(--text-secondary);
+    }
+    .row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 8px;
+      padding: 4px 0;
+      border-top: 1px dashed var(--border);
+    }
+    .row:first-of-type { border-top: none; padding-top: 0; }
+    .row .k { color: var(--text-muted); flex-shrink: 0; }
+    .row .v { font-weight: 500; text-align: right; font-variant-numeric: tabular-nums; }
+    .import-date {
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid var(--border);
+      font-size: 0.8rem;
+      color: var(--success);
+      font-weight: 600;
+    }
+    .import-date span { color: var(--text-muted); font-weight: 500; }
+    footer {
+      margin-top: 28px;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Roster — THY PDF içe aktarma</h1>
+    <p class="sub">
+      Örnek: <code>Published_110080.pdf</code> · Kalkış/Varış <strong>GMT</strong> (PDF “Kalkış/GMT · İniş/GMT” sütunları)
+    </p>
+
+    <div class="legend">
+      <strong>Tarih kuralı (içe aktarma):</strong> PDF’te varış sütunundaki tarih, <em>varışın takvim günüdür</em> (GMT).
+      Kalkış ve varış saatleri aynı günün GMT saatleri gibi düşünülür; eğer kalkış saati, varış saatinden
+      <strong>24 saatlik döngüde ilerideyse</strong> (ör. kalkış 23:50, varış 03:55), uçuş gece yarısını geçmiştir —
+      <strong>doğru kalkış tarihi, varış tarihinin bir gün öncesidir.</strong>
+      <br /><br />
+      Örnek: <code>TK422</code> varış <code>IST 17 MAR 2026 03:55 GMT</code>, kalkış <code>VKO 23:50</code>
+      → kalkış tarihi <code>16 MAR 2026</code>.
+    </div>
+
+    <div id="app"></div>
+    <footer>
+      FlyFam önizleme — uygulamadaki <code>flight_date</code> için öneri: bu hesaplanan <strong>kalkış (GMT) tarihi</strong>.
+    </footer>
+  </div>
+
+  <script>
+    /**
+     * Published_110080.pdf — sayfa 1 GMT tablosu (ekran görüntüsü + metin çıkarımı ile hizalı).
+     * positioning: PDF’te kırmızı P (TK2170).
+     */
+    const RAW_FLIGHTS = [
+      { fn: 'TK661', depAp: 'IST', dep: '6:00', arrAp: 'TUN', arrDate: '10MAR2026', arr: '09:00' },
+      { fn: 'TK662', depAp: 'TUN', dep: '10:00', arrAp: 'IST', arrDate: '10MAR2026', arr: '12:55' },
+      { fn: 'TK2170', depAp: 'IST', dep: '15:00', arrAp: 'ESB', arrDate: '10MAR2026', arr: '16:10', positioning: true },
+      { fn: 'TK2135', depAp: 'ESB', dep: '7:55', arrAp: 'IST', arrDate: '11MAR2026', arr: '09:15' },
+      { fn: 'TK1859', depAp: 'IST', dep: '11:15', arrAp: 'MAD', arrDate: '11MAR2026', arr: '15:50' },
+      { fn: 'TK1360', depAp: 'MAD', dep: '5:20', arrAp: 'IST', arrDate: '12MAR2026', arr: '09:40' },
+      { fn: 'TK1081', depAp: 'IST', dep: '5:20', arrAp: 'BEG', arrDate: '13MAR2026', arr: '07:10' },
+      { fn: 'TK1082', depAp: 'BEG', dep: '8:00', arrAp: 'IST', arrDate: '13MAR2026', arr: '09:50' },
+      { fn: 'TK2006', depAp: 'IST', dep: '11:40', arrAp: 'NAV', arrDate: '13MAR2026', arr: '13:00' },
+      { fn: 'TK2007', depAp: 'NAV', dep: '13:45', arrAp: 'IST', arrDate: '13MAR2026', arr: '15:20' },
+      { fn: 'TK421', depAp: 'IST', dep: '18:50', arrAp: 'VKO', arrDate: '15MAR2026', arr: '22:50' },
+      { fn: 'TK422', depAp: 'VKO', dep: '23:50', arrAp: 'IST', arrDate: '17MAR2026', arr: '03:55' },
+      { fn: 'TK1027', depAp: 'IST', dep: '4:30', arrAp: 'SOF', arrDate: '30MAR2026', arr: '05:45' },
+      { fn: 'TK1028', depAp: 'SOF', dep: '6:35', arrAp: 'IST', arrDate: '30MAR2026', arr: '08:05' },
+      { fn: 'TK2244', depAp: 'IST', dep: '9:50', arrAp: 'GNY', arrDate: '30MAR2026', arr: '11:40' },
+      { fn: 'TK2245', depAp: 'GNY', dep: '12:25', arrAp: 'IST', arrDate: '30MAR2026', arr: '14:30' },
+    ];
+
+    const MONTHS = { JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5, JUL: 6, AUG: 7, SEP: 8, OCT: 9, NOV: 10, DEC: 11 };
+
+    function pad2(n) { return String(n).padStart(2, '0'); }
+
+    function parseArrDate(s) {
+      const m = /^(\d{1,2})([A-Z]{3})(\d{4})$/i.exec(s.trim());
+      if (!m) return null;
+      const d = parseInt(m[1], 10);
+      const mon = MONTHS[m[2].toUpperCase()];
+      const y = parseInt(m[3], 10);
+      if (mon === undefined) return null;
+      return new Date(Date.UTC(y, mon, d));
+    }
+
+    function isoDateUTC(d) {
+      return d.toISOString().slice(0, 10);
+    }
+
+    function addDaysUTC(d, delta) {
+      const x = new Date(d.getTime());
+      x.setUTCDate(x.getUTCDate() + delta);
+      return x;
+    }
+
+    function timeToMinutes(t) {
+      const p = String(t).trim().split(':');
+      const h = parseInt(p[0], 10);
+      const m = parseInt(p[1], 10);
+      return h * 60 + m;
+    }
+
+    /** Varış tarihi (GMT) + sütun saatleri: gece uçuşunda kalkış günü = varış günü - 1 */
+    function departureDateGmt(arrDateStr, depTime, arrTime) {
+      const arrD = parseArrDate(arrDateStr);
+      if (!arrD) return null;
+      const depM = timeToMinutes(depTime);
+      const arrM = timeToMinutes(arrTime);
+      if (depM > arrM) return isoDateUTC(addDaysUTC(arrD, -1));
+      return isoDateUTC(arrD);
+    }
+
+    function fmtTrDate(iso) {
+      const [y, mo, d] = iso.split('-').map(Number);
+      const months = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
+      return `${d} ${months[mo - 1]} ${y}`;
+    }
+
+    function fmtTime(t) {
+      const p = String(t).trim().split(':');
+      return `${pad2(parseInt(p[0], 10))}:${pad2(parseInt(p[1], 10))}`;
+    }
+
+    const enriched = RAW_FLIGHTS.map((r) => {
+      const depDateIso = departureDateGmt(r.arrDate, r.dep, r.arr);
+      const arrDateIso = parseArrDate(r.arrDate) ? isoDateUTC(parseArrDate(r.arrDate)) : null;
+      return {
+        ...r,
+        depDateIso,
+        arrDateIso,
+        depT: fmtTime(r.dep),
+        arrT: fmtTime(r.arr),
+      };
+    });
+
+    enriched.sort((a, b) => {
+      const da = a.depDateIso || '';
+      const db = b.depDateIso || '';
+      if (da !== db) return da.localeCompare(db);
+      return a.depT.localeCompare(b.depT);
+    });
+
+    const byDay = new Map();
+    for (const f of enriched) {
+      const k = f.depDateIso || '?';
+      if (!byDay.has(k)) byDay.set(k, []);
+      byDay.get(k).push(f);
+    }
+
+    const app = document.getElementById('app');
+    const keys = [...byDay.keys()].sort();
+
+    for (const day of keys) {
+      const h = document.createElement('div');
+      h.className = 'section-date';
+      h.textContent = fmtTrDate(day) + ' · GMT';
+      app.appendChild(h);
+      for (const f of byDay.get(day)) {
+        const card = document.createElement('div');
+        card.className = 'card';
+        const pBadge = f.positioning ? '<span class="p-badge" title="Positioning">P</span>' : '';
+        card.innerHTML = `
+          <div class="card-top">
+            <div class="fn">${f.fn}${pBadge}</div>
+            <div class="route">${f.depAp}<span>→</span>${f.arrAp}</div>
+          </div>
+          <div class="rows">
+            <div class="row"><span class="k">Kalkış (GMT)</span><span class="v">${fmtTrDate(f.depDateIso)} · ${f.depT} ${f.depAp}</span></div>
+            <div class="row"><span class="k">Varış (GMT)</span><span class="v">${fmtTrDate(f.arrDateIso)} · ${f.arrT} ${f.arrAp}</span></div>
+          </div>
+          <div class="import-date">
+            Uygulama <code>flight_date</code> <span>(öneri)</span>: ${f.depDateIso}
+          </div>
+        `;
+        app.appendChild(card);
+      }
+    }
+  </script>
+</body>
+</html>

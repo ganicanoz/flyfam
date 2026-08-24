@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, Alert, ScrollView } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useSession } from '../contexts/SessionContext';
 import { supabase } from '../lib/supabase';
-import { formatFlightTimeLocal, getLocalDateString } from '../lib/dateUtils';
-import { colors } from '../theme/colors';
+import { formatFlightDateTr, getLocalDateString } from '../lib/dateUtils';
+import { formatFamilyFlightTimeRange } from '../lib/flightDisplayTime';
+import { colors, useThemeMode } from '../theme/colors';
+import { resolveRosterCardVisualKind, rosterCardChrome, rosterCardInk } from '../theme/rosterCardVisual';
 
 type FlightWithCrew = {
   id: string;
@@ -16,11 +19,16 @@ type FlightWithCrew = {
   scheduled_arrival: string | null;
   actual_departure?: string | null;
   actual_arrival?: string | null;
+  flight_status?: string | null;
+  roster_entry_kind?: string | null;
   crew_profiles: { company_name: string | null } | null;
 };
 
 export default function Dashboard() {
+  const { t } = useTranslation();
   const { profile, signOut } = useSession();
+  const themeMode = useThemeMode();
+  const cardInk = rosterCardInk(themeMode);
   const [flights, setFlights] = useState<FlightWithCrew[]>([]);
   const [invitationCount, setInvitationCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -60,7 +68,7 @@ export default function Dashboard() {
       }
       const { data, error } = await supabase
         .from('flights')
-        .select('id, flight_number, origin_airport, destination_airport, flight_date, scheduled_departure, scheduled_arrival, actual_departure, actual_arrival, crew_profiles(company_name)')
+        .select('id, flight_number, origin_airport, destination_airport, flight_date, scheduled_departure, scheduled_arrival, actual_departure, actual_arrival, flight_status, roster_entry_kind, crew_profiles(company_name)')
         .in('crew_id', crewIds)
         .gte('flight_date', getLocalDateString())
         .order('flight_date', { ascending: true })
@@ -72,66 +80,85 @@ export default function Dashboard() {
     fetchFlights();
   }, [profile?.id]);
 
-  const formatTime = formatFlightTimeLocal;
-  const formatDate = (d: string) =>
-    new Date(d).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+  const formatDate = formatFlightDateTr;
   const crewLabel = (f: FlightWithCrew) => f.crew_profiles?.company_name ?? 'Crew';
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Flights from your linked crew members</Text>
+      <Text style={[styles.subtitle, { color: colors.textSecondary }]}>{t('family.dashboardSubtitle')}</Text>
 
       {invitationCount > 0 && (
         <TouchableOpacity
-          style={styles.invitationBanner}
+          style={[styles.invitationBanner, { backgroundColor: colors.primaryLight, borderColor: colors.primary }]}
           onPress={() => navigation.navigate('Connect')}
         >
-          <Text style={styles.invitationBannerText}>
-            You have {invitationCount} invitation{invitationCount > 1 ? 's' : ''} — tap to view
+          <Text style={[styles.invitationBannerText, { color: colors.text }]}>
+            {t('family.invitationsCount', { count: invitationCount })}
           </Text>
         </TouchableOpacity>
       )}
 
-      <TouchableOpacity style={styles.connectButton} onPress={() => navigation.navigate('Connect')}>
-        <Text style={styles.connectButtonText}>View invitations / Connect to crew</Text>
+      <TouchableOpacity style={[styles.connectButton, { backgroundColor: colors.primary }]} onPress={() => navigation.navigate('Connect')}>
+        <Text style={styles.connectButtonText}>{t('family.viewInvitations')}</Text>
       </TouchableOpacity>
 
       {loading ? (
-        <Text style={[styles.empty, { color: colors.textSecondary }]}>Loading...</Text>
+        <Text style={[styles.empty, { color: colors.textSecondary }]}>{t('common.loading')}</Text>
       ) : flights.length === 0 ? (
         <Text style={[styles.empty, { color: colors.textSecondary }]}>
-          No upcoming flights. Connect to a crew member to see their roster.
+          {t('roster.noFlightsFamily')}
         </Text>
       ) : (
         <FlatList
           data={flights}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.list}
-          renderItem={({ item }) => (
-            <View style={styles.card}>
-              <Text style={[styles.date, { color: colors.textSecondary }]}>{formatDate(item.flight_date)}</Text>
-              <Text style={[styles.crew, { color: colors.primary }]}>{crewLabel(item)}</Text>
-              <Text style={[styles.route, { color: colors.text }]}>
+          renderItem={({ item }) => {
+            const code = (item.flight_number || '').trim().toUpperCase();
+            const isStandby =
+              code.startsWith('STB') ||
+              code === 'HSBY' ||
+              code === 'SBY' ||
+              /^SB\d?$/.test(code) ||
+              code === 'SBX';
+            const chrome = rosterCardChrome(
+              resolveRosterCardVisualKind({
+                rosterEntryKind: item.roster_entry_kind,
+                flightStatus: item.flight_status,
+                isStandbyDutyCode: isStandby,
+              }),
+              themeMode,
+            );
+            return (
+            <View style={[styles.card, chrome]}>
+              <Text style={[styles.date, { color: cardInk.secondary }]}>{formatDate(item.flight_date)}</Text>
+              <Text style={[styles.crew, { color: cardInk.onAccent }]}>{crewLabel(item)}</Text>
+              <Text style={[styles.route, { color: cardInk.primary }]}>
                 {item.flight_number} · {item.origin_airport || '—'} → {item.destination_airport || '—'}
               </Text>
-              <Text style={[styles.times, { color: colors.textMuted }]}>
-                {formatTime(item.actual_departure ?? item.scheduled_departure)} – {formatTime(item.actual_arrival ?? item.scheduled_arrival)}
+              <Text style={[styles.times, { color: cardInk.muted }]}>
+                {formatFamilyFlightTimeRange(
+                  item.scheduled_departure,
+                  item.scheduled_arrival,
+                  profile?.timezone_iana ?? null,
+                )}
               </Text>
             </View>
-          )}
+            );
+          }}
         />
       )}
 
       <TouchableOpacity
         style={styles.signOut}
         onPress={() =>
-          Alert.alert('Sign out', 'Are you sure?', [
-            { text: 'Cancel', style: 'cancel' },
-            { text: 'Sign out', style: 'destructive', onPress: signOut },
+          Alert.alert(t('profile.signOutConfirmTitle'), t('profile.signOutConfirmMessage'), [
+            { text: t('common.cancel'), style: 'cancel' },
+            { text: t('profile.signOut'), style: 'destructive', onPress: signOut },
           ])
         }
       >
-        <Text style={[styles.signOutText, { color: colors.textMuted }]}>Sign out</Text>
+        <Text style={[styles.signOutText, { color: colors.textMuted }]}>{t('profile.signOut')}</Text>
       </TouchableOpacity>
     </View>
   );
@@ -153,12 +180,9 @@ const styles = StyleSheet.create({
   connectButtonText: { color: colors.white, fontWeight: '600' },
   list: { paddingBottom: 24 },
   card: {
-    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
   },
   date: { fontSize: 12, marginBottom: 4 },
   crew: { fontSize: 12, marginBottom: 4 },

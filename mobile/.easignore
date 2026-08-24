@@ -4,5 +4,11 @@
 ios/
 # Shrink upload
 .git/
+node_modules/
+docs/
+support/
+wireframe samples/
+*.pkg
+hs_err_pid*.log
 *.log
 node_modules/.cache

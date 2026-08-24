@@ -8,8 +8,8 @@ import {
   ScrollView,
   Pressable,
 } from 'react-native';
-import { useState, useCallback } from 'react';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useState } from 'react';
+import { useNavigation } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -20,7 +20,6 @@ import { AIRLINES } from '../constants/airlines';
 import { normalizeCrewAirlineIcaoTypo } from '../lib/pdfRosterImport';
 import { LOCALE_LABELS, type Locale } from '../lib/i18n';
 import { deleteMyAccount } from '../lib/accountDeletion';
-import { fetchMySubscriptionAccess, type SubscriptionAccess } from '../lib/subscriptionAccess';
 import { pushRootScreen } from '../lib/pushRootScreen';
 import { getAppVersionLabel } from '../lib/appVersion';
 
@@ -34,7 +33,6 @@ export default function Profile() {
   void themeMode;
   const themePreference = useThemePreference();
   const [deletingAccount, setDeletingAccount] = useState(false);
-  const [subscriptionAccess, setSubscriptionAccess] = useState<SubscriptionAccess | null>(null);
 
   const onProfileCardPress = () => {
     if (onProfileSecretTap()) {
@@ -50,23 +48,6 @@ export default function Profile() {
       ? AIRLINES.find((a) => a.icao.toUpperCase() === airlineIcaoNorm.toUpperCase()) ?? null
       : null;
   const airlineName = airline?.name ?? crewProfile?.company_name ?? null;
-
-  useFocusEffect(
-    useCallback(() => {
-      let cancelled = false;
-      if (profile?.role !== 'crew') return () => {};
-      fetchMySubscriptionAccess()
-        .then((x) => {
-          if (!cancelled) setSubscriptionAccess(x);
-        })
-        .catch(() => {
-          if (!cancelled) setSubscriptionAccess(null);
-        });
-      return () => {
-        cancelled = true;
-      };
-    }, [profile?.role])
-  );
 
   const handleDeleteAccount = () => {
     Alert.alert(t('profile.deleteAccountTitle'), t('profile.deleteAccountConfirmMessage'), [
@@ -237,9 +218,6 @@ export default function Profile() {
               <Ionicons name="card-outline" size={20} color={colors.primary} />
               <Text style={[styles.manageSubscriptionButtonText, { color: colors.primary }]}>
                 {t('profile.manageSubscription')}
-                {subscriptionAccess?.subscription_status
-                  ? ` · ${subscriptionAccess.subscription_status}`
-                  : ''}
               </Text>
             </View>
           </TouchableOpacity>

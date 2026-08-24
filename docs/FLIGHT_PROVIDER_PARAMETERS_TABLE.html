@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>FlyFam — Sağlayıcı parametre eşlemesi</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f8fafc; color: #1e293b; line-height: 1.55; font-size: 14px; }
+  .page-header { background: #0f172a; color: #fff; padding: 22px 24px; }
+  .page-header h1 { font-size: 18px; font-weight: 600; }
+  .page-header p { font-size: 12px; color: #94a3b8; margin-top: 10px; max-width: 960px; }
+  .content { padding: 24px; max-width: 1280px; margin: 0 auto; padding-bottom: 48px; }
+  .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px; margin-bottom: 18px; }
+  .card-title { font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 12px; }
+  .note { font-size: 12px; color: #64748b; padding: 12px 14px; background: #f1f5f9; border-radius: 8px; margin-bottom: 16px; border-left: 3px solid #3b82f6; }
+  .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 0 -4px; }
+  table.data { width: 100%; min-width: 1240px; border-collapse: collapse; font-size: 11px; }
+  table.data th { position: sticky; top: 0; background: #1e293b; color: #f1f5f9; padding: 10px 8px; text-align: left; font-weight: 600; border-bottom: 2px solid #0f172a; vertical-align: bottom; z-index: 1; }
+  table.data th.col-pdf { background: #14532d; border-left: 2px solid #4ade80; border-right: 2px solid #4ade80; }
+  table.data td.col-pdf { background: #f0fdf4; border-left: 2px solid #86efac; border-right: 1px solid #bbf7d0; }
+  table.data tr:nth-child(even) td.col-pdf { background: #ecfdf5; }
+  table.data tr:hover td.col-pdf { background: #dcfce7; }
+  table.data th small { display: block; font-weight: 400; color: #94a3b8; font-size: 10px; margin-top: 4px; line-height: 1.35; }
+  table.data th.col-pdf small { color: #bbf7d0; }
+  table.data td { padding: 10px 8px; border-bottom: 1px solid #e2e8f0; vertical-align: top; }
+  table.data td:first-child, table.data th:first-child { text-align: center; width: 36px; font-weight: 700; color: #475569; }
+  table.data td:nth-child(2) { font-weight: 600; color: #0f172a; white-space: nowrap; }
+  table.data code { font-size: 10px; background: #f1f5f9; padding: 1px 4px; border-radius: 3px; word-break: break-word; }
+  table.data tr:nth-child(even) td { background: #fafafa; }
+  table.data tr:hover td { background: #f0f9ff; }
+  .ref h2 { font-size: 14px; font-weight: 600; color: #0f172a; margin-bottom: 8px; }
+  .ref p, .ref li { font-size: 13px; color: #475569; margin-bottom: 8px; }
+  .ref ul { margin-left: 1.25rem; margin-bottom: 12px; }
+  .footer { font-size: 11px; color: #94a3b8; margin-top: 24px; }
+  table.phase { width: 100%; min-width: 1080px; border-collapse: collapse; font-size: 11px; }
+  table.phase th { background: #334155; color: #f8fafc; padding: 9px 8px; text-align: left; font-weight: 600; border-bottom: 2px solid #1e293b; }
+  table.phase th.col-pdf { background: #14532d; border-left: 2px solid #4ade80; border-right: 2px solid #4ade80; }
+  table.phase td.col-pdf { background: #f0fdf4; border-left: 2px solid #86efac; }
+  table.phase td { padding: 10px 8px; border-bottom: 1px solid #e2e8f0; vertical-align: top; }
+  table.phase td:first-child { font-weight: 700; white-space: nowrap; }
+  table.phase code { font-size: 10px; background: #f1f5f9; padding: 1px 4px; border-radius: 3px; }
+  .ph-tag { display: inline-block; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 999px; margin-right: 4px; }
+  .ph-pf { background: #e2e8f0; color: #475569; }
+  .ph-sa { background: #dbeafe; color: #1d4ed8; }
+  .ph-ac { background: #fef3c7; color: #b45309; }
+  .ph-pp { background: #dcfce7; color: #15803d; }
+  .cron-yes { color: #15803d; font-weight: 600; }
+  .cron-no { color: #64748b; }
+  .cron-note { color: #b45309; font-size: 10px; }
+</style>
+</head>
+<body>
+<header class="page-header">
+  <h1>FlyFam — Sağlayıcı parametre eşlemesi (güncel)</h1>
+  <p>Bu tablo crew <strong>PDF roster import</strong> (bizim için birinci kaynak / “iç API”) ile harici sağlayıcıları birlikte gösterir. Entegrasyon: <code>mobile/lib/flightApi.ts</code>, <code>check-flight-status-and-notify</code>, <code>rosterPollEdge</code>, <code>flightByNumberEdge</code> (FlightAPI yedek plan); AirLabs düz <code>/flight</code> modeli. <a href="https://docs.flightapi.io/" rel="noopener">FlightAPI dokümantasyonu</a>.</p>
+</header>
+
+<div class="content">
+
+  <div class="note">
+    <strong>PDF import:</strong> Yalnızca satır 1–5’teki plan verileri gelir (uçuş no, meydanlar, STD/STA); DB’de <code>flights</code> tablosuna yazılır — tahmin/gerçek zaman veya transponder alanları yok.<br/>
+    <strong>FR24:</strong> Yalnızca <code>GET …/api/flight-summary/light</code> (bacak özeti). Ayrı “full flight summary” endpoint’i bu repoda yok.<br/>
+    <strong>FlightAPI:</strong> Edge’de <code>GET https://api.flightapi.io/airline/{api_key}?num=&amp;name=&amp;date=YYYYMMDD</code> (flight tracking). <code>…/schedule/</code> (havalimanı programı) henüz zincire bağlı değil.<br/>
+    <strong>Faz:</strong> Her uçuşun <code>api_refresh_phase</code> değeri aşağıdaki <strong>faz tablosunda</strong> özetlenir; hesap: <code>compute_flight_api_phase_state</code> + tetikleyici (<code>20260330120000_pdf_spec_api_refresh_phase.sql</code>). <code>ETD = coalesce(estimated_departure, scheduled_departure + delay_dep_min)</code>.
+  </div>
+
+  <div class="card">
+    <div class="card-title">Parametre × sağlayıcı</div>
+    <div class="table-wrap">
+      <table class="data">
+        <thead>
+          <tr>
+            <th>No</th>
+            <th>Parametre</th>
+            <th class="col-pdf">PDF import (crew)<br/><small>Roster → Supabase <code>flights</code></small></th>
+            <th>AirLabs<br/><small>GET /api/v9/flight</small></th>
+            <th>AeroDataBox<br/><small>GET …/flights/number/{flight}/{date}</small></th>
+            <th>FR24 Summary Light<br/><small>GET …/flight-summary/light</small></th>
+            <th>AeroAPI<br/><small>GET /flights/{ident}</small></th>
+            <th>FlightAPI<br/><small>GET …/airline/{key}?num&amp;name&amp;date</small></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>1</td>
+            <td>Uçuş kodu</td>
+            <td class="col-pdf">✅ Parse → <code>flight_number</code></td>
+            <td>✅ İstek: <code>flight_iata</code> veya <code>flight_icao</code>; yanıtta <code>flight_iata</code> / <code>flight_number</code> vb.</td>
+            <td>✅ URL’de uçuş numarası</td>
+            <td>✅ <code>flights</code> sorgu parametresi (virgülle varyantlar)</td>
+            <td>✅ <code>ident</code> path</td>
+            <td>✅ <code>name</code> (IATA/ICAO) + <code>num</code> sorgu parametreleri</td>
+          </tr>
+          <tr>
+            <td>2</td>
+            <td>Kalkış meydanı (IATA/ICAO)</td>
+            <td class="col-pdf">✅ Parse → <code>origin_airport</code> (IATA/ICAO)</td>
+            <td>✅ <code>dep_iata</code>, <code>dep_icao</code></td>
+            <td>✅ <code>departure</code> (veya sarmalayıcı) → <code>airport.iata</code> / <code>airport.icao</code></td>
+            <td>✅ <code>orig_icao</code>, <code>origin_icao</code> (çoğunlukla ICAO; IATA türetim uygulamada)</td>
+            <td>✅ <code>origin</code> nesnesi / kod</td>
+            <td>✅ <code>departure.airportCode</code> (IATA)</td>
+          </tr>
+          <tr>
+            <td>3</td>
+            <td>Varış meydanı (IATA/ICAO)</td>
+            <td class="col-pdf">✅ Parse → <code>destination_airport</code> (IATA/ICAO)</td>
+            <td>✅ <code>arr_iata</code>, <code>arr_icao</code></td>
+            <td>✅ <code>arrival</code> → <code>airport.iata</code> / <code>airport.icao</code></td>
+            <td>✅ <code>dest_icao</code>, <code>destination_icao</code>, <code>destination_icao_actual</code></td>
+            <td>✅ <code>destination</code> nesnesi / kod</td>
+            <td>✅ <code>arrival.airportCode</code></td>
+          </tr>
+          <tr>
+            <td>4</td>
+            <td>STD (UTC)</td>
+            <td class="col-pdf">✅ Parse → <code>scheduled_departure</code> (<code>timestamptz</code>, UTC)</td>
+            <td>✅ <code>dep_time</code>, <code>dep_time_utc</code> (+ <code>dep_scheduled</code> / <code>dep_scheduled_ts</code> vb.)</td>
+            <td>✅ <code>departure</code> → <code>scheduledTimeUtc</code>, <code>scheduledTime</code>, <code>scheduledTimeLocal</code></td>
+            <td>✅ <code>scheduled_departure_utc</code>, <code>scheduled_departure</code> (her zaman dolu olmayabilir)</td>
+            <td>✅ <code>scheduled_out</code></td>
+            <td>✅ <code>departureDateTime</code> / <code>scheduledTime</code> (ISO → UTC)</td>
+          </tr>
+          <tr>
+            <td>5</td>
+            <td>STA (UTC)</td>
+            <td class="col-pdf">✅ Parse → <code>scheduled_arrival</code> (<code>timestamptz</code>, UTC)</td>
+            <td>✅ <code>arr_time</code>, <code>arr_time_utc</code> (+ <code>arr_scheduled</code> / <code>arr_scheduled_ts</code> vb.)</td>
+            <td>✅ <code>arrival</code> → <code>scheduledTimeUtc</code>, …</td>
+            <td>✅ <code>scheduled_arrival_utc</code>, <code>scheduled_arrival</code> (her zaman dolu olmayabilir)</td>
+            <td>✅ <code>scheduled_in</code></td>
+            <td>✅ <code>arrivalDateTime</code> / <code>scheduledTime</code></td>
+          </tr>
+          <tr>
+            <td>6</td>
+            <td>ETD (UTC)</td>
+            <td class="col-pdf">—</td>
+            <td>✅ <code>dep_estimated</code>, <code>dep_estimated_utc</code> (+ <code>_ts</code>)</td>
+            <td>✅ <code>departure</code> → <code>predictedTime*</code>, <code>estimatedTime*</code></td>
+            <td>✅ Çeşitli isimler: <code>estimated_departure_utc</code>, <code>etd</code>, <code>estimated_time_departure</code> vb. (kod: <code>fr24ProgressBarPatch</code>)</td>
+            <td>✅ <code>estimated_out</code></td>
+            <td>✅ <code>departure.estimatedTime</code> (ISO ise; merge ile plan)</td>
+          </tr>
+          <tr>
+            <td>7</td>
+            <td>ETA (UTC)</td>
+            <td class="col-pdf">—</td>
+            <td>✅ <code>arr_estimated</code>, <code>arr_estimated_utc</code> (+ <code>_ts</code>)</td>
+            <td>✅ <code>arrival</code> → <code>predictedTime*</code>, <code>estimatedTime*</code></td>
+            <td>✅ <code>estimated_landing</code>, <code>eta</code>, <code>estimated_arrival_utc</code> vb.</td>
+            <td>✅ <code>estimated_in</code></td>
+            <td>✅ <code>arrival.estimatedTime</code></td>
+          </tr>
+          <tr>
+            <td>8</td>
+            <td>ATD (UTC)</td>
+            <td class="col-pdf">—</td>
+            <td>✅ <code>dep_actual</code>, <code>dep_actual_utc</code></td>
+            <td>✅ Gerçek kalkış için tipik yanıtta ayrı alan; poll path’te çoğunlukla boş</td>
+            <td>✅ <code>datetime_takeoff</code>, <code>datetimeTakeoff</code> (operasyonel kalkış)</td>
+            <td>✅ <code>actual_out</code></td>
+            <td>⚠️ Örnek: <code>outGateTime</code> (metin; Edge’de yok)</td>
+          </tr>
+          <tr>
+            <td>9</td>
+            <td>ATA (UTC)</td>
+            <td class="col-pdf">—</td>
+            <td>✅ <code>arr_actual</code>, <code>arr_actual_utc</code></td>
+            <td>✅ Tipik yanıtta ayrı alan; poll’da çoğunlukla boş</td>
+            <td>✅ <code>datetime_landed</code>, <code>datetimeLanded</code></td>
+            <td>✅ <code>actual_in</code></td>
+            <td>⚠️ Örnek: <code>onGroundTime</code> (Edge’de yok)</td>
+          </tr>
+          <tr>
+            <td>10</td>
+            <td>Anormal durum (iptal / aktarma)</td>
+            <td class="col-pdf">—</td>
+            <td>✅ <code>status</code> (<code>cancelled</code>, <code>diverted</code> vb.)</td>
+            <td>✅ Kök / bacak <code>status</code> metni (divert vb.)</td>
+            <td>⚠️ Ham yanıtta olabilir; <strong>bu repoda light ile işlenmiyor</strong> (<code>Fr24Flight</code> tipinde yok)</td>
+            <td>✅ <code>status</code> (+ divert için alanlar)</td>
+            <td>⚠️ Bu repoda airline yanıtından statü eşlemesi yok</td>
+          </tr>
+          <tr>
+            <td>11</td>
+            <td>Transponder açılış (UTC)</td>
+            <td class="col-pdf">—</td>
+            <td>—</td>
+            <td>—</td>
+            <td>✅ <code>first_seen</code>, <code>firstSeen</code></td>
+            <td>—</td>
+            <td>—</td>
+          </tr>
+          <tr>
+            <td>12</td>
+            <td>Kalkış zamanı (UTC)</td>
+            <td class="col-pdf">—</td>
+            <td>—</td>
+            <td>—</td>
+            <td>✅ <code>datetime_takeoff</code>, <code>datetimeTakeoff</code></td>
+            <td>—</td>
+            <td>—</td>
+          </tr>
+          <tr>
+            <td>13</td>
+            <td>İniş zamanı (UTC)</td>
+            <td class="col-pdf">—</td>
+            <td>—</td>
+            <td>—</td>
+            <td>✅ <code>datetime_landed</code>, <code>datetimeLanded</code></td>
+            <td>—</td>
+            <td>—</td>
+          </tr>
+          <tr>
+            <td>14</td>
+            <td>Son görülme / transponder kapanış (UTC)</td>
+            <td class="col-pdf">—</td>
+            <td>—</td>
+            <td>—</td>
+            <td>✅ <code>last_seen</code>, <code>lastSeen</code></td>
+            <td>—</td>
+            <td>—</td>
+          </tr>
+          <tr>
+            <td>15</td>
+            <td><code>api_refresh_phase</code> · <code>phase_active_locked</code></td>
+            <td class="col-pdf">Girdi: <code>scheduled_*</code>, <code>delay_dep_min</code> (PDF’te yok; API ile dolunca ETD kayar)</td>
+            <td colspan="5" style="background:#f8fafc;font-size:10px;color:#475569;">Harici API bu alanı <strong>direkt doldurmaz</strong>. Satır güncellenince DB tetikleyicisi fazı yeniden hesaplar. Mobilde <code>computeApiRefreshPhase</code> aynı kuralla UI ile hizalar (gerekirse <code>taxi_out</code> / <code>en_route</code> ile aktif sayılır).</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Uçuş hangi fazda? — <code>api_refresh_phase</code> × kaynak × cron</div>
+    <p style="font-size:12px;color:#64748b;margin-bottom:12px;">Aynı uçuş gün içinde bu fazlardan birindedir. Cron yalnızca <code>semi_active</code> ve <code>active</code> satırlarını ana listeye alır (<code>check-flight-status-and-notify</code>).</p>
+    <div class="table-wrap">
+      <table class="phase">
+        <thead>
+          <tr>
+            <th>Faz</th>
+            <th>Ne zaman (özet)</th>
+            <th class="col-pdf">PDF</th>
+            <th>AirLabs</th>
+            <th>AeroDataBox</th>
+            <th>FR24 Light</th>
+            <th>AeroAPI</th>
+            <th>FlightAPI</th>
+            <th>Cron ana liste</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="ph-tag ph-pf">passive_future</span></td>
+            <td><code>now &lt; STD − 3h</code></td>
+            <td class="col-pdf">✅ Plan kaynağı (kart STD/STA)</td>
+            <td>—</td>
+            <td>—</td>
+            <td>—</td>
+            <td>—</td>
+            <td>—</td>
+            <td><span class="cron-no">Hayır</span></td>
+          </tr>
+          <tr>
+            <td><span class="ph-tag ph-sa">semi_active</span></td>
+            <td><code>STD − 3h ≤ now &lt; ETD − 30m</code></td>
+            <td class="col-pdf">✅ Plan değişmez; gecikme gösterimi için cron <code>estimated_*</code> yazar</td>
+            <td>✅ <code>fetchTimetablePrimary</code> (birincil)</td>
+            <td>✅ AirLabs zayıfsa yedek</td>
+            <td>✅ Plan/çubuk alanı boşsa yedek</td>
+            <td>⚠️ Belirsizlikte (<code>uncertain</code>)</td>
+            <td>⚠️ <code>flightByNumberEdge</code> plan boşsa yedek</td>
+            <td><span class="cron-yes">Evet</span> · tahmin + gecikme</td>
+          </tr>
+          <tr>
+            <td><span class="ph-tag ph-ac">active</span></td>
+            <td><code>now ≥ ETD − 30m</code> veya <code>phase_active_locked</code></td>
+            <td class="col-pdf">✅ STD/STA gösterim; canlı statü API’den</td>
+            <td>✅ Timetable + iptal/divert sinyali</td>
+            <td>✅ Yedek (poll zinciri)</td>
+            <td>✅ Canlı zaman + <code>deriveFr24LiveStatus</code></td>
+            <td>⚠️ Belirsizlikte</td>
+            <td>⚠️ Yalnızca plan doldurma</td>
+            <td><span class="cron-yes">Evet</span> · statü + bildirim</td>
+          </tr>
+          <tr>
+            <td><span class="ph-tag ph-pp">passive_past</span></td>
+            <td>İniş sinyali (<code>landed</code>, <code>actual_arrival</code>, <code>fr24_datetime_landed_utc</code>). DV2: güçlü iniş kanıtı yoksa landed yazımı bloklanır.</td>
+            <td class="col-pdf">—</td>
+            <td>—</td>
+            <td>—</td>
+            <td>—</td>
+            <td>—</td>
+            <td>—</td>
+            <td><span class="cron-no">Hayır</span> <span class="cron-note">(ayrı pasif bakım / landed düzeltme kodu)</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card ref">
+    <div class="card-title">Kısa referans</div>
+    <h2>PDF import (crew)</h2>
+    <p>Roster PDF’ten çıkarılan uçuş satırı; uygulama bunu harici API gibi kullanır: plan <strong>STD/STA</strong> ve rota <strong>kaynak gerçeği</strong> olarak <code>flights.scheduled_*</code> / <code>flight_number</code> / meydan kolonlarına yazılır. Satır 6–14 bu kaynakta yok (ETD/ETA/ATD/ATA ve canlı sinyaller sonradan cron veya mobil arama ile dolar).</p>
+
+    <h2>AirLabs (iç içe <code>departure</code> değil)</h2>
+    <p>Kodda kullanılan örnekler: <code>dep_time_utc</code>, <code>arr_time_utc</code>, <code>dep_actual_utc</code>, <code>arr_actual_utc</code>, <code>dep_estimated_utc</code>, <code>arr_estimated_utc</code>, <code>dep_iata</code>, <code>arr_iata</code>, <code>status</code>, <code>percent</code>, <code>dep_delayed</code>, <code>arr_delayed</code>.</p>
+
+    <h2>AeroDataBox</h2>
+    <p>Zamanlar: <code>departure</code> / <code>arrival</code> (veya <code>departures[0].departure</code>) altında <code>scheduledTimeUtc</code>, <code>predictedTimeUtc</code>, <code>estimatedTimeUtc</code> vb. (<code>aeroCoerceTimeString</code> ile).</p>
+
+    <h2>FR24 Summary Light</h2>
+    <p>Bacak seçimi, plan/tahmin/iniş zamanları, <code>flight_ended</code>, <code>first_seen</code> / <code>last_seen</code> / <code>datetime_takeoff</code> / <code>datetime_landed</code>. Not: <code>last_seen</code> tek başına iniş kanıtı değildir.</p>
+
+    <h2>FlightAPI (Flight Tracking)</h2>
+    <p>JSON dizi; <code>departure</code> / <code>arrival</code> öğeleri. Edge: <code>departureDateTime</code>, <code>arrivalDateTime</code>, <code>estimatedTime</code>, <code>airportCode</code>. İstek ücreti: <a href="https://docs.flightapi.io/" rel="noopener">docs.flightapi.io</a>.</p>
+  </div>
+
+  <p class="footer">FlyFam — <code>docs/FLIGHT_PROVIDER_PARAMETERS_TABLE.html</code> · Markdown sürümü: <code>docs/FLIGHT_PROVIDER_PARAMETERS_TABLE.md</code></p>
+</div>
+</body>
+</html>

@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>FlyFam — Sağlayıcı snapshot</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f8fafc; color: #1e293b; margin: 0; padding: 24px; line-height: 1.5; }
+  .page-header { background: #0f172a; color: #fff; padding: 20px 24px; margin: -24px -24px 24px -24px; }
+  .page-header h1 { font-size: 18px; margin: 0; }
+  .page-header p { font-size: 12px; color: #94a3b8; margin: 8px 0 0; max-width: 900px; }
+  .meta { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 16px; margin-bottom: 20px; font-size: 13px; }
+  .meta table { border-collapse: collapse; }
+  .meta td { padding: 4px 16px 4px 0; }
+  .flight-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px 20px; margin-bottom: 20px; }
+  .flight-card h2 { margin: 0 0 8px; font-size: 17px; }
+  .flight-card .date { font-weight: 400; color: #64748b; font-size: 14px; }
+  .phase-hint { font-size: 12px; color: #64748b; margin: 0 0 16px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+  .src { border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px; background: #fafafa; }
+  .src h4 { margin: 0 0 8px; font-size: 13px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .badge { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 999px; }
+  .b-ok { background: #dcfce7; color: #15803d; }
+  .b-bad { background: #fee2e2; color: #b91c1c; }
+  .b-pdf { background: #e0f2fe; color: #0369a1; }
+  .b-skip { background: #fef3c7; color: #92400e; }
+  .kv { width: 100%; font-size: 11px; border-collapse: collapse; }
+  .kv td { padding: 4px 6px; border-bottom: 1px solid #eee; vertical-align: top; }
+  .kv td:first-child { color: #64748b; width: 42%; }
+  .muted { color: #94a3b8; font-size: 12px; margin: 0; }
+  .err { color: #b91c1c; font-size: 12px; margin: 0 0 8px; }
+  .raw { margin-top: 8px; font-size: 11px; }
+  .raw pre { background: #1e293b; color: #e2e8f0; padding: 10px; border-radius: 6px; overflow: auto; max-height: 220px; margin: 6px 0 0; }
+  .footer { font-size: 11px; color: #94a3b8; margin-top: 24px; }
+  code { background: #f1f5f9; padding: 1px 5px; border-radius: 4px; font-size: 11px; }
+  .param-matrix { margin-top: 22px; padding-top: 16px; border-top: 1px solid #e2e8f0; }
+  .param-matrix h3 { font-size: 14px; margin: 0 0 10px; color: #0f172a; }
+  .matrix-date { font-weight: 400; color: #64748b; font-size: 12px; }
+  .matrix-note { font-size: 11px; color: #b45309; margin: 0 0 10px; }
+  .matrix-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 0 -4px; }
+  table.matrix { width: 100%; min-width: 920px; border-collapse: collapse; font-size: 10px; }
+  table.matrix th, table.matrix td { padding: 7px 8px; border-bottom: 1px solid #e2e8f0; text-align: left; vertical-align: top; }
+  table.matrix th { background: #1e293b; color: #f8fafc; font-weight: 600; white-space: nowrap; }
+  table.matrix th.pdf, table.matrix td.pdf { background: #f0fdf4; border-left: 2px solid #86efac; border-right: 1px solid #bbf7d0; }
+  table.matrix th.num, table.matrix td.num { width: 28px; text-align: center; color: #64748b; font-weight: 700; }
+  table.matrix th.lbl, table.matrix td.lbl { min-width: 140px; font-weight: 600; color: #334155; }
+  table.matrix tbody tr:nth-child(even) td { background: #fafafa; }
+  table.matrix tbody tr:nth-child(even) td.pdf { background: #ecfdf5; }
+  .matrix-foot { font-size: 10px; color: #94a3b8; margin: 10px 0 0; }
+</style>
+</head>
+<body>
+<header class="page-header">
+  <h1>Sağlayıcı snapshot — 2026-04-21</h1>
+  <p>Otomatik üretildi: <code>node scripts/flight-provider-snapshot-report.js</code> · Uçuşlar: PC901</p>
+</header>
+<div class="meta">
+  <strong>Anahtar özeti</strong>
+  <table>
+    <tr><td>AirLabs</td><td>✓</td></tr>
+    <tr><td>FR24</td><td>✓</td></tr>
+    <tr><td>AeroDataBox</td><td>✓</td></tr>
+    <tr><td>AeroAPI</td><td>✓</td></tr>
+    <tr><td>FlightAPI</td><td>✓</td></tr>
+    <tr><td>Supabase <code>flights</code></td><td>✓</td></tr>
+  </table>
+</div>
+<section class="flight-card">
+        <h2>PC901 <span class="date">2026-04-21</span></h2>
+        <p class="phase-hint">Basit faz tahmini (STD/ETD’ye göre, iniş/kilit yok): <code>semi_active? (STD yok)</code> · 2026-04-21T11:11:11.939Z</p>
+        <div class="grid"><div class="src">
+            <h4>PDF import <span class="badge b-pdf">PDF</span></h4>
+            
+            
+            <p class="muted">Bu rapor sadece API; roster PDF verisi yok.</p>
+            
+          </div><div class="src">
+            <h4>AirLabs /flight <span class="badge b-bad">Hata</span></h4>
+            <p class="err">Yanıt yok / eşleşme yok</p>
+            
+            <p class="muted">—</p>
+            <details class="raw"><summary>AirLabs /flight — ham JSON</summary><pre></pre></details>
+          </div><div class="src">
+            <h4>AeroDataBox <span class="badge b-bad">Hata</span></h4>
+            <p class="err">Yanıt yok</p>
+            
+            <p class="muted">—</p>
+            <details class="raw"><summary>AeroDataBox — ham JSON</summary><pre></pre></details>
+          </div><div class="src">
+            <h4>FR24 light <span class="badge b-ok">OK</span></h4>
+            
+            
+            <table class="kv"><tbody><tr><td><code>origin</code></td><td>LTFJ</td></tr><tr><td><code>destination</code></td><td>LOWW</td></tr><tr><td><code>flight_ended</code></td><td>true</td></tr><tr><td><code>first_seen</code></td><td>2026-04-21T08:18:00Z</td></tr><tr><td><code>last_seen</code></td><td>2026-04-21T10:45:51Z</td></tr><tr><td><code>datetime_takeoff</code></td><td>2026-04-21T08:34:54Z</td></tr><tr><td><code>datetime_landed</code></td><td>2026-04-21T10:32:31Z</td></tr><tr><td><code>dep_local_day</code></td><td>2026-04-21</td></tr></tbody></table>
+            <details class="raw"><summary>FR24 light — ham JSON</summary><pre>[
+  {
+    &quot;fr24_id&quot;: &quot;3f52f20b&quot;,
+    &quot;flight&quot;: &quot;PC901&quot;,
+    &quot;callsign&quot;: &quot;PGT92GW&quot;,
+    &quot;operating_as&quot;: &quot;PGT&quot;,
+    &quot;painted_as&quot;: &quot;PGT&quot;,
+    &quot;type&quot;: &quot;A21N&quot;,
+    &quot;reg&quot;: &quot;TC-RFF&quot;,
+    &quot;orig_icao&quot;: &quot;LTFJ&quot;,
+    &quot;datetime_takeoff&quot;: &quot;2026-04-21T08:34:54Z&quot;,
+    &quot;dest_icao&quot;: &quot;LOWW&quot;,
+    &quot;dest_icao_actual&quot;: &quot;LOWW&quot;,
+    &quot;datetime_landed&quot;: &quot;2026-04-21T10:32:31Z&quot;,
+    &quot;hex&quot;: &quot;4BC8C6&quot;,
+    &quot;first_seen&quot;: &quot;2026-04-21T08:18:00Z&quot;,
+    &quot;last_seen&quot;: &quot;2026-04-21T10:45:51Z&quot;,
+    &quot;flight_ended&quot;: true
+  }
+]</pre></details>
+          </div><div class="src">
+            <h4>AeroAPI <span class="badge b-bad">Hata</span></h4>
+            <p class="err">Uçuş yok / 4xx</p>
+            
+            <p class="muted">—</p>
+            <details class="raw"><summary>AeroAPI — ham JSON</summary><pre></pre></details>
+          </div><div class="src">
+            <h4>FlightAPI airline <span class="badge b-bad">Hata</span></h4>
+            <p class="err">403: Your request quota has reached its maximum limits. Kindly upgrade your plan to continue using it.</p>
+            
+            <p class="muted">—</p>
+            <details class="raw"><summary>FlightAPI airline — ham JSON</summary><pre>{
+  &quot;message&quot;: &quot;Your request quota has reached its maximum limits. Kindly upgrade your plan to continue using it.&quot;,
+  &quot;help&quot;: &quot;If you need more FREE credits before upgrading then email us at info@flightapi.io&quot;,
+  &quot;upgradeLink&quot;: &quot;https://api.flightapi.io/pricing&quot;
+}</pre></details>
+          </div></div>
+        <div class="param-matrix">
+    <h3>Parametre × kaynak <span class="matrix-date">(2026-04-21)</span></h3>
+    
+    <div class="matrix-scroll">
+      <table class="matrix">
+        <thead>
+          <tr>
+            <th class="num">No</th>
+            <th class="lbl">Parametre</th>
+            <th class="pdf">PDF / DB <code>flights</code></th>
+            <th>AirLabs</th>
+            <th>AeroDataBox</th>
+            <th>FR24 light</th>
+            <th>AeroAPI</th>
+            <th>FlightAPI</th>
+          </tr>
+        </thead>
+        <tbody><tr><td class="num">1</td><td class="lbl">Uçuş kodu</td><td class="pdf">PC901</td><td>—</td><td>—</td><td>PC901</td><td>—</td><td>PC901</td></tr><tr><td class="num">2</td><td class="lbl">Kalkış meydanı (IATA/ICAO)</td><td class="pdf">SAW</td><td>—</td><td>—</td><td>LTFJ</td><td>—</td><td>—</td></tr><tr><td class="num">3</td><td class="lbl">Varış meydanı (IATA/ICAO)</td><td class="pdf">VIE</td><td>—</td><td>—</td><td>LOWW</td><td>—</td><td>—</td></tr><tr><td class="num">4</td><td class="lbl">STD (UTC)</td><td class="pdf">2026-04-21T08:20:00+00:00</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr><tr><td class="num">5</td><td class="lbl">STA (UTC)</td><td class="pdf">2026-04-21T10:40:00+00:00</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr><tr><td class="num">6</td><td class="lbl">ETD (UTC)</td><td class="pdf">—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr><tr><td class="num">7</td><td class="lbl">ETA (UTC)</td><td class="pdf">—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr><tr><td class="num">8</td><td class="lbl">ATD (UTC)</td><td class="pdf">—</td><td>—</td><td>—</td><td>2026-04-21T08:34:54Z</td><td>—</td><td>—</td></tr><tr><td class="num">9</td><td class="lbl">ATA (UTC)</td><td class="pdf">—</td><td>—</td><td>—</td><td>2026-04-21T10:32:31Z</td><td>—</td><td>—</td></tr><tr><td class="num">10</td><td class="lbl">Anormal durum (iptal / aktarma)</td><td class="pdf">scheduled</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr><tr><td class="num">11</td><td class="lbl">Transponder açılış (UTC)</td><td class="pdf">—</td><td>—</td><td>—</td><td>2026-04-21T08:18:00Z</td><td>—</td><td>—</td></tr><tr><td class="num">12</td><td class="lbl">Kalkış zamanı (UTC) (operasyonel)</td><td class="pdf">—</td><td>—</td><td>—</td><td>2026-04-21T08:34:54Z</td><td>—</td><td>—</td></tr><tr><td class="num">13</td><td class="lbl">İniş zamanı (UTC) (operasyonel)</td><td class="pdf">—</td><td>—</td><td>—</td><td>2026-04-21T10:32:31Z</td><td>—</td><td>—</td></tr><tr><td class="num">14</td><td class="lbl">Son görülme / transponder kapanış (UTC)</td><td class="pdf">—</td><td>—</td><td>—</td><td>2026-04-21T10:45:51Z</td><td>—</td><td>—</td></tr><tr><td class="num">15</td><td class="lbl">`api_refresh_phase` · `phase_active_locked`</td><td class="pdf">passive_future · locked=false</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr></tbody>
+      </table>
+    </div>
+    <p class="matrix-foot">PDF sütunu: Supabase <code>flights</code> (ilk eşleşen satır). Satır 15 yalnızca DB tetikleyicisi; API’ler doğrudan yazmaz.</p>
+  </div>
+      </section>
+<p class="footer">docs/FLIGHT_PROVIDER_SNAPSHOT.html · docs/FLIGHT_PROVIDER_PARAMETERS_SNAPSHOT.html — ham yanıtlar kaynakta farklı hassasiyet ve isimlendirme gösterebilir.</p>
+</body>
+</html>

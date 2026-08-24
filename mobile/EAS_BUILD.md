@@ -28,6 +28,25 @@
 
 ---
 
+## Android release (ikon + versionCode + Play uyarısı)
+
+- Store'a çıkmadan önce bu komutu kullan:
+  ```bash
+  cd mobile
+  npm run build:android:store
+  ```
+- Bu komut artık önce `verify:android:icon` çalıştırır:
+  - Android launcher ikonlarının iOS kaynağıyla piksel eşleşmesini kontrol eder.
+  - `mipmap-anydpi-v26/ic_launcher*.xml` dosyaları varsa build'i durdurur (adaptif kırpma riskini engeller).
+- `versionName` kullanıcıya görünen sürüm (`1.3.0`), `versionCode` ise Play için artan sayıdır.  
+  **Play'deki en yüksek versionCode'dan büyük** olmalı (örn. 14, 15, 16...).
+- Play Console'daki “kod gösterme dosyası (mapping.txt) yok” uyarısı için release minify ayarı kapalı tutulur:
+  - `android.enableMinifyInReleaseBuilds=false`
+  - `android.enableShrinkResourcesInReleaseBuilds=false`
+  Bu ayarlarla uyarı/karışıklık riski azalır.
+
+---
+
 ## EAS build neden renkli/hata ekranı gösteriyor?
 
 EAS build **sunucuda** yapılır; bilgisayarındaki `.env` dosyası build’e **gönderilmez**. Bu yüzden uygulama içinde `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY` vb. **tanımsız** kalır ve uygulama açılışta (ör. Supabase client) hata fırlatıp kırmızı ekran gösterebilir.

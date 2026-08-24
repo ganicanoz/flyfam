@@ -6,12 +6,12 @@ import {
   StyleSheet,
   Alert,
   ActivityIndicator,
-  ScrollView,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useNavigation } from '@react-navigation/native';
 import { supabase } from '../lib/supabase';
 import { colors, useThemeMode } from '../theme/colors';
+import KeyboardSafeScroll from '../components/KeyboardSafeScroll';
 
 type Invitation = {
   id: string;
@@ -80,9 +80,10 @@ export default function Connect() {
   const crewLabel = (inv: Invitation) => inv.crew_profiles?.company_name ?? t('connect.crewMember');
 
   return (
-    <ScrollView
+    <KeyboardSafeScroll
       style={[styles.container, { backgroundColor: colors.background }]}
       contentContainerStyle={styles.content}
+      bottomOffset={40}
     >
       <Text style={[styles.title, { color: colors.text }]}>{t('connect.title')}</Text>
       <Text style={[styles.subtitle, { color: colors.textSecondary }]}>{t('connect.subtitle')}</Text>
@@ -129,7 +130,7 @@ export default function Connect() {
           ))}
         </View>
       )}
-    </ScrollView>
+    </KeyboardSafeScroll>
   );
 }
 

@@ -1,0 +1,440 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>FlyFam — Play Console Android Test Listesi</title>
+  <style>
+    :root {
+      --bg: #f6f7f9;
+      --card: #ffffff;
+      --text: #1f2937;
+      --muted: #4b5563;
+      --line: #e5e7eb;
+      --accent: #0f766e;
+      --accent-soft: #ecfdf5;
+      --warn: #92400e;
+      --warn-bg: #fffbeb;
+      --ok: #166534;
+      --ok-bg: #ecfdf5;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.55;
+    }
+    .wrap {
+      max-width: 760px;
+      margin: 24px auto;
+      padding: 0 16px 48px;
+    }
+    .hero, .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 16px 18px;
+      margin-bottom: 12px;
+    }
+    h1 {
+      margin: 0 0 8px;
+      font-size: 22px;
+      line-height: 1.3;
+    }
+    h2 {
+      margin: 0 0 10px;
+      font-size: 17px;
+      color: var(--accent);
+    }
+    p { margin: 0 0 8px; }
+    .muted { color: var(--muted); font-size: 14px; }
+    ol.steps {
+      margin: 0;
+      padding-left: 22px;
+      counter-reset: none;
+    }
+    ol.steps > li {
+      margin-bottom: 12px;
+    }
+    ol.steps > li > strong {
+      display: block;
+      margin-bottom: 2px;
+    }
+    ul { margin: 6px 0 0 18px; padding: 0; }
+    code, .mono {
+      background: #f3f4f6;
+      border: 1px solid #e5e7eb;
+      border-radius: 5px;
+      padding: 1px 5px;
+      font-size: 12.5px;
+      word-break: break-all;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+    .note {
+      background: var(--accent-soft);
+      border: 1px solid #a7f3d0;
+      border-radius: 8px;
+      padding: 10px 12px;
+      margin-top: 10px;
+      color: #065f46;
+      font-size: 14px;
+    }
+    .warn {
+      background: var(--warn-bg);
+      border: 1px solid #fcd34d;
+      border-radius: 8px;
+      padding: 10px 12px;
+      margin-top: 10px;
+      color: var(--warn);
+      font-size: 14px;
+    }
+    .ok {
+      background: var(--ok-bg);
+      border: 1px solid #bbf7d0;
+      border-radius: 8px;
+      padding: 10px 12px;
+      margin-top: 10px;
+      color: var(--ok);
+      font-size: 14px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      margin-top: 8px;
+    }
+    th, td {
+      border: 1px solid var(--line);
+      padding: 8px 6px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th { background: #f9fafb; }
+    .stamp {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 8px;
+    }
+    .copy-block {
+      background: #0f172a;
+      color: #e2e8f0;
+      border-radius: 8px;
+      padding: 12px 14px;
+      font-size: 13px;
+      margin-top: 8px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      white-space: pre-wrap;
+      line-height: 1.45;
+      user-select: all;
+    }
+    .gpt-box {
+      border: 2px solid #0f766e;
+      background: #f0fdfa;
+      border-radius: 10px;
+      padding: 12px 14px;
+      margin-top: 8px;
+      font-size: 14px;
+    }
+    .gpt-box strong { color: #0f766e; }
+    .badge {
+      display: inline-block;
+      font-size: 11px;
+      padding: 2px 7px;
+      border-radius: 999px;
+      background: #ecfdf5;
+      color: #065f46;
+      border: 1px solid #a7f3d0;
+      margin-left: 6px;
+      vertical-align: middle;
+    }
+    a { color: #0f766e; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="hero">
+      <h1>Play Console — Android test listesi + zorunlu güncelleme yolu</h1>
+      <p class="muted">
+        Amaç: FlyFam Android kullanıcılarının e-posta listesini Play Console
+        <strong>Internal testing</strong> (veya Closed testing) tester listesine eklemek;
+        ardından yeni sürümü bu ekiple doğrulayıp production’a çıkmak.
+      </p>
+      <div class="ok">
+        Liste hazır: Supabase <code>device_tokens</code> (platform = android) +
+        <code>user_activity_events</code> birleşiminden üretildi.
+        <strong>7 e-posta</strong> · 2026-08-23
+      </div>
+      <div class="gpt-box">
+        <strong>GPT2’ye verilecek talimat (kopyala):</strong><br />
+        “Bu HTML dosyasını aç. Adımları <em>sırayla</em> uygula: önce §1 e-posta listesini kopyala,
+        sonra §2 Play Console Internal testing tester listesini oluştur/güncelle,
+        sonra §3 yeni AAB’yi Internal track’e yükle, sonra §4 tester opt-in linkini paylaş,
+        sonra §5 Production staged rollout. Her adımdan sonra bana ‘tamam’ diye yaz, bir sonrakine geç.”
+      </div>
+      <p class="stamp">
+        Kaynak dosyalar:
+        <code>docs/android-users-emails.txt</code> ·
+        <code>docs/android-users-email-list.json</code> ·
+        bu HTML
+      </p>
+    </section>
+
+    <section class="card">
+      <h2>§0 — Başlamadan önce (kontrol)</h2>
+      <ol class="steps">
+        <li>
+          <strong>Play Console giriş</strong>
+          <a href="https://play.google.com/console" target="_blank" rel="noopener">play.google.com/console</a>
+          → <strong>FlyFam</strong> uygulamasını seç
+          (paket adı: <code>com.flyfam.app</code>).
+        </li>
+        <li>
+          <strong>Yetki</strong>
+          Hesabında Release / Admin yetkisi olmalı (tester listesi + release yükleme).
+        </li>
+        <li>
+          <strong>Google hesabı kuralı</strong>
+          Play tester e-postaları <em>Google hesabı</em> olmalı.
+          Gmail dışı adresler (Hotmail, kurumsal) yalnızca o e-posta bir Google hesabına bağlıysa çalışır.
+        </li>
+      </ol>
+      <div class="warn">
+        Bu liste “uygulamada Android cihaz kaydı olan” kullanıcılar.
+        Play’den indirip hiç push token kaydetmeyen kullanıcı burada olmayabilir.
+        Listeyi yenilemek için aynı SQL/export adımını tekrar çalıştırın.
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>§1 — Hazır e-posta listesi <span class="badge">KOPYALA</span></h2>
+      <p class="muted">Play Console’a yapıştırılacak satırlar (virgülsüz, satır satır):</p>
+      <div class="copy-block">aysenbalci@bilfen.k12.tr
+canoz@flyfam.app
+dtmineoz@gmail.com
+familytestuser@flyfam.com
+hakan.tek3420@gmail.com
+isidemltdsti@gmail.com
+nurtensaricayoz@hotmail.com</div>
+
+      <div style="overflow-x:auto;">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>E-posta</th>
+              <th>İsim</th>
+              <th>Rol</th>
+              <th>Kaynak</th>
+              <th>App</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>1</td>
+              <td class="mono">aysenbalci@bilfen.k12.tr</td>
+              <td>Ayşen Balcı</td>
+              <td>family</td>
+              <td>token</td>
+              <td>—</td>
+            </tr>
+            <tr>
+              <td>2</td>
+              <td class="mono">canoz@flyfam.app</td>
+              <td>Can Öz</td>
+              <td>crew</td>
+              <td>token+activity</td>
+              <td>1.3.0</td>
+            </tr>
+            <tr>
+              <td>3</td>
+              <td class="mono">dtmineoz@gmail.com</td>
+              <td>Mine Öz</td>
+              <td>family</td>
+              <td>token</td>
+              <td>1.3.0</td>
+            </tr>
+            <tr>
+              <td>4</td>
+              <td class="mono">familytestuser@flyfam.com</td>
+              <td>familytestuser</td>
+              <td>family</td>
+              <td>token</td>
+              <td>1.3.0</td>
+            </tr>
+            <tr>
+              <td>5</td>
+              <td class="mono">hakan.tek3420@gmail.com</td>
+              <td>Hakan Balcı</td>
+              <td>family</td>
+              <td>token</td>
+              <td>—</td>
+            </tr>
+            <tr>
+              <td>6</td>
+              <td class="mono">isidemltdsti@gmail.com</td>
+              <td>Hayati Öz</td>
+              <td>family</td>
+              <td>token</td>
+              <td>—</td>
+            </tr>
+            <tr>
+              <td>7</td>
+              <td class="mono">nurtensaricayoz@hotmail.com</td>
+              <td>Nurten Sarıçay Öz</td>
+              <td>family</td>
+              <td>token+activity</td>
+              <td>1.3.0</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="note">
+        CSV tek satır istersen:
+        <code>aysenbalci@bilfen.k12.tr, canoz@flyfam.app, dtmineoz@gmail.com, familytestuser@flyfam.com, hakan.tek3420@gmail.com, isidemltdsti@gmail.com, nurtensaricayoz@hotmail.com</code>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>§2 — Play Console’da tester listesini oluştur</h2>
+      <p class="muted">Öneri: önce <strong>Internal testing</strong> (hızlı, inceleme yok). Sonra Production.</p>
+      <ol class="steps">
+        <li>
+          <strong>Menü</strong>
+          Sol: <strong>Test and release → Testing → Internal testing</strong>
+          (Test ve yayınlama → Test → Dahili test).
+        </li>
+        <li>
+          <strong>Testers sekmesi</strong>
+          Üstte <strong>Testers</strong> / <strong>Test kullanıcıları</strong>’na tıkla.
+        </li>
+        <li>
+          <strong>E-posta listesi oluştur</strong>
+          <ul>
+            <li><strong>Create email list</strong> / E-posta listesi oluştur</li>
+            <li>Liste adı: <code>FlyFam Android users 2026-08</code></li>
+            <li>§1’deki e-postaları yapıştır (satır satır veya virgüllü)</li>
+            <li><strong>Save changes</strong></li>
+          </ul>
+        </li>
+        <li>
+          <strong>Listeyi track’e bağla</strong>
+          Internal testing → Testers → oluşturduğun listeyi seç → kaydet.
+        </li>
+        <li>
+          <strong>Opt-in linkini kopyala</strong>
+          Sayfada “How testers join your test” / “Test kullanıcıları nasıl katılır” altında
+          <strong>Copy link</strong>. Bu linki ekibe WhatsApp/e-posta ile gönder.
+        </li>
+      </ol>
+      <div class="warn">
+        Tester, linke tıklayıp <strong>Become a tester / Test kullanıcısı ol</strong> demeden
+        Internal build’i Play’de göremez. Her kişi kendi Google hesabıyla opt-in yapmalı.
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>§3 — Yeni sürümü Internal testing’e yükle</h2>
+      <ol class="steps">
+        <li>
+          <strong>AAB hazır olsun</strong>
+          <code>versionCode</code> Play’deki en yüksek değerden büyük olmalı
+          (şu an projede 33 → yeni build en az <strong>34</strong>).
+        </li>
+        <li>
+          <strong>Yükle</strong>
+          Internal testing → <strong>Create new release</strong> → AAB yükle →
+          Release notes (TR/EN kısa) → <strong>Review release</strong> → <strong>Start rollout to Internal testing</strong>.
+        </li>
+        <li>
+          <strong>Doğrulama checklist (tester)</strong>
+          <ul>
+            <li>Opt-in link → Become a tester</li>
+            <li>Play Store → FlyFam → Update / Install (Internal)</li>
+            <li>Manuel uçuş ekle (ör. PC*) → yerel saatin doğru olduğunu kontrol et</li>
+            <li>Roster’da saatlerin Z/+3 kayması olmadığını doğrula</li>
+          </ul>
+        </li>
+      </ol>
+    </section>
+
+    <section class="card">
+      <h2>§4 — Test ekibine katılma (kullanıcı tarafı)</h2>
+      <ol class="steps">
+        <li>Telefonda Play’e giriş yapan Google hesabı = listede olan e-posta olmalı.</li>
+        <li>Gönderdiğin opt-in linkini aç → <strong>Become a tester</strong>.</li>
+        <li>Play Store’da FlyFam sayfasını aç (gerekirse “Internal testing” rozeti görünür).</li>
+        <li>Update / Yükle → uygulamayı açıp kritik akışları dene.</li>
+      </ol>
+      <div class="note">
+        Kapalı test (Closed testing) istersen aynı e-posta listesini
+        <strong>Test and release → Testing → Closed testing</strong> track’ine de ekleyebilirsin.
+        Closed track bazen küçük bir inceleme ister; Internal daha hızlıdır.
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>§5 — Production + “herkes güncellesin” (Play + uygulama)</h2>
+      <ol class="steps">
+        <li>
+          <strong>Production release</strong>
+          Internal doğrulandıktan sonra aynı AAB’yi
+          <strong>Test and release → Production</strong>’a yükle.
+        </li>
+        <li>
+          <strong>Staged rollout (önerilir)</strong>
+          Önce %20 → sorun yoksa %50 → %100.
+          Play Console → Production release → Manage rollout.
+        </li>
+        <li>
+          <strong>Önemli gerçek</strong>
+          Play, cihazda yüklü eski sürümü otomatik “zorla” silmez.
+          Production %100 olsa bile kullanıcı Play güncellemesini erteleyebilir.
+        </li>
+        <li>
+          <strong>Gerçek zorunlu güncelleme</strong>
+          Uygulama açılışında <code>versionCode &lt; min</code> ise ekranı kilitle +
+          “Play’den güncelle” butonu (Supabase config). Bu ayrı bir geliştirme adımıdır;
+          Play ayarı tek başına yetmez.
+        </li>
+      </ol>
+      <div class="ok">
+        Pratik sıra: Internal liste (§2) → Internal AAB (§3) → tester opt-in (§4) →
+        Production staged (§5) → sonra (istersen) force-update kapısı.
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>§6 — Listeyi yenilemek (ileride)</h2>
+      <p class="muted">
+        Android kaydı değişince e-postaları tekrar çekmek için Supabase’te
+        <code>device_tokens.platform = 'android'</code> kullanıcılarının
+        <code>auth.users.email</code> değerlerini export et.
+      </p>
+      <p class="muted">Dosya yolları (repo):</p>
+      <ul>
+        <li><code>docs/android-users-emails.txt</code> — düz liste</li>
+        <li><code>docs/android-users-email-list.json</code> — isim/rol/sürüm</li>
+        <li><code>docs/PLAY_CONSOLE_ANDROID_TEST_LISTESI_TR.html</code> — bu rehber</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>GPT2 için tek paragraf özet</h2>
+      <div class="copy-block">FlyFam Play Console’da Internal testing tester listesi oluştur.
+Liste adı: FlyFam Android users 2026-08
+E-postalar:
+aysenbalci@bilfen.k12.tr
+canoz@flyfam.app
+dtmineoz@gmail.com
+familytestuser@flyfam.com
+hakan.tek3420@gmail.com
+isidemltdsti@gmail.com
+nurtensaricayoz@hotmail.com
+Listeyi Internal testing track’e bağla, opt-in linkini kopyala.
+Sonra yeni AAB’yi (versionCode ≥ 34) Internal’a yükle; doğrulama sonrası Production’da staged rollout yap.</div>
+    </section>
+  </div>
+</body>
+</html>

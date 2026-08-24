@@ -1,0 +1,76 @@
+-# Flight status: landed algoritması (v2)
+-
+-Bu doküman, **otomatik `landed` tespitinin** güncel (v2) davranışını özetler. Eski sürümde kullanılan
+-**\"low speed = landed\" hız heuristiği tamamen kaldırıldı**; artık hız/irtifa, **tek başına** statüyü
+-`landed` yapmıyor.
+-
+-## 1. Kaynaklar
+-
+-Landed kararı yalnızca şu alanlara bakarak verilir:
+-
+-- FR24 normalize veri:
+-  - `flightStatus`
+-  - `datetime_landed_utc`
+-  - `last_seen_utc`
+-- Aviation Edge timetable:
+-  - `actual_arrival_utc`
+-  - `statusMapped` (sadece cancelled/diverted için)
+-- DB alanları:
+-  - `flights.flight_status`
+-  - `flights.actual_arrival`
+-  - `flights.scheduled_arrival`
+-
+-## 2. FR24 tarafı
+-
+-- FR24 **`flight_ended === false`** ise:
+-  - `deriveFr24LiveStatus` fonksiyonu zaman damgalarına göre
+-    `scheduled / taxi_out / en_route / landed` döndürür.
+-  - Çıkan değer **direkt `flight_status`** olarak yazılır.
+-
+-- FR24 **`flight_ended === true`** ise:
+-  - Önce aynı gün için **Aviation Edge timetable** denenir
+-    (iptal/divert veya gerçek iniş saati varsa).
+-  - AE sonuç vermezse:
+-    - `last_seen_utc` bugünün tarihine göre yorumlanır:
+-      - `now >= last_seen_utc` → `landed`
+-      - aksi durumda → `scheduled`
+-
+-## 3. Aviation Edge tarafı
+-
+-- Timetable kaydı bulunduğunda:
+-  - Eğer `statusMapped` → `cancelled` / `diverted` ise **aynen kullanılır**.
+-  - Diğer durumlarda:
+-    - `deriveAeStatusFromActualTimes` ile
+-      `actual_departure_utc` / `actual_arrival_utc` ve `now` üzerinden
+-      `scheduled / en_route / landed` hesaplanır.
+-
+-## 4. Roster ekranındaki davranış
+-
+-- Roster, `landed` durumunu sadece:
+-  - DB'deki `flight_status = 'landed'` (veya `parked` → landed sayılır),
+-  - veya `actual_arrival` / `scheduled_arrival` geçmişte olduğunda
+-    (ve API/cron bunu yazmışsa)
+-  üzerinden gösterir.
+-
+-- **Hız/irtifa bilgisi (`groundSpeedKts`, `altitudeFt`) sadece görsel amaçlıdır:**
+-  - Uçuşun havada görülüp görülmediğini (`airborneSeen`) işaretlemek için kullanılır.
+-  - **Artık hiçbir yerde `landed` statüsünü tetiklemez.**
+-
+-## 5. Eski \"low speed = landed\" heuristiği
+-
+-- Önceki sürümde Roster içinde:
+-  - Düşük hız (`gs` küçük) ve son track zamanı yakınsa,
+-  - ek olarak bazı koşullarla `landed` kabul edilen bir heuristik vardı.
+-- Bu yaklaşım, bazı gerçek vakalarda:
+-  - FR24 track verisi eksik/yanlış geldiğinde,
+-  - veya hız 0 iken
+-  uçuş hâlâ havadayken yanlış `landed` gösterebiliyordu.
+-
+-**Bu heuristik tamamen silindi.**
+-
+-Artık:
+-
+-- `landed` → yalnızca API/cron tarafından yazılan `flight_status` veya
+-  güvenilir `actual_arrival` / `datetime_landed` alanlarından gelir.
+-- Hız/irtifa tek başına **statü değiştirmez**, sadece bilgi amaçlı gösterilir.
+*** End Patch ***!

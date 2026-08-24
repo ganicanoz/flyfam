@@ -1539,7 +1539,7 @@
             '<input data-role="sub-period-end" data-user-id="' + (u.id || '') + '" type="datetime-local" value="' + escapeAttr(periodEnd) + '" /></div>' +
           '<div class="drawer-actions">' +
             '<button type="button" class="btnPrimary btnSmall" data-action="save-user-subscription" data-user-id="' + (u.id || '') + '">Aboneliği kaydet</button>' +
-            '<button type="button" class="btnSmall" data-action="grant-base-subscription" data-user-id="' + (u.id || '') + '">Temel abonelik ver (active)</button>' +
+            '<button type="button" class="btnSmall" data-action="grant-base-subscription" data-user-id="' + (u.id || '') + '">Geniş Sülale ver (active)</button>' +
           '</div>' +
         '</div>'
       );
@@ -2945,19 +2945,20 @@
         return;
       }
       if (action === 'grant-base-subscription') {
-        const ok = window.confirm('Temel abonelik (couple / active) verilsin mi?');
+        const ok = window.confirm('Geniş Sülale Paketi (circle / active, 7 aile) verilsin mi?');
         if (!ok) return;
-        setStatus('Temel abonelik veriliyor…', 'warn');
-        const periodEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+        setStatus('Geniş Sülale veriliyor…', 'warn');
+        const periodEnd = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
         await callAdminAction('update_user_subscription', {
           user_id: userId,
-          plan_code: 'couple',
+          plan_code: 'circle',
           status: 'active',
+          extra_family_slots: 0,
           current_period_ends_at: periodEnd,
         });
         await loadDashboard();
         if (drawerUserId === userId) await openUserDrawer(userId, drawerUserMode, false);
-        setStatus('Temel abonelik verildi', 'ok');
+        setStatus('Geniş Sülale verildi', 'ok');
         return;
       }
       if (action === 'open-linked-crew-subscription') {
@@ -2992,7 +2993,7 @@
         setStatus('Abonelik kaydediliyor…', 'warn');
         const payload = {
           user_id: userId,
-          plan_code: 'couple',
+          plan_code: 'circle',
           status,
           extra_family_slots: Math.trunc(extraRaw),
         };

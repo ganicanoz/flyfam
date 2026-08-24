@@ -8,11 +8,13 @@ import {
   rowFlightRestEndUtc,
   rowToScheduleIso,
   isSimulatorOccupationCode,
+  isStandbyOccupationCode,
 } from '../../supabase/functions/_shared/pdfRosterImport';
 
 export * from '../../supabase/functions/_shared/pdfRosterImport';
 
 import { trackActivityEvent } from './userActivity';
+import { airportIanaForCode } from '../../supabase/functions/_shared/airportIanaByCode';
 
 /**
  * Roster PDF içe aktarma — ürün kilidi.
@@ -73,6 +75,12 @@ export async function fetchAirportTimezonesByIata(
     const tz = r.timezone_iana?.trim();
     if (i && tz) out.set(i, tz);
   }
+  for (const i of uniq) {
+    if (!out.has(i)) {
+      const tz = airportIanaForCode(i);
+      if (tz) out.set(i, tz);
+    }
+  }
   return out;
 }
 
@@ -82,6 +90,7 @@ function normalizeCode(code: string | null | undefined): string {
   // Bunlar yeni bir görev kodu değil; off-day koduna geri katla.
   if (/^FSF\d{1,3}$/.test(normalized)) return 'FSF';
   if (/^FOF\d{1,3}$/.test(normalized)) return 'FOF';
+  if (/^MSF\d{1,3}$/.test(normalized)) return 'MSF';
   if (/^VAV\d{1,3}$/.test(normalized)) return 'VAV';
   return normalized;
 }
@@ -350,19 +359,53 @@ type PreparedImportRow = {
   rosterKind: 'flight' | 'duty_off' | 'sim';
 };
 
+function standbyRowScore(r: PdfFlightRow): number {
+  let s = 0;
+  if (r.duty_end_time_local?.trim()) s += 2;
+  if (r.duty_end_date_iso?.trim()) s += 1;
+  if (r.duty_start_time_local?.trim()) s += 1;
+  if (r.roster_entry_kind === 'duty_off') s += 1;
+  return s;
+}
+
+function dedupeStandbyRowsByDate(rows: PdfFlightRow[]): PdfFlightRow[] {
+  const standbyBest = new Map<string, PdfFlightRow>();
+  const rest: PdfFlightRow[] = [];
+  for (const r of rows) {
+    const code = normalizeCode(r.flight_number) || normalizeCode(r.duty_occupation_code);
+    if (!isStandbyOccupationCode(code) || !r.flight_date) {
+      rest.push(r);
+      continue;
+    }
+    const key = `${r.flight_date}|standby`;
+    const prev = standbyBest.get(key);
+    if (!prev || standbyRowScore(r) > standbyRowScore(prev)) standbyBest.set(key, r);
+  }
+  return [...rest, ...standbyBest.values()];
+}
+
 function prepareImportRows(
   rows: PdfFlightRow[],
   rawText?: string | null,
   opts?: { injectPegasusStandbyFromRawText?: boolean }
 ): { prepared: PreparedImportRow[]; skippedInvalid: number } {
-  const merged = [...rows];
+  let merged = dedupeStandbyRowsByDate([...rows]);
   if (opts?.injectPegasusStandbyFromRawText && rawText && rawText.trim().length > 0) {
     const stby = extractStandbyRowsFromRawText(rawText);
-    const keys = new Set(merged.map((r) => `${r.flight_date}|${normalizeCode(r.flight_number)}`));
+    const standbyDates = new Set(
+      merged
+        .filter((r) => {
+          const code = normalizeCode(r.flight_number) || normalizeCode(r.duty_occupation_code);
+          return isStandbyOccupationCode(code);
+        })
+        .map((r) => r.flight_date),
+    );
     for (const r of stby) {
-      const k = `${r.flight_date}|${normalizeCode(r.flight_number)}`;
-      if (!keys.has(k)) merged.push(r);
+      if (!r.flight_date || standbyDates.has(r.flight_date)) continue;
+      merged.push(r);
+      standbyDates.add(r.flight_date);
     }
+    merged = dedupeStandbyRowsByDate(merged);
   }
 
   const pcEntries: Array<{ idx: number; row: PdfFlightRow; code: string }> = [];
@@ -484,8 +527,9 @@ function expandMultiDayDutyRows(prepared: PreparedImportRow[]): PreparedImportRo
 
     if (end <= start) continue;
 
-    // MEET / RSV: PDF’teki görev penceresi (ör. 15:25–18:00); tüm gün 00:00–23:59 kopyalanmaz.
+    // MEET / RSV / nöbet: PDF’teki görev penceresi; tüm gün 00:00–23:59 kopyalanmaz.
     if (isTimedDutyOffCode(code)) continue;
+    if (isStandbyOccupationCode(code)) continue;
 
     const spanDays = calendarDaysBetweenYmd(start, end);
     // Güvenlik: parse hatalarında sınırsız genişlemeyi önle.

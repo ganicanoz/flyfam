@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>FlyFam Family Flight Viewer Preview</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #111827;
+      --card: #1f2937;
+      --text: #e5e7eb;
+      --muted: #9ca3af;
+      --line: #334155;
+      --primary: #60a5fa;
+      --ok: #22c55e;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: radial-gradient(800px 350px at 15% -10%, #1e293b, transparent 60%), var(--bg);
+      color: var(--text);
+      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      padding: 20px;
+    }
+    .phone {
+      width: min(440px, 100%);
+      margin: 0 auto;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: var(--panel);
+      overflow: hidden;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+    }
+    .header {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .title { font-weight: 800; font-size: 16px; }
+    .subtitle { color: var(--muted); font-size: 12px; margin-top: 2px; }
+    .content { padding: 14px; display: grid; gap: 10px; }
+    .map {
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      background: linear-gradient(145deg, #0b1220, #142033);
+      height: 190px;
+      position: relative;
+      overflow: hidden;
+    }
+    .route-line {
+      position: absolute;
+      left: 12%;
+      right: 12%;
+      top: 52%;
+      height: 2px;
+      background: linear-gradient(90deg, #1e40af, #60a5fa, #1e40af);
+      transform: translateY(-50%);
+      opacity: 0.9;
+    }
+    .dot {
+      width: 10px; height: 10px; border-radius: 50%;
+      background: #93c5fd; position: absolute; top: calc(52% - 5px);
+    }
+    .dot.left { left: 12%; }
+    .dot.right { right: 12%; }
+    .plane {
+      position: absolute;
+      left: 48%;
+      top: calc(52% - 9px);
+      font-size: 18px;
+      color: #bfdbfe;
+    }
+    .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .box {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 10px;
+      background: var(--card);
+    }
+    .label { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .3px; }
+    .value { margin-top: 5px; font-size: 14px; font-weight: 700; }
+    .value.small { font-size: 13px; font-weight: 600; }
+    .duration {
+      border: 1px solid #1d4ed8;
+      background: rgba(37, 99, 235, 0.14);
+      border-radius: 10px;
+      padding: 10px 12px;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .duration .v { font-size: 15px; font-weight: 800; color: #bfdbfe; }
+    .badge {
+      display: inline-block;
+      border: 1px solid #14532d;
+      color: #86efac;
+      background: rgba(34, 197, 94, 0.14);
+      border-radius: 999px;
+      font-size: 11px;
+      padding: 3px 8px;
+      margin-top: 2px;
+    }
+    .hint { color: var(--muted); font-size: 12px; text-align: center; padding: 2px 0 10px; }
+  </style>
+</head>
+<body>
+  <div class="phone">
+    <div class="header">
+      <div>
+        <div class="title">Rota Onizleme</div>
+        <div class="subtitle">Family Viewer · Salt okunur</div>
+      </div>
+      <div class="badge">EN ROUTE</div>
+    </div>
+    <div class="content">
+      <div class="map">
+        <div class="route-line"></div>
+        <div class="dot left"></div>
+        <div class="dot right"></div>
+        <div class="plane">✈</div>
+      </div>
+
+      <div class="duration">
+        <span class="label">Tahmini sure</span>
+        <span class="v">1 saat 45 dakika</span>
+      </div>
+
+      <div class="row2">
+        <div class="box">
+          <div class="label">Ucus no</div>
+          <div class="value">PC1198</div>
+        </div>
+        <div class="box">
+          <div class="label">Tarih</div>
+          <div class="value">17.04.2026</div>
+        </div>
+      </div>
+
+      <div class="row2">
+        <div class="box">
+          <div class="label">Kalkis</div>
+          <div class="value">SAW - Sabiha Gokcen</div>
+          <div class="value small">10:35 (TR) / 07:35 (Z)</div>
+        </div>
+        <div class="box">
+          <div class="label">Varis</div>
+          <div class="value">ADB - Izmir</div>
+          <div class="value small">12:20 (TR) / 09:20 (Z)</div>
+        </div>
+      </div>
+
+      <div class="hint">Bu ekranda duzenleme yoktur; sadece izleme amaclidir.</div>
+    </div>
+  </div>
+</body>
+</html>

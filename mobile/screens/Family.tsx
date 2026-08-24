@@ -12,7 +12,7 @@ import {
   ScrollView,
   Image,
 } from 'react-native';
-import { Swipeable } from 'react-native-gesture-handler';
+import { Swipeable, RectButton } from 'react-native-gesture-handler';
 import { useTranslation } from 'react-i18next';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSession } from '../contexts/SessionContext';
@@ -20,6 +20,9 @@ import { supabase } from '../lib/supabase';
 import { getPushTokenWithReason, registerPushTokenForFamilyUser } from '../lib/pushNotifications';
 import { colors, useThemeMode } from '../theme/colors';
 import { fetchMySubscriptionAccess, type SubscriptionAccess } from '../lib/subscriptionAccess';
+
+/** Aile üye kartı ile Kaldır butonu aynı yükseklik (padding 16+16 + avatar 40). */
+const FAMILY_MEMBER_ROW_HEIGHT = 72;
 
 type Connection = {
   id: string;
@@ -37,6 +40,13 @@ type PendingInvite = {
   crew_name: string | null;
 };
 
+/** Crew'ın gönderdiği, henüz yanıtlanmamış davetler. */
+type SentPendingInvite = {
+  id: string;
+  family_email: string;
+  created_at: string | null;
+};
+
 export default function Family() {
   const { t } = useTranslation();
   const { profile, crewProfile } = useSession();
@@ -47,6 +57,7 @@ export default function Family() {
   const [loading, setLoading] = useState(true);
   const [sendLoading, setSendLoading] = useState(false);
   const [pendingInvites, setPendingInvites] = useState<PendingInvite[]>([]);
+  const [sentPendingInvites, setSentPendingInvites] = useState<SentPendingInvite[]>([]);
   const [inviteResponding, setInviteResponding] = useState<string | null>(null);
   const [access, setAccess] = useState<SubscriptionAccess | null>(null);
   const [pushStatus, setPushStatus] = useState<'idle' | 'checking' | 'ok' | 'error'>('idle');
@@ -105,6 +116,31 @@ export default function Family() {
     );
   }, [isCrew]);
 
+  const loadSentPendingInvites = useCallback(async () => {
+    if (!isCrew || !crewProfile?.id) {
+      setSentPendingInvites([]);
+      return;
+    }
+    const { data, error } = await supabase
+      .from('crew_invitations')
+      .select('id, family_email, created_at')
+      .eq('crew_id', crewProfile.id)
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false });
+    if (error) {
+      console.warn('[Family] sent invites error:', error.message);
+      setSentPendingInvites([]);
+      return;
+    }
+    setSentPendingInvites(
+      (data ?? []).map((row: { id: string; family_email: string; created_at: string | null }) => ({
+        id: row.id,
+        family_email: row.family_email,
+        created_at: row.created_at ?? null,
+      })),
+    );
+  }, [isCrew, crewProfile?.id]);
+
   const checkPushStatus = useCallback(async () => {
     if (isCrew) return;
     setPushStatus('checking');
@@ -123,7 +159,7 @@ export default function Family() {
     useCallback(() => {
       let cancelled = false;
       setLoading(true);
-      Promise.all([loadConnections(), loadPendingInvites()]).finally(() => {
+      Promise.all([loadConnections(), loadPendingInvites(), loadSentPendingInvites()]).finally(() => {
         if (!cancelled) setLoading(false);
       });
       if (!isCrew && profile?.id) {
@@ -142,7 +178,7 @@ export default function Family() {
       return () => {
         cancelled = true;
       };
-    }, [loadConnections, loadPendingInvites, isCrew, profile?.id, checkPushStatus]),
+    }, [loadConnections, loadPendingInvites, loadSentPendingInvites, isCrew, profile?.id, checkPushStatus]),
   );
 
   useEffect(() => {
@@ -165,8 +201,35 @@ export default function Family() {
       Alert.alert(t('common.error'), error.message);
       return;
     }
-    Alert.alert(t('family.invitationSent'), t('family.invitationSentMessage', { email: trimmed }));
     setEmail('');
+    await loadSentPendingInvites();
+    Alert.alert(t('family.invitationSent'), t('family.invitationSentMessage', { email: trimmed }));
+  };
+
+  const cancelSentInvite = (inv: SentPendingInvite) => {
+    Alert.alert(
+      t('family.cancelInviteConfirmTitle'),
+      t('family.cancelInviteConfirmMessage', { email: inv.family_email }),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('family.cancelInvite'),
+          style: 'destructive',
+          onPress: async () => {
+            const { error } = await supabase
+              .from('crew_invitations')
+              .update({ status: 'declined' })
+              .eq('id', inv.id)
+              .eq('status', 'pending');
+            if (error) {
+              Alert.alert(t('common.error'), error.message);
+              return;
+            }
+            setSentPendingInvites((prev) => prev.filter((x) => x.id !== inv.id));
+          },
+        },
+      ],
+    );
   };
 
   const approveConnection = async (id: string) => {
@@ -275,6 +338,37 @@ export default function Family() {
           </View>
         )}
 
+        {isCrew && sentPendingInvites.length > 0 && (
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
+              {t('family.pendingInviteesTitle')}
+            </Text>
+            {sentPendingInvites.map((inv) => (
+              <View
+                key={inv.id}
+                style={[styles.sentInviteCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
+              >
+                <View style={styles.sentInviteTextCol}>
+                  <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>
+                    {inv.family_email}
+                  </Text>
+                  <Text style={[styles.sentInviteHint, { color: colors.textMuted }]}>
+                    {t('family.pendingInviteeWaiting')}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  style={[styles.cancelInviteBtn, { borderColor: colors.border }]}
+                  onPress={() => cancelSentInvite(inv)}
+                >
+                  <Text style={[styles.cancelInviteBtnText, { color: colors.textSecondary }]}>
+                    {t('family.cancelInvite')}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            ))}
+          </View>
+        )}
+
         {!isCrew && (
           <>
             <View style={[styles.pushStatusCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -368,7 +462,9 @@ export default function Family() {
             <>
               {approved.map((c) => {
                 const cardInner = (
-                  <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                  <View
+                    style={[styles.card, styles.cardInSwipe, { backgroundColor: colors.surface, borderColor: colors.border }]}
+                  >
                     <Text style={[styles.name, { color: colors.text }]}>
                       {c.other_name ?? (isCrew ? t('family.familyMember') : t('family.crewMember'))}
                     </Text>
@@ -395,22 +491,22 @@ export default function Family() {
                 );
 
                 const renderRightActions = () => (
-                  <View style={styles.swipeActionsRow}>
-                    <TouchableOpacity
-                      style={styles.swipeDelete}
-                      onPress={() => removeConnection(c.id, !isCrew)}
-                    >
-                      <Text style={styles.swipeDeleteText}>
-                        {isCrew ? t('family.removeMember') : t('family.leaveConnection')}
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
+                  <RectButton
+                    style={styles.swipeDelete}
+                    onPress={() => removeConnection(c.id, !isCrew)}
+                  >
+                    <Text style={styles.swipeDeleteText}>
+                      {isCrew ? t('family.removeMember') : t('family.leaveConnection')}
+                    </Text>
+                  </RectButton>
                 );
 
                 return (
-                  <Swipeable key={c.id} renderRightActions={renderRightActions} overshootRight={false}>
-                    {cardInner}
-                  </Swipeable>
+                  <View key={c.id} style={styles.swipeRowWrap}>
+                    <Swipeable renderRightActions={renderRightActions} overshootRight={false}>
+                      {cardInner}
+                    </Swipeable>
+                  </View>
                 );
               })}
               {isCrew &&
@@ -458,6 +554,24 @@ function createFamilyStyles() {
     inviteButtonText: { color: colors.onPrimary, fontWeight: '600' },
     limitText: { fontSize: 12, marginTop: 8, lineHeight: 18 },
     buttonDisabled: { opacity: 0.7 },
+    sentInviteCard: {
+      borderRadius: 12,
+      padding: 14,
+      marginBottom: 8,
+      borderWidth: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+    },
+    sentInviteTextCol: { flex: 1, paddingRight: 4 },
+    sentInviteHint: { fontSize: 13, marginTop: 4 },
+    cancelInviteBtn: {
+      paddingHorizontal: 10,
+      paddingVertical: 8,
+      borderRadius: 8,
+      borderWidth: 1,
+    },
+    cancelInviteBtnText: { fontSize: 12, fontWeight: '600' },
     inviteAnnounce: {
       borderRadius: 12,
       padding: 14,
@@ -497,12 +611,16 @@ function createFamilyStyles() {
       borderRadius: 12,
       padding: 16,
       marginBottom: 8,
+      height: FAMILY_MEMBER_ROW_HEIGHT,
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
       borderWidth: 1,
       borderColor: colors.border,
     },
+    /** Swipeable içinde margin kart/aksiyon yüksekliğini bozar — boşluk dış sarmalayıcıda. */
+    cardInSwipe: { marginBottom: 0 },
+    swipeRowWrap: { marginBottom: 8 },
     name: { fontSize: 17, fontWeight: '600', flex: 1, paddingRight: 8 },
     approveBtn: { backgroundColor: colors.primary, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8 },
     approveBtnText: { color: colors.onPrimary, fontWeight: '600', fontSize: 14 },
@@ -518,14 +636,14 @@ function createFamilyStyles() {
       borderWidth: 1,
     },
     avatarSmallInitial: { fontSize: 16, fontWeight: '700' },
-    swipeActionsRow: { justifyContent: 'center', marginBottom: 8 },
+    /** Tek View: genişlik + yükseklik + renk (iç flex:1 boşluk bırakıyordu). */
     swipeDelete: {
+      width: 110,
+      height: FAMILY_MEMBER_ROW_HEIGHT,
       backgroundColor: colors.error,
       justifyContent: 'center',
       alignItems: 'center',
-      width: 96,
       borderRadius: 12,
-      marginLeft: 8,
       paddingHorizontal: 8,
     },
     swipeDeleteText: { color: colors.white, fontWeight: '700', fontSize: 13, textAlign: 'center' },

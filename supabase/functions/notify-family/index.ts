@@ -1,5 +1,5 @@
 // Supabase Edge Function: send push notifications to family users via Expo Push API.
-// Body: { type: 'today_flights', crewId, date } | { type: 'took_off'|'landed'|'cancelled'|'diverted'|'delayed', flightId, crewId? }
+// Body: { type: 'today_flights'|'standby_assigned', crewId, date } | { type: 'took_off'|'landed'|'cancelled'|'diverted'|'delayed', flightId, crewId? }
 // For daily digest, caller can use header x-cron-secret to bypass auth (set CRON_SECRET in Supabase secrets).
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -10,6 +10,12 @@ interface TodayFlightsPayload {
   type: 'today_flights';
   crewId: string;
   date: string; // YYYY-MM-DD
+}
+
+interface StandbyAssignedPayload {
+  type: 'standby_assigned';
+  crewId: string;
+  date: string; // YYYY-MM-DD (görev tebliği günü)
 }
 
 interface FlightEventPayload {
@@ -24,7 +30,7 @@ interface TestPayload {
   type: 'test';
 }
 
-type Payload = TodayFlightsPayload | FlightEventPayload | TestPayload;
+type Payload = TodayFlightsPayload | StandbyAssignedPayload | FlightEventPayload | TestPayload;
 
 function formatTimeLocal(iso: string | null): string {
   if (!iso) return '--:--';
@@ -78,6 +84,19 @@ function todayFlightsBody(
 function sharedPlanBody(locale: NotifLocale, crewName: string): string {
   if (locale === 'tr') return `${crewName} sizinle güncel uçuş planını paylaştı.`;
   return `${crewName} shared their latest flight plan with you.`;
+}
+
+/** First name + Turkish dative: Gani'ye / Ahmet'e */
+function standbyAssignedBody(locale: NotifLocale, crewFullName: string): string {
+  const full = (crewFullName || '').trim() || 'Crew';
+  const first = (full.split(/\s+/)[0] || full).trim() || 'Crew';
+  if (locale === 'tr') {
+    const last = first.slice(-1).toLocaleLowerCase('tr-TR');
+    const vowel = 'aeıioöuü';
+    const suffix = vowel.includes(last) ? "'ye" : "'e";
+    return `${first}${suffix} nöbetten uçuş verildi. Programı kontrol ediniz.`;
+  }
+  return `${first} was assigned flights from standby. Please check the schedule.`;
 }
 
 function getLocalDateKey(iso: string | null, timezoneIana: string | null | undefined): string | null {
@@ -612,6 +631,136 @@ Deno.serve(async (req) => {
       const msg = e instanceof Error ? e.message : String(e);
       console.error('[notify-family] today_flights error:', msg);
       return new Response(JSON.stringify({ error: 'today_flights failed', details: msg }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+  }
+
+  if (payload.type === 'standby_assigned') {
+    try {
+      const body = payload as StandbyAssignedPayload;
+      if (!body.crewId || !body.date || !authHeader?.startsWith('Bearer ')) {
+        return new Response(
+          JSON.stringify({ error: 'standby_assigned requires Authorization + crewId + date' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        );
+      }
+      const jwt = authHeader.slice(7).trim();
+      if (!jwt) {
+        return new Response(JSON.stringify({ error: 'Missing token' }), {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      const supabaseUser = createClient(supabaseUrl, anonKey, {
+        global: { headers: { Authorization: `Bearer ${jwt}` } },
+      });
+      const { data: { user }, error: authErr } = await supabaseUser.auth.getUser(jwt);
+      if (authErr || !user) {
+        return new Response(JSON.stringify({ error: 'Invalid token', details: authErr?.message ?? null }), {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      const { data: crewRow, error: crewErr } = await supabaseAdmin
+        .from('crew_profiles')
+        .select('id, user_id')
+        .eq('id', body.crewId)
+        .eq('user_id', user.id)
+        .maybeSingle();
+      if (crewErr || !crewRow) {
+        return new Response(JSON.stringify({ error: 'Not your crew profile' }), {
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      const { data: profile } = await supabaseAdmin
+        .from('profiles')
+        .select('full_name')
+        .eq('id', crewRow.user_id)
+        .maybeSingle();
+      const crewName = (profile?.full_name || 'Crew').trim() || 'Crew';
+
+      const { data: conns } = await supabaseAdmin
+        .from('family_connections')
+        .select('id, family_id')
+        .eq('crew_id', body.crewId)
+        .eq('status', 'approved');
+      if (!conns?.length) {
+        return new Response(JSON.stringify({ ok: true, sent: 0 }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const familyIds = conns.map((c) => c.family_id);
+      const connectionIds = conns.map((c) => c.id);
+      const { data: prefs } = await supabaseAdmin
+        .from('notification_preferences')
+        .select('user_id, connection_id, today_flights')
+        .in('connection_id', connectionIds);
+      const disabledForConnection = new Set<string>();
+      for (const p of prefs ?? []) {
+        if (p.today_flights === false) disabledForConnection.add(`${p.user_id}:${p.connection_id}`);
+      }
+      const allowed = familyIds.filter((familyId) => {
+        const conn = conns.find((c) => c.family_id === familyId);
+        if (!conn) return false;
+        return !disabledForConnection.has(`${familyId}:${conn.id}`);
+      });
+      if (allowed.length === 0) {
+        return new Response(JSON.stringify({ ok: true, sent: 0 }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const { data: profilesWithLocale } = await supabaseAdmin
+        .from('profiles')
+        .select('id, locale')
+        .in('id', allowed);
+      const localeByUserId = new Map<string, NotifLocale>();
+      for (const p of profilesWithLocale ?? []) {
+        const rawLocale = (p as { locale?: string | null }).locale;
+        const isTr = typeof rawLocale === 'string' && rawLocale.toLowerCase().startsWith('tr');
+        localeByUserId.set(p.id, isTr ? 'tr' : 'en');
+      }
+      const { data: tokensRows } = await supabaseAdmin
+        .from('device_tokens')
+        .select('user_id, token')
+        .in('user_id', allowed);
+      const tokensByUserId = new Map<string, string[]>();
+      for (const row of tokensRows ?? []) {
+        const t = (row as { user_id: string; token: string }).token?.trim();
+        if (!t) continue;
+        const uid = (row as { user_id: string }).user_id;
+        if (!tokensByUserId.has(uid)) tokensByUserId.set(uid, []);
+        tokensByUserId.get(uid)!.push(t);
+      }
+
+      const title = 'FlyFam';
+      let totalMembers = 0;
+      for (const familyUserId of allowed) {
+        const userTokens = tokensByUserId.get(familyUserId) ?? [];
+        if (userTokens.length === 0) continue;
+        const locale = localeByUserId.get(familyUserId) ?? 'tr';
+        await sendExpoPush(userTokens, title, standbyAssignedBody(locale, crewName));
+        totalMembers += 1;
+      }
+      if (totalMembers > 0) {
+        await logCrewActivity(supabaseAdmin, crewRow.user_id, 'family_push', {
+          kind: 'standby_assigned',
+          crew_id: body.crewId,
+          date: body.date,
+          sent: totalMembers,
+        });
+      }
+      return new Response(JSON.stringify({ ok: true, sent: totalMembers }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      console.error('[notify-family] standby_assigned error:', msg);
+      return new Response(JSON.stringify({ error: 'standby_assigned failed', details: msg }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });

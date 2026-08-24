@@ -1459,7 +1459,7 @@ Deno.serve(async (req) => {
         const { data: defaultPlan } = await adminClient
           .from('app_subscription_plans')
           .select('code, title, max_family_members, max_extra_family_members, active')
-          .eq('code', 'couple')
+          .eq('code', 'circle')
           .maybeSingle();
         plan = (defaultPlan as PlanRow | null) ?? null;
       }
@@ -1520,7 +1520,7 @@ Deno.serve(async (req) => {
       const nowIso = new Date().toISOString();
       const defaultPeriodEnd = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
       const nextStatus = requestedStatus ?? sub?.status ?? 'active';
-      const nextPlanCode = requestedPlanCode ?? sub?.plan_code ?? plan?.code ?? 'couple';
+      const nextPlanCode = requestedPlanCode ?? sub?.plan_code ?? plan?.code ?? 'circle';
 
       if (!sub) {
         const insertRow = {

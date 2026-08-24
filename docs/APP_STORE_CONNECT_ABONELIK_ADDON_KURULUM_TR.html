@@ -1,0 +1,419 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>FlyFam — App Store Abonelik Kurulumu (Paketler)</title>
+  <style>
+    :root {
+      --bg: #f6f7f9;
+      --card: #ffffff;
+      --text: #1f2937;
+      --muted: #4b5563;
+      --line: #e5e7eb;
+      --accent: #9a6b2f;
+      --accent-soft: #f6efe6;
+      --ok: #166534;
+      --ok-bg: #ecfdf5;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.55;
+    }
+    .wrap {
+      max-width: 720px;
+      margin: 24px auto;
+      padding: 0 16px 40px;
+    }
+    .hero, .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 16px 18px;
+      margin-bottom: 12px;
+    }
+    h1 {
+      margin: 0 0 8px;
+      font-size: 22px;
+      line-height: 1.3;
+    }
+    h2 {
+      margin: 0 0 10px;
+      font-size: 17px;
+      color: var(--accent);
+    }
+    p { margin: 0 0 8px; }
+    .muted { color: var(--muted); font-size: 14px; }
+    ol.steps {
+      margin: 0;
+      padding-left: 22px;
+    }
+    ol.steps > li {
+      margin-bottom: 10px;
+    }
+    ol.steps > li > strong {
+      display: block;
+      margin-bottom: 2px;
+    }
+    ul { margin: 6px 0 0 18px; padding: 0; }
+    code {
+      background: #f3f4f6;
+      border: 1px solid #e5e7eb;
+      border-radius: 5px;
+      padding: 1px 5px;
+      font-size: 12.5px;
+      word-break: break-all;
+    }
+    .note {
+      background: var(--accent-soft);
+      border: 1px solid #e9d9c3;
+      border-radius: 8px;
+      padding: 10px 12px;
+      margin-top: 10px;
+      color: #5c3e17;
+      font-size: 14px;
+    }
+    .ok {
+      background: var(--ok-bg);
+      border: 1px solid #bbf7d0;
+      border-radius: 8px;
+      padding: 10px 12px;
+      margin-top: 10px;
+      color: var(--ok);
+      font-size: 14px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      margin-top: 8px;
+    }
+    th, td {
+      border: 1px solid var(--line);
+      padding: 8px 6px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th { background: #f9fafb; }
+    .stamp {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 8px;
+    }
+    .copy-block {
+      background: #f9fafb;
+      border: 1px dashed #d1d5db;
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 13px;
+      margin-top: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="hero">
+      <h1>FlyFam App Store abonelik kurulumu</h1>
+      <p class="muted">
+        Amaç: Aile kapasitesi paket içinde. Add-on yok.
+        Crew bir paket seçer (Duo → Circle). Daha fazla aile için üst pakete yükselir.
+      </p>
+      <div class="ok">
+        Kod ve veritabanı tarafı hazır. Senin işin: App Store Connect’te ürünleri oluşturmak.
+      </div>
+      <div class="note">
+        Apple paneli İngilizce olabilir. Menü yolları aşağıda hem Türkçe hem İngilizce.
+      </div>
+      <p class="stamp">Sürüm: 2.1 · Paket isimleri + fiyat matrisi (USD/TRY)</p>
+    </section>
+
+    <section class="card">
+      <h2>0) Başlamadan önce</h2>
+      <ol class="steps">
+        <li>
+          <strong>Giriş</strong>
+          <a href="https://appstoreconnect.apple.com" target="_blank" rel="noopener">appstoreconnect.apple.com</a>
+          → FlyFam uygulamasını aç.
+        </li>
+        <li>
+          <strong>Ödeme sözleşmesi</strong>
+          Agreements / Banking / Tax tamamlanmış olsun (Paid Apps).
+        </li>
+        <li>
+          <strong>Bu tabloyu açık tut</strong>
+          Product ID’leri <em>kopyala-yapıştır</em> yap. Yazım hatası olursa sonradan düzeltilemez.
+        </li>
+      </ol>
+    </section>
+
+    <section class="card">
+      <h2>1) Abonelik grubunu aç</h2>
+      <ol class="steps">
+        <li>
+          Sol menü: <strong>Monetization → Subscriptions</strong>
+          (Parasal işlemler → Abonelikler).
+        </li>
+        <li>
+          Grup adı: <code>flyfam_base</code> varsa onu kullan.
+          Yoksa <strong>Create</strong> → Reference Name: <code>FlyFam Base</code>.
+        </li>
+        <li>
+          Tüm paketler <strong>aynı grupta</strong> olmalı (yükseltme / düşürme için).
+        </li>
+      </ol>
+    </section>
+
+    <section class="card">
+      <h2>2) 14 ürün oluştur (7 aylık + 7 yıllık)</h2>
+      <p class="muted">Her satır = bir paket. Her paket için iki ürün: Monthly ve Yearly. Fiyatları ASC’de US + TR olarak gir.</p>
+
+      <div style="overflow-x:auto;">
+      <table>
+        <thead>
+          <tr>
+            <th>TR paket adı</th>
+            <th>EN</th>
+            <th>Kapasite</th>
+            <th>Aylık USD</th>
+            <th>Aylık TRY</th>
+            <th>Yıllık USD</th>
+            <th>Yıllık TRY</th>
+            <th>Aylık Product ID</th>
+            <th>Yıllık Product ID</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Çift Paketi</strong></td>
+            <td>Couple</td>
+            <td>Sen + 1</td>
+            <td>$1.49</td>
+            <td>₺99,99</td>
+            <td>$14.99</td>
+            <td>₺999,99</td>
+            <td><code>flyfam.duo.monthly</code></td>
+            <td><code>flyfam.duo.yearly</code></td>
+          </tr>
+          <tr>
+            <td><strong>Küçük Aile Paketi</strong></td>
+            <td>Trio</td>
+            <td>Sen + 2</td>
+            <td>$1.99</td>
+            <td>₺129,99</td>
+            <td>$19.99</td>
+            <td>₺1.299,99</td>
+            <td><code>flyfam.trio.monthly</code></td>
+            <td><code>flyfam.trio.yearly</code></td>
+          </tr>
+          <tr>
+            <td><strong>Aile Paketi</strong></td>
+            <td>Family</td>
+            <td>Sen + 3</td>
+            <td>$2.49</td>
+            <td>₺149,99</td>
+            <td>$24.99</td>
+            <td>₺1.499,99</td>
+            <td><code>flyfam.family.monthly</code></td>
+            <td><code>flyfam.family.yearly</code></td>
+          </tr>
+          <tr>
+            <td><strong>Büyük Aile Paketi</strong></td>
+            <td>Family Plus</td>
+            <td>Sen + 4</td>
+            <td>$2.99</td>
+            <td>₺179,99</td>
+            <td>$29.99</td>
+            <td>₺1.799,99</td>
+            <td><code>flyfam.family_plus.monthly</code></td>
+            <td><code>flyfam.family_plus.yearly</code></td>
+          </tr>
+          <tr>
+            <td><strong>Geniş Aile Paketi</strong></td>
+            <td>Extended Family</td>
+            <td>Sen + 5</td>
+            <td>$3.49</td>
+            <td>₺199,99</td>
+            <td>$34.99</td>
+            <td>₺1.999,99</td>
+            <td><code>flyfam.extended.monthly</code></td>
+            <td><code>flyfam.extended.yearly</code></td>
+          </tr>
+          <tr>
+            <td><strong>Sülale Paketi</strong></td>
+            <td>Clan</td>
+            <td>Sen + 6</td>
+            <td>$3.99</td>
+            <td>₺229,99</td>
+            <td>$39.99</td>
+            <td>₺2.299,99</td>
+            <td><code>flyfam.clan.monthly</code></td>
+            <td><code>flyfam.clan.yearly</code></td>
+          </tr>
+          <tr>
+            <td><strong>Geniş Sülale Paketi</strong></td>
+            <td>Circle</td>
+            <td>Sen + 7</td>
+            <td>$4.49</td>
+            <td>₺249,99</td>
+            <td>$44.99</td>
+            <td>₺2.499,99</td>
+            <td><code>flyfam.circle.monthly</code></td>
+            <td><code>flyfam.circle.yearly</code></td>
+          </tr>
+        </tbody>
+      </table>
+      </div>
+
+      <h3 style="margin:16px 0 8px;font-size:15px;color:var(--accent);">Her ürün için (tekrar et)</h3>
+      <ol class="steps">
+        <li>
+          <strong>Create</strong> → Auto-Renewable Subscription.
+        </li>
+        <li>
+          <strong>Reference Name:</strong> örn. <code>FlyFam Couple Monthly</code>
+          (iç referans; kullanıcı bunu görmez).
+        </li>
+        <li>
+          <strong>Product ID:</strong> tablodaki değeri birebir yapıştır.
+        </li>
+        <li>
+          <strong>Duration:</strong> Monthly = 1 Month · Yearly = 1 Year.
+        </li>
+        <li>
+          <strong>Subscription Prices:</strong>
+          US = tablodaki USD · Turkey = tablodaki TRY.
+          Apple en yakın fiyat basamağını seçebilir; mümkün olduğunca tablodaki değere yakın olanı seç.
+        </li>
+        <li>
+          <strong>Localization:</strong>
+          <ul>
+            <li>Turkish Display Name = TR paket adı (Çift Paketi…)</li>
+            <li>English Display Name = EN adı (Couple…)</li>
+            <li>Description: <em>Sen + N aile üyesi</em> / <em>You + N family members</em></li>
+          </ul>
+        </li>
+        <li>
+          <strong>Level (sıra):</strong> Çift Paketi = 1 … Geniş Sülale Paketi = 7.
+        </li>
+      </ol>
+
+      <div class="copy-block">
+        <strong>Açıklama şablonu:</strong><br />
+        TR: <em>Sen + N aile üyesi. Otomatik yenilenen abonelik.</em><br />
+        EN: <em>You + N family members. Auto-renewing subscription.</em>
+      </div>
+
+      <div class="note">
+        Eski ürünler <code>01</code> / <code>02</code> varsa silme. Mevcut aboneler için tutulabilir.
+        Yeni satışlar yeni ID’lerle (<code>flyfam.duo.monthly</code> vb.) gidecek.
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>3) Fiyat özeti (kopyala)</h2>
+      <p class="muted">Yıllık ≈ 10× aylık (yaklaşık 2 ay hediye).</p>
+      <table>
+        <thead>
+          <tr>
+            <th>Paket</th>
+            <th>Aylık</th>
+            <th>Yıllık</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Çift Paketi</td><td>$1.49 / ₺99,99</td><td>$14.99 / ₺999,99</td></tr>
+          <tr><td>Küçük Aile Paketi</td><td>$1.99 / ₺129,99</td><td>$19.99 / ₺1.299,99</td></tr>
+          <tr><td>Aile Paketi</td><td>$2.49 / ₺149,99</td><td>$24.99 / ₺1.499,99</td></tr>
+          <tr><td>Büyük Aile Paketi</td><td>$2.99 / ₺179,99</td><td>$29.99 / ₺1.799,99</td></tr>
+          <tr><td>Geniş Aile Paketi</td><td>$3.49 / ₺199,99</td><td>$34.99 / ₺1.999,99</td></tr>
+          <tr><td>Sülale Paketi</td><td>$3.99 / ₺229,99</td><td>$39.99 / ₺2.299,99</td></tr>
+          <tr><td>Geniş Sülale Paketi</td><td>$4.49 / ₺249,99</td><td>$44.99 / ₺2.499,99</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="card">
+      <h2>4) Eski add-on’u kapat</h2>
+      <ol class="steps">
+        <li>
+          <strong>Monetization → In-App Purchases</strong> (uygulama içi satın alımlar).
+        </li>
+        <li>
+          Consumable ürün: Product ID <code>03</code>
+          (Reference: <code>flyfam_extra_user_slot</code>).
+        </li>
+        <li>
+          <strong>Remove from Sale</strong> / Cleared for Sale = No.
+        </li>
+      </ol>
+      <div class="ok">
+        Uygulamada add-on butonu yok. Bu ürün satılmamalı.
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>5) Uygulama sürümüne bağla</h2>
+      <ol class="steps">
+        <li>
+          FlyFam → hazırladığın <strong>yeni version</strong>’ı aç.
+        </li>
+        <li>
+          <strong>In-App Purchases and Subscriptions</strong> bölümüne 14 yeni aboneliği ekle.
+        </li>
+        <li>
+          Review Notes’a kısa not yapıştır (aşağıdaki kutu).
+        </li>
+        <li>
+          TestFlight build gönder (IAP için native build gerekir; Expo Go yetmez).
+        </li>
+      </ol>
+      <div class="copy-block">
+        <strong>Review notu (kopyala):</strong><br />
+        Crew selects a package on the Plans screen (Couple / Çift Paketi to Circle / Geniş Sülale Paketi). Family seat limit is enforced server-side. No consumable add-on. Test: purchase Couple then upgrade to Trio.
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>6) Sandbox ile test et</h2>
+      <ol class="steps">
+        <li>Cihazda Sandbox Apple ID ile giriş yap.</li>
+        <li>Uygulamada <strong>Abonelik</strong> → <strong>Çift Paketi</strong> satın al.</li>
+        <li>Kontrol: bağlı aile limiti = 1.</li>
+        <li><strong>Küçük Aile Paketi</strong>’ne yükselt → limit = 2.</li>
+        <li><strong>Restore Purchases</strong> çalışsın.</li>
+        <li>Add-on (<code>03</code>) ekranda görünmemeli.</li>
+      </ol>
+    </section>
+
+    <section class="card">
+      <h2>7) (Opsiyonel) 1 hafta ücretsiz deneme</h2>
+      <ol class="steps">
+        <li>Sadece <code>flyfam.duo.monthly</code> ürününde Introductory / Promotional Offer ekle.</li>
+        <li>Offer Identifier’ı not et.</li>
+        <li>Uygulama env: <code>EXPO_PUBLIC_IOS_MONTHLY_PROMO_OFFER_ID</code> = o identifier.</li>
+      </ol>
+      <p class="muted">Diğer paketlerde trial şart değil.</p>
+    </section>
+
+    <section class="card">
+      <h2>Kontrol listesi</h2>
+      <ul class="check">
+        <li>☐ Grup: <code>flyfam_base</code></li>
+        <li>☐ 7× monthly Product ID doğru</li>
+        <li>☐ 7× yearly Product ID doğru</li>
+        <li>☐ Level sırası 1→7</li>
+        <li>☐ <code>03</code> satıştan kaldırıldı</li>
+        <li>☐ Version’a IAP eklendi</li>
+        <li>☐ Sandbox: Duo + upgrade + restore OK</li>
+      </ul>
+      <div class="note" style="margin-top:14px;">
+        Takıldığın ekranın screenshot’ını at; bir sonraki adımı birlikte netleştiririz.
+      </div>
+    </section>
+  </div>
+</body>
+</html>

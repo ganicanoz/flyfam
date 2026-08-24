@@ -41,8 +41,11 @@ supabase db push
 
 ### 3. Configure auth
 
-- **Auth → URL Configuration**: Add your app redirect URLs (e.g. `exp://localhost:8081` for Expo)
-- **Auth → Providers**: Enable Email (and any OAuth providers you need)
+- **Auth → Providers → Email**: **Confirm email** ON
+- **Auth → URL Configuration** (production): Site URL `flyfam://auth/callback`, Redirect `flyfam://auth/callback`, `flyfam://**`, `com.flyfam.app://**`
+- Step-by-step (TR): [`docs/SUPABASE_EMAIL_AUTH_KURULUM_TR.md`](../docs/SUPABASE_EMAIL_AUTH_KURULUM_TR.md)
+- Production SMTP (Resend): [`docs/RESEND_SMTP_KURULUM_TR.md`](../docs/RESEND_SMTP_KURULUM_TR.md)
+- Local: `config.toml` → `auth.email.enable_confirmations = true`
 
 ### 4. Environment variables
 

@@ -2,6 +2,8 @@
  * Ham PDF metnini normalize et — şu an Pegasus duty layout’una göre.
  */
 
+import { PEGASUS_SIM_OR_IPT_OCC } from './simulatorDuty.ts';
+
 /**
  * `expo-pdf-text-extract` çoğu zaman `pdf-parse`ten farklı satır kırar; duty blokları tek satırda yapışık kalabiliyor.
  * Bu adım Pegasus duty tablosu (`PC` + IATA + saat satırları) ve yapışık tarih/saat başlıklarını mümkün olduğunca toparlar.
@@ -11,12 +13,12 @@ export function normalizePdfTextForRosterParse(text: string): string {
   // Yapışık duty başlığı: "...22.03.2615:25DUTY" → önüne newline.
   // (?<![0-9]) zorunlu: aksi halde "19.03.2607:40DUTY" → "1" + "9.03.26..." diye bölünüp Date(L) yanlış (ör. PC291 → 9 Mart).
   s = s.replace(
-    /(?<![0-9])(\d{1,2}\.\d{1,2}\.\d{2})(\d{1,2}:\d{2})(DUTY|FSF|FOF|STBY[A-Z0-9]*|\S*SIM)\b/gi,
+    /(?<![0-9])(\d{1,2}\.\d{1,2}\.\d{2})(\d{1,2}:\d{2})(DUTY|FSF|FOF|STBY[A-Z0-9]*|${PEGASUS_SIM_OR_IPT_OCC})\b/gi,
     '\n$1$2$3',
   );
   // 4 haneli yıl + SIM: "...07.04.202617:45OPC3-SIM"
   s = s.replace(
-    /(?<![0-9])(\d{1,2}\.\d{1,2}\.\d{4})(\d{1,2}:\d{2})(\S*SIM)\b/gi,
+    /(?<![0-9])(\d{1,2}\.\d{1,2}\.\d{4})(\d{1,2}:\d{2})(${PEGASUS_SIM_OR_IPT_OCC})\b/gi,
     '\n$1$2$3',
   );
   // Boşluklu duty başlığı yapışıksa
@@ -27,18 +29,18 @@ export function normalizePdfTextForRosterParse(text: string): string {
   // IATA + saat bitişik: SAW16:35
   s = s.replace(/\b([A-Z]{3})([01]?\d|2[0-3]):([0-5]\d)\b/g, '$1 $2:$3');
   // Saatten sonra uçuş numarası (aynı satırda yapışmış bloklar)
-  s = s.replace(/(:[0-5]\d)\s+((?:PC|TK|AJ|XQ|XF|GT)\s*\d{2,4})\b/gi, '$1\n$2');
+  s = s.replace(/(:[0-5]\d)\s+((?:PC|TK|AJ|XQ|XF|GT|FH)\s*\d{2,4})\b/gi, '$1\n$2');
   // Uçuş numarası + IATA bitişik veya aynı satır: PC997SAW / PC 997 SAW
-  s = s.replace(/\b((?:PC|TK|AJ|XQ|XF|GT)\s*\d{2,4})([A-Z]{3})\b/gi, '$1\n$2');
-  s = s.replace(/\b((?:PC|TK|AJ|XQ|XF|GT)\s*\d{2,4})\s+([A-Z]{3})\b/gi, '$1\n$2');
+  s = s.replace(/\b((?:PC|TK|AJ|XQ|XF|GT|FH)\s*\d{2,4})([A-Z]{3})\b/gi, '$1\n$2');
+  s = s.replace(/\b((?:PC|TK|AJ|XQ|XF|GT|FH)\s*\d{2,4})\s+([A-Z]{3})\b/gi, '$1\n$2');
   return s;
 }
 
 /** Pegasus duty roster (tarih+sütun blokları); bu formatta satır-taran Pegasus parser yanlış lastDate ile hayalet uçuş üretebilir. */
 export function looksLikePegasusDutyStylePdf(text: string): boolean {
   const t = (text || '').replace(/\r\n/g, '\n');
-  if (/\d{1,2}\.\d{1,2}\.\d{2}\d{1,2}:\d{2}(DUTY|FSF|FOF|STBY[A-Z0-9]*|\S*SIM)/i.test(t)) return true;
-  if (/\d{1,2}\.\d{1,2}\.\d{4}\d{1,2}:\d{2}\S*SIM/i.test(t)) return true;
+  if (/\d{1,2}\.\d{1,2}\.\d{2}\d{1,2}:\d{2}(DUTY|FSF|FOF|STBY[A-Z0-9]*|\S*SIM|IPT)/i.test(t)) return true;
+  if (/\d{1,2}\.\d{1,2}\.\d{4}\d{1,2}:\d{2}(\S*SIM|IPT)/i.test(t)) return true;
   if (/\d{1,2}\.\d{1,2}\.\d{2}\s+\d{1,2}:\d{2}\s+(DUTY|FSF|FOF|STBY)/i.test(t)) return true;
   return false;
 }
@@ -68,6 +70,20 @@ export function looksLikeSunExpressSchedulePdf(text: string): boolean {
   if (/Sunday\s*Monday\s*Tuesday/i.test(t) && /Release/i.test(t) && /Report/i.test(t)) return true;
   if (/OFF/i.test(t) && /Release/i.test(t) && /Report/i.test(t)) return true;
   return false;
+}
+
+/** Freebird crew roster (period + UTC schedule + FH uçuş kodları). */
+export function looksLikeFreebirdRosterPdf(text: string): boolean {
+  const t = (text || '').replace(/\r\n/g, '\n');
+  if (/Crew\s+Roster\s+by\s+Period/i.test(t) && /Licenced\s+to\s+FREEBIRD\s+AIRLINES/i.test(t)) return true;
+  if (/Schedule\s+in\s+UTC/i.test(t) && /\bFH\d{2,4}\b/.test(t)) return true;
+  return false;
+}
+
+/** IndiGo (InterGlobe Aviation) kişisel ekip programı PDF’i. */
+export function looksLikeIndigoCrewSchedulePdf(text: string): boolean {
+  const t = (text || '').replace(/\r\n/g, '\n');
+  return /InterGlobe\s+Aviation/i.test(t) && /Personal\s+Crew\s+Schedule\s+Report/i.test(t);
 }
 
 /**

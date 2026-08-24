@@ -7,8 +7,11 @@ import {
   fr24LegMatchesRosterDate,
   fr24PrimaryDepUtcIsoForSort,
   fr24ScheduledFieldToUtcIso,
+  utcFieldOrAirportLocalToUtcIso,
 } from './fr24FlightDateMatch.ts';
 import { mergeTimetableRowsPreferFirst, timetableRowIsSufficient } from './flightTimetableWaterfall.ts';
+import { fr24AircraftRegistrationFromFlight } from './fr24AircraftRegistration.ts';
+import { buildAerodataboxFlightNumberSources } from './aerodataboxHttp.ts';
 import { apply429ToCooldown, isBlockedUntil } from './providerCooldown.ts';
 
 /** Service-role Supabase client (cooldown + cache upserts). */
@@ -151,6 +154,8 @@ function fr24ProgressAnchorsFromFr24(f: Fr24Flight): Partial<RosterPollInfo> {
   }
   if (landedIso) out.fr24_datetime_landed_utc = landedIso;
   if (fr24Id) out.fr24Id = fr24Id;
+  const reg = fr24AircraftRegistrationFromFlight(f);
+  if (reg) out.aircraftRegistration = reg;
   return out;
 }
 
@@ -206,18 +211,38 @@ function airlabsUtcStringOnly(o: Record<string, unknown>, key: string): string |
 }
 
 function airlabsBestDepArrEstimated(o: Record<string, unknown>): { dep: string | null; arr: string | null } {
+  const origin = String(o.dep_iata ?? o.dep_icao ?? '').replace(/\s/g, '').toUpperCase();
+  const destination = String(o.arr_iata ?? o.arr_icao ?? '').replace(/\s/g, '').toUpperCase();
+  const depTs =
+    (typeof o.dep_estimated_ts === 'number' && o.dep_estimated_ts > 1e9
+      ? new Date(o.dep_estimated_ts * 1000).toISOString()
+      : null) ??
+    (typeof o.dep_time_ts === 'number' && o.dep_time_ts > 1e9
+      ? new Date(o.dep_time_ts * 1000).toISOString()
+      : null);
+  const arrTs =
+    (typeof o.arr_estimated_ts === 'number' && o.arr_estimated_ts > 1e9
+      ? new Date(o.arr_estimated_ts * 1000).toISOString()
+      : null) ??
+    (typeof o.arr_time_ts === 'number' && o.arr_time_ts > 1e9
+      ? new Date(o.arr_time_ts * 1000).toISOString()
+      : null);
   const dep =
-    airlabsUtcStringOnly(o, 'dep_estimated_utc') ??
-    airlabsTimeToIsoUtc(o, 'dep_estimated', 'dep_estimated_ts') ??
-    airlabsUtcStringOnly(o, 'dep_time_utc') ??
-    airlabsTimeToIsoUtc(o, 'dep_time', 'dep_time_ts') ??
-    airlabsTimeToIsoUtc(o, 'dep_scheduled', 'dep_scheduled_ts');
+    utcFieldOrAirportLocalToUtcIso(
+      (o.dep_estimated_utc ?? o.dep_time_utc) as string | undefined,
+      (o.dep_estimated ?? o.dep_time ?? o.dep_scheduled) as string | undefined,
+      origin,
+    ) ??
+    depTs ??
+    null;
   const arr =
-    airlabsUtcStringOnly(o, 'arr_estimated_utc') ??
-    airlabsTimeToIsoUtc(o, 'arr_estimated', 'arr_estimated_ts') ??
-    airlabsUtcStringOnly(o, 'arr_time_utc') ??
-    airlabsTimeToIsoUtc(o, 'arr_time', 'arr_time_ts') ??
-    airlabsTimeToIsoUtc(o, 'arr_scheduled', 'arr_scheduled_ts');
+    utcFieldOrAirportLocalToUtcIso(
+      (o.arr_estimated_utc ?? o.arr_time_utc) as string | undefined,
+      (o.arr_estimated ?? o.arr_time ?? o.arr_scheduled) as string | undefined,
+      destination,
+    ) ??
+    arrTs ??
+    null;
   const depN = dep ?? null;
   const arrN = arr ?? null;
   const arrAdj = depN && arrN ? (normalizeOvernightEta(depN, arrN) ?? arrN) : arrN;
@@ -319,37 +344,12 @@ async function fetchAeroDataBoxFlight(
     Deno.env.get('RAPIDAPI_KEY') ??
     Deno.env.get('EXPO_PUBLIC_AERODATABOX_RAPIDAPI_KEY') ??
     AERODATABOX_RAPIDAPI_FALLBACK;
-  if (!rapidKey) return null;
-  const apiMarketBase = (Deno.env.get('AERODATABOX_APIMARKET_BASE') ?? '').trim();
-  const apiMarketKey = (Deno.env.get('AERODATABOX_APIMARKET_KEY') ?? '').trim();
   // ADB 429 risk: semi/active zincirde fan-out'u sınırlıyoruz.
   const variants = flightNumberVariants(flightNumber).slice(0, 3);
-  const sources: Array<{ cooldownKey: string; urls: string[]; headers: Record<string, string> }> = [
-    {
-      cooldownKey: COOLDOWN_AERODATABOX,
-      urls: variants.map((v) =>
-        `${AERODATABOX_BASE}/flights/number/${encodeURIComponent(v)}/${encodeURIComponent(flightDate)}?withAircraftImage=false&withLocation=false&withFlightPlan=false&dateLocalRole=Both`
-      ),
-      headers: {
-        'x-rapidapi-host': 'aerodatabox.p.rapidapi.com',
-        'x-rapidapi-key': rapidKey,
-      },
-    },
-  ];
-  if (apiMarketBase && apiMarketKey) {
-    const b = apiMarketBase.replace(/\/$/, '');
-    sources.push({
-      cooldownKey: COOLDOWN_AERODATABOX_ALT,
-      urls: variants.map((v) =>
-        `${b}/flights/number/${encodeURIComponent(v)}/${encodeURIComponent(flightDate)}?withAircraftImage=false&withLocation=false&withFlightPlan=false&dateLocalRole=Both`
-      ),
-      headers: {
-        'x-api-key': apiMarketKey,
-        Authorization: `Bearer ${apiMarketKey}`,
-        'User-Agent': 'Mozilla/5.0 FlyFam/1.0',
-      },
-    });
-  }
+  const sources = buildAerodataboxFlightNumberSources(variants, flightDate, rapidKey, {
+    includeT00: false,
+  });
+  if (!sources.length) return null;
   for (const src of sources) {
     if (isBlockedUntil(cooldownMap, src.cooldownKey)) continue;
     for (const url of src.urls) {
@@ -364,35 +364,59 @@ async function fetchAeroDataBoxFlight(
         const node = (Array.isArray(json) ? json[0] : json) as Record<string, unknown> | null;
         if (!node || typeof node !== 'object') continue;
       const { dep, arr } = aeroRootLegs(node);
-      const depSched = pickAeroDateIso(
-        aeroCoerceTimeString(dep.scheduledTimeUtc) ?? aeroCoerceTimeString(dep.scheduledTime) ?? aeroCoerceTimeString(dep.scheduledTimeLocal),
-      );
-      const arrSched = pickAeroDateIso(
-        aeroCoerceTimeString(arr.scheduledTimeUtc) ?? aeroCoerceTimeString(arr.scheduledTime) ?? aeroCoerceTimeString(arr.scheduledTimeLocal),
-      );
-      const depExp = pickAeroDateIso(
-        aeroCoerceTimeString(dep.predictedTimeUtc) ??
-          aeroCoerceTimeString(dep.predictedTime) ??
-          aeroCoerceTimeString(dep.estimatedTimeUtc) ??
-          aeroCoerceTimeString(dep.estimatedTime),
-      );
-      const arrExp = pickAeroDateIso(
-        aeroCoerceTimeString(arr.predictedTimeUtc) ??
-          aeroCoerceTimeString(arr.predictedTime) ??
-          aeroCoerceTimeString(arr.estimatedTimeUtc) ??
-          aeroCoerceTimeString(arr.estimatedTime),
-      );
-      const depIso = depSched ?? depExp;
-      const arrIso = arrSched ?? arrExp;
+      const originCode = aeroLegAirportCode(dep) ?? '';
+      const destCode = aeroLegAirportCode(arr) ?? '';
+      const depSched =
+        utcFieldOrAirportLocalToUtcIso(
+          aeroCoerceTimeString(dep.scheduledTimeUtc),
+          aeroCoerceTimeString(dep.scheduledTimeLocal) ?? aeroCoerceTimeString(dep.scheduledTime),
+          originCode,
+        ) ?? null;
+      const arrSched =
+        utcFieldOrAirportLocalToUtcIso(
+          aeroCoerceTimeString(arr.scheduledTimeUtc),
+          aeroCoerceTimeString(arr.scheduledTimeLocal) ?? aeroCoerceTimeString(arr.scheduledTime),
+          destCode,
+        ) ?? null;
+      const depExp =
+        utcFieldOrAirportLocalToUtcIso(
+          aeroCoerceTimeString(dep.revisedTimeUtc) ??
+            aeroCoerceTimeString(dep.predictedTimeUtc) ??
+            aeroCoerceTimeString(dep.estimatedTimeUtc),
+          aeroCoerceTimeString(dep.revisedTimeLocal) ??
+            aeroCoerceTimeString(dep.predictedTimeLocal) ??
+            aeroCoerceTimeString(dep.estimatedTimeLocal) ??
+            aeroCoerceTimeString(dep.revisedTime) ??
+            aeroCoerceTimeString(dep.predictedTime) ??
+            aeroCoerceTimeString(dep.estimatedTime),
+          originCode,
+        ) ?? null;
+      const arrExp =
+        utcFieldOrAirportLocalToUtcIso(
+          aeroCoerceTimeString(arr.revisedTimeUtc) ??
+            aeroCoerceTimeString(arr.predictedTimeUtc) ??
+            aeroCoerceTimeString(arr.estimatedTimeUtc),
+          aeroCoerceTimeString(arr.revisedTimeLocal) ??
+            aeroCoerceTimeString(arr.predictedTimeLocal) ??
+            aeroCoerceTimeString(arr.estimatedTimeLocal) ??
+            aeroCoerceTimeString(arr.revisedTime) ??
+            aeroCoerceTimeString(arr.predictedTime) ??
+            aeroCoerceTimeString(arr.estimatedTime),
+          destCode,
+        ) ?? null;
+      const depIso = depExp ?? depSched;
+      const arrIso = arrExp ?? arrSched;
       if (!depIso && !arrIso) continue;
       const status = firstDefinedString((node.status as Record<string, unknown> | undefined)?.text, node.status)?.toLowerCase() ?? null;
+        const delayDepMin = calcDelayMinutes(depIso, depSched);
+        const delayArrMin = calcDelayMinutes(arrIso, arrSched);
         return {
           scheduledDep: depIso,
           scheduledArr: arrIso,
           status,
           divertedTo: status?.includes('divert') ? aeroLegAirportCode(arr) : null,
-          delayDepMin: null,
-          delayArrMin: null,
+          delayDepMin,
+          delayArrMin,
           progressPercent: null,
         };
       } catch {
@@ -417,6 +441,7 @@ async function fetchAirLabsFlight(
   delayDepMin: number | null;
   delayArrMin: number | null;
   progressPercent: number | null;
+  aircraftRegistration: string | null;
 } | null> {
   if (isBlockedUntil(cooldownMap, COOLDOWN_AIRLABS)) return null;
   const raw = flightNumber.replace(/\s/g, '').trim().toUpperCase();
@@ -455,7 +480,13 @@ async function fetchAirLabsFlight(
       const sl = st?.toLowerCase();
       const divertedTo = sl === 'diverted' ? airlabsDivertAirport(o) : null;
       const { delayDepMin, delayArrMin, progressPercent } = airlabsPollExtras(o);
-      if (!depIso && !arrIso && !st && delayDepMin == null && delayArrMin == null && progressPercent == null) continue;
+      const regRaw = o.reg_number ?? o.reg_num;
+      const aircraftRegistration =
+        typeof regRaw === 'string' && regRaw.trim() ? regRaw.trim().toUpperCase() : null;
+      if (
+        !depIso && !arrIso && !st && delayDepMin == null && delayArrMin == null && progressPercent == null &&
+        !aircraftRegistration
+      ) continue;
       return {
         scheduledDep: depIso,
         scheduledArr: arrIso,
@@ -464,6 +495,7 @@ async function fetchAirLabsFlight(
         delayDepMin,
         delayArrMin,
         progressPercent,
+        aircraftRegistration,
       };
     } catch {
       continue;
@@ -661,6 +693,7 @@ function attachAirLabsTimingFields(
   if (al.delayDepMin != null) info.delayDepMin = al.delayDepMin;
   if (al.delayArrMin != null) info.delayArrMin = al.delayArrMin;
   if (al.progressPercent != null) info.airlabsProgressPercent = al.progressPercent;
+  if (al.aircraftRegistration) info.aircraftRegistration = al.aircraftRegistration;
 }
 
 export async function pollRosterFlightEdge(
@@ -685,13 +718,19 @@ export async function pollRosterFlightEdge(
       if (al.scheduledArr) o.scheduled_arrival_utc = al.scheduledArr;
       attachAirLabsTimingFields(o, al);
     }
+    if (!o.aircraftRegistration && fr24Token) {
+      const fReg = await selectFr24Flight(flightNumber, flightDate, fr24Token, supabase, cooldownMap);
+      const regOnly = fReg ? fr24AircraftRegistrationFromFlight(fReg) : undefined;
+      if (regOnly) o.aircraftRegistration = regOnly;
+    }
     if (
       !o.scheduled_departure_utc &&
       !o.scheduled_arrival_utc &&
       o.delayDepMin == null &&
       o.delayArrMin == null &&
       o.airlabsProgressPercent == null &&
-      !o.fr24_progress_dep_utc
+      !o.fr24_progress_dep_utc &&
+      !o.aircraftRegistration
     ) {
       return null;
     }
@@ -723,7 +762,6 @@ export async function pollRosterFlightEdge(
         };
       }
       const endedLastSeen = toUtcIsoAssumeUtc((f.last_seen ?? f.lastSeen) as string | undefined);
-      const endedLastSeenMs = endedLastSeen ? new Date(endedLastSeen).getTime() : 0;
       const alEnded = await fetchTimetableWaterfallEdge(flightNumber, flightDate, alKey, supabase, cooldownMap);
       const slE = alEnded?.status?.toLowerCase();
       if (slE === 'cancelled' || slE === 'canceled') {
@@ -746,26 +784,11 @@ export async function pollRosterFlightEdge(
         attachAirLabsTimingFields(o, alEnded);
         return o;
       }
-      if (alEnded?.actualOut && (slE === 'scheduled' || !slE)) {
-        // Sadece en_route kalacak akışta last_seen ile landed'a yükselt.
-        if (Number.isFinite(endedLastSeenMs) && endedLastSeenMs > 0 && nowMs >= endedLastSeenMs) {
-          const o = { ...emptyBase(), flightStatus: 'landed', ...bar, lastTrackUtc: endedLastSeen };
-          attachAirLabsTimingFields(o, alEnded);
-          return o;
-        }
-        const o = { ...emptyBase(), flightStatus: 'en_route', ...bar };
-        attachAirLabsTimingFields(o, alEnded);
-        return o;
-      }
-      if (alEnded) {
-        const st = mapAirLabsStatus(alEnded.status ?? undefined);
-        if (st && st !== 'landed') {
-          const o = { ...emptyBase(), flightStatus: st, ...bar };
-          attachAirLabsTimingFields(o, alEnded);
-          return o;
-        }
-      }
-      return null;
+      // Kural: FR24 "flight_ended=true" tek başına uçuşun bittiğini gösterir.
+      // datetime_landed stamp eksik olsa bile en_route'ta bırakma.
+      const o = { ...emptyBase(), flightStatus: 'landed', ...bar, lastTrackUtc: endedLastSeen };
+      if (alEnded) attachAirLabsTimingFields(o, alEnded);
+      return o;
     }
   }
 
@@ -794,7 +817,7 @@ export async function pollRosterFlightEdge(
 
   if (al) {
     const st = mapAirLabsStatus(al.status ?? undefined);
-    if (st && st !== 'landed') {
+    if (st) {
       const o = { ...emptyBase(), flightStatus: st };
       attachAirLabsTimingFields(o, al);
       return o;

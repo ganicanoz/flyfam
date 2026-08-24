@@ -36,7 +36,7 @@ export default function Connect() {
 
     Alert.alert(
       'Request sent',
-      'The crew member will need to approve your connection. You will see their flights once approved.',
+      'The crew member must approve your connection and have an active package. You can use the app after both checks pass.',
       [{ text: 'OK', onPress: () => router.back() }]
     );
   };

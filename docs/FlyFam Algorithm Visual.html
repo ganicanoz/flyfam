@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>FlyFam — Algoritma Görselleri</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f8fafc; color: #1e293b; }
+  .page-header { background: #0f172a; color: #fff; padding: 20px 24px; display: flex; align-items: center; gap: 12px; }
+  .page-header h1 { font-size: 18px; font-weight: 600; }
+  .page-header span { font-size: 12px; color: #94a3b8; }
+  .nav { display: flex; gap: 0; background: #1e293b; padding: 0 24px; overflow-x: auto; }
+  .nav-tab { padding: 12px 18px; font-size: 13px; cursor: pointer; color: #94a3b8; border-bottom: 2px solid transparent; white-space: nowrap; }
+  .nav-tab.active { color: #38bdf8; border-bottom-color: #38bdf8; }
+  .content { padding: 24px; max-width: 900px; }
+  .view { display: block; }
+  .hidden { display: none; }
+
+  /* badges */
+  .badge { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 10px; font-weight: 600; }
+  .b-gray { background: #f1f5f9; color: #475569; }
+  .b-blue { background: #dbeafe; color: #1d4ed8; }
+  .b-amber { background: #fef3c7; color: #b45309; }
+  .b-green { background: #dcfce7; color: #15803d; }
+  .b-red { background: #fee2e2; color: #b91c1c; }
+  .b-purple { background: #ede9fe; color: #6d28d9; }
+
+  /* cards */
+  .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; margin-bottom: 12px; }
+  .card-title { font-size: 13px; font-weight: 600; color: #475569; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 10px; }
+  .rule-box { background: #f8fafc; border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; font-size: 12px; line-height: 1.7; border-left: 3px solid #e2e8f0; }
+  .rule-box.info { border-left-color: #3b82f6; }
+  .rule-box.warn { border-left-color: #f59e0b; }
+  .rule-box.success { border-left-color: #22c55e; }
+  .rule-box.danger { border-left-color: #ef4444; }
+  .rule-box strong { color: #1d4ed8; }
+
+  /* timeline */
+  .timeline { position: relative; padding-left: 24px; }
+  .timeline::before { content: ''; position: absolute; left: 9px; top: 10px; bottom: 10px; width: 2px; background: #e2e8f0; }
+  .tl-item { position: relative; margin-bottom: 16px; }
+  .tl-dot { position: absolute; left: -19px; top: 5px; width: 12px; height: 12px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 2px #e2e8f0; }
+  .tl-title { font-size: 14px; font-weight: 600; margin-bottom: 3px; }
+  .tl-sub { font-size: 12px; color: #64748b; line-height: 1.5; }
+
+  /* provider chips */
+  .chip { display: inline-flex; align-items: center; font-size: 11px; padding: 3px 8px; border-radius: 8px; font-weight: 600; margin-right: 4px; }
+  .chip-fr24 { background: #fef3c7; color: #92400e; }
+  .chip-airlabs { background: #dbeafe; color: #1e40af; }
+  .chip-adb { background: #ede9fe; color: #5b21b6; }
+  .chip-none { background: #f1f5f9; color: #64748b; }
+
+  /* notif rows */
+  .notif-row { display: flex; align-items: center; gap: 8px; padding: 9px 0; border-bottom: 1px solid #f1f5f9; font-size: 13px; }
+  .notif-row:last-child { border-bottom: none; }
+  .notif-result { margin-left: auto; font-size: 12px; font-weight: 600; }
+  .send { color: #16a34a; }
+  .optional { color: #64748b; }
+
+  /* non-neg */
+  .nonneg { display: flex; gap: 10px; padding: 8px 0; border-bottom: 1px solid #f1f5f9; font-size: 13px; line-height: 1.5; }
+  .nonneg:last-child { border-bottom: none; }
+  .nonneg-num { font-size: 14px; font-weight: 700; color: #ef4444; flex-shrink: 0; width: 20px; }
+
+  /* grid */
+  .grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+
+  /* sub-window table */
+  .sw-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .sw-table th { background: #f1f5f9; padding: 8px 10px; text-align: left; font-weight: 600; color: #475569; border-bottom: 2px solid #e2e8f0; }
+  .sw-table td { padding: 9px 10px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+  .sw-table tr:last-child td { border-bottom: none; }
+
+  /* master flow */
+  .flow-wrap { overflow-x: auto; }
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <div>
+    <h1>✈️ FlyFam — Uçuş Durum Algoritması</h1>
+    <span>v3 · Tüm görseller tek dosyada</span>
+  </div>
+</div>
+
+<div class="nav">
+  <div class="nav-tab active" onclick="showTab('master')">🗺 Master Şema</div>
+  <div class="nav-tab" onclick="showTab('phases')">📦 Fazlar</div>
+  <div class="nav-tab" onclick="showTab('windows')">🪟 Sub-Windows</div>
+  <div class="nav-tab" onclick="showTab('engine')">⚙️ Karar Motoru</div>
+  <div class="nav-tab" onclick="showTab('roster')">📄 Roster</div>
+  <div class="nav-tab" onclick="showTab('notif')">🔔 Bildirimler</div>
+  <div class="nav-tab" onclick="showTab('rules')">🚫 Non-Negotiables</div>
+</div>
+
+<div class="content">
+
+<!-- ═══════════════════════════════════════════════════════ MASTER -->
+<div id="view-master" class="view">
+  <div class="card">
+    <div class="card-title">Master Algoritma Akışı</div>
+    <div class="flow-wrap">
+      <svg width="840" viewBox="0 0 840 1080" xmlns="http://www.w3.org/2000/svg" style="font-family:-apple-system,sans-serif;">
+        <defs>
+          <marker id="arr" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+            <path d="M0,0 L0,6 L8,3 z" fill="#94a3b8"/>
+          </marker>
+          <marker id="arr-green" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+            <path d="M0,0 L0,6 L8,3 z" fill="#22c55e"/>
+          </marker>
+          <marker id="arr-red" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+            <path d="M0,0 L0,6 L8,3 z" fill="#ef4444"/>
+          </marker>
+          <marker id="arr-blue" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+            <path d="M0,0 L0,6 L8,3 z" fill="#3b82f6"/>
+          </marker>
+        </defs>
+
+        <!-- ── CRON TRIGGER ── -->
+        <rect x="310" y="10" width="220" height="40" rx="20" fill="#0f172a"/>
+        <text x="420" y="35" text-anchor="middle" fill="#fff" font-size="13" font-weight="600">⏱ Cron Job Tetiklendi</text>
+
+        <!-- arrow down -->
+        <line x1="420" y1="50" x2="420" y2="75" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arr)"/>
+
+        <!-- ── PHASE CHECK ── -->
+        <rect x="290" y="76" width="260" height="44" rx="8" fill="#1e293b"/>
+        <text x="420" y="94" text-anchor="middle" fill="#e2e8f0" font-size="12" font-weight="600">Faz Belirleme</text>
+        <text x="420" y="110" text-anchor="middle" fill="#94a3b8" font-size="11">now vs STD / STA karşılaştır</text>
+
+        <!-- 4 phase branches -->
+        <line x1="420" y1="120" x2="420" y2="145" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arr)"/>
+
+        <!-- PASSIVE_FUTURE -->
+        <rect x="10" y="146" width="160" height="44" rx="8" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1"/>
+        <text x="90" y="164" text-anchor="middle" fill="#475569" font-size="12" font-weight="600">PASSIVE_FUTURE</text>
+        <text x="90" y="180" text-anchor="middle" fill="#94a3b8" font-size="10">now < STD−3h</text>
+
+        <!-- SEMI_ACTIVE -->
+        <rect x="200" y="146" width="160" height="44" rx="8" fill="#dbeafe" stroke="#93c5fd" stroke-width="1"/>
+        <text x="280" y="164" text-anchor="middle" fill="#1d4ed8" font-size="12" font-weight="600">SEMI_ACTIVE</text>
+        <text x="280" y="180" text-anchor="middle" fill="#3b82f6" font-size="10">STD−3h → STD−20dk</text>
+
+        <!-- ACTIVE -->
+        <rect x="390" y="146" width="160" height="44" rx="8" fill="#fef3c7" stroke="#fcd34d" stroke-width="1"/>
+        <text x="470" y="164" text-anchor="middle" fill="#b45309" font-size="12" font-weight="600">ACTIVE</text>
+        <text x="470" y="180" text-anchor="middle" fill="#d97706" font-size="10">STD−20dk → iniş+2dk</text>
+
+        <!-- PASSIVE_PAST -->
+        <rect x="580" y="146" width="160" height="44" rx="8" fill="#dcfce7" stroke="#86efac" stroke-width="1"/>
+        <text x="660" y="164" text-anchor="middle" fill="#15803d" font-size="12" font-weight="600">PASSIVE_PAST</text>
+        <text x="660" y="180" text-anchor="middle" fill="#16a34a" font-size="10">Uçuş tamamlandı</text>
+
+        <!-- branch lines from phase check -->
+        <path d="M420,145 L90,145 L90,146" fill="none" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arr)"/>
+        <path d="M420,145 L280,145 L280,146" fill="none" stroke="#3b82f6" stroke-width="1.5" marker-end="url(#arr-blue)"/>
+        <path d="M420,145 L470,145 L470,146" fill="none" stroke="#f59e0b" stroke-width="1.5" marker-end="url(#arr)"/>
+        <path d="M420,145 L660,145 L660,146" fill="none" stroke="#22c55e" stroke-width="1.5" marker-end="url(#arr-green)"/>
+
+        <!-- PASSIVE_FUTURE → no action -->
+        <line x1="90" y1="190" x2="90" y2="215" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arr)"/>
+        <rect x="20" y="216" width="140" height="34" rx="6" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1"/>
+        <text x="90" y="230" text-anchor="middle" fill="#64748b" font-size="11">API çağrısı yok</text>
+        <text x="90" y="244" text-anchor="middle" fill="#64748b" font-size="10">Roster verisi korunur</text>
+
+        <!-- SEMI_ACTIVE → Airlabs -->
+        <line x1="280" y1="190" x2="280" y2="215" stroke="#3b82f6" stroke-width="1.5" marker-end="url(#arr-blue)"/>
+        <rect x="200" y="216" width="160" height="34" rx="6" fill="#eff6ff" stroke="#93c5fd" stroke-width="1"/>
+        <text x="280" y="230" text-anchor="middle" fill="#1d4ed8" font-size="11" font-weight="600">Airlabs çağır</text>
+        <text x="280" y="244" text-anchor="middle" fill="#3b82f6" font-size="10">1 saatte bir · ADB fallback</text>
+
+        <!-- SEMI_ACTIVE result -->
+        <line x1="280" y1="250" x2="280" y2="275" stroke="#3b82f6" stroke-width="1.5" marker-end="url(#arr-blue)"/>
+        <rect x="200" y="276" width="160" height="34" rx="6" fill="#fff" stroke="#93c5fd" stroke-width="1"/>
+        <text x="280" y="290" text-anchor="middle" fill="#1d4ed8" font-size="11">Schedule güncelle</text>
+        <text x="280" y="304" text-anchor="middle" fill="#3b82f6" font-size="10">is_roster_verified = true</text>
+
+        <!-- ACTIVE → Sub-window -->
+        <line x1="470" y1="190" x2="470" y2="215" stroke="#f59e0b" stroke-width="1.5" marker-end="url(#arr)"/>
+        <rect x="390" y="216" width="160" height="34" rx="6" fill="#fffbeb" stroke="#fcd34d" stroke-width="1"/>
+        <text x="470" y="230" text-anchor="middle" fill="#b45309" font-size="11" font-weight="600">Sub-Window Belirle</text>
+        <text x="470" y="244" text-anchor="middle" fill="#d97706" font-size="10">PRE_DEP / CRIT / CRUISE / ARR</text>
+
+        <!-- Sub-window → Provider -->
+        <line x1="470" y1="250" x2="470" y2="275" stroke="#f59e0b" stroke-width="1.5" marker-end="url(#arr)"/>
+        <rect x="390" y="276" width="160" height="34" rx="6" fill="#fff" stroke="#fcd34d" stroke-width="1"/>
+        <text x="470" y="290" text-anchor="middle" fill="#b45309" font-size="11" font-weight="600">Provider Çağır</text>
+        <text x="470" y="304" text-anchor="middle" fill="#d97706" font-size="10">FR24 + Airlabs fallback</text>
+
+        <!-- Provider → Decision Engine -->
+        <line x1="470" y1="310" x2="470" y2="335" stroke="#f59e0b" stroke-width="1.5" marker-end="url(#arr)"/>
+        <rect x="360" y="336" width="220" height="44" rx="8" fill="#1e293b"/>
+        <text x="470" y="354" text-anchor="middle" fill="#e2e8f0" font-size="12" font-weight="600">⚙️ Karar Motoru</text>
+        <text x="470" y="370" text-anchor="middle" fill="#94a3b8" font-size="11">FR24 params → status derivation</text>
+
+        <!-- Decision Engine branches -->
+        <line x1="470" y1="380" x2="470" y2="405" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arr)"/>
+
+        <!-- Status outcomes row -->
+        <rect x="30" y="406" width="110" height="36" rx="6" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1"/>
+        <text x="85" y="429" text-anchor="middle" fill="#475569" font-size="12" font-weight="600">SCHEDULED</text>
+
+        <rect x="160" y="406" width="110" height="36" rx="6" fill="#fef3c7" stroke="#fcd34d" stroke-width="1"/>
+        <text x="215" y="429" text-anchor="middle" fill="#b45309" font-size="12" font-weight="600">DELAYED</text>
+
+        <rect x="290" y="406" width="110" height="36" rx="6" fill="#dbeafe" stroke="#93c5fd" stroke-width="1"/>
+        <text x="345" y="429" text-anchor="middle" fill="#1d4ed8" font-size="12" font-weight="600">TAXI_OUT</text>
+
+        <rect x="420" y="406" width="110" height="36" rx="6" fill="#dbeafe" stroke="#93c5fd" stroke-width="1"/>
+        <text x="475" y="429" text-anchor="middle" fill="#1d4ed8" font-size="12" font-weight="600">EN_ROUTE</text>
+
+        <rect x="550" y="406" width="130" height="36" rx="6" fill="#ede9fe" stroke="#c4b5fd" stroke-width="1"/>
+        <text x="615" y="429" text-anchor="middle" fill="#6d28d9" font-size="12" font-weight="600">LANDED_CAND.</text>
+
+        <rect x="700" y="406" width="110" height="36" rx="6" fill="#dcfce7" stroke="#86efac" stroke-width="1"/>
+        <text x="755" y="429" text-anchor="middle" fill="#15803d" font-size="12" font-weight="600">LANDED</text>
+
+        <!-- branch lines from decision engine -->
+        <path d="M470,405 L85,405 L85,406" fill="none" stroke="#94a3b8" stroke-width="1" marker-end="url(#arr)"/>
+        <path d="M470,405 L215,405 L215,406" fill="none" stroke="#f59e0b" stroke-width="1" marker-end="url(#arr)"/>
+        <path d="M470,405 L345,405 L345,406" fill="none" stroke="#3b82f6" stroke-width="1" marker-end="url(#arr-blue)"/>
+        <path d="M470,405 L475,406" fill="none" stroke="#3b82f6" stroke-width="1" marker-end="url(#arr-blue)"/>
+        <path d="M470,405 L615,405 L615,406" fill="none" stroke="#7c3aed" stroke-width="1" marker-end="url(#arr)"/>
+        <path d="M470,405 L755,405 L755,406" fill="none" stroke="#22c55e" stroke-width="1" marker-end="url(#arr-green)"/>
+
+        <!-- LANDED_CANDIDATE confirmation -->
+        <line x1="615" y1="442" x2="615" y2="467" stroke="#7c3aed" stroke-width="1.5" marker-end="url(#arr)"/>
+        <rect x="530" y="468" width="170" height="44" rx="8" fill="#faf5ff" stroke="#c4b5fd" stroke-width="1"/>
+        <text x="615" y="486" text-anchor="middle" fill="#6d28d9" font-size="11" font-weight="600">Onay Kontrolü</text>
+        <text x="615" y="500" text-anchor="middle" fill="#7c3aed" font-size="10">datetime_landed / last_seen</text>
+
+        <!-- confirmation → LANDED or wait -->
+        <path d="M700,490 L755,490 L755,442" fill="none" stroke="#22c55e" stroke-width="1.5" marker-end="url(#arr-green)"/>
+        <text x="720" y="485" fill="#16a34a" font-size="10" font-weight="600">Güçlü</text>
+
+        <line x1="615" y1="512" x2="615" y2="537" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arr)"/>
+        <rect x="540" y="538" width="150" height="30" rx="6" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1"/>
+        <text x="615" y="558" text-anchor="middle" fill="#64748b" font-size="11">Bekle (zayıf kanıt)</text>
+
+        <!-- LANDED → PASSIVE_PAST -->
+        <line x1="755" y1="442" x2="755" y2="467" stroke="#22c55e" stroke-width="1.5" marker-end="url(#arr-green)"/>
+        <rect x="680" y="468" width="150" height="34" rx="6" fill="#dcfce7" stroke="#86efac" stroke-width="1"/>
+        <text x="755" y="482" text-anchor="middle" fill="#15803d" font-size="11" font-weight="600">PASSIVE_PAST</text>
+        <text x="755" y="496" text-anchor="middle" fill="#16a34a" font-size="10">API çağrısı durur</text>
+
+        <!-- Notification trigger -->
+        <line x1="470" y1="442" x2="470" y2="580" stroke="#94a3b8" stroke-width="1" stroke-dasharray="4,3"/>
+        <rect x="360" y="581" width="220" height="44" rx="8" fill="#fff7ed" stroke="#fed7aa" stroke-width="1"/>
+        <text x="470" y="599" text-anchor="middle" fill="#c2410c" font-size="12" font-weight="600">🔔 Bildirim Motoru</text>
+        <text x="470" y="613" text-anchor="middle" fill="#ea580c" font-size="11">Status değişti mi? → Gönder</text>
+
+        <!-- Notification idempotency -->
+        <line x1="470" y1="625" x2="470" y2="650" stroke="#ea580c" stroke-width="1.5" marker-end="url(#arr)"/>
+        <rect x="360" y="651" width="220" height="34" rx="6" fill="#fff" stroke="#fed7aa" stroke-width="1"/>
+        <text x="470" y="665" text-anchor="middle" fill="#c2410c" font-size="11">Idempotency Kontrolü</text>
+        <text x="470" y="679" text-anchor="middle" fill="#ea580c" font-size="10">dedupe: flight_id + new_status</text>
+
+        <!-- Force-close check -->
+        <rect x="250" y="720" width="340" height="54" rx="8" fill="#fef2f2" stroke="#fca5a5" stroke-width="1.5"/>
+        <text x="420" y="742" text-anchor="middle" fill="#b91c1c" font-size="12" font-weight="600">⚠️ Force-Close Kontrolü</text>
+        <text x="420" y="758" text-anchor="middle" fill="#dc2626" font-size="11">now > STA + 3h ve hâlâ ACTIVE?</text>
+        <text x="420" y="772" text-anchor="middle" fill="#ef4444" font-size="10">Kanıt varsa LANDED · Yoksa UNKNOWN + review_flag</text>
+
+        <!-- dashed line to force-close -->
+        <path d="M470,685 L470,700 L420,700 L420,720" fill="none" stroke="#ef4444" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#arr-red)"/>
+
+        <!-- ROSTER LOCK box -->
+        <rect x="10" y="340" width="200" height="54" rx="8" fill="#eff6ff" stroke="#93c5fd" stroke-width="1.5"/>
+        <text x="110" y="362" text-anchor="middle" fill="#1d4ed8" font-size="12" font-weight="600">📄 Roster Lock</text>
+        <text x="110" y="378" text-anchor="middle" fill="#3b82f6" font-size="11">source=ROSTER + PASSIVE_FUTURE</text>
+        <text x="110" y="392" text-anchor="middle" fill="#3b82f6" font-size="10">→ API yok, schedule korunur</text>
+
+        <!-- roster lock arrow from passive_future -->
+        <path d="M90,250 L90,320 L110,320 L110,340" fill="none" stroke="#3b82f6" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#arr-blue)"/>
+
+        <!-- PASSIVE_PAST → no action box -->
+        <line x1="660" y1="190" x2="660" y2="215" stroke="#22c55e" stroke-width="1.5" marker-end="url(#arr-green)"/>
+        <rect x="590" y="216" width="140" height="34" rx="6" fill="#f0fdf4" stroke="#86efac" stroke-width="1"/>
+        <text x="660" y="230" text-anchor="middle" fill="#15803d" font-size="11">API çağrısı yok</text>
+        <text x="660" y="244" text-anchor="middle" fill="#16a34a" font-size="10">status = LANDED (final)</text>
+
+        <!-- legend -->
+        <rect x="10" y="820" width="820" height="1" fill="#e2e8f0"/>
+        <text x="10" y="845" fill="#94a3b8" font-size="11" font-weight="600">PROVIDER LEGEND</text>
+        <rect x="10" y="858" width="12" height="12" rx="3" fill="#fef3c7" stroke="#fcd34d"/>
+        <text x="28" y="869" fill="#64748b" font-size="11">FR24 — Gerçek zamanlı konum, first_seen, datetime_takeoff, datetime_landed, last_seen, flight_ended</text>
+        <rect x="10" y="880" width="12" height="12" rx="3" fill="#dbeafe" stroke="#93c5fd"/>
+        <text x="28" y="891" fill="#64748b" font-size="11">Airlabs — Schedule, delay bilgisi, status (scheduled/en-route/landed) · FR24 bulunamazsa fallback</text>
+        <rect x="10" y="902" width="12" height="12" rx="3" fill="#ede9fe" stroke="#c4b5fd"/>
+        <text x="28" y="913" fill="#64748b" font-size="11">AeroDataBox — SEMI_ACTIVE Airlabs fallback · POST_LANDING actual zamanlar (opsiyonel)</text>
+
+        <!-- FR24 params box -->
+        <rect x="10" y="930" width="820" height="130" rx="8" fill="#f8fafc" stroke="#e2e8f0"/>
+        <text x="24" y="952" fill="#475569" font-size="11" font-weight="600">FR24 PARAMETRE KULLANIMI</text>
+        <text x="24" y="972" fill="#64748b" font-size="11">first_seen</text>
+        <text x="120" y="972" fill="#1e293b" font-size="11">→ TAXI_OUT sinyali. Timeout: STD+30dk geçtiyse DELAYED, STD+90dk geçtiyse UNKNOWN</text>
+        <text x="24" y="990" fill="#64748b" font-size="11">datetime_takeoff</text>
+        <text x="120" y="990" fill="#1e293b" font-size="11">→ EN_ROUTE onayı. Bu alan doluysa uçuş havada.</text>
+        <text x="24" y="1008" fill="#64748b" font-size="11">datetime_landed</text>
+        <text x="120" y="1008" fill="#1e293b" font-size="11">→ LANDED_CANDIDATE → LANDED (güçlü kanıt)</text>
+        <text x="24" y="1026" fill="#64748b" font-size="11">last_seen</text>
+        <text x="120" y="1026" fill="#1e293b" font-size="11">→ LANDED teyidi (orta kanıt): now − last_seen ≥ 20dk ise LANDED (low confidence)</text>
+        <text x="24" y="1044" fill="#64748b" font-size="11">flight_ended</text>
+        <text x="120" y="1044" fill="#1e293b" font-size="11">→ true ise datetime_landed al, LANDED yap, faz = PASSIVE_PAST</text>
+        <text x="24" y="1062" fill="#64748b" font-size="11">Strict date match</text>
+        <text x="120" y="1062" fill="#1e293b" font-size="11">→ departure_date_local_origin ile exact match zorunlu — codeshare / midnight crossing dikkat</text>
+      </svg>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ PHASES -->
+<div id="view-phases" class="hidden">
+  <div class="card">
+    <div class="card-title">Uçuş Fazları</div>
+    <div class="timeline">
+      <div class="tl-item">
+        <div class="tl-dot" style="background:#94a3b8;"></div>
+        <div class="tl-title"><span class="badge b-gray">PASSIVE_FUTURE</span></div>
+        <div class="tl-sub">now < STD − 3h  ·  API çağrısı yok  ·  Roster verisi korunur</div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-dot" style="background:#3b82f6;"></div>
+        <div class="tl-title"><span class="badge b-blue">SEMI_ACTIVE</span></div>
+        <div class="tl-sub">STD − 3h → STD − 20dk  ·  1 saatte bir  ·  Airlabs → ADB fallback</div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-dot" style="background:#f59e0b;"></div>
+        <div class="tl-title"><span class="badge b-amber">ACTIVE</span></div>
+        <div class="tl-sub">STD − 20dk → iniş + 2dk  ·  Sub-window'a göre sıklık  ·  FR24 + Airlabs</div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-dot" style="background:#22c55e;"></div>
+        <div class="tl-title"><span class="badge b-green">PASSIVE_PAST</span></div>
+        <div class="tl-sub">Uçuş tamamlandı  ·  API çağrısı yok  ·  status = LANDED (final)</div>
+      </div>
+    </div>
+  </div>
+  <div class="card" style="border-left: 4px solid #f59e0b;">
+    <div class="card-title">⚠️ Force-Close Kuralı</div>
+    <div class="rule-box warn">
+      Eğer <strong>now > STA + 3h</strong> ve uçuş hâlâ ACTIVE ise:<br>
+      • actual_arr / datetime_landed / last_seen varsa → <span class="badge b-green">LANDED</span><br>
+      • Hiçbiri yoksa → <span class="badge b-gray">UNKNOWN</span> + <code>review_flag = true</code>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">Faz Geçiş Koşulları</div>
+    <table class="sw-table">
+      <tr><th>Geçiş</th><th>Koşul</th></tr>
+      <tr><td><span class="badge b-gray">PASSIVE_FUTURE</span> → <span class="badge b-blue">SEMI_ACTIVE</span></td><td>now ≥ STD − 3h</td></tr>
+      <tr><td><span class="badge b-blue">SEMI_ACTIVE</span> → <span class="badge b-amber">ACTIVE</span></td><td>now ≥ STD − 20dk</td></tr>
+      <tr><td><span class="badge b-amber">ACTIVE</span> → <span class="badge b-green">PASSIVE_PAST</span></td><td>status = LANDED (confirmed)</td></tr>
+      <tr><td><span class="badge b-amber">ACTIVE</span> → <span class="badge b-green">PASSIVE_PAST</span></td><td>Force-close: now > STA+3h + kanıt var</td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ WINDOWS -->
+<div id="view-windows" class="hidden">
+  <div class="card">
+    <div class="card-title">ACTIVE Faz — Sub-Windows</div>
+    <table class="sw-table">
+      <tr>
+        <th>Pencere</th><th>Zaman Aralığı</th><th>Sıklık</th><th>Provider</th><th>FR24 Params</th>
+      </tr>
+      <tr>
+        <td><span class="badge b-amber">PRE_DEPARTURE_WATCH</span></td>
+        <td>STD−20dk → STD</td>
+        <td><strong>5 dk</strong></td>
+        <td><span class="chip chip-fr24">FR24 full</span><span class="chip chip-airlabs">Airlabs fallback</span></td>
+        <td><code>first_seen</code>, <code>datetime_takeoff</code></td>
+      </tr>
+      <tr>
+        <td><span class="badge b-red">DEPARTURE_CRITICAL</span></td>
+        <td>STD → dep+10dk</td>
+        <td><strong>5 dk</strong></td>
+        <td><span class="chip chip-fr24">FR24 full</span><span class="chip chip-airlabs">Airlabs fallback</span></td>
+        <td><code>first_seen</code>, <code>datetime_takeoff</code></td>
+      </tr>
+      <tr>
+        <td><span class="badge b-blue">CRUISE</span></td>
+        <td>dep+10dk → ETA−30dk</td>
+        <td><strong>15 dk</strong></td>
+        <td><span class="chip chip-fr24">FR24 lite</span></td>
+        <td><code>flight_ended</code>, <code>datetime_landed</code></td>
+      </tr>
+      <tr>
+        <td><span class="badge b-red">ARRIVAL_CRITICAL</span></td>
+        <td>ETA−30dk → arr+2dk</td>
+        <td><strong>5 dk</strong></td>
+        <td><span class="chip chip-fr24">FR24 full</span><span class="chip chip-airlabs">Airlabs fallback</span></td>
+        <td><code>datetime_landed</code>, <code>last_seen</code></td>
+      </tr>
+      <tr>
+        <td><span class="badge b-green">POST_LANDING_RECONCILE</span></td>
+        <td>İniş sonrası</td>
+        <td><strong>1 kez</strong></td>
+        <td><span class="chip chip-adb">ADB opsiyonel</span></td>
+        <td><code>last_seen</code> teyit, actual zamanlar</td>
+      </tr>
+    </table>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ ENGINE -->
+<div id="view-engine" class="hidden">
+  <div class="card">
+    <div class="card-title">Karar Motoru — FR24 Bulundu</div>
+    <div class="rule-box info">
+      <strong>flight_ended = false</strong><br>
+      • first_seen = null → <span class="badge b-gray">SCHEDULED</span><br>
+      • first_seen var, takeoff yok, now < STD+30dk → <span class="badge b-blue">TAXI_OUT</span><br>
+      • first_seen var, takeoff yok, STD+30dk → STD+90dk → <span class="badge b-amber">DELAYED</span><br>
+      • first_seen var, takeoff yok, now ≥ STD+90dk → <span class="badge b-gray">UNKNOWN</span><br>
+      • takeoff var, landed yok → <span class="badge b-blue">EN_ROUTE</span><br>
+      • landed var → <span class="badge b-purple">LANDED_CANDIDATE</span>
+    </div>
+    <div class="rule-box success">
+      <strong>flight_ended = true</strong><br>
+      • datetime_landed al → <span class="badge b-green">LANDED</span>  ·  faz = PASSIVE_PAST
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">Karar Motoru — FR24 Bulunamadı (Airlabs Fallback)</div>
+    <div class="rule-box">
+      • Airlabs = en-route → <span class="badge b-blue">EN_ROUTE</span><br>
+      • Airlabs = landed → <span class="badge b-purple">LANDED_CANDIDATE</span> (teyit bekle)<br>
+      • Airlabs = scheduled + now > STD+30dk → <span class="badge b-amber">DELAYED</span><br>
+      • Airlabs = scheduled + now ≤ STD+30dk → zamanları güncelle, status değiştirme<br>
+      • Airlabs da yok → önceki status koru, log at
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">LANDED_CANDIDATE → Onay Şartları</div>
+    <div class="rule-box success">
+      <strong>Güçlü (hemen LANDED):</strong> datetime_landed var veya flight_ended = true
+    </div>
+    <div class="rule-box info">
+      <strong>Orta (LANDED, low confidence):</strong> last_seen var + now − last_seen ≥ 20dk
+    </div>
+    <div class="rule-box warn">
+      <strong>Zayıf (bekle, bildirim gönderme):</strong> Sadece Airlabs landed
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ ROSTER -->
+<div id="view-roster" class="hidden">
+  <div class="card">
+    <div class="card-title">Roster Import Kuralları</div>
+    <div class="rule-box info">
+      <strong>📄 Roster Lock:</strong> source = ROSTER_IMPORT ve faz = PASSIVE_FUTURE ise<br>
+      → Hiçbir API çağrısı yapılmaz<br>
+      → scheduled_dep / scheduled_arr değiştirilmez<br>
+      → <code>is_roster_verified = false</code> olarak kalır
+    </div>
+    <div class="rule-box success">
+      <strong>🔓 Roster Unlock:</strong> Faz SEMI_ACTIVE olduğunda<br>
+      → Airlabs ile ilk external validation yapılır<br>
+      → Başarılıysa <code>is_roster_verified = true</code><br>
+      → Schedule güncellenir (strict date match zorunlu)
+    </div>
+    <div class="rule-box warn">
+      <strong>⚠️ Timezone Uyarısı:</strong> Roster PDF'leri local / UTC / base time karışık gelebilir<br>
+      → <code>roster_raw_dep_text</code> ham haliyle sakla<br>
+      → <code>departure_date_local_origin</code> explicit olarak yaz<br>
+      → Faz geçişlerini unverified timezone'a göre tetikleme
+    </div>
+  </div>
+  <div class="grid2">
+    <div class="card">
+      <div class="card-title">PASSIVE_FUTURE Öncelik</div>
+      <div style="font-size:13px; line-height:2;">1. Roster<br>2. DB değeri<br>3. API yok</div>
+    </div>
+    <div class="card">
+      <div class="card-title">SEMI_ACTIVE+ Öncelik</div>
+      <div style="font-size:13px; line-height:2;">1. Airlabs / ADB<br>2. Roster (baseline)<br>3. DB değeri</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ NOTIF -->
+<div id="view-notif" class="hidden">
+  <div class="card">
+    <div class="card-title">Bildirim Tetikleyicileri</div>
+    <div class="notif-row"><span class="badge b-gray">SCHEDULED</span><span>→</span><span class="badge b-amber">DELAYED</span><span class="notif-result send">✓ Gönder</span></div>
+    <div class="notif-row"><span class="badge b-gray">SCHEDULED</span><span>→</span><span class="badge b-blue">TAXI_OUT</span><span class="notif-result optional">⚡ Opsiyonel</span></div>
+    <div class="notif-row"><span class="badge b-amber">DELAYED</span><span>→</span><span class="badge b-blue">TAXI_OUT</span><span class="notif-result optional">⚡ Opsiyonel</span></div>
+    <div class="notif-row"><span class="badge b-blue">TAXI_OUT</span><span>→</span><span class="badge b-blue">EN_ROUTE</span><span class="notif-result send">✓ Gönder</span></div>
+    <div class="notif-row"><span class="badge b-amber">DELAYED</span><span>→</span><span class="badge b-blue">EN_ROUTE</span><span class="notif-result send">✓ Gönder</span></div>
+    <div class="notif-row"><span class="badge b-blue">EN_ROUTE</span><span>→</span><span class="badge b-green">LANDED</span><span class="notif-result send">✓ Gönder</span></div>
+    <div class="notif-row"><span style="font-size:12px; color:#64748b;">herhangi</span><span>→</span><span class="badge b-red">CANCELLED</span><span class="notif-result send">✓ Gönder</span></div>
+  </div>
+  <div class="card">
+    <div class="card-title">🔒 Güvenlik Kuralları</div>
+    <div class="rule-box info"><strong>Idempotency:</strong> dedupe key = <code>flight_id + new_status</code> — daha önce gönderildiyse atla</div>
+    <div class="rule-box warn"><strong>LANDED only once:</strong> landed bildirimi gönderildikten sonra bir daha gönderilmez</div>
+    <div class="rule-box"><strong>SCHEDULED → SCHEDULED:</strong> sadece zaman güncellendi, bildirim gönderme</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ RULES -->
+<div id="view-rules" class="hidden">
+  <div class="card">
+    <div class="card-title">🚫 Non-Negotiables</div>
+    <div class="nonneg"><span class="nonneg-num">1</span><span>Timeout'tan direkt <strong>LANDED</strong> yapma — kanıt yoksa <strong>UNKNOWN</strong> + review_flag</span></div>
+    <div class="nonneg"><span class="nonneg-num">2</span><span>ACTIVE fazda Airlabs <code>scheduled</code> diyorsa körü körüne güvenme — now > STD+30dk ise <strong>DELAYED</strong>'e düşür</span></div>
+    <div class="nonneg"><span class="nonneg-num">3</span><span>Sadece <code>first_seen</code> ile sonsuza kadar <strong>TAXI_OUT</strong>'ta kalma — timeout ekle (STD+30dk → DELAYED)</span></div>
+    <div class="nonneg"><span class="nonneg-num">4</span><span>Onaysız <strong>LANDED</strong> bildirimi gönderme — strong/medium confirmation şart</span></div>
+    <div class="nonneg"><span class="nonneg-num">5</span><span>Provider çağrılarında exact local-origin departure date olmadan flight match yapma</span></div>
+    <div class="nonneg"><span class="nonneg-num">6</span><span>Rate-limit / 429 alan provider'ı her cron tick'te tekrar deneme — cooldown uygula</span></div>
+    <div class="nonneg"><span class="nonneg-num">7</span><span>Roster-imported schedule'ı <strong>SEMI_ACTIVE</strong>'den önce dış API ile değiştirme</span></div>
+  </div>
+</div>
+
+</div><!-- /content -->
+
+<script>
+function showTab(name) {
+  var views = ['master','phases','windows','engine','roster','notif','rules'];
+  views.forEach(function(v) {
+    document.getElementById('view-'+v).className = v === name ? 'view' : 'hidden';
+  });
+  document.querySelectorAll('.nav-tab').forEach(function(t, i) {
+    t.className = views[i] === name ? 'nav-tab active' : 'nav-tab';
+  });
+}
+</script>
+</body>
+</html>

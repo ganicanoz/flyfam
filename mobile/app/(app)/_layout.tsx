@@ -8,6 +8,7 @@ export default function AppLayout() {
         headerStyle: { backgroundColor: colors.primary },
         headerTintColor: colors.white,
         headerTitleStyle: { fontWeight: '600' },
+        headerBackVisible: true,
       }}
     />
   );

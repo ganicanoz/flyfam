@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FlyFam — AeroDataBox havalimanı uçuşları: göreceli vs zaman aralıklı</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --border: #334155;
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+      --accent-rel: #38bdf8;
+      --accent-abs: #a78bfa;
+      --ok: #4ade80;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.55;
+      margin: 0;
+      padding: 28px 20px 48px;
+      max-width: 1100px;
+      margin-inline: auto;
+    }
+    h1 { font-size: 1.35rem; margin: 0 0 8px; font-weight: 800; }
+    .lead { color: var(--muted); font-size: 0.95rem; margin: 0 0 28px; max-width: 72ch; }
+    h2 { font-size: 1.05rem; margin: 32px 0 14px; color: #e2e8f0; }
+    table.compare {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.875rem;
+      background: var(--card);
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+    table.compare th,
+    table.compare td {
+      padding: 12px 14px;
+      text-align: left;
+      vertical-align: top;
+      border-bottom: 1px solid var(--border);
+    }
+    table.compare thead th {
+      background: #0c1222;
+      font-weight: 700;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    table.compare tbody tr:last-child td { border-bottom: none; }
+    .col-rel { border-left: 3px solid var(--accent-rel); }
+    .col-abs { border-left: 3px solid var(--accent-abs); }
+    code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 0.78rem;
+      background: #0c1222;
+      padding: 2px 6px;
+      border-radius: 4px;
+      color: #e2e8f0;
+    }
+    pre {
+      margin: 8px 0 0;
+      padding: 10px 12px;
+      background: #0c1222;
+      border-radius: 8px;
+      font-size: 0.72rem;
+      overflow-x: auto;
+      border: 1px solid var(--border);
+      color: #cbd5e1;
+    }
+    .badge {
+      display: inline-block;
+      font-size: 0.65rem;
+      font-weight: 800;
+      padding: 3px 8px;
+      border-radius: 999px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    .badge-rel { background: rgba(56, 189, 248, 0.2); color: var(--accent-rel); }
+    .badge-abs { background: rgba(167, 139, 250, 0.2); color: #c4b5fd; }
+    .note {
+      margin-top: 20px;
+      padding: 14px 16px;
+      background: rgba(74, 222, 128, 0.08);
+      border: 1px solid rgba(74, 222, 128, 0.25);
+      border-radius: 10px;
+      font-size: 0.85rem;
+      color: #bbf7d0;
+    }
+    .muted { color: var(--muted); font-size: 0.82rem; }
+    .sub { font-size: 0.8rem; color: var(--muted); margin-top: 4px; }
+  </style>
+</head>
+<body>
+  <h1>Havalimanı uçuş listesi: göreceli vs zaman aralıklı</h1>
+  <p class="lead">
+    FlyFam’da ana senaryo <strong>belirli bir roster günü + uçuş numarası</strong> olduğu için çoğu zaman
+    <strong>uçuş numarası</strong> veya <strong>tarihli aralık</strong> daha uygundur. Bu tablo, iki AeroDataBox tarzı
+    yaklaşımı yan yana özetler; örnekler <strong>SAW</strong> için illüstratiftir (canlı API çağrısı değildir).
+  </p>
+
+  <table class="compare" aria-label="Endpoint karşılaştırması">
+    <thead>
+      <tr>
+        <th style="width: 22%;">Özellik</th>
+        <th class="col-rel">
+          <span class="badge badge-rel">Göreceli</span><br />
+          GetAirportFlightsRelative
+        </th>
+        <th class="col-abs">
+          <span class="badge badge-abs">Aralıklı</span><br />
+          GetAirportFlights
+        </th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Sorgu fikri</strong></td>
+        <td class="col-rel">
+          “Şu andan itibaren önümüzdeki <strong>12 saat</strong>” — sabit takvim günü yok.
+        </td>
+        <td class="col-abs">
+          “<strong>2026-04-02 18:00</strong> ile <strong>2026-04-03 06:00</strong> arası” — kesin ISO aralığı.
+        </td>
+      </tr>
+      <tr>
+        <td><strong>FlyFam UX</strong></td>
+        <td class="col-rel">
+          Canlı FIDS / “şu an SAW’da ne var?” ekranı için uygun. Roster’daki <em>dün/yarın</em> bacakları tek başına çözmeyebilir.
+        </td>
+        <td class="col-abs">
+          Roster <code>flight_date</code> + <code>STA/STD</code> etrafında pencere açıp <strong>o günün</strong> varış/kalkışı bulmak için uygun.
+        </td>
+      </tr>
+      <tr>
+        <td><strong>API maliyeti / hacim</strong></td>
+        <td class="col-rel">
+          Periyot başına tek “şimdi + N saat”; arka planda sık yenilerseniz çağrı sayısı artar.
+        </td>
+        <td class="col-abs">
+          Uçuş başına dar pencere (ör. ±3 saat STA) ile <strong>daha az gereksiz kayıt</strong>; parametre doğru seçilirse verimli.
+        </td>
+      </tr>
+      <tr>
+        <td><strong>SAW örneği — Kalkış (Dep)</strong></td>
+        <td class="col-rel">
+          <div class="sub">Kavramsal parametreler</div>
+          <pre>airport: SAW
+direction: Departure
+from: now (UTC veya local API kuralına göre)
+to:   now + 12h</pre>
+        </td>
+        <td class="col-abs">
+          <div class="sub">18:00 → ertesi gün 06:00 (gece yarısını keser)</div>
+          <pre>airport: SAW
+direction: Departure
+from: 2026-04-02T18:00:00+03:00
+to:   2026-04-03T06:00:00+03:00</pre>
+          <p class="muted">Not: Uçuşlar UTC’de saklanıyorsa aralığı UTC’ye çevirip aynı mantığı uygulayın.</p>
+        </td>
+      </tr>
+      <tr>
+        <td><strong>SAW örneği — Varış (Arr)</strong></td>
+        <td class="col-rel">
+          <div class="sub">Aynı göreceli pencere, yön değişir</div>
+          <pre>airport: SAW
+direction: Arrival
+from: now
+to:   now + 12h</pre>
+        </td>
+        <td class="col-abs">
+          <div class="sub">Aynı saat aralığı, varış tahtası</div>
+          <pre>airport: SAW
+direction: Arrival
+from: 2026-04-02T18:00:00+03:00
+to:   2026-04-03T06:00:00+03:00</pre>
+        </td>
+      </tr>
+      <tr>
+        <td><strong>Timetable satırı eşleme</strong></td>
+        <td class="col-rel">
+          Listeyi filtreleyip <code>number</code> / <code>flight_iata</code> ile eşleştirme; “yarının” uçuşu listede yoksa kaçırılır.
+        </td>
+        <td class="col-abs">
+          Roster günü + beklenen varış/kalkış saatine göre dar pencere → <strong>PC2009</strong> gibi vakalarda daha kontrollü arama.
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>Özet tavsiye (FlyFam)</h2>
+  <div class="note">
+    <strong>Roster odaklı ürün:</strong> Birincil yol uçuş numarası + tarih. Number lookup boş veya <code>Departed</code>’da takılı kalıyorsa
+    fallback olarak <strong>hedef meydan (ör. SAW) + Arrival + STA çevresinde dar ISO aralığı</strong> (GetAirportFlights tarzı) daha tutarlıdır.
+    Tam ekran FIDS istenirse göreceli endpoint ek maliyetle anlık tahta sunar.
+  </div>
+
+  <p class="muted" style="margin-top: 24px;">
+    Dosya: <code>docs/AERODATABOX_AIRPORT_ENDPOINTS_COMPARISON.html</code> — statik karşılaştırma; gerçek RapidAPI path’leri planınıza göre güncelleyin.
+  </p>
+</body>
+</html>

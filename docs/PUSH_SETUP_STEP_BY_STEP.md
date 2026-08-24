@@ -114,6 +114,29 @@ Migration `20260214120000_cron_daily_today_flights.sql` schedules the daily call
 
 ---
 
+## Step 4b: Schedule check-flight-status-and-notify every 2 minutes (took_off/landed notifications)
+
+So that family gets “kalktı”/“indi” push without the crew opening the app, call **check-flight-status-and-notify** every **2 minutes**.
+
+**Option A – Supabase pg_cron (recommended)**
+
+1. Deploy the function: `supabase functions deploy check-flight-status-and-notify` (and set `FR24_API_TOKEN`, `CRON_SECRET` in Edge Function secrets).
+2. In Dashboard → **Database** → **Extensions**, enable **pg_cron** and **pg_net**.
+3. In **Vault** (or SQL), create two secrets:
+   - `project_url` = `https://YOUR_PROJECT_REF.supabase.co`
+   - `cron_secret` = the same value as the Edge Function secret **CRON_SECRET**
+4. Run migrations: `supabase db push`. The migration `20260229100000_cron_check_flight_status_every_2min.sql` schedules the job **check-flight-status-and-notify-every-2min** every 2 minutes.
+5. In Dashboard → **Database** → **Cron Jobs** (or Integrations → Cron), confirm the job exists and runs every 2 minutes.
+
+**Option B – External cron (e.g. cron-job.org)**
+
+1. Create a cron job that runs **every 2 minutes**.
+2. **URL:** `https://YOUR_PROJECT_REF.supabase.co/functions/v1/check-flight-status-and-notify`
+3. **Method:** POST. **Header:** `x-cron-secret: YOUR_CRON_SECRET`
+4. Body can be empty `{}` or omitted.
+
+---
+
 ## Step 5: Set EAS Project ID for production push (mobile)
 
 Expo Push Notifications need a **project ID** when the app is built with EAS (Expo Application Services). Without it, push tokens may not work on real devices (iOS/Android builds).

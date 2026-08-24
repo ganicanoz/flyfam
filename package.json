@@ -15,7 +15,12 @@
     "fr24:discover": "node scripts/fr24-discover-fields.js",
     "saw:phase-sample": "node scripts/saw-flight-phase-sample.js",
     "seed10:sim": "node scripts/run-seed10-chatllm-sim.js",
-    "admin:upload-static": "node scripts/upload-admin-static-to-storage.mjs"
+    "admin:upload-static": "node scripts/upload-admin-static-to-storage.mjs",
+    "crew:backfill-airline-icao": "node scripts/backfill-crew-airline-icao.mjs",
+    "crew:backfill-airline-icao:apply": "node scripts/backfill-crew-airline-icao.mjs --apply",
+    "phase:smoke": "node scripts/phase-refresh-smoke.js",
+    "phase:health": "node scripts/phase-refresh-health-check.js",
+    "phase:canary": "node -e \"const { createClient } = require('@supabase/supabase-js'); const u=process.env.EXPO_PUBLIC_SUPABASE_URL||process.env.SUPABASE_URL; const k=process.env.SUPABASE_SERVICE_ROLE_KEY||process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY; if(!u||!k){console.error('Missing SUPABASE envs'); process.exit(1);} const s=createClient(u,k); s.rpc('compute_flight_api_phase_state',{ p_now_utc:new Date().toISOString(), p_sched_dep_utc:new Date(Date.now()+3600000).toISOString(), p_sched_arr_utc:new Date(Date.now()+3*3600000).toISOString(), p_est_dep_utc:null, p_est_arr_utc:null, p_actual_off_utc:null, p_actual_on_utc:null, p_status_text:null, p_is_cancelled:false, p_is_diverted:false, p_airborne_signal:false, p_landed_signal:false }).then(({data,error})=>{ if(error){console.error(error.message); process.exit(1);} if(!data){console.error('No phase returned'); process.exit(1);} console.log('[phase-canary] OK phase='+data); }).catch((e)=>{ console.error(e); process.exit(1);});\""
   },
   "devDependencies": {
     "@supabase/supabase-js": "^2.49.1",

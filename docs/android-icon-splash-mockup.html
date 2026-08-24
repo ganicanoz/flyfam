@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>FlyFam — Android ikon &amp; splash mockup</title>
+  <style>
+    :root {
+      --adaptive-bg: #b4ccfb;
+      --splash-sky: linear-gradient(180deg, #f0f6ff 0%, #e2ecfe 30%, #c9ddfb 65%, #b4ccfb 100%);
+      --phone-radius: 36px;
+      --phone-bezel: 12px;
+      --shadow: 0 24px 80px rgba(15, 23, 42, 0.35);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      background: linear-gradient(160deg, #1e293b 0%, #0f172a 45%, #334155 100%);
+      color: #e2e8f0;
+      padding: 32px 20px 48px;
+    }
+    h1 {
+      font-size: 1.35rem;
+      font-weight: 700;
+      margin: 0 0 8px;
+      letter-spacing: -0.02em;
+    }
+    .sub {
+      margin: 0 0 28px;
+      font-size: 0.9rem;
+      color: #94a3b8;
+      max-width: 52ch;
+      line-height: 1.5;
+    }
+    .sub code { font-size: 0.85em; background: rgba(255,255,255,0.08); padding: 2px 6px; border-radius: 4px; }
+    .row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 40px;
+      align-items: flex-start;
+      justify-content: center;
+    }
+    .card {
+      text-align: center;
+    }
+    .card h2 {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: #64748b;
+      margin: 0 0 16px;
+    }
+    /* Phone chassis */
+    .phone {
+      position: relative;
+      width: 280px;
+      margin: 0 auto;
+      padding: var(--phone-bezel);
+      background: linear-gradient(145deg, #2d3748, #1a202c);
+      border-radius: calc(var(--phone-radius) + 6px);
+      box-shadow: var(--shadow), inset 0 1px 0 rgba(255,255,255,0.06);
+    }
+    .phone::before {
+      content: "";
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 88px;
+      height: 22px;
+      background: #0f172a;
+      border-radius: 14px;
+      z-index: 3;
+    }
+    .screen {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 9 / 19.5;
+      border-radius: var(--phone-radius);
+      overflow: hidden;
+      background: #0f172a;
+    }
+    /* Launcher-style home */
+    .screen--home {
+      background: linear-gradient(180deg, #1e3a5f 0%, #0f172a 55%);
+    }
+    .wallpaper-grid {
+      position: absolute;
+      inset: 0;
+      opacity: 0.15;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.06) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.06) 1px, transparent 1px);
+      background-size: 28px 28px;
+    }
+    .status {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 38px 18px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      color: rgba(255,255,255,0.92);
+      position: relative;
+      z-index: 1;
+    }
+    .dock-area {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 38%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding-bottom: 28px;
+    }
+    /* Adaptive icon: backgroundColor + foreground (expo adaptiveIcon) */
+    .adaptive-icon {
+      width: 72px;
+      height: 72px;
+      border-radius: 22%;
+      background: var(--adaptive-bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow:
+        0 4px 16px rgba(0,0,0,0.35),
+        0 0 0 1px rgba(255,255,255,0.12) inset;
+      overflow: hidden;
+    }
+    .adaptive-icon img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      /* Foreground asset is already safe-area aware */
+    }
+    .icon-label {
+      margin-top: 10px;
+      font-size: 11px;
+      color: rgba(255,255,255,0.85);
+      font-weight: 500;
+    }
+    /* Splash: bulutlu gök gradienti + küçük orta logo (contain) */
+    .screen--splash {
+      background: var(--splash-sky);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .screen--splash img {
+      width: min(48%, 148px);
+      height: auto;
+      max-height: 36%;
+      object-fit: contain;
+      object-position: center;
+      filter: drop-shadow(0 4px 16px rgba(50, 70, 130, 0.1));
+    }
+    .caption {
+      margin-top: 14px;
+      font-size: 0.8rem;
+      color: #94a3b8;
+      max-width: 280px;
+      margin-left: auto;
+      margin-right: auto;
+      line-height: 1.45;
+    }
+    .paths {
+      margin-top: 40px;
+      padding: 16px 18px;
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      border-radius: 12px;
+      font-size: 0.78rem;
+      color: #cbd5e1;
+      max-width: 640px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    .paths strong { color: #f1f5f9; }
+    .paths ul { margin: 8px 0 0; padding-left: 1.2rem; }
+    .paths li { margin: 4px 0; }
+  </style>
+</head>
+<body>
+  <h1>FlyFam — Android görünümü (mockup)</h1>
+  <p class="sub">
+    <code>app.config.js</code> ile uyumlu önizleme: launcher ikonu
+    <code>icon-final-iOS-Default-1024x1024@1x.png</code>, adaptive zemin
+    <code>#B4CCFB</code>. Splash kartında HTML’de <strong>bulut gradienti</strong> (video gök tonu); üretimde
+    JS splash’ta <code>expo-linear-gradient</code>, native’de tek renk
+    <code>#B4CCFB</code> + <code>splash-logo-ios-default-1024.png</code> <code>contain</code>.
+    HTML’i tarayıcıda <strong>docs/</strong> kökünden açın ki görseller yüklensin.
+  </p>
+
+  <div class="row">
+    <div class="card">
+      <h2>Ana ekran — launcher ikon</h2>
+      <div class="phone" aria-hidden="true">
+        <div class="screen screen--home">
+          <div class="wallpaper-grid"></div>
+          <div class="status">
+            <span>9:41</span>
+            <span>●●● LTE</span>
+          </div>
+          <div class="dock-area">
+            <div>
+              <div class="adaptive-icon">
+                <img
+                  src="../mobile/assets/icon-final-iOS-Default-1024x1024@1x.png"
+                  alt="FlyFam app icon (iOS = Android kaynak)"
+                  width="72"
+                  height="72"
+                />
+              </div>
+              <div class="icon-label">FlyFam</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p class="caption">
+        Android 8+ adaptive: ön plan iOS ile aynı <code>APP_ICON_1024</code> +
+        <code>backgroundColor: #B4CCFB</code>. Üretilmiş <code>mipmap</code> webp’ler prebuild ile oluşur.
+      </p>
+    </div>
+
+    <div class="card">
+      <h2>Açılış — splash</h2>
+      <div class="phone" aria-hidden="true">
+        <div class="screen screen--splash">
+          <img
+            src="../mobile/assets/splash-logo-ios-default-1024.png"
+            alt="FlyFam splash (logo ortada)"
+            width="400"
+            height="400"
+          />
+        </div>
+      </div>
+      <p class="caption">
+        Gradient gök/bulut (poster paleti); logo küçük ve ortada. Native build’de zemin düz
+        <code>#B4CCFB</code>.
+      </p>
+    </div>
+  </div>
+
+  <div class="paths">
+    <strong>Kaynak dosyalar</strong>
+    <ul>
+      <li><code>mobile/assets/icon-final-iOS-Default-1024x1024@1x.png</code> — iOS + Android (adaptive ön plan)</li>
+      <li><code>mobile/assets/splash-logo-ios-default-1024.png</code> — Expo <code>splash.image</code> (ortada logo)</li>
+      <li><code>mobile/assets/highressplash1.mp4.png</code> — zemin rengi referansı (üst bant örneklemesi → <code>#B4CCFB</code>)</li>
+    </ul>
+  </div>
+</body>
+</html>

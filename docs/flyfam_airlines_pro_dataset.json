@@ -1,0 +1,23 @@
+[
+  {
+    "name": "Turkish Airlines",
+    "iata": "TK",
+    "icao": "THY",
+    "domain": "turkishairlines.com",
+    "logo": "https://logo.clearbit.com/turkishairlines.com"
+  },
+  {
+    "name": "Pegasus Airlines",
+    "iata": "PC",
+    "icao": "PGT",
+    "domain": "flypgs.com",
+    "logo": "https://logo.clearbit.com/flypgs.com"
+  },
+  {
+    "name": "Lufthansa",
+    "iata": "LH",
+    "icao": "DLH",
+    "domain": "lufthansa.com",
+    "logo": "https://logo.clearbit.com/lufthansa.com"
+  }
+]

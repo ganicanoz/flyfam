@@ -81,15 +81,31 @@ Alternatif: [expo.dev](https://expo.dev) → projen → **Builds** → ilgili iO
 
 ---
 
-## Adım 6: TestFlight’ta testçi davet etme
+## Adım 6: Test kullanımı için e‑posta ile davet (TestFlight)
+
+Uygulama henüz mağazada yayında değil; sadece **TestFlight** üzerinden e‑posta ile davet ettiğin kişiler test edebilir.
 
 1. [App Store Connect](https://appstoreconnect.apple.com) → **My Apps** → **FlyFam**.
 2. Sol menüden **TestFlight** sekmesine gir.
-3. İlk yüklemeden sonra build “Processing” görünür; işlem bitince (birkaç dakika–yarım saat) **TestFlight** bölümünde görünür.
-4. **Internal Testing** veya **External Testing**:
-   - **Internal:** Aynı App Store Connect ekibindeki kullanıcılar (en hızlı, onay beklemez).
-   - **External:** Dış test kullanıcıları; ilk seferde Apple incelemesi olabilir.
-5. **+** ile testçi ekle, e-posta adreslerini gir; davet e-postası gider. Testçi **TestFlight** uygulamasını indirir, daveti kabul eder ve FlyFam’ı yükler.
+3. Build ilk yüklendikten sonra bir süre “Processing” görünür; bittiğinde (birkaç dakika–yarım saat) TestFlight’ta kullanılabilir olur.
+4. **Internal Testing** veya **External Testing** grubu seç:
+   - **Internal:** Sadece App Store Connect’te “App Manager” / “Developer” rolündeki ekip üyeleri. Davet anında gelir, Apple onayı yok.
+   - **External:** İstediğin e‑posta adreslerine davet (eş, arkadaş, müşteri vb.). İlk kez dış testçi eklediğinde build için kısa bir Apple incelemesi olabilir (genelde 24–48 saat).
+5. **E‑posta ile davet:**
+   - **External Testing** → bir **Test Group** oluştur (veya mevcut grubu kullan) → **Add Testers** (Testçi Ekle).
+   - Testçi e‑posta adreslerini gir (virgül veya her satıra bir adres). **Add** de.
+   - Apple, bu e‑postalara davet gönderir. Testçi davetteki bağlantıya tıklar, **TestFlight** uygulamasını (App Store’dan) indirir, daveti kabul eder ve FlyFam’ı TestFlight üzerinden yükler.
+6. İstediğin zaman aynı sayfadan yeni e‑posta adresleri ekleyebilir veya test grubunu güncelleyebilirsin.
+
+### Davet kodu / herkese açık link (Public Link)
+
+E‑posta girmeden, link paylaşarak davet etmek istersen:
+
+1. **TestFlight** → **External Testing** → kullanacağın **Test Group**’u seç (yoksa yeni grup oluştur, build’i bu gruba ekle).
+2. Sayfada **Enable Public Link** (veya **Public Link** / **Herkese Açık Bağlantı**) seçeneğini aç.
+3. Apple bir **TestFlight davet linki** üretir (örn. `https://testflight.apple.com/join/XXXXXX`). Bu linki veya kodu (ör. `XXXXXX`) kime verirsen, o kişi linke tıklayıp TestFlight uygulaması üzerinden FlyFam’ı yükleyebilir.
+4. İstersen **Copy Link** ile kopyalayıp mesaj / e‑posta / Slack ile paylaş.  
+**Not:** Public link ilk kez açıldığında build için Apple incelemesi (24–48 saat) gerekebilir.
 
 ---
 
@@ -97,10 +113,15 @@ Alternatif: [expo.dev](https://expo.dev) → projen → **Builds** → ilgili iO
 
 ```bash
 cd /Users/mineoz/Desktop/FlyFam/mobile
-eas login
-eas build --platform ios --profile production
-# Build bittikten sonra:
-eas submit --platform ios --latest --profile production
+npx eas-cli@latest login
+# 1) App Store / TestFlight için build:
+npm run build:ios:store
+# 2) Build bittikten sonra TestFlight'a gönder:
+npm run submit:ios
 ```
+
+Veya doğrudan EAS komutları:  
+`npx eas-cli@latest build --platform ios --profile production` → ardından  
+`npx eas-cli@latest submit --platform ios --latest --profile production`
 
 Bundle ID projede **com.flyfam.app** olarak ayarlı; `eas.json` içinde production profili TestFlight/App Store için hazır. Takıldığın yerde hata mesajını paylaşırsan bir sonraki adımı birlikte netleştirebiliriz.

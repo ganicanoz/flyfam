@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "533157115553",
-    "project_id": "flyfam-7a504",
-    "storage_bucket": "flyfam-7a504.firebasestorage.app"
+    "project_number": "000000000000",
+    "project_id": "your-firebase-project-id",
+    "storage_bucket": "your-firebase-project-id.appspot.com"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:533157115553:android:804dc7f68f2a78342d62e0",
+        "mobilesdk_app_id": "1:000000000000:android:replace-with-real-app-id",
         "android_client_info": {
           "package_name": "com.flyfam.app"
         }
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyAlws_3dQfEYpgvY3yMD6-0pBGLxIx8bfg"
+          "current_key": "REPLACE_WITH_GOOGLE_API_KEY"
         }
       ],
       "services": {

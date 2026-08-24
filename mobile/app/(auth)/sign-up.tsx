@@ -13,8 +13,12 @@ import {
 } from 'react-native';
 import { useRouter, Link } from 'expo-router';
 import { useTranslation } from 'react-i18next';
+import { authEmailRedirectTo } from '@/lib/authRedirect';
+import { promptResendConfirmationEmail } from '@/lib/authResendConfirmationUi';
 import { supabase } from '@/lib/supabase';
 import { CONSENT_VERSION } from '@/lib/consents';
+import { LegalConsentFields } from '@/components/LegalConsentFields';
+import { changeAppLocale, type Locale } from '@/lib/i18n';
 
 export default function SignUp() {
   const { t, i18n } = useTranslation();
@@ -52,7 +56,14 @@ export default function SignUp() {
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { full_name: fullName } },
+      options: {
+        emailRedirectTo: authEmailRedirectTo(),
+        data: {
+          full_name: fullName,
+          role,
+          locale: i18n.language?.toLowerCase().startsWith('tr') ? 'tr' : 'en',
+        },
+      },
     });
     setLoading(false);
 
@@ -61,7 +72,9 @@ export default function SignUp() {
       return;
     }
 
-    if (authData.user) {
+    const hasSession = Boolean(authData.session);
+
+    if (authData.user && hasSession) {
       const { error: profileError } = await supabase.rpc('create_profile', {
         p_role: role,
         p_full_name: fullName.trim(),
@@ -70,13 +83,9 @@ export default function SignUp() {
 
       if (profileError) {
         console.error('Profile creation error:', profileError);
-        Alert.alert(
-          t('signUp.accountCreated'),
-          t('signUp.canSignInNow')
-        );
       }
 
-      const locale = i18n.language?.toLowerCase().startsWith('tr') ? 'tr' : 'en';
+      const locale: Locale = i18n.language?.toLowerCase().startsWith('tr') ? 'tr' : 'en';
       const consentRows = [
         {
           user_id: authData.user.id,
@@ -110,11 +119,29 @@ export default function SignUp() {
       }
     }
 
-    Alert.alert(
-      t('signUp.accountCreated'),
-      t('signUp.canSignInNow'),
-      [{ text: t('common.ok'), onPress: () => router.replace('/(auth)/sign-in') }]
-    );
+    const trimmedEmail = email.trim();
+    if (!hasSession) {
+      Alert.alert(
+        t('signUp.confirmEmailTitle'),
+        t('signUp.confirmEmailMessage', { email: trimmedEmail }),
+        [
+          {
+            text: t('signIn.resendConfirmation'),
+            onPress: () => promptResendConfirmationEmail(trimmedEmail),
+          },
+          { text: t('signIn.title'), onPress: () => router.replace('/(auth)/sign-in') },
+        ]
+      );
+      return;
+    }
+    Alert.alert(t('signUp.accountCreated'), t('signUp.canSignInNow'), [
+      { text: t('common.ok'), onPress: () => router.replace('/(auth)/sign-in') },
+    ]);
+  };
+
+  const activeLocale: Locale = i18n.language?.toLowerCase().startsWith('tr') ? 'tr' : 'en';
+  const pickLocale = (loc: Locale) => {
+    void changeAppLocale(loc);
   };
 
   return (
@@ -122,9 +149,31 @@ export default function SignUp() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.container}
     >
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView key={activeLocale} contentContainerStyle={styles.scrollContent}>
         <Text style={styles.title}>{t('signUp.title')}</Text>
         <Text style={styles.subtitle}>{t('signUp.subtitle')}</Text>
+
+        <Text style={styles.label}>{t('signUp.preferredLanguage')}</Text>
+        <View style={styles.roleRow}>
+          <TouchableOpacity
+            style={[styles.roleButton, activeLocale === 'en' && styles.roleButtonActive]}
+            onPress={() => pickLocale('en')}
+            disabled={loading}
+          >
+            <Text style={[styles.roleButtonText, activeLocale === 'en' && styles.roleButtonTextActive]}>
+              {t('signUp.languageEnglish')}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.roleButton, activeLocale === 'tr' && styles.roleButtonActive]}
+            onPress={() => pickLocale('tr')}
+            disabled={loading}
+          >
+            <Text style={[styles.roleButtonText, activeLocale === 'tr' && styles.roleButtonTextActive]}>
+              {t('signUp.languageTurkish')}
+            </Text>
+          </TouchableOpacity>
+        </View>
 
         <TextInput
           style={styles.input}
@@ -204,39 +253,15 @@ export default function SignUp() {
         </View>
 
         <View style={styles.consentBox}>
-          <TouchableOpacity
-            style={styles.consentRow}
-            onPress={() => setAcceptPrivacyNotice((v) => !v)}
+          <LegalConsentFields
+            acceptPrivacyNotice={acceptPrivacyNotice}
+            onTogglePrivacyNotice={() => setAcceptPrivacyNotice((v) => !v)}
+            acceptTermsDisclaimer={acceptTermsDisclaimer}
+            onToggleTermsDisclaimer={() => setAcceptTermsDisclaimer((v) => !v)}
+            onOpenPrivacyNotice={() => router.push('/(auth)/privacy-notice')}
+            onOpenTermsDisclaimer={() => router.push('/(auth)/terms-disclaimer')}
             disabled={loading}
-          >
-            <View style={[styles.checkbox, acceptPrivacyNotice && styles.checkboxChecked]}>
-              {acceptPrivacyNotice ? <Text style={styles.checkboxTick}>✓</Text> : null}
-            </View>
-            <Text style={styles.consentText}>{t('signUp.acceptPrivacyNotice')}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => router.push('/(auth)/privacy-notice')}
-            disabled={loading}
-          >
-            <Text style={styles.consentLink}>{t('signUp.readPrivacyNotice')}</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.consentRow}
-            onPress={() => setAcceptTermsDisclaimer((v) => !v)}
-            disabled={loading}
-          >
-            <View style={[styles.checkbox, acceptTermsDisclaimer && styles.checkboxChecked]}>
-              {acceptTermsDisclaimer ? <Text style={styles.checkboxTick}>✓</Text> : null}
-            </View>
-            <Text style={styles.consentText}>{t('signUp.acceptTermsDisclaimer')}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => router.push('/(auth)/terms-disclaimer')}
-            disabled={loading}
-          >
-            <Text style={styles.consentLink}>{t('signUp.readDisclaimer')}</Text>
-          </TouchableOpacity>
+          />
 
           <TouchableOpacity
             style={styles.consentRow}
@@ -285,7 +310,7 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: '700',
     color: '#fff',
-    marginTop: 60,
+    marginTop: 8,
     marginBottom: 4,
   },
   subtitle: {

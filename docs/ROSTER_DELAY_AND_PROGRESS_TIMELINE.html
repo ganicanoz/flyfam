@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>FlyFam — Roster gecikme & yüzde çubuğu (zaman akışı)</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --std: #38bdf8;
+      --sta: #a78bfa;
+      --fs: #fbbf24;
+      --to: #34d399;
+      --end: #f472b6;
+      --now: #fb7185;
+      --delay: #f87171;
+      --bar: #3b82f6;
+      --track: #334155;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.55;
+      padding: 1.5rem;
+      max-width: 56rem;
+      margin-inline: auto;
+    }
+    h1 {
+      font-size: 1.35rem;
+      font-weight: 800;
+      margin: 0 0 0.5rem;
+      letter-spacing: -0.02em;
+    }
+    .sub {
+      color: var(--muted);
+      font-size: 0.95rem;
+      margin-bottom: 1.75rem;
+    }
+    h2 {
+      font-size: 1.05rem;
+      margin: 2rem 0 0.75rem;
+      color: #cbd5e1;
+      border-bottom: 1px solid #334155;
+      padding-bottom: 0.35rem;
+    }
+    .card {
+      background: var(--card);
+      border-radius: 12px;
+      padding: 1.1rem 1.25rem;
+      margin: 1rem 0;
+      border: 1px solid #334155;
+    }
+    .flow {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.5rem 0.75rem;
+      margin: 1rem 0;
+    }
+    .step {
+      background: #0c1222;
+      border: 1px solid #475569;
+      border-radius: 8px;
+      padding: 0.45rem 0.65rem;
+      font-size: 0.88rem;
+    }
+    .arrow {
+      color: var(--muted);
+      font-size: 1.2rem;
+    }
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem 1.25rem;
+      font-size: 0.82rem;
+      margin-top: 0.75rem;
+    }
+    .dot {
+      display: inline-block;
+      width: 0.65rem;
+      height: 0.65rem;
+      border-radius: 50%;
+      margin-right: 0.35rem;
+      vertical-align: middle;
+    }
+    .timeline-wrap {
+      overflow-x: auto;
+      padding: 0.5rem 0;
+    }
+    .timeline {
+      position: relative;
+      min-width: 640px;
+      height: 88px;
+      margin: 0.5rem 0 1.25rem;
+    }
+    .track {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 52px;
+      height: 10px;
+      background: var(--track);
+      border-radius: 6px;
+    }
+    .fill {
+      position: absolute;
+      left: 0;
+      top: 52px;
+      height: 10px;
+      background: linear-gradient(90deg, var(--bar), #1d4ed8);
+      border-radius: 6px;
+      opacity: 0.95;
+    }
+    .tick {
+      position: absolute;
+      top: 0;
+      width: 2px;
+      transform: translateX(-50%);
+    }
+    .tick-line {
+      position: absolute;
+      top: 28px;
+      left: 0;
+      width: 2px;
+      height: 36px;
+      border-radius: 1px;
+    }
+    .tick-label {
+      position: absolute;
+      top: 0;
+      left: 0;
+      transform: translateX(-50%);
+      font-size: 0.72rem;
+      white-space: nowrap;
+      color: var(--muted);
+      max-width: 120px;
+      text-align: center;
+    }
+    .tick-sub {
+      position: absolute;
+      top: 66px;
+      left: 0;
+      transform: translateX(-50%);
+      font-size: 0.68rem;
+      color: #64748b;
+    }
+    code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 0.84em;
+      background: #0c1222;
+      padding: 0.12em 0.35em;
+      border-radius: 4px;
+    }
+    .formula {
+      background: #0c1222;
+      border-left: 3px solid var(--bar);
+      padding: 0.65rem 0.85rem;
+      border-radius: 0 8px 8px 0;
+      font-size: 0.9rem;
+      margin: 0.75rem 0;
+    }
+    ul.tight li { margin: 0.35rem 0; }
+    .note {
+      font-size: 0.88rem;
+      color: var(--muted);
+      margin-top: 0.5rem;
+    }
+    .example-tag {
+      display: inline-block;
+      background: #312e81;
+      color: #c7d2fe;
+      font-size: 0.75rem;
+      padding: 0.2rem 0.5rem;
+      border-radius: 6px;
+      margin-bottom: 0.75rem;
+    }
+  </style>
+</head>
+<body>
+  <h1>Roster: gecikme kutusu & yüzde çubuğu — zaman akışı</h1>
+  <p class="sub">
+    Bu sayfa, FlyFam mobil roster’da kullanılan <strong>FR24 <code>first_seen</code></strong>,
+    <strong><code>datetime_takeoff</code></strong>, planlı <strong>STD / STA</strong> ve
+    <strong>şu an (<code>now</code>)</strong> arasındaki ilişkiyi görsel ve örnekle özetler.
+    Örnek uçuş numarası: <strong>PC1184</strong> (saatler gösterim içindir; gerçek sefer saatleri farklı olabilir).
+  </p>
+
+  <h2>1) Genel akış (sıra)</h2>
+  <div class="flow">
+    <span class="step">FR24 <code>first_seen</code></span>
+    <span class="arrow">→</span>
+    <span class="step">STD ile kıyas → kutu gecikmesi?</span>
+    <span class="arrow">→</span>
+    <span class="step"><code>datetime_takeoff</code> bekle</span>
+    <span class="arrow">→</span>
+    <span class="step">Çubuk % başlar / biter</span>
+  </div>
+  <p class="note">
+    Yarı-aktif (<code>semi_active</code>) ve aktif (<code>active</code>) fazlarda
+    <strong>first_seen gecikmesi</strong> hesaba katılır. Çubuk bitişi için planlı STD/STA yeterliyse
+    fazdan bağımsız aynı formül kullanılır (DB’de statü gecikse bile).
+  </p>
+
+  <h2>2) Kutu gecikmesi (first_seen − STD)</h2>
+  <div class="card">
+    <p><strong>Koşul:</strong> <code>first_seen</code> zamanı, planlı kalkış <strong>STD</strong>’den <em>en az 15 dakika</em> sonraysa kırmızı gecikme metni gösterilir.</p>
+    <div class="formula">
+      Gösterilen dakika ≈ round((<code>first_seen</code> − <code>STD</code>) / 1 dk), &nbsp; fark &gt; 15 dk
+    </div>
+    <p class="note">Kaynak: DB’de <code>fr24_first_seen_utc</code>; poll sonrası anında önbellek de doldurulabilir.</p>
+  </div>
+
+  <h2>3) Yüzde çubuğu — kalkış yokken</h2>
+  <div class="card">
+    <p><strong>FR24 <code>datetime_takeoff</code></strong> (uygulamada <code>fr24_datetime_takeoff_utc</code>) yoksa çubuk <strong>%0</strong> kalır (yerde / taksi, STD geçmiş olsa bile).</p>
+  </div>
+
+  <h2>4) Yüzde çubuğu — kalkıştan sonra</h2>
+  <div class="card">
+    <p><strong>Başlangıç anı</strong> = <code>datetime_takeoff</code> (tekerlek kalkış).</p>
+    <p><strong>Bitiş anı</strong> (planlı STD &amp; STA geçerliyse ve STA &gt; STD):</p>
+    <div class="formula">
+      bitiş = <code>STA</code> + max(0, <code>takeoff</code> − <code>STD</code>)
+    </div>
+    <p>Cebirsel olarak çubuk süresi = (<code>STA</code> − <code>STD</code>) = <strong>planlı blok süresi</strong>; gecikmeli kalkışta sadece varış çizgisi kayar, blok uzunluğu değişmez.</p>
+    <div class="formula">
+      yüzde = clamp( (<code>now</code> − <code>takeoff</code>) / (<code>bitiş</code> − <code>takeoff</code>), 0, 1 )
+    </div>
+    <p class="note">STD/STA eksikse uygulama ETA / FR24 tahmini / yedek sentetik bitişe düşer (önceki davranış).</p>
+  </div>
+
+  <h2>5) Örnek zaman çizelgesi — PC1184 (kurgusal saatler)</h2>
+  <p class="example-tag">Örnek: PC1184 · tüm saatler UTC (Z)</p>
+  <ul class="tight">
+    <li><span class="dot" style="background:var(--std)"></span> <strong>STD</strong> = 08:00Z — planlı kalkış</li>
+    <li><span class="dot" style="background:var(--sta)"></span> <strong>STA</strong> = 11:00Z — planlı varış (blok 3 saat)</li>
+    <li><span class="dot" style="background:var(--fs)"></span> <strong>first_seen</strong> = 08:22Z — uçak ADS-B’de göründü</li>
+    <li><span class="dot" style="background:var(--to)"></span> <strong>takeoff</strong> = 08:48Z — tekerlek kalkış</li>
+    <li><span class="dot" style="background:var(--end)"></span> <strong>çubuk bitişi</strong> = 11:00 + (08:48 − 08:00) = <strong>11:48Z</strong></li>
+    <li><span class="dot" style="background:var(--now)"></span> <strong>now</strong> = 10:15Z — örnek “şu an”</li>
+  </ul>
+
+  <div class="card">
+    <p><strong>Gecikme kutusu:</strong> 08:22 − 08:00 = 22 dk → 22 &gt; 15 → yaklaşık <strong style="color:var(--delay)">22 dk</strong> gecikme gösterilir.</p>
+    <p><strong>Çubuk:</strong> 08:00–08:48 arası %0; 08:48’den itibaren dolar. Süre penceresi uzunluğu = 11:48 − 08:48 = <strong>3 saat</strong> (= 11:00 − 08:00).</p>
+    <p><strong>10:15Z anında yüzde:</strong> (10:15 − 08:48) / (11:48 − 08:48) = 87 dk / 180 dk ≈ <strong>%48</strong>.</p>
+  </div>
+
+  <div class="timeline-wrap">
+    <div class="timeline" id="tl">
+      <!-- ticks positioned by % along 08:00–12:30 window -->
+    </div>
+  </div>
+  <div class="legend">
+    <span><span class="dot" style="background:var(--std)"></span> STD</span>
+    <span><span class="dot" style="background:var(--sta)"></span> STA</span>
+    <span><span class="dot" style="background:var(--fs)"></span> first_seen</span>
+    <span><span class="dot" style="background:var(--to)"></span> takeoff</span>
+    <span><span class="dot" style="background:var(--end)"></span> çubuk bitiş</span>
+    <span><span class="dot" style="background:var(--now)"></span> now (örnek)</span>
+  </div>
+
+  <h2>6) Küçük akış şeması (metin)</h2>
+  <pre style="background:#0c1222;padding:1rem;border-radius:8px;font-size:0.8rem;overflow:auto;line-height:1.4;">
+[STD] ─────────────────────────────────────────────────────────────► zaman
+         │
+         │   first_seen 22 dk sonra?
+         ├─ Evet (&gt;15 dk) → kutuda "≈22 dk gecikme"
+         │
+         ├── takeoff yok → çubuk %0
+         │
+         └── takeoff var → çubuk: takeoff ────────────────► STA+(takeoff−STD)
+                                    │                              bitiş
+                                    └── now bu aralıkta → yüzde = geçen / toplam
+  </pre>
+
+  <p class="note" style="margin-top:2rem;">
+    Dosya: <code>docs/ROSTER_DELAY_AND_PROGRESS_TIMELINE.html</code> — tarayıcıda aç; mobilde yatay kaydırma olabilir.
+  </p>
+
+  <script>
+    (function () {
+      const T0 = Date.parse('2026-04-12T08:00:00Z');
+      const marks = [
+        { t: Date.parse('2026-04-12T08:00:00Z'), c: '#38bdf8', label: 'STD', sub: '08:00Z' },
+        { t: Date.parse('2026-04-12T08:22:00Z'), c: '#fbbf24', label: 'first_seen', sub: '08:22Z' },
+        { t: Date.parse('2026-04-12T08:48:00Z'), c: '#34d399', label: 'takeoff', sub: '08:48Z' },
+        { t: Date.parse('2026-04-12T10:15:00Z'), c: '#fb7185', label: 'now', sub: '10:15Z' },
+        { t: Date.parse('2026-04-12T11:00:00Z'), c: '#a78bfa', label: 'STA', sub: '11:00Z' },
+        { t: Date.parse('2026-04-12T11:48:00Z'), c: '#f472b6', label: 'bitiş', sub: '11:48Z' },
+      ];
+      const winStart = T0;
+      const winEnd = Date.parse('2026-04-12T12:30:00Z');
+      const W = winEnd - winStart;
+      const toPct = function (ms) { return ((ms - winStart) / W) * 100; };
+      const tl = document.getElementById('tl');
+      marks.forEach(function (m) {
+        const p = toPct(m.t);
+        const d = document.createElement('div');
+        d.className = 'tick';
+        d.style.left = p + '%';
+        d.innerHTML =
+          '<div class="tick-label" style="color:' + m.c + '">' + m.label + '</div>' +
+          '<div class="tick-line" style="background:' + m.c + '"></div>' +
+          '<div class="tick-sub">' + m.sub + '</div>';
+        tl.appendChild(d);
+      });
+      const track = document.createElement('div');
+      track.className = 'track';
+      tl.appendChild(track);
+      const takeoffPct = toPct(Date.parse('2026-04-12T08:48:00Z'));
+      const endPct = toPct(Date.parse('2026-04-12T11:48:00Z'));
+      const nowPct = toPct(Date.parse('2026-04-12T10:15:00Z'));
+      const fill = document.createElement('div');
+      fill.className = 'fill';
+      fill.style.left = takeoffPct + '%';
+      fill.style.width = Math.max(0, nowPct - takeoffPct) + '%';
+      tl.appendChild(fill);
+    })();
+  </script>
+</body>
+</html>

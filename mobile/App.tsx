@@ -11,16 +11,30 @@ import { AuthEmailLinkListener } from './components/AuthEmailLinkListener';
 import { PdfImportLinkingListener } from './components/PdfImportLinkingListener';
 import { trackScreenViewThrottled } from './lib/userActivity';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { createBottomTabNavigator, type BottomTabBarProps, BottomTabBarHeightCallbackContext } from '@react-navigation/bottom-tabs';
 import * as SplashScreen from 'expo-splash-screen';
-import { View, ActivityIndicator, StyleSheet, ImageBackground, Platform } from 'react-native';
+import {
+  View,
+  ActivityIndicator,
+  StyleSheet,
+  ImageBackground,
+  Platform,
+  Animated,
+  Pressable,
+  Text,
+} from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useTranslation } from 'react-i18next';
 import { SessionProvider, useSession } from './contexts/SessionContext';
 import { AdminRosterProvider, useAdminRoster } from './contexts/AdminRosterContext';
 import { colors, loadStoredThemeMode, useThemeMode } from './theme/colors';
 import { loadStoredFontSizePreset, useFontScaleMultiplier } from './theme/fontScale';
+import {
+  getRosterLastSyncedAt,
+  subscribeRosterLastSyncedAt,
+} from './lib/rosterSyncMeta';
 
 import Welcome from './screens/Welcome';
 import SignIn from './screens/SignIn';
@@ -44,6 +58,18 @@ import TermsDisclaimer from './screens/TermsDisclaimer';
 import { hasRequiredConsents, flushPendingSignupConsents } from './lib/consents';
 import { withStackBackButton } from './lib/stackHeaderOptions';
 
+/** Instagram floating tab ölçüleri (ekran kaydı / screenshot oranları @~390pt). */
+const TAB_BAR_HEIGHT = 52;
+const TAB_ICON_SIZE = 22;
+/** Seçim blob: bar'dan küçük, yuvarlatilmis kare (daire degil), soft gri. */
+const TAB_INDICATOR_W = 44;
+const TAB_INDICATOR_H = 38;
+const TAB_INDICATOR_RADIUS = 11;
+/** Daha dar pill → yanlardan küçültülmüş floating bar. */
+const TAB_SIDE_MARGIN = 68;
+/** Capsule uclarinda ikonlarin kenara yapismamasi. */
+const TAB_INNER_PAD_H = 14;
+
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
@@ -57,15 +83,270 @@ function RosterTabScreen() {
   );
 }
 
+const TAB_ICONS: Record<
+  string,
+  { active: React.ComponentProps<typeof Ionicons>['name']; inactive: React.ComponentProps<typeof Ionicons>['name'] }
+> = {
+  Roster: { active: 'calendar', inactive: 'calendar-outline' },
+  Family: { active: 'people', inactive: 'people-outline' },
+  Profile: { active: 'person', inactive: 'person-outline' },
+};
+
+/** Instagram tarzı: liquid-glass pill + seçili ikonun arkasında kayan soft blob. */
+function InstagramGlassTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
+  const { t, i18n } = useTranslation();
+  const insets = useSafeAreaInsets();
+  const mode = useThemeMode();
+  const isDark = mode === 'dark';
+  const onTabBarHeightChange = React.useContext(BottomTabBarHeightCallbackContext);
+  // Pill + meta: home indicator bölgesindeki boşluğa oturur.
+  const metaLineH = 16;
+  const floatBottom = Math.max(insets.bottom > 0 ? 6 : 10, 6);
+  const tabCenters = React.useRef<number[]>(state.routes.map(() => 0));
+  const indicatorX = React.useRef(new Animated.Value(0)).current;
+  const indicatorReady = React.useRef(false);
+  const [lastSyncedAt, setLastSyncedAt] = React.useState<number | null>(() => getRosterLastSyncedAt());
+
+  React.useEffect(() => {
+    onTabBarHeightChange?.(0);
+  }, [onTabBarHeightChange]);
+
+  React.useEffect(() => subscribeRosterLastSyncedAt(() => setLastSyncedAt(getRosterLastSyncedAt())), []);
+
+  const animateIndicatorTo = React.useCallback(
+    (index: number, instant = false) => {
+      const x = tabCenters.current[index];
+      if (x == null || Number.isNaN(x)) return;
+      if (instant || !indicatorReady.current) {
+        indicatorX.setValue(x);
+        indicatorReady.current = true;
+        return;
+      }
+      Animated.spring(indicatorX, {
+        toValue: x,
+        useNativeDriver: true,
+        friction: 8,
+        tension: 160,
+        overshootClamping: false,
+      }).start();
+    },
+    [indicatorX],
+  );
+
+  React.useEffect(() => {
+    animateIndicatorTo(state.index);
+  }, [state.index, animateIndicatorTo]);
+
+  const metaText = React.useMemo(() => {
+    if (lastSyncedAt == null) return t('nav.lastUpdatedPending');
+    const locale = i18n.language === 'tr' ? 'tr-TR' : 'en-US';
+    const when = new Date(lastSyncedAt).toLocaleString(locale, {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+    return t('nav.lastUpdatedAt', { when });
+  }, [lastSyncedAt, i18n.language, t]);
+
+  return (
+    <View
+      pointerEvents="box-none"
+      style={[
+        igTabStyles.dock,
+        {
+          bottom: floatBottom,
+          left: TAB_SIDE_MARGIN,
+          right: TAB_SIDE_MARGIN,
+        },
+      ]}
+    >
+      {/* Gölge overflow:hidden ile kesilmesin diye ayrı dış kabuk */}
+      <View
+        style={[
+          igTabStyles.pillShadow,
+          {
+            shadowColor: isDark ? '#000' : '#0F172A',
+            marginBottom: 4,
+          },
+        ]}
+      >
+        <View
+          style={[
+            igTabStyles.pill,
+            {
+              height: TAB_BAR_HEIGHT,
+              backgroundColor: isDark ? 'rgba(28, 32, 40, 0.88)' : 'rgba(255, 255, 255, 0.94)',
+              borderColor: isDark ? 'rgba(255,255,255,0.14)' : 'rgba(0,0,0,0.06)',
+            },
+          ]}
+        >
+          <LinearGradient
+            pointerEvents="none"
+            colors={
+              isDark
+                ? ['rgba(255,255,255,0.14)', 'rgba(255,255,255,0.03)', 'rgba(0,0,0,0.22)']
+                : ['rgba(255,255,255,0.92)', 'rgba(255,255,255,0.4)', 'rgba(236,242,250,0.5)']
+            }
+            locations={[0, 0.45, 1]}
+            style={StyleSheet.absoluteFillObject}
+          />
+          <View style={[igTabStyles.row, { paddingHorizontal: TAB_INNER_PAD_H }]}>
+            <Animated.View
+              pointerEvents="none"
+              style={[
+                igTabStyles.indicator,
+                {
+                  width: TAB_INDICATOR_W,
+                  height: TAB_INDICATOR_H,
+                  borderRadius: TAB_INDICATOR_RADIUS,
+                  backgroundColor: isDark ? 'rgba(255,255,255,0.14)' : '#E2E2E2',
+                  top: (TAB_BAR_HEIGHT - TAB_INDICATOR_H) / 2,
+                  transform: [{ translateX: indicatorX }],
+                },
+              ]}
+            />
+            {state.routes.map((route, index) => {
+              const focused = state.index === index;
+              const { options } = descriptors[route.key];
+              const iconSet = TAB_ICONS[route.name] ?? { active: 'ellipse', inactive: 'ellipse-outline' };
+              const color = focused
+                ? isDark
+                  ? '#F8FAFC'
+                  : '#0F172A'
+                : isDark
+                  ? 'rgba(226,232,240,0.55)'
+                  : '#64748B';
+
+              const onPress = () => {
+                const event = navigation.emit({
+                  type: 'tabPress',
+                  target: route.key,
+                  canPreventDefault: true,
+                });
+                if (!focused && !event.defaultPrevented) {
+                  navigation.navigate(route.name, route.params);
+                }
+              };
+
+              return (
+                <React.Fragment key={route.key}>
+                  {index > 0 ? (
+                    <View
+                      pointerEvents="none"
+                      style={[
+                        igTabStyles.sep,
+                        {
+                          backgroundColor: isDark
+                            ? 'rgba(255,255,255,0.18)'
+                            : 'rgba(15,23,42,0.14)',
+                        },
+                      ]}
+                    />
+                  ) : null}
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityState={focused ? { selected: true } : {}}
+                    accessibilityLabel={options.tabBarAccessibilityLabel ?? options.title ?? route.name}
+                    onPress={onPress}
+                    onLongPress={() => {
+                      navigation.emit({ type: 'tabLongPress', target: route.key });
+                    }}
+                    style={igTabStyles.item}
+                    onLayout={(e) => {
+                      const { x, width } = e.nativeEvent.layout;
+                      tabCenters.current[index] = x + width / 2 - TAB_INDICATOR_W / 2;
+                      if (index === state.index) {
+                        animateIndicatorTo(index, !indicatorReady.current);
+                      }
+                    }}
+                  >
+                    <Ionicons
+                      name={focused ? iconSet.active : iconSet.inactive}
+                      size={TAB_ICON_SIZE}
+                      color={color}
+                    />
+                  </Pressable>
+                </React.Fragment>
+              );
+            })}
+          </View>
+        </View>
+      </View>
+      <Text
+        style={[
+          igTabStyles.metaLine,
+          {
+            height: metaLineH,
+            color: isDark ? 'rgba(226,232,240,0.45)' : 'rgba(100,116,139,0.75)',
+          },
+        ]}
+        numberOfLines={1}
+        pointerEvents="none"
+      >
+        {metaText}
+      </Text>
+    </View>
+  );
+}
+
+const igTabStyles = StyleSheet.create({
+  dock: {
+    position: 'absolute',
+    zIndex: 100,
+    elevation: 100,
+  },
+  pillShadow: {
+    borderRadius: 999,
+    shadowOpacity: 0.18,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 14,
+  },
+  pill: {
+    borderRadius: 999,
+    borderWidth: StyleSheet.hairlineWidth * 2,
+    overflow: 'hidden',
+  },
+  indicator: {
+    position: 'absolute',
+    left: 0,
+  },
+  row: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  item: {
+    flex: 1,
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sep: {
+    width: StyleSheet.hairlineWidth * 2,
+    height: 22,
+    borderRadius: 1,
+    alignSelf: 'center',
+  },
+  metaLine: {
+    textAlign: 'center',
+    fontSize: 10,
+    fontWeight: '600',
+    letterSpacing: 0.1,
+  },
+});
+
 function MainTabs() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const mode = useThemeMode();
-  void mode;
+  const isDark = mode === 'dark';
   const fontScale = useFontScaleMultiplier();
   const headerTitleFont = Math.round(20 * fontScale);
-  const tabLabelFont = Math.round(12 * fontScale);
-  const floatBottom = Math.max(insets.bottom, 10) + 6;
+  const floatBottom = Math.max(insets.bottom > 0 ? 6 : 10, 6);
+  const contentBottomPad = TAB_BAR_HEIGHT + 4 + 16 + floatBottom + 8;
   const screenOptions = {
     headerStyle: {
       backgroundColor: colors.primary,
@@ -80,47 +361,33 @@ function MainTabs() {
   };
   return (
     <Tab.Navigator
+      tabBar={(props) => <InstagramGlassTabBar {...props} />}
+      safeAreaInsets={{ top: 0, bottom: 0, left: 0, right: 0 }}
       screenOptions={{
         ...screenOptions,
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.textMuted,
-        sceneStyle: {
-          backgroundColor: 'transparent',
-          paddingBottom: 72 + floatBottom,
-        },
+        tabBarShowLabel: false,
+        tabBarActiveTintColor: isDark ? '#F8FAFC' : '#0F172A',
+        tabBarInactiveTintColor: isDark ? 'rgba(226,232,240,0.55)' : '#64748B',
         tabBarStyle: {
           position: 'absolute',
-          left: 14,
-          right: 14,
-          bottom: floatBottom,
-          height: 64,
-          borderRadius: 22,
-          backgroundColor: colors.surface,
+          backgroundColor: 'transparent',
           borderTopWidth: 0,
-          borderWidth: 1,
-          borderColor: colors.border,
-          paddingTop: 6,
-          paddingBottom: 8,
-          elevation: 12,
-          shadowColor: '#0f172a',
-          shadowOpacity: 0.18,
-          shadowRadius: 16,
-          shadowOffset: { width: 0, height: 8 },
+          elevation: 0,
+          height: 0,
         },
-        tabBarItemStyle: { borderRightWidth: 0 },
-        tabBarLabelStyle: { fontSize: tabLabelFont, fontWeight: '700' },
+        sceneStyle: {
+          backgroundColor: colors.background,
+          paddingBottom: contentBottomPad,
+        },
       }}
     >
       <Tab.Screen
         name="Roster"
         component={RosterTabScreen}
         options={{
-          tabBarLabel: t('nav.rosterTab'),
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="calendar-outline" size={size ?? 24} color={color} />
-          ),
-          headerShown: true,
           title: t('nav.roster'),
+          tabBarAccessibilityLabel: t('nav.rosterTab'),
+          headerShown: true,
         }}
       />
       <Tab.Screen
@@ -129,10 +396,7 @@ function MainTabs() {
         options={{
           headerShown: true,
           title: t('nav.family'),
-          tabBarLabel: t('nav.family'),
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="people-outline" size={size ?? 24} color={color} />
-          ),
+          tabBarAccessibilityLabel: t('nav.family'),
         }}
       />
       <Tab.Screen
@@ -141,10 +405,7 @@ function MainTabs() {
         options={{
           headerShown: true,
           title: t('nav.profile'),
-          tabBarLabel: t('nav.profile'),
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="person-outline" size={size ?? 24} color={color} />
-          ),
+          tabBarAccessibilityLabel: t('nav.profile'),
         }}
       />
     </Tab.Navigator>
@@ -311,7 +572,14 @@ function RootNavigator() {
           <Stack.Screen
             name="AddFlight"
             component={AddFlight}
-            options={withStackBackButton({ title: t('nav.addFlight'), headerBackTitle: t('common.back') })}
+            options={({ route }) =>
+              withStackBackButton({
+                title: (route.params as { replaceStandbyFlightId?: string } | undefined)?.replaceStandbyFlightId
+                  ? t('roster.assignFlightsTitle')
+                  : t('nav.addFlight'),
+                headerBackTitle: t('common.back'),
+              })
+            }
           />
           <Stack.Screen
             name="EditFlight"
@@ -400,7 +668,7 @@ export default function App() {
           source={require('./assets/aviation-bg-landing.png')}
           style={{ flex: 1 }}
           imageStyle={{
-            opacity: mode === 'dark' ? 0.14 : 0.2,
+            opacity: mode === 'dark' ? 0.12 : 0.12,
             // Pisti biraz yukarı al ki tab bar ile çakışmasın.
             transform: [{ translateY: 10 }],
           }}

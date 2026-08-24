@@ -8,6 +8,7 @@ import { supabase } from '@/lib/supabase';
 import { formatFlightDateTr, getLocalDateString } from '@/lib/dateUtils';
 import { formatFamilyFlightTimeRange } from '@/lib/flightDisplayTime';
 import { colors, useThemeMode } from '@/theme/colors';
+import { resolveRosterCardVisualKind, rosterCardChrome, rosterCardInk } from '@/theme/rosterCardVisual';
 import { fetchMySubscriptionAccess, type SubscriptionAccess } from '@/lib/subscriptionAccess';
 
 type FlightWithCrew = {
@@ -21,6 +22,8 @@ type FlightWithCrew = {
   actual_departure?: string | null;
   actual_arrival?: string | null;
   updated_at?: string | null;
+  flight_status?: string | null;
+  roster_entry_kind?: string | null;
   crew_profiles: { company_name: string | null } | null;
 };
 
@@ -28,7 +31,7 @@ export default function FamilyDashboard() {
   const { t } = useTranslation();
   const { profile, signOut } = useSession();
   const themeMode = useThemeMode();
-  void themeMode;
+  const cardInk = rosterCardInk(themeMode);
   const [flights, setFlights] = useState<FlightWithCrew[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -64,7 +67,7 @@ export default function FamilyDashboard() {
     const { data, error } = await supabase
       .from('flights')
       .select(
-        'id, flight_number, origin_airport, destination_airport, flight_date, scheduled_departure, scheduled_arrival, actual_departure, actual_arrival, updated_at, crew_profiles(company_name)'
+        'id, flight_number, origin_airport, destination_airport, flight_date, scheduled_departure, scheduled_arrival, actual_departure, actual_arrival, updated_at, flight_status, roster_entry_kind, crew_profiles(company_name)'
       )
       .in('crew_id', crewIds)
       .gte('flight_date', getLocalDateString())
@@ -171,19 +174,35 @@ export default function FamilyDashboard() {
               tintColor={colors.primary}
             />
           }
-          renderItem={({ item, index }) => (
-            <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          renderItem={({ item, index }) => {
+            const code = (item.flight_number || '').trim().toUpperCase();
+            const isStandby =
+              code.startsWith('STB') ||
+              code === 'HSBY' ||
+              code === 'SBY' ||
+              /^SB\d?$/.test(code) ||
+              code === 'SBX';
+            const chrome = rosterCardChrome(
+              resolveRosterCardVisualKind({
+                rosterEntryKind: item.roster_entry_kind,
+                flightStatus: item.flight_status,
+                isStandbyDutyCode: isStandby,
+              }),
+              themeMode,
+            );
+            return (
+            <View style={[styles.card, chrome]}>
               <View style={styles.dateRow}>
                 <View style={styles.dateRowNumber}>
                   <Text style={styles.dateRowNumberText}>{index + 1}</Text>
                 </View>
-                <Text style={[styles.date, { color: colors.textSecondary }]}>{formatDate(item.flight_date)}</Text>
+                <Text style={[styles.date, { color: cardInk.secondary }]}>{formatDate(item.flight_date)}</Text>
               </View>
-              <Text style={[styles.crew, { color: colors.primary }]}>{crewLabel(item)}</Text>
-              <Text style={[styles.route, { color: colors.text }]}>
+              <Text style={[styles.crew, { color: cardInk.onAccent }]}>{crewLabel(item)}</Text>
+              <Text style={[styles.route, { color: cardInk.primary }]}>
                 {item.flight_number} · {item.origin_airport || '—'} → {item.destination_airport || '—'}
               </Text>
-              <Text style={[styles.times, { color: colors.textMuted }]}>
+              <Text style={[styles.times, { color: cardInk.muted }]}>
                 {formatFamilyFlightTimeRange(
                   item.scheduled_departure,
                   item.scheduled_arrival,
@@ -191,7 +210,7 @@ export default function FamilyDashboard() {
                 )}
               </Text>
               {item.updated_at && (
-                <Text style={[styles.updatedAt, { color: colors.textMuted }]}>
+                <Text style={[styles.updatedAt, { color: cardInk.muted }]}>
                   Son güncelleme:{' '}
                   {new Date(item.updated_at).toLocaleString(undefined, {
                     day: '2-digit',
@@ -202,7 +221,8 @@ export default function FamilyDashboard() {
                 </Text>
               )}
             </View>
-          )}
+            );
+          }}
         />
       )}
 
@@ -251,12 +271,9 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
   },
   card: {
-    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
   },
   dateRow: {
     flexDirection: 'row',

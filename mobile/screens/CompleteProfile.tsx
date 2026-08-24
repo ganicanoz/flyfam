@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   View,
   Text,
+  TextInput,
   TouchableOpacity,
   StyleSheet,
   KeyboardAvoidingView,
@@ -22,10 +23,15 @@ import { AIRLINES, Airline } from '../constants/airlines';
 export default function CompleteProfile() {
   const { t } = useTranslation();
   const [selectedAirline, setSelectedAirline] = useState<Airline | null>(null);
+  const [icaoEdit, setIcaoEdit] = useState('');
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const { profile, refreshProfile } = useSession();
   const isCrew = profile?.role === 'crew';
+
+  useEffect(() => {
+    if (selectedAirline) setIcaoEdit(selectedAirline.icao);
+  }, [selectedAirline]);
 
   const handleComplete = async () => {
     if (isCrew && !selectedAirline) {
@@ -33,17 +39,45 @@ export default function CompleteProfile() {
       return;
     }
 
+    const icao = (icaoEdit || selectedAirline?.icao || '').trim().toUpperCase().slice(0, 12);
+    if (isCrew && !icao) {
+      Alert.alert(t('common.error'), 'ICAO code is required');
+      return;
+    }
+
     setLoading(true);
-    if (isCrew) {
-      const { error } = await supabase.rpc('create_crew_profile', {
-        p_company_name: selectedAirline!.name,
-        p_time_preference: 'local',
-        p_airline_icao: selectedAirline!.icao,
-      });
-      if (error) {
-        setLoading(false);
-        Alert.alert(t('common.error'), error.message);
-        return;
+    if (isCrew && profile?.id) {
+      const { data: existing } = await supabase
+        .from('crew_profiles')
+        .select('id')
+        .eq('user_id', profile.id)
+        .maybeSingle();
+
+      if (existing?.id) {
+        const { error } = await supabase
+          .from('crew_profiles')
+          .update({
+            company_name: selectedAirline!.name,
+            airline_icao: icao,
+            time_preference: 'local',
+          })
+          .eq('id', existing.id);
+        if (error) {
+          setLoading(false);
+          Alert.alert(t('common.error'), error.message);
+          return;
+        }
+      } else {
+        const { error } = await supabase.rpc('create_crew_profile', {
+          p_company_name: selectedAirline!.name,
+          p_time_preference: 'local',
+          p_airline_icao: icao,
+        });
+        if (error) {
+          setLoading(false);
+          Alert.alert(t('common.error'), error.message);
+          return;
+        }
       }
     }
     await refreshProfile();
@@ -83,6 +117,21 @@ export default function CompleteProfile() {
             )}
             <Text style={[styles.chevron, { color: colors.textMuted }]}>▼</Text>
           </TouchableOpacity>
+
+          <Text style={[styles.label, { color: colors.textSecondary }]}>ICAO</Text>
+          <TextInput
+            style={[
+              styles.icaoInput,
+              { color: colors.text, borderColor: colors.border, backgroundColor: colors.surface },
+            ]}
+            value={icaoEdit}
+            onChangeText={(s) => setIcaoEdit(s.toUpperCase())}
+            placeholder="PGT, THY, …"
+            placeholderTextColor={colors.textMuted}
+            autoCapitalize="characters"
+            maxLength={12}
+            editable={!loading}
+          />
 
           <Modal visible={dropdownOpen} transparent animationType="fade">
             <Pressable style={styles.modalOverlay} onPress={() => setDropdownOpen(false)}>
@@ -131,6 +180,13 @@ const styles = StyleSheet.create({
   title: { fontSize: 28, fontWeight: '700', marginTop: 80, marginBottom: 4 },
   subtitle: { fontSize: 16, marginBottom: 32 },
   label: { fontSize: 14, marginBottom: 8 },
+  icaoInput: {
+    fontSize: 16,
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 24,
+  },
   dropdown: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -148,7 +204,7 @@ const styles = StyleSheet.create({
   airlineIcao: { fontSize: 12 },
   placeholder: { fontSize: 16 },
   chevron: { fontSize: 10 },
-  logo: { width: 40, height: 40, borderRadius: 4 },
+  logo: { width: 32, height: 32, borderRadius: 4 },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 24 },
   modalContent: { backgroundColor: colors.surface, borderRadius: 16, padding: 20, maxHeight: 400 },
   modalTitle: { fontSize: 18, fontWeight: '600', marginBottom: 16 },

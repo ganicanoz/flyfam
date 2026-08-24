@@ -59,5 +59,62 @@ target 'FlyFam' do
       :mac_catalyst_enabled => false,
       :ccache_enabled => ccache_enabled?(podfile_properties),
     )
+# @generated begin post-install-build-settings - expo prebuild (DO NOT MODIFY) sync-f4e2a1acf7da60b403fcf5c1d5d9517cb9953853
+    installer.pods_project.targets.each do |target|
+      unless target.name == 'Sentry'
+        target.build_configurations.each do |config|
+          config.build_settings['APPLICATION_EXTENSION_API_ONLY'] = 'No'
+        end
+      end
+    end
+# @generated end post-install-build-settings
+
+    # Xcode 26.x + fmt consteval build issue workaround.
+    fmt_base = File.join(installer.sandbox.root.to_s, 'fmt/include/fmt/base.h')
+    if File.exist?(fmt_base)
+      raw = File.read(fmt_base)
+      unless raw.include?('FLYFAM_FMT_CONSTEVAL_OFF')
+        raw = raw.gsub(
+          "#elif defined(__cpp_consteval)\n# define FMT_USE_CONSTEVAL 1",
+          "#elif defined(__cpp_consteval) && 0 // FLYFAM_FMT_CONSTEVAL_OFF\n# define FMT_USE_CONSTEVAL 1",
+        ).gsub(
+          "#elif FMT_GCC_VERSION >= 1002 || FMT_CLANG_VERSION >= 1101\n# define FMT_USE_CONSTEVAL 1",
+          "#elif (FMT_GCC_VERSION >= 1002 || FMT_CLANG_VERSION >= 1101) && 0 // FLYFAM_FMT_CONSTEVAL_OFF\n# define FMT_USE_CONSTEVAL 1",
+        )
+        File.chmod(File.stat(fmt_base).mode | 0o200, fmt_base) rescue nil
+        File.write(fmt_base, raw)
+      end
+    end
   end
+end
+
+target 'FlyFamShareExtension' do     
+  exclude = ["expo-updates", "expo-dev-client", "expo-splash-screen"]
+  use_expo_modules!(exclude: exclude)
+  
+  if ENV['EXPO_USE_COMMUNITY_AUTOLINKING'] == '1'
+    config_command = ['node', '-e', "process.argv=['', '', 'config'];require('@react-native-community/cli').run()"];
+  else
+    config_command = [
+      'npx',
+      'expo-modules-autolinking',
+      'react-native-config',
+      '--json',
+      '--platform',
+      'ios'
+    ]
+  end
+
+  config = use_native_modules!(config_command)
+          
+  use_frameworks! :linkage => podfile_properties['ios.useFrameworks'].to_sym if podfile_properties['ios.useFrameworks']
+  use_frameworks! :linkage => ENV['USE_FRAMEWORKS'].to_sym if ENV['USE_FRAMEWORKS']
+          
+  use_react_native!(
+    :path => config[:reactNativePath],
+    :hermes_enabled => podfile_properties['expo.jsEngine'] == nil || podfile_properties['expo.jsEngine'] == 'hermes',
+    # An absolute path to your application root.
+    :app_path => "#{Pod::Config.instance.installation_root}/..",
+    :privacy_file_aggregation_enabled => podfile_properties['apple.privacyManifestAggregationEnabled'] != 'false',
+  )
 end

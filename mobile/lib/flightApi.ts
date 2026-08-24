@@ -9,6 +9,7 @@ import {
   isFlightProviderInCooldown,
 } from './flightProviderCooldown';
 import { getEffectiveUtcOffsetMinutesForAirportAtFlightDate, utcIsoToLocalDateAtAirport } from './airportUtcOffset';
+import { buildAerodataboxFlightNumberSources } from './aerodataboxHttp';
 
 export { utcIsoToLocalDateAtAirport } from './airportUtcOffset';
 
@@ -20,20 +21,6 @@ const FR24_TOKEN =
 const AVIATION_KEY = '';
 const AIRLABS_KEY =
   Constants.expoConfig?.extra?.airlabsKey ?? process.env.EXPO_PUBLIC_AIRLABS_API_KEY;
-/** RapidAPI — env yoksa yerleşik anahtar (üretimde secret tercih edilir). */
-const AERODATABOX_RAPIDAPI_FALLBACK = '15e502192bmsh69e44f588a1f748p1f3145jsnb8957fc1856c';
-const AERODATABOX_RAPIDAPI_KEY =
-  (Constants.expoConfig?.extra?.aerodataboxRapidApiKey ?? process.env.EXPO_PUBLIC_AERODATABOX_RAPIDAPI_KEY ?? '')
-    .trim() || AERODATABOX_RAPIDAPI_FALLBACK;
-const AERODATABOX_APIMARKET_BASE =
-  (Constants.expoConfig?.extra?.aerodataboxApiMarketBase ??
-    process.env.EXPO_PUBLIC_AERODATABOX_APIMARKET_BASE ??
-    '').trim();
-const AERODATABOX_APIMARKET_KEY =
-  (Constants.expoConfig?.extra?.aerodataboxApiMarketKey ??
-    process.env.EXPO_PUBLIC_AERODATABOX_APIMARKET_KEY ??
-    '').trim();
-
 /** Uçuş araması: FR24 + AirLabs. */
 export const hasFlightApiKeys = !!FR24_TOKEN || !!AIRLABS_KEY;
 
@@ -458,7 +445,7 @@ function deriveAeStatusFromActualTimes(
 
 
 // IATA -> ICAO (Flightradar24 often uses ICAO in data)
-const IATA_TO_ICAO: Record<string, string> = { PC: 'PGT', TK: 'THY', XQ: 'SXS', VF: 'TKJ' };
+const IATA_TO_ICAO: Record<string, string> = { PC: 'PGT', TK: 'THY', XQ: 'SXS', VF: 'TKJ', '6E': 'IGO' };
 
 // Build variants of flight number (e.g. PC614 -> PC614, PC0614, PGT614 for FR24)
 function flightNumberVariants(flightNumber: string): string[] {
@@ -517,6 +504,117 @@ function localIsoToUtcIso(iso: string | null | undefined, offsetMinutes: number)
   const localAsUtcMs = Date.UTC(Number(y), Number(mo) - 1, Number(d), Number(h), Number(min), Number(sec ?? 0));
   const utcMs = localAsUtcMs - offsetMinutes * 60 * 1000;
   return new Date(utcMs).toISOString();
+}
+
+function hhmmFromIsoLike(raw: string | null | undefined): string | undefined {
+  if (!raw || typeof raw !== 'string') return undefined;
+  const s = raw.trim().replace(' ', 'T');
+  const isoMatch = s.match(/T(\d{1,2}):(\d{2})/);
+  if (isoMatch) return `${isoMatch[1].padStart(2, '0')}:${isoMatch[2]}`;
+  if (/^\d{1,2}:\d{2}/.test(s)) return s.slice(0, 5);
+  return undefined;
+}
+
+/** Yerel API alanını (dep_time / scheduledTimeLocal) havalimanı offset'i ile UTC ISO'ya çevirir. */
+function parseLocalFieldToUtcIso(
+  localRaw: string,
+  airportCode: string,
+  fallbackDateYmd?: string,
+): string | undefined {
+  const s0 = localRaw.trim().replace(' ', 'T');
+  if (s0.endsWith('Z') || /[+-]\d{2}:?\d{2}$/.test(s0)) return toUtcIsoStrict(s0);
+  const ymdInField = /^\d{4}-\d{2}-\d{2}/.test(s0) ? s0.slice(0, 10) : '';
+  const code = airportCode.replace(/\s/g, '').toUpperCase();
+  const offsetMin =
+    (ymdInField ? getEffectiveUtcOffsetMinutesForAirportAtFlightDate(code, ymdInField) : 0) ||
+    (fallbackDateYmd ? getEffectiveUtcOffsetMinutesForAirportAtFlightDate(code, fallbackDateYmd) : 0) ||
+    0;
+  if (/^\d{4}-\d{2}-\d{2}T\d{1,2}:\d{2}/.test(s0)) {
+    return localIsoToUtcIso(s0, offsetMin);
+  }
+  if (ymdInField && /^\d{1,2}:\d{2}/.test(s0)) {
+    return localTimeToUtcIso(ymdInField, s0, offsetMin);
+  }
+  if (fallbackDateYmd && /^\d{1,2}:\d{2}/.test(s0)) {
+    return localTimeToUtcIso(fallbackDateYmd, s0, offsetMin);
+  }
+  return undefined;
+}
+
+/**
+ * API alanı: önce gerçek UTC (`*_utc` / Z / ±offset), yoksa havalimanı yerel duvar saati → UTC.
+ * Lokal string'e asla `Z` eklenmez (AirLabs dep_time / AeroDataBox scheduledTimeLocal).
+ *
+ * AirLabs: `dep_time` yerel, `dep_time_utc` Zulu. Bazen *_utc alanı offset'siz (veya yanlış Z’li)
+ * ve dep_time ile aynı duvar saatini taşır — bu durumda UTC sanılmaz, yerel yorumlanır.
+ */
+function utcFieldOrAirportLocalToUtcIso(
+  utcRaw: string | null | undefined,
+  localRaw: string | null | undefined,
+  airportCode: string,
+  fallbackDateYmd?: string,
+): string | undefined {
+  const localStr = localRaw && String(localRaw).trim() ? String(localRaw).trim() : '';
+  const localParsed = localStr ? parseLocalFieldToUtcIso(localStr, airportCode, fallbackDateYmd) : undefined;
+
+  const utcStr = utcRaw && String(utcRaw).trim() ? String(utcRaw).trim() : '';
+  const utcStrict = utcStr ? toUtcIsoStrict(utcStr) : undefined;
+  const utcOffsetless =
+    utcStr && !toUtcIsoStrict(utcStr) && !utcStr.endsWith('Z') && !/[+-]\d{2}:?\d{2}$/.test(utcStr.replace(' ', 'T'))
+      ? utcStr
+      : '';
+
+  // Aynı duvar saati (offset’siz veya yanlış Z) → yerel yorum.
+  if (localParsed && (utcStrict || utcOffsetless)) {
+    const uClock = hhmmFromIsoLike(utcStrict ?? utcOffsetless);
+    const lClock = hhmmFromIsoLike(localStr);
+    if (uClock && lClock && uClock === lClock) return localParsed;
+  }
+
+  if (utcStrict) return utcStrict;
+  if (localParsed && utcOffsetless) {
+    const uClock = hhmmFromIsoLike(utcOffsetless);
+    const lClock = hhmmFromIsoLike(localStr);
+    if (uClock && lClock && uClock === lClock) return localParsed;
+    return toUtcIsoAssumeUtc(utcOffsetless) ?? localParsed;
+  }
+  if (localParsed) return localParsed;
+  if (utcOffsetless) return toUtcIsoAssumeUtc(utcOffsetless);
+  return undefined;
+}
+
+function fr24LegAirportCode(f: Record<string, unknown>, leg: 'origin' | 'destination'): string {
+  if (leg === 'origin') {
+    return String(f.orig_icao ?? f.origin_icao ?? f.orig_iata ?? f.origin_iata ?? '')
+      .trim()
+      .toUpperCase();
+  }
+  return String(
+    f.dest_icao ??
+      f.destination_icao ??
+      f.destination_icao_actual ??
+      f.dest_iata ??
+      f.destination_iata ??
+      '',
+  )
+    .trim()
+    .toUpperCase();
+}
+
+/** HH:MM at airport local → UTC ISO (manuel ekleme yedek yolu). */
+export function airportLocalHhmmToUtcIso(
+  dateYmd: string,
+  hhmm: string,
+  airportCode: string | null | undefined,
+): string | undefined {
+  if (!dateYmd || !/^\d{4}-\d{2}-\d{2}$/.test(dateYmd)) return undefined;
+  if (!hhmm || !/^\d{1,2}:\d{2}/.test(hhmm.trim())) return undefined;
+  const code = (airportCode || '').replace(/\s/g, '').toUpperCase();
+  if (!code) {
+    return toUtcIsoAssumeUtc(`${dateYmd}T${hhmm.trim().slice(0, 5)}:00`);
+  }
+  const offsetMin = getEffectiveUtcOffsetMinutesForAirportAtFlightDate(code, dateYmd);
+  return localTimeToUtcIso(dateYmd, hhmm.trim(), offsetMin);
 }
 
 /** Build UTC ISO from date + time; previously treated as UTC (for APIs that return UTC). */
@@ -1017,9 +1115,7 @@ async function fetchFromFlightradar24(flightNumber: string, date: string): Promi
         const live = candidates.find((x) => x?.flight_ended === false || x?.flightEnded === false);
         if (live) return live;
         const score = (x: any) => {
-          const origin = String(
-            (x?.orig_icao ?? x?.origin_icao ?? x?.orig_iata ?? x?.origin_iata ?? '') as string,
-          ).toUpperCase();
+          const origin = fr24LegAirportCode(x ?? {}, 'origin');
           const depSched = (x?.scheduled_departure_utc ?? x?.scheduled_departure) as string | undefined;
           const iso =
             depSched && String(depSched).trim()
@@ -1039,9 +1135,7 @@ async function fetchFromFlightradar24(flightNumber: string, date: string): Promi
         return [...candidates].sort((a, b) => score(b) - score(a))[0] ?? null;
       };
       const getOriginLocalDepDate = (x: Record<string, unknown>) => {
-        const origin = String(
-          (x.orig_icao ?? x.origin_icao ?? x.orig_iata ?? x.origin_iata ?? '') as string,
-        ).toUpperCase();
+        const origin = fr24LegAirportCode(x, 'origin');
         const depScheduled = (x.scheduled_departure_utc ?? x.scheduled_departure) as string | undefined;
         const firstSeen = (x.first_seen ?? x.firstSeen) as string | undefined;
         const takeoff = (x.datetime_takeoff ?? x.datetimeTakeoff) as string | undefined;
@@ -1061,8 +1155,8 @@ async function fetchFromFlightradar24(flightNumber: string, date: string): Promi
       console.log('[FR24] No flight on selected date', targetDay);
       return null;
     }
-    const origin = (f.orig_icao ?? f.origin_icao ?? '') as string;
-    const destination = (f.dest_icao ?? f.destination_icao ?? f.destination_icao_actual ?? '') as string;
+    const origin = fr24LegAirportCode(f as Record<string, unknown>, 'origin');
+    const destination = fr24LegAirportCode(f as Record<string, unknown>, 'destination');
     if (!origin && !destination) {
       console.log('[FR24] Flight found but no origin/destination');
       return null;
@@ -1106,8 +1200,8 @@ async function fetchFromFlightradar24(flightNumber: string, date: string): Promi
       destination,
       originCity,
       destinationCity,
-      depTime: depIso ? (depScheduled ? parseTime(depScheduled) : parseTime(depIso)) : '',
-      arrTime: arrIso ? (arrScheduled ? parseTime(arrScheduled) : parseTime(arrIso)) : '',
+      depTime: depIso ? parseTime(depIso) : '',
+      arrTime: arrIso ? parseTime(arrIso) : '',
       scheduled_departure_utc: depIso,
       scheduled_arrival_utc: arrIso,
       // No actual_departure_utc / actual_arrival_utc from FR24 — only status from 0–4.
@@ -1156,6 +1250,13 @@ async function fetchFromFlightradar24(flightNumber: string, date: string): Promi
   }
 }
 
+/** FR24 aircraft page by tail registration (e.g. TC-JFK). */
+export function fr24UrlForAircraftRegistration(registration: string | null | undefined): string | null {
+  const reg = String(registration ?? '').trim();
+  if (!reg) return null;
+  return `https://www.flightradar24.com/data/aircraft/${encodeURIComponent(reg.toLowerCase())}`;
+}
+
 function fr24WebUrlFromFlightInfo(flightNumber: string, date: string, info: FlightInfo | null): string {
   const callsign = info?.callsign?.trim()?.toUpperCase();
   const id = info?.fr24Id?.trim();
@@ -1171,8 +1272,8 @@ function fr24WebUrlFromFlightInfo(flightNumber: string, date: string, info: Flig
   if (callsign && info?.flightEnded === false) {
     return `https://fr24.com/${encodeURIComponent(callsign)}`;
   }
-  const reg = info?.aircraftRegistration?.trim();
-  if (reg) return `https://www.flightradar24.com/data/aircraft/${encodeURIComponent(reg.toLowerCase())}`;
+  const regUrl = fr24UrlForAircraftRegistration(info?.aircraftRegistration);
+  if (regUrl) return regUrl;
   const code = flightNumber.trim().toLowerCase().replace(/\s+/g, '');
   const base = `https://www.flightradar24.com/data/flights/${encodeURIComponent(code)}`;
   return date ? `${base}?date=${encodeURIComponent(date)}` : base;
@@ -1310,8 +1411,20 @@ function applyAeStatusByFlowchart(info: FlightInfo, nowMs: number): FlightInfo {
   return info;
 }
 
+/** AirLabs Unix epoch (seconds) → UTC ISO; string parse hatalarından bağımsız. */
+function airlabsUnixTsToIso(ts: unknown): string | undefined {
+  if (typeof ts === 'number' && ts > 1e9) {
+    const ms = new Date(ts * 1000).getTime();
+    if (Number.isFinite(ms)) return new Date(ms).toISOString();
+  }
+  return undefined;
+}
+
 /** AirLabs /flight fallback (closest leg; not strict by selected date). */
-async function fetchFromAirLabsFlight(flightNumber: string): Promise<FlightInfo | null> {
+async function fetchFromAirLabsFlight(
+  flightNumber: string,
+  fallbackDateYmd?: string,
+): Promise<FlightInfo | null> {
   if (!AIRLABS_KEY) return null;
   if (await isFlightProviderInCooldown(FLIGHT_PROVIDER_AIRLABS)) return null;
   const raw = flightNumber.replace(/\s/g, '').trim().toUpperCase();
@@ -1331,18 +1444,36 @@ async function fetchFromAirLabsFlight(flightNumber: string): Promise<FlightInfo 
       if (!res.ok || json?.error) continue;
       const f: any = json?.response ?? json;
       if (!f || typeof f !== 'object') continue;
-      const depIso = toUtcIsoAssumeUtc(f.dep_time_utc ?? f.dep_time);
-      const arrIso = toUtcIsoAssumeUtc(f.arr_time_utc ?? f.arr_time);
-      const depActualIso = toUtcIsoAssumeUtc(f.dep_actual_utc ?? f.dep_actual);
-      const arrActualIso = toUtcIsoAssumeUtc(f.arr_actual_utc ?? f.arr_actual);
+      const origin = toIataCode(f.dep_iata ?? f.dep_icao ?? '') ?? '';
+      const destination = toIataCode(f.arr_iata ?? f.arr_icao ?? '') ?? '';
+      // AirLabs: scheduled için dep_time_ts (Unix) en güvenilir; estimated_ts gecikmeli olabilir.
+      const depIso =
+        airlabsUnixTsToIso(f.dep_time_ts) ??
+        utcFieldOrAirportLocalToUtcIso(
+          f.dep_time_utc,
+          f.dep_time ?? f.dep_estimated,
+          origin,
+          fallbackDateYmd,
+        );
+      const arrIso =
+        airlabsUnixTsToIso(f.arr_time_ts) ??
+        utcFieldOrAirportLocalToUtcIso(
+          f.arr_time_utc,
+          f.arr_time ?? f.arr_estimated,
+          destination,
+          fallbackDateYmd,
+        );
+      const depActualIso = utcFieldOrAirportLocalToUtcIso(f.dep_actual_utc, f.dep_actual, origin, fallbackDateYmd);
+      const arrActualIso = utcFieldOrAirportLocalToUtcIso(f.arr_actual_utc, f.arr_actual, destination, fallbackDateYmd);
       const mapped = mapAviationEdgeStatus(typeof f.status === 'string' ? f.status : undefined);
       const out: FlightInfo = {
-        origin: toIataCode(f.dep_iata ?? f.dep_icao ?? '') ?? '',
-        destination: toIataCode(f.arr_iata ?? f.arr_icao ?? '') ?? '',
+        origin,
+        destination,
         originCity: typeof f.dep_city === 'string' ? f.dep_city : undefined,
         destinationCity: typeof f.arr_city === 'string' ? f.arr_city : undefined,
-        depTime: parseTime(f.dep_time ?? f.dep_estimated ?? f.dep_time_utc ?? f.dep_estimated_utc),
-        arrTime: parseTime(f.arr_time ?? f.arr_estimated ?? f.arr_time_utc ?? f.arr_estimated_utc),
+        // UI / yedek HH:MM = UTC (scheduled_*_utc ile tutarlı)
+        depTime: parseTime(depIso),
+        arrTime: parseTime(arrIso),
         scheduled_departure_utc: depIso,
         scheduled_arrival_utc: arrIso,
         actual_departure_utc: depActualIso,
@@ -1364,14 +1495,26 @@ async function fetchFromAirLabsFlight(flightNumber: string): Promise<FlightInfo 
   return null;
 }
 
-function aeroCoerceTimeString(v: unknown): string | undefined {
+function aeroCoerceUtcString(v: unknown): string | undefined {
   if (typeof v === 'string' && v.trim()) return v.trim();
   if (v && typeof v === 'object') {
     const o = v as Record<string, unknown>;
     if (typeof o.utc === 'string' && o.utc.trim()) return o.utc.trim();
+  }
+  return undefined;
+}
+
+function aeroCoerceLocalString(v: unknown): string | undefined {
+  if (typeof v === 'string' && v.trim()) return v.trim();
+  if (v && typeof v === 'object') {
+    const o = v as Record<string, unknown>;
     if (typeof o.local === 'string' && o.local.trim()) return o.local.trim();
   }
   return undefined;
+}
+
+function aeroCoerceTimeString(v: unknown): string | undefined {
+  return aeroCoerceUtcString(v) ?? aeroCoerceLocalString(v);
 }
 
 function aeroRootLegs(root: Record<string, unknown>): { dep: Record<string, unknown>; arr: Record<string, unknown> } {
@@ -1466,51 +1609,79 @@ function mergeAirLabsWithAeroFlightInfo(al: FlightInfo | null, adb: FlightInfo |
 }
 
 /** Havalimanı tahtası ve `/flights/number/` yanıtları aynı bacak şeklini kullanır (`departure` / `arrival`). */
-export function flightInfoFromAeroDataBoxRoot(root: Record<string, unknown>): FlightInfo | null {
+export function flightInfoFromAeroDataBoxRoot(
+  root: Record<string, unknown>,
+  fallbackDateYmd?: string,
+): FlightInfo | null {
   const { dep, arr } = aeroRootLegs(root);
-  const depSched = toUtcIsoAssumeUtc(
-    aeroCoerceTimeString(dep.scheduledTimeUtc) ??
-      aeroCoerceTimeString(dep.scheduledTime) ??
-      aeroCoerceTimeString(dep.scheduledTimeLocal),
-  );
-  const arrSched = toUtcIsoAssumeUtc(
-    aeroCoerceTimeString(arr.scheduledTimeUtc) ??
-      aeroCoerceTimeString(arr.scheduledTime) ??
-      aeroCoerceTimeString(arr.scheduledTimeLocal),
-  );
-  const depExp = toUtcIsoAssumeUtc(
-    aeroCoerceTimeString(dep.predictedTimeUtc) ??
-      aeroCoerceTimeString(dep.predictedTime) ??
-      aeroCoerceTimeString(dep.estimatedTimeUtc) ??
-      aeroCoerceTimeString(dep.estimatedTime) ??
-      aeroCoerceTimeString(dep.expectedTimeUtc) ??
-      aeroCoerceTimeString(dep.expectedTime),
-  );
-  const arrExp = toUtcIsoAssumeUtc(
-    aeroCoerceTimeString(arr.predictedTimeUtc) ??
-      aeroCoerceTimeString(arr.predictedTime) ??
-      aeroCoerceTimeString(arr.estimatedTimeUtc) ??
-      aeroCoerceTimeString(arr.estimatedTime) ??
-      aeroCoerceTimeString(arr.expectedTimeUtc) ??
-      aeroCoerceTimeString(arr.expectedTime),
-  );
-  const depIso = depSched ?? depExp;
-  const arrIsoRaw = arrSched ?? arrExp;
-  const arrIso = normalizeOvernightArrival(depIso, arrIsoRaw);
-  const depActual = toUtcIsoAssumeUtc(
-    aeroCoerceTimeString(dep.actualTimeUtc) ??
-      aeroCoerceTimeString(dep.actualTime) ??
-      aeroCoerceTimeString(dep.runwayTimeUtc),
-  );
-  const arrActual = toUtcIsoAssumeUtc(
-    aeroCoerceTimeString(arr.actualTimeUtc) ??
-      aeroCoerceTimeString(arr.actualTime) ??
-      aeroCoerceTimeString(arr.runwayTimeUtc),
-  );
   const depAp = aeroLegAirportAndCity(dep);
   const arrAp = aeroLegAirportAndCity(arr);
   const origin = toIataCode(depAp.code || (dep.iata as string) || (dep.icao as string) || '') ?? '';
   const destination = toIataCode(arrAp.code || (arr.iata as string) || (arr.icao as string) || '') ?? '';
+
+  // UTC alanları ayrı; Local asla assumeUtc ile Zulu yapılmaz.
+  const depSched = utcFieldOrAirportLocalToUtcIso(
+    aeroCoerceUtcString(dep.scheduledTimeUtc),
+    aeroCoerceLocalString(dep.scheduledTimeLocal) ??
+      (typeof dep.scheduledTime === 'string' ? dep.scheduledTime : aeroCoerceLocalString(dep.scheduledTime)),
+    origin,
+    fallbackDateYmd,
+  );
+  const arrSched = utcFieldOrAirportLocalToUtcIso(
+    aeroCoerceUtcString(arr.scheduledTimeUtc),
+    aeroCoerceLocalString(arr.scheduledTimeLocal) ??
+      (typeof arr.scheduledTime === 'string' ? arr.scheduledTime : aeroCoerceLocalString(arr.scheduledTime)),
+    destination,
+    fallbackDateYmd,
+  );
+  const depExp = utcFieldOrAirportLocalToUtcIso(
+    aeroCoerceUtcString(dep.predictedTimeUtc) ??
+      aeroCoerceUtcString(dep.estimatedTimeUtc) ??
+      aeroCoerceUtcString(dep.expectedTimeUtc),
+    aeroCoerceLocalString(dep.predictedTimeLocal) ??
+      aeroCoerceLocalString(dep.estimatedTimeLocal) ??
+      aeroCoerceLocalString(dep.expectedTimeLocal) ??
+      aeroCoerceLocalString(dep.predictedTime) ??
+      aeroCoerceLocalString(dep.estimatedTime) ??
+      aeroCoerceLocalString(dep.expectedTime) ??
+      (typeof dep.predictedTime === 'string' ? dep.predictedTime : undefined) ??
+      (typeof dep.estimatedTime === 'string' ? dep.estimatedTime : undefined) ??
+      (typeof dep.expectedTime === 'string' ? dep.expectedTime : undefined),
+    origin,
+    fallbackDateYmd,
+  );
+  const arrExp = utcFieldOrAirportLocalToUtcIso(
+    aeroCoerceUtcString(arr.predictedTimeUtc) ??
+      aeroCoerceUtcString(arr.estimatedTimeUtc) ??
+      aeroCoerceUtcString(arr.expectedTimeUtc),
+    aeroCoerceLocalString(arr.predictedTimeLocal) ??
+      aeroCoerceLocalString(arr.estimatedTimeLocal) ??
+      aeroCoerceLocalString(arr.expectedTimeLocal) ??
+      (typeof arr.predictedTime === 'string' ? arr.predictedTime : undefined) ??
+      (typeof arr.estimatedTime === 'string' ? arr.estimatedTime : undefined) ??
+      (typeof arr.expectedTime === 'string' ? arr.expectedTime : undefined),
+    destination,
+    fallbackDateYmd,
+  );
+  const depIso = depSched ?? depExp;
+  const arrIsoRaw = arrSched ?? arrExp;
+  const arrIso = normalizeOvernightArrival(depIso, arrIsoRaw);
+  const depActual = utcFieldOrAirportLocalToUtcIso(
+    aeroCoerceUtcString(dep.actualTimeUtc) ?? aeroCoerceUtcString(dep.runwayTimeUtc),
+    aeroCoerceLocalString(dep.actualTimeLocal) ??
+      aeroCoerceLocalString(dep.runwayTimeLocal) ??
+      (typeof dep.actualTime === 'string' ? dep.actualTime : undefined),
+    origin,
+    fallbackDateYmd,
+  );
+  const arrActual = utcFieldOrAirportLocalToUtcIso(
+    aeroCoerceUtcString(arr.actualTimeUtc) ?? aeroCoerceUtcString(arr.runwayTimeUtc),
+    aeroCoerceLocalString(arr.actualTimeLocal) ??
+      aeroCoerceLocalString(arr.runwayTimeLocal) ??
+      (typeof arr.actualTime === 'string' ? arr.actualTime : undefined),
+    destination,
+    fallbackDateYmd,
+  );
   const stNode = root.status;
   const statusText =
     stNode && typeof stNode === 'object' && 'text' in (stNode as object)
@@ -1544,32 +1715,7 @@ async function fetchFromAeroDataBoxFlight(flightNumber: string, date: string): P
   const raw = flightNumber.replace(/\s/g, '').trim().toUpperCase();
   if (!raw) return null;
   const variants = flightNumberVariants(raw).slice(0, 6);
-  const sources: Array<{ urls: string[]; headers: Record<string, string> }> = [
-    {
-      urls: variants.flatMap((v) => [
-        `https://aerodatabox.p.rapidapi.com/flights/number/${encodeURIComponent(v)}/${encodeURIComponent(date)}?withAircraftImage=false&withLocation=false&withFlightPlan=false&dateLocalRole=Both`,
-        `https://aerodatabox.p.rapidapi.com/flights/number/${encodeURIComponent(v)}/${encodeURIComponent(date)}T00:00?withAircraftImage=false&withLocation=false&withFlightPlan=false&dateLocalRole=Both`,
-      ]),
-      headers: {
-        'x-rapidapi-host': 'aerodatabox.p.rapidapi.com',
-        'x-rapidapi-key': AERODATABOX_RAPIDAPI_KEY,
-      },
-    },
-  ];
-  if (AERODATABOX_APIMARKET_BASE && AERODATABOX_APIMARKET_KEY) {
-    const b = AERODATABOX_APIMARKET_BASE.replace(/\/$/, '');
-    sources.push({
-      urls: variants.flatMap((v) => [
-        `${b}/flights/number/${encodeURIComponent(v)}/${encodeURIComponent(date)}?withAircraftImage=false&withLocation=false&withFlightPlan=false&dateLocalRole=Both`,
-        `${b}/flights/number/${encodeURIComponent(v)}/${encodeURIComponent(date)}T00:00?withAircraftImage=false&withLocation=false&withFlightPlan=false&dateLocalRole=Both`,
-      ]),
-      headers: {
-        'x-api-key': AERODATABOX_APIMARKET_KEY,
-        Authorization: `Bearer ${AERODATABOX_APIMARKET_KEY}`,
-        'User-Agent': 'Mozilla/5.0 FlyFam/1.0',
-      },
-    });
-  }
+  const sources = buildAerodataboxFlightNumberSources(variants, date);
   for (const src of sources) {
     for (const url of src.urls) {
       try {
@@ -1578,7 +1724,7 @@ async function fetchFromAeroDataBoxFlight(flightNumber: string, date: string): P
         const json = await res.json().catch(() => null);
         const root = (Array.isArray(json) ? json[0] : json) as Record<string, unknown> | null;
         if (!root || typeof root !== 'object') continue;
-        const info = flightInfoFromAeroDataBoxRoot(root);
+        const info = flightInfoFromAeroDataBoxRoot(root, date);
         if (info) return info;
       } catch {
         continue;
@@ -1589,7 +1735,7 @@ async function fetchFromAeroDataBoxFlight(flightNumber: string, date: string): P
 }
 
 async function fetchFromTimetablePrimary(flightNumber: string, date: string): Promise<FlightInfo | null> {
-  const al = await fetchFromAirLabsFlight(flightNumber);
+  const al = await fetchFromAirLabsFlight(flightNumber, date);
   if (!timetableNeedsAeroFillFlightInfo(al)) return al;
   const adb = await fetchFromAeroDataBoxFlight(flightNumber, date);
   return mergeAirLabsWithAeroFlightInfo(al, adb);

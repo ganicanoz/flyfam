@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>FlyFam — API &amp; zaman kaynakları</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f8fafc; color: #1e293b; line-height: 1.5; }
+  .page-header { background: #0f172a; color: #fff; padding: 20px 24px; }
+  .page-header h1 { font-size: 18px; font-weight: 600; }
+  .page-header p { font-size: 12px; color: #94a3b8; margin-top: 6px; max-width: 720px; }
+  .content { padding: 24px; max-width: 1100px; margin: 0 auto; }
+  .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px; margin-bottom: 16px; }
+  .card-title { font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 14px; }
+  .badge { display: inline-block; font-size: 10px; padding: 2px 7px; border-radius: 8px; font-weight: 700; margin-right: 4px; }
+  .b-sch { background: #e0f2fe; color: #0369a1; }
+  .b-est { background: #fef3c7; color: #b45309; }
+  .b-act { background: #dcfce7; color: #15803d; }
+  .b-trk { background: #ede9fe; color: #6d28d9; }
+  table.data { width: 100%; border-collapse: collapse; font-size: 12px; }
+  table.data th { text-align: left; background: #f1f5f9; padding: 10px 12px; border-bottom: 2px solid #e2e8f0; color: #475569; }
+  table.data td { padding: 10px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+  table.data code { font-size: 11px; background: #f1f5f9; padding: 2px 6px; border-radius: 4px; }
+  .flow-svg { width: 100%; height: auto; display: block; margin: 8px 0 4px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 12px; font-size: 12px; color: #64748b; }
+  .legend span { display: flex; align-items: center; gap: 6px; }
+  .dot { width: 10px; height: 10px; border-radius: 2px; }
+  .note { font-size: 12px; color: #64748b; margin-top: 10px; padding: 10px 12px; background: #f8fafc; border-radius: 8px; border-left: 3px solid #3b82f6; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 800px) { .grid2 { grid-template-columns: 1fr; } }
+  h2.section { font-size: 15px; font-weight: 600; margin: 28px 0 12px; color: #0f172a; }
+</style>
+</head>
+<body>
+<header class="page-header">
+  <h1>FlyFam — Harici API’ler ve zaman türleri</h1>
+  <p>Scheduled / estimated / actual alanları hangi sağlayıcıdan gelir? <code>datetime_takeoff</code> ve <code>datetime_landed</code> planlı saatten nasıl ayrılır? Özet görsel.</p>
+</header>
+<div class="content">
+
+  <h2 class="section">1. Veri akışı (cron + mobil)</h2>
+  <div class="card">
+    <div class="card-title">Yüksek seviye</div>
+    <svg class="flow-svg" viewBox="0 0 920 200" xmlns="http://www.w3.org/2000/svg" aria-label="Veri akışı diyagramı">
+      <defs>
+        <marker id="arr" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#94a3b8"/></marker>
+      </defs>
+      <rect x="20" y="24" width="130" height="44" rx="8" fill="#fef3c7" stroke="#d97706" stroke-width="1.5"/>
+      <text x="85" y="52" text-anchor="middle" font-size="12" font-weight="600" fill="#78350f">FR24</text>
+      <rect x="20" y="88" width="130" height="44" rx="8" fill="#dbeafe" stroke="#2563eb" stroke-width="1.5"/>
+      <text x="85" y="116" text-anchor="middle" font-size="12" font-weight="600" fill="#1e3a8a">AirLabs</text>
+      <rect x="20" y="152" width="130" height="44" rx="8" fill="#ede9fe" stroke="#7c3aed" stroke-width="1.5"/>
+      <text x="85" y="180" text-anchor="middle" font-size="11" font-weight="600" fill="#4c1d95">AeroDataBox</text>
+      <rect x="200" y="60" width="150" height="100" rx="8" fill="#f1f5f9" stroke="#64748b" stroke-width="1.5"/>
+      <text x="275" y="95" text-anchor="middle" font-size="11" font-weight="700" fill="#334155">Birleştirme</text>
+      <text x="275" y="118" text-anchor="middle" font-size="10" fill="#64748b">mergePollTimetable</text>
+      <text x="275" y="138" text-anchor="middle" font-size="10" fill="#64748b">(+ AeroAPI / Aviationstack</text>
+      <text x="275" y="152" text-anchor="middle" font-size="10" fill="#64748b">belirsiz anlarda)</text>
+      <line x1="150" y1="46" x2="198" y2="95" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arr)"/>
+      <line x1="150" y1="110" x2="198" y2="110" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arr)"/>
+      <line x1="150" y1="174" x2="198" y2="125" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arr)"/>
+      <rect x="400" y="40" width="200" height="140" rx="8" fill="#ecfdf5" stroke="#059669" stroke-width="1.5"/>
+      <text x="500" y="68" text-anchor="middle" font-size="11" font-weight="700" fill="#065f46">Supabase · flights</text>
+      <text x="500" y="92" text-anchor="middle" font-size="10" fill="#047857">scheduled_* (roster planı)</text>
+      <text x="500" y="110" text-anchor="middle" font-size="10" fill="#047857">estimated_* (poll)</text>
+      <text x="500" y="128" text-anchor="middle" font-size="10" fill="#047857">actual_* / fr24_*</text>
+      <text x="500" y="152" text-anchor="middle" font-size="10" fill="#047857">airlabs_progress_percent</text>
+      <line x1="352" y1="110" x2="398" y2="110" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arr)"/>
+      <rect x="660" y="55" width="240" height="110" rx="8" fill="#fff7ed" stroke="#ea580c" stroke-width="1.5"/>
+      <text x="780" y="85" text-anchor="middle" font-size="11" font-weight="700" fill="#9a3412">Mobil uygulama</text>
+      <text x="780" y="108" text-anchor="middle" font-size="10" fill="#c2410c">+ Aviation Edge timetable</text>
+      <text x="780" y="126" text-anchor="middle" font-size="10" fill="#c2410c">(cron’da yok)</text>
+      <text x="780" y="148" text-anchor="middle" font-size="10" fill="#c2410c">FR24 + AirLabs arama</text>
+      <line x1="602" y1="110" x2="658" y2="110" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="6 4" marker-end="url(#arr)"/>
+    </svg>
+    <p class="note">Kesik çizgi: mobil tarafta ek kaynak; düz çizgi: sunucu cron (<code>check-flight-status-and-notify</code>) birleştirme yolu.</p>
+  </div>
+
+  <h2 class="section">2. FR24: planlı vs iz / gerçek kalkış-iniş</h2>
+  <div class="card">
+    <div class="card-title">Zaman ekseni (semantik)</div>
+    <svg class="flow-svg" viewBox="0 0 900 138" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="arr2" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#64748b"/></marker>
+      </defs>
+      <text x="10" y="18" font-size="11" fill="#64748b">Kalkış tarafı</text>
+      <rect x="10" y="28" width="120" height="28" rx="4" fill="#e0f2fe" stroke="#0284c7"/>
+      <text x="70" y="46" text-anchor="middle" font-size="10" font-weight="600" fill="#0c4a6e">scheduled_dep</text>
+      <rect x="145" y="28" width="115" height="28" rx="4" fill="#fef3c7" stroke="#d97706"/>
+      <text x="202" y="46" text-anchor="middle" font-size="10" font-weight="600" fill="#78350f">ETA/ETD (est.)</text>
+      <rect x="275" y="28" width="130" height="28" rx="4" fill="#ede9fe" stroke="#7c3aed"/>
+      <text x="340" y="46" text-anchor="middle" font-size="10" font-weight="600" fill="#4c1d95">datetime_takeoff</text>
+      <text x="340" y="62" text-anchor="middle" font-size="9" fill="#6b21a8">gerçek kalkış</text>
+      <path d="M 130 42 L 142 42" stroke="#64748b" marker-end="url(#arr2)"/>
+      <path d="M 260 42 L 272 42" stroke="#64748b" marker-end="url(#arr2)"/>
+      <text x="10" y="88" font-size="11" fill="#64748b">Varış tarafı</text>
+      <rect x="10" y="98" width="120" height="28" rx="4" fill="#e0f2fe" stroke="#0284c7"/>
+      <text x="70" y="116" text-anchor="middle" font-size="10" font-weight="600" fill="#0c4a6e">scheduled_arr</text>
+      <rect x="145" y="98" width="115" height="28" rx="4" fill="#fef3c7" stroke="#d97706"/>
+      <text x="202" y="116" text-anchor="middle" font-size="10" font-weight="600" fill="#78350f">estimated arr</text>
+      <rect x="275" y="98" width="130" height="28" rx="4" fill="#ede9fe" stroke="#7c3aed"/>
+      <text x="340" y="116" text-anchor="middle" font-size="10" font-weight="600" fill="#4c1d95">datetime_landed</text>
+      <text x="340" y="132" text-anchor="middle" font-size="9" fill="#6b21a8">gerçek iniş</text>
+      <path d="M 130 112 L 142 112" stroke="#64748b" marker-end="url(#arr2)"/>
+      <path d="M 260 112 L 272 112" stroke="#64748b" marker-end="url(#arr2)"/>
+      <rect x="430" y="30" width="200" height="96" rx="8" fill="#f8fafc" stroke="#cbd5e1"/>
+      <text x="530" y="55" text-anchor="middle" font-size="10" font-weight="700" fill="#475569">Durum için (FR24)</text>
+      <text x="530" y="74" text-anchor="middle" font-size="10" fill="#64748b">first_seen → taxi_out</text>
+      <text x="530" y="92" text-anchor="middle" font-size="10" fill="#64748b">takeoff ↔ landed → en_route</text>
+      <text x="530" y="110" text-anchor="middle" font-size="10" fill="#64748b">landed için güçlü kanıt gerekir</text>
+    </svg>
+    <div class="legend">
+      <span><span class="dot" style="background:#7dd3fc"></span> Plan (STD/STA)</span>
+      <span><span class="dot" style="background:#fcd34d"></span> Tahmin (ETD/ETA)</span>
+      <span><span class="dot" style="background:#c4b5fd"></span> İz / gerçekleşen an</span>
+    </div>
+  </div>
+
+  <h2 class="section">3. Sağlayıcı — alan eşlemesi</h2>
+  <div class="card">
+    <div class="card-title">Endpoint özeti + zaman türleri</div>
+    <table class="data">
+      <thead>
+        <tr>
+          <th>Sağlayıcı</th>
+          <th>Endpoint (özet)</th>
+          <th><span class="badge b-sch">Scheduled</span></th>
+          <th><span class="badge b-est">Estimated</span></th>
+          <th><span class="badge b-act">Actual / operasyonel</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>FR24</strong></td>
+          <td><code>fr24api.../flight-summary/light</code></td>
+          <td><code>scheduled_departure(_utc)</code>, <code>scheduled_arrival(_utc)</code></td>
+          <td><code>estimated_*</code>, <code>eta</code> → DB’de <code>fr24_progress_*</code></td>
+          <td><span class="badge b-trk">İz</span> <code>datetime_takeoff</code>, <code>datetime_landed</code>, <code>first_seen</code>, <code>last_seen</code></td>
+        </tr>
+        <tr>
+          <td><strong>AirLabs</strong></td>
+          <td><code>airlabs.co/api/v9/flight</code></td>
+          <td><code>dep_time</code>, <code>arr_time</code>, <code>dep_scheduled</code>…</td>
+          <td><code>dep_estimated</code>, <code>arr_estimated</code> (cron’da öncelikli zincir)</td>
+          <td><code>dep_actual</code>, <code>arr_actual</code> (mobilde doğrudan actual_*)</td>
+        </tr>
+        <tr>
+          <td><strong>Aviation Edge</strong></td>
+          <td><code>aviation-edge.com/v2/public/timetable</code></td>
+          <td><code>scheduledTime</code></td>
+          <td><code>estimatedTime</code></td>
+          <td><code>actualTime</code> (mobil)</td>
+        </tr>
+        <tr>
+          <td><strong>AeroDataBox</strong></td>
+          <td><code>aerodatabox.../flights/number/…</code></td>
+          <td><code>scheduledTime*</code></td>
+          <td><code>predictedTime*</code>, <code>estimatedTime*</code></td>
+          <td>Poll satırında actual boş; birleşik <code>sched ?? est</code></td>
+        </tr>
+        <tr>
+          <td><strong>AeroAPI</strong></td>
+          <td><code>aeroapi.../flights/{ident}</code></td>
+          <td><code>scheduled_out/in</code></td>
+          <td><code>estimated_out/in</code></td>
+          <td><code>actual_out/in</code></td>
+        </tr>
+        <tr>
+          <td><strong>Aviationstack</strong></td>
+          <td><code>api.aviationstack.com/v1/flights</code></td>
+          <td><code>departure.scheduled</code>, <code>arrival.scheduled</code></td>
+          <td><code>*.estimated</code></td>
+          <td><code>*.actual</code></td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="note"><strong>DB (semi_active):</strong> Poll çıktısı çoğunlukla <code>estimated_departure</code> / <code>estimated_arrival</code> olarak yazılır; roster’daki <code>scheduled_departure</code> / <code>scheduled_arrival</code> plan PDF/crew kaynağı olarak kalır. DV2: <code>landed</code> kararı için <code>datetime_landed</code> veya güvenilir <code>actual_in/actual_arrival</code> gerekir.</p>
+  </div>
+
+  <h2 class="section">4. Roster çubuğu (hatırlatma)</h2>
+  <div class="card">
+    <div class="card-title">Mobil — sadece AirLabs/DB actual + estimated</div>
+    <svg class="flow-svg" viewBox="0 0 640 72" xmlns="http://www.w3.org/2000/svg">
+      <rect x="8" y="20" width="140" height="36" rx="6" fill="#dcfce7" stroke="#16a34a"/>
+      <text x="78" y="42" text-anchor="middle" font-size="11" font-weight="600" fill="#14532d">actual_departure</text>
+      <text x="170" y="42" font-size="18" fill="#94a3b8">···</text>
+      <rect x="200" y="20" width="150" height="36" rx="6" fill="#fef3c7" stroke="#d97706"/>
+      <text x="275" y="42" text-anchor="middle" font-size="11" font-weight="600" fill="#78350f">estimated_arrival</text>
+      <text x="370" y="42" font-size="11" fill="#64748b">→ ilerleme %</text>
+      <text x="8" y="68" font-size="10" fill="#64748b"><code>fr24_progress_eta_utc</code> bu çubukta artık uç nokta değil (Roster.tsx).</text>
+    </svg>
+  </div>
+
+  <p style="font-size:11px;color:#94a3b8;margin-top:20px;">FlyFam repo — <code>docs/FLIGHT_API_TIME_SOURCES_VISUAL.html</code></p>
+</div>
+</body>
+</html>

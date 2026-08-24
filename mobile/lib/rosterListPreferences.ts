@@ -34,6 +34,17 @@ export const ROSTER_TRAINING_FLIGHT_PREFIXES: string[] = [
   'SDM', // Safety Department Meeting — eğitim sınıfı / toplantı
   'MEET',
   'SEM',
+  /** Ofis görevleri — yer dersi ile aynı görünüm sınıfı */
+  'GOA',
+  'OSA',
+  'G3A',
+  'G4A',
+  'O1A',
+  'O2A',
+  'ADB',
+  'AYT',
+  'ECN',
+  'ESB',
 ];
 
 export function normalizeRosterListShow(raw: unknown): RosterListShowPrefs {
@@ -61,29 +72,34 @@ type FlightLike = {
 export function flightNumberLooksLikeTraining(flightNumber: string): boolean {
   const u = flightNumber.replace(/\s/g, '').toUpperCase();
   if (u.includes('SIM') || u === 'IPT' || /^IPT[A-Z0-9_-]*$/.test(u)) return false;
+  if (u.includes('YERDR')) return true;
   return ROSTER_TRAINING_FLIGHT_PREFIXES.some((p) => u === p || u.startsWith(p));
 }
 
-/** Uçuş segmenti her zaman flight; filtre dışı. */
+/** Uçuş segmenti her zaman flight; filtre dışı. Off-day kodları (MSF vb.) kind flight yazılmış olsa bile off. */
 export function categorizeRosterListRow(f: FlightLike): RosterListRowCategory {
+  const fn = (f.flight_number || '').replace(/\s/g, '').toUpperCase();
+  if (fn.includes('SIM') || fn === 'IPT' || /^IPT[A-Z0-9_-]*$/.test(fn)) return 'simulator';
+  if (flightNumberLooksLikeTraining(f.flight_number)) return 'training';
+  if (
+    fn === 'FSF' ||
+    fn === 'FOF' ||
+    fn === 'MSF' ||
+    fn === 'FREE' ||
+    fn === 'OFF' ||
+    fn === 'DOFF' ||
+    fn === 'RQST' ||
+    fn === 'VAC' ||
+    fn === 'VAV' ||
+    fn === 'AVAC' ||
+    fn === 'III'
+  ) {
+    return 'off_days';
+  }
   const kind = f.roster_entry_kind ?? 'flight';
   if (kind === 'flight' || kind === '' || kind == null) return 'flight';
   if (kind === 'sim') return 'simulator';
-  const fn = (f.flight_number || '').replace(/\s/g, '').toUpperCase();
-  if (fn === 'IPT' || /^IPT[A-Z0-9_-]*$/.test(fn)) return 'simulator';
-  if (kind === 'duty_off') {
-    if (
-      fn === 'FSF' ||
-      fn === 'FOF' ||
-      fn === 'FREE' ||
-      fn === 'OFF' ||
-      fn === 'DOFF' ||
-      fn === 'RQST' ||
-      fn === 'VAC'
-    ) return 'off_days';
-    if (flightNumberLooksLikeTraining(f.flight_number)) return 'training';
-    return 'other';
-  }
+  if (kind === 'duty_off') return 'other';
   return 'other';
 }
 

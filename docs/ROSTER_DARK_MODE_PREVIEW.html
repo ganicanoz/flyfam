@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>FlyFam — Uçuş Programı dark mod önizleme</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0a0c10;
+      color: #EAF2FF;
+      padding: 24px 16px 48px;
+      line-height: 1.4;
+    }
+    h1 {
+      font-size: 1.25rem;
+      font-weight: 800;
+      text-align: center;
+      margin-bottom: 8px;
+    }
+    .subtitle {
+      text-align: center;
+      color: #93A8C6;
+      font-size: 0.85rem;
+      margin-bottom: 28px;
+      max-width: 520px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    .compare {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      max-width: 920px;
+      margin: 0 auto;
+    }
+    @media (max-width: 720px) {
+      .compare { grid-template-columns: 1fr; }
+    }
+    .panel {
+      border-radius: 16px;
+      overflow: hidden;
+      border: 1px solid #2A3038;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.45);
+    }
+    .panel-label {
+      padding: 10px 14px;
+      font-size: 0.75rem;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .panel-label.bad { background: #7f1d1d; color: #fecaca; }
+    .panel-label.good { background: #14532d; color: #bbf7d0; }
+
+    /* Phone frame */
+    .phone {
+      background: rgba(12, 14, 18, 0.95);
+      min-height: 520px;
+      padding-bottom: 12px;
+    }
+    .header {
+      background: linear-gradient(180deg, #2d4a6e 0%, #356899 100%);
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-weight: 800;
+      font-size: 1.05rem;
+      color: #fff;
+    }
+    .header-icons { opacity: 0.9; font-size: 1.1rem; }
+
+    .date-roller {
+      display: flex;
+      gap: 6px;
+      padding: 12px 10px;
+      overflow-x: auto;
+    }
+    .chip {
+      flex: 0 0 88px;
+      height: 52px;
+      border-radius: 10px;
+      border: 1px solid #2A3038;
+      background: #14181F;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.65rem;
+      color: #93A8C6;
+    }
+    .chip strong { font-size: 0.72rem; color: #EAF2FF; }
+    .chip.selected {
+      background: #356899;
+      border-color: #356899;
+      color: rgba(255,255,255,0.85);
+    }
+    .chip.selected strong { color: #fff; }
+
+    .list { padding: 0 12px; }
+
+    /* BROKEN: white card + light text */
+    .card-broken {
+      background: #FFFFFF;
+      border: 1px solid #E1EAF5;
+      border-radius: 12px;
+      margin-bottom: 8px;
+      display: flex;
+      overflow: hidden;
+    }
+    .card-broken .rail { width: 4px; background: #AEB7C2; margin: 4px 0 4px 4px; border-radius: 3px; }
+    .card-broken .body { flex: 1; padding: 14px 12px; display: flex; }
+    .card-broken .main { flex: 1; }
+    .card-broken .date { font-size: 0.7rem; color: #C4D4EE; margin-bottom: 4px; }
+    .card-broken .title { font-size: 0.95rem; font-weight: 800; color: #EAF2FF; }
+    .card-broken .meta { font-size: 0.78rem; color: #C4D4EE; margin-top: 6px; }
+    .card-broken .side {
+      width: 88px;
+      border-left: 1px solid #E1EAF5;
+      padding: 10px 8px;
+      text-align: center;
+      font-size: 0.75rem;
+      font-weight: 800;
+      color: #EAF2FF;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+    }
+    .card-broken .side .icon { font-size: 1.4rem; opacity: 0.35; }
+
+    /* FIXED: dark surface + light text */
+    .card-fixed {
+      background: #14181F;
+      border: 1px solid #2A3038;
+      border-radius: 12px;
+      margin-bottom: 8px;
+      display: flex;
+      overflow: hidden;
+    }
+    .card-fixed .rail { width: 4px; background: #2A3038; margin: 4px 0 4px 4px; border-radius: 3px; }
+    .card-fixed .rail.alt { background: #93A8C6; }
+    .card-fixed .body { flex: 1; padding: 14px 12px; display: flex; }
+    .card-fixed .main { flex: 1; }
+    .card-fixed .date { font-size: 0.7rem; color: #93A8C6; margin-bottom: 4px; }
+    .card-fixed .title { font-size: 0.95rem; font-weight: 800; color: #EAF2FF; }
+    .card-fixed .meta { font-size: 0.78rem; color: #C4D4EE; margin-top: 6px; }
+    .card-fixed .flight-no { color: #EAF2FF; font-weight: 800; }
+    .card-fixed .side {
+      width: 88px;
+      border-left: 1px solid #2A3038;
+      padding: 10px 8px;
+      text-align: center;
+      font-size: 0.75rem;
+      font-weight: 800;
+      color: #EAF2FF;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+    }
+    .card-fixed .side.scheduled { color: #EAF2FF; }
+    .card-fixed .side .icon { font-size: 1.4rem; }
+    .card-fixed.landed { border: 2px solid #66BB6A; }
+
+    .actions {
+      display: flex;
+      gap: 8px;
+      padding: 12px;
+    }
+    .btn {
+      flex: 1;
+      height: 48px;
+      border-radius: 10px;
+      border: none;
+      font-weight: 700;
+      font-size: 0.72rem;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+    }
+    .btn-primary { background: #356899; }
+    .btn-danger { background: #D54B4B; }
+
+    .tabbar {
+      display: flex;
+      justify-content: space-around;
+      padding: 10px 0 6px;
+      border-top: 1px solid #2A3038;
+      font-size: 0.65rem;
+      color: #93A8C6;
+    }
+    .tabbar .active { color: #356899; font-weight: 700; }
+
+    .legend {
+      max-width: 920px;
+      margin: 28px auto 0;
+      padding: 16px;
+      background: #14181F;
+      border: 1px solid #2A3038;
+      border-radius: 12px;
+      font-size: 0.85rem;
+      color: #C4D4EE;
+    }
+    .legend h2 { font-size: 0.95rem; color: #EAF2FF; margin-bottom: 10px; }
+    .swatches { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 12px; }
+    .swatch {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.75rem;
+    }
+    .swatch i {
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      border: 1px solid #2A3038;
+      display: inline-block;
+    }
+  </style>
+</head>
+<body>
+  <h1>FlyFam — Uçuş Programı (dark mod)</h1>
+  <p class="subtitle">
+    Sol: <strong>eski hata</strong> (beyaz kart + açık metin → okunmuyor). Sağ: <strong>düzeltme sonrası</strong>
+    (<code>colors.surface</code> kart + tema metinleri).
+  </p>
+
+  <div class="compare">
+    <!-- BEFORE -->
+    <div class="panel">
+      <div class="panel-label bad">Önce — bozuk (build 24)</div>
+      <div class="phone">
+        <div class="header">
+          <span class="header-icons">⚙</span>
+          <span>Uçuş Programı</span>
+          <span class="header-icons">↻</span>
+        </div>
+        <div class="date-roller">
+          <div class="chip"><span>Çar</span><strong>27 May</strong></div>
+          <div class="chip selected"><span>Per</span><strong>28 May</strong><span>Bugün</span></div>
+          <div class="chip"><span>Cum</span><strong>29 May</strong></div>
+        </div>
+        <div class="list">
+          <div class="card-broken">
+            <div class="rail"></div>
+            <div class="body">
+              <div class="main">
+                <div class="date">27 Mayıs - Çarşamba</div>
+                <div class="title">Görev: Yıllık İzin (FREE)</div>
+                <div class="meta">Başlangıç: 00:00 (LCL) / 00:00 (Z)</div>
+                <div class="meta">Bitiş: 23:59 (LCL) / 23:59 (Z)</div>
+              </div>
+              <div class="side">
+                <span>Devam ediyor</span>
+                <span class="icon">🕐</span>
+              </div>
+            </div>
+          </div>
+          <div class="card-broken">
+            <div class="rail"></div>
+            <div class="body">
+              <div class="main">
+                <div class="date">28 Mayıs - Perşembe</div>
+                <div class="title">Görev: Yıllık İzin (FREE)</div>
+                <div class="meta">Başlangıç: 00:00 …</div>
+              </div>
+              <div class="side">
+                <span>Planlı</span>
+                <span class="icon">📅</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <p style="padding:8px 14px;font-size:0.7rem;color:#D54B4B;text-align:center;">
+          Metin neredeyse görünmez (açık renk × beyaz kart)
+        </p>
+      </div>
+    </div>
+
+    <!-- AFTER -->
+    <div class="panel">
+      <div class="panel-label good">Sonra — düzeltilmiş</div>
+      <div class="phone">
+        <div class="header">
+          <span class="header-icons">⚙</span>
+          <span>Uçuş Programı</span>
+          <span class="header-icons">↻</span>
+        </div>
+        <div class="date-roller">
+          <div class="chip"><span>Çar</span><strong>27 May</strong></div>
+          <div class="chip selected"><span>Per</span><strong>28 May</strong><span>Bugün</span></div>
+          <div class="chip"><span>Cum</span><strong>29 May</strong></div>
+        </div>
+        <div class="list">
+          <div class="card-fixed">
+            <div class="rail"></div>
+            <div class="body">
+              <div class="main">
+                <div class="date">27 Mayıs - Çarşamba</div>
+                <div class="title">Görev: Yıllık İzin (FREE)</div>
+                <div class="meta">Başlangıç: 00:00 (LCL) / 00:00 (Z)</div>
+                <div class="meta">Bitiş: 23:59 (LCL) / 23:59 (Z)</div>
+              </div>
+              <div class="side">
+                <span>Devam ediyor</span>
+                <span class="icon">🕐</span>
+              </div>
+            </div>
+          </div>
+          <div class="card-fixed">
+            <div class="rail alt"></div>
+            <div class="body">
+              <div class="main">
+                <div class="date">28 Mayıs - Perşembe</div>
+                <div class="title">Görev: Yıllık İzin (FREE)</div>
+                <div class="meta">Başlangıç: 00:00 (LCL) / 00:00 (Z)</div>
+              </div>
+              <div class="side scheduled">
+                <span>Planlı</span>
+                <span class="icon">📅</span>
+              </div>
+            </div>
+          </div>
+          <div class="card-fixed landed">
+            <div class="rail"></div>
+            <div class="body">
+              <div class="main">
+                <div class="date">30 Mayıs - Cumartesi</div>
+                <div class="title"><span class="flight-no">Uçuş No: PC2530</span></div>
+                <div class="meta">Kalkış: İstanbul (SAW) 08:15 (LCL) / 05:15 (Z)</div>
+                <div class="meta">Varış: Antalya (AYT) 09:20 (LCL) / 06:20 (Z)</div>
+              </div>
+              <div class="side scheduled">
+                <span>Planlı</span>
+                <span class="icon">📅</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="actions">
+          <button class="btn btn-primary">+ Uçuş Ekle</button>
+          <button class="btn btn-primary">✈ Aileme gönder</button>
+          <button class="btn btn-danger">☑ Uçuşu seç</button>
+        </div>
+        <div class="tabbar">
+          <span class="active">📅 Program</span>
+          <span>👥 Aile</span>
+          <span>👤 Profil</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="legend">
+    <h2>Dark tema renkleri (mobile/theme/colors.ts)</h2>
+    <p>Kartlar artık sabit <code>#FFFFFF</code> değil; <strong>surface #14181F</strong> kullanıyor. Metin <strong>#EAF2FF</strong>, ikincil <strong>#C4D4EE</strong>, sol çizgi <strong>#2A3038</strong> / <strong>#93A8C6</strong>.</p>
+    <div class="swatches">
+      <span class="swatch"><i style="background:rgba(12,14,18,0.95)"></i> background</span>
+      <span class="swatch"><i style="background:#14181F"></i> surface (kart)</span>
+      <span class="swatch"><i style="background:#356899"></i> primary</span>
+      <span class="swatch"><i style="background:#EAF2FF"></i> text</span>
+      <span class="swatch"><i style="background:#2A3038"></i> border / rail</span>
+      <span class="swatch"><i style="background:#66BB6A"></i> landed border</span>
+    </div>
+  </div>
+</body>
+</html>

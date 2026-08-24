@@ -1,0 +1,404 @@
+#!/usr/bin/env python3
+"""Generate docs/FLYFAM_LEGAL_TEXTS_FULL.txt and mobile/lib/legalTexts.ts from canonical legal copy."""
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+DOC_VERSION = "2026-05-v5"
+EFFECTIVE_DATE = "19 Mayıs 2026 / 19 May 2026"
+
+PRIVACY_NOTICE_TR = r"""FLYFAM KVKK AYDINLATMA METNİ
+Sürüm: """ + DOC_VERSION + r""" | Yürürlük: """ + EFFECTIVE_DATE + r"""
+
+ÖNEMLİ UYARI: Bu metin, 6698 sayılı Kişisel Verilerin Korunması Kanunu (“KVKK”) kapsamında bilgilendirme amacıyla hazırlanmıştır. FlyFam bir bilgilendirme ve aile bağlantısı yazılımıdır; havacılık otoritesi, işveren, havayolu veya resmi uçuş bilgi kaynağı değildir.
+
+1. VERİ SORUMLUSU VE İLETİŞİM
+1.1. Kişisel verileriniz; FlyFam mobil uygulaması, ilişkili web/arayüzler ve destek kanalları kapsamında veri sorumlusu sıfatıyla FlyFam (“Veri Sorumlusu”, “biz”, “tarafımız”) tarafından işlenmektedir.
+1.2. İletişim: Uygulama içi destek, kayıtlı e-posta adresiniz ve FlyFam tarafından duyurulan resmi destek kanalları üzerinden bize ulaşabilirsiniz.
+1.3. KVKK kapsamındaki talepleriniz için kimlik doğrulaması talep edilebilir; talebin niteliğine göre ek bilgi/belge istenebilir.
+
+2. TANIMLAR
+2.1. “Uygulama”: FlyFam mobil uygulaması ve bağlı hizmetler.
+2.2. “Kullanıcı”: Uygulamaya kayıt olan veya kullanan gerçek kişi.
+2.3. “Ekip Üyesi (Crew)”: Uçuş/roster bilgilerini yöneten kullanıcı rolü.
+2.4. “Aile Üyesi (Family)”: Ekip üyesiyle bağlantı kuran kullanıcı rolü.
+2.5. “Kullanıcı İçeriği”: Roster, PDF, metin, görsel, fotoğraf, not ve kullanıcı tarafından yüklenen/iletilen tüm veri.
+2.6. “Üçüncü Taraf Uçuş Verisi”: FR24, AirLabs, AeroDataBox ve benzeri API/sağlayıcılardan alınan; gecikmeli, eksik veya hatalı olabilecek uçuş bilgisi.
+
+3. İŞLENEN KİŞİSEL VERİ KATEGORİLERİ
+3.1. Kimlik ve iletişim: Ad-soyad, e-posta adresi, (varsa) telefon.
+3.2. Hesap ve kimlik doğrulama: Kullanıcı kimliği, rol (crew/family), oturum/erişim kayıtları, şifre özetleri (şifrenin kendisi değil; kimlik doğrulama altyapısı tarafından işlenir).
+3.3. Profil ve tercihler: Havayolu/şirket bilgisi, dil, saat dilimi, bildirim tercihleri, abonelik/plan durumu.
+3.4. Uçuş ve operasyonel gösterim verileri: Uçuş numarası, tarih/saat, kalkış/varış, durum fazı, gecikme, rota, kuyruk/tescil (varsa), bağlantı/aile onay durumu.
+3.5. Kullanıcı içeriği: PDF roster içe aktarımları, manuel girişler, paylaşılan notlar, profil fotoğrafı/görsel.
+3.6. Teknik ve güvenlik verileri: Cihaz bildirim tokeni (push), IP/oturum günlükleri, hata/çökme kayıtları, performans günlükleri, kötüye kullanım önleme kayıtları.
+3.7. Ödeme/abonelik (varsa): Mağaza (App Store/Google Play) işlem referansları; kart bilgileri doğrudan FlyFam tarafından işlenmez; mağaza sağlayıcısı kuralları geçerlidir.
+3.8. Onay ve uyum kayıtları: KVKK/kullanım onayı zamanı, politika sürümü, dil, kaynak (signup/reconsent), kabul/ret durumu.
+
+4. KİŞİSEL VERİLERİN TOPLANMA YÖNTEMİ
+4.1. Otomatik: Uygulama kullanımı, API çağrıları, günlükler, bildirim altyapısı.
+4.2. Manuel: Kayıt formları, profil düzenleme, PDF yükleme, destek talepleri.
+4.3. Üçüncü taraflardan: Uçuş bilgi sağlayıcıları; kimlik doğrulama/e-posta (ör. Supabase Auth); mağaza abonelik doğrulama.
+
+5. İŞLEME AMAÇLARI
+5.1. Sözleşmenin kurulması ve ifası; hesap açma, giriş, profil ve bağlantı özelliklerinin sunulması.
+5.2. Uçuş bilgilerinin gösterilmesi, roster yönetimi, aile bağlantısı ve bildirimlerin iletilmesi.
+5.3. Hizmet güvenliği, dolandırıcılık/kötüye kullanımın önlenmesi, hata giderme ve kalite iyileştirme.
+5.4. Yasal yükümlülüklerin yerine getirilmesi, uyuşmazlık/defense kayıtlarının tutulması.
+5.5. Açık rızaya dayalı pazarlama/duyuru (yalnızca ayrı onay verilmişse).
+5.6. Mevzuattan doğan saklama, denetim ve resmi makam taleplerine yanıt.
+
+6. HUKUKİ SEBEPLER (KVKK m.5)
+6.1. Açık rıza: Pazarlama, açık rıza gerektiren paylaşımlar ve mevzuatın öngördüğü haller.
+6.2. Sözleşmenin kurulması veya ifası: Hesap, uçuş gösterimi, bağlantı ve abonelik özellikleri.
+6.3. Hukuki yükümlülük: Saklama, resmi talep, vergi/muhasebe (varsa).
+6.4. Bir hakkın tesisi, kullanılması veya korunması: Uyuşmazlık, talep ve savunma.
+6.5. Meşru menfaat: Güvenlik, kötüye kullanım önleme, hizmet geliştirme; temel hak ve özgürlüklerinize zarar vermemek kaydıyla.
+
+7. KİŞİSEL VERİLERİN AKTARILMASI
+7.1. Yurt içi/yurt dışı alt işleyenler: Bulut barındırma, veritabanı, kimlik doğrulama, e-posta, push bildirim, hata izleme, analitik, uçuş API sağlayıcıları ve müşteri destek altyapıları.
+7.2. Aile bağlantısı: Sizin başlattığınız ve onayladığınız bağlantılar kapsamında seçilen aile üyeleri, paylaşım kapsamındaki uçuş/ profil verilerini görebilir.
+7.3. Yasal zorunluluk: Yetkili kamu kurum ve kuruluşlarına, usulüne uygun talep halinde.
+7.4. Yurt dışına aktarım: Hizmetin doğası gereği (ör. AB/ABD bulut bölgeleri) aktarım yapılabilir; KVKK m.9 kapsamında uygun güvenceler (sözleşmesel taahhütler, SCC benzeri düzenlemeler, teknik/idari tedbirler) uygulanır.
+
+8. SAKLAMA SÜRELERİ
+8.1. Hesap verileri: Hesap aktif olduğu sürece ve hesap silme talebinden sonra mevzuatın izin verdiği/ zorunlu tuttuğu süre boyunca.
+8.2. Onay kayıtları: Uyuşmazlık zamanaşımı ve uyum yükümlülükleri için asgari 10 yıl veya mevzuatın gerektirdiği süre (hangisi uzunsa).
+8.3. Günlükler: Güvenlik ve teknik amaçlarla sınırlı süre (genellikle 12–24 ay); yasal süreçte daha uzun saklanabilir.
+8.4. Süre sonunda veriler silinir, yok edilir veya anonimleştirilir.
+
+9. GÜVENLİK TEDBİRLERİ
+9.1. Erişim kontrolü, şifreleme (aktarım ve mümkün olduğunda saklama), ayrıcalıklı erişim, günlükleme ve düzenli gözden geçirme uygulanır.
+9.2. Hiçbir sistem %100 güvenli değildir; makul ticari çabayı gösteririz; ancak mutlak güvenlik taahhüdü verilmez.
+
+10. OTOMATİK İŞLEME / PROFİL OLUŞTURMA
+10.1. Uçuş durumu ve faz gösterimi algoritmik olabilir; hukuki sonuç doğuran tam otomatik karar verme amaçlanmaz.
+10.2. Bildirim zamanlaması kural tabanlı otomasyon içerebilir.
+
+11. İLGİLİ KİŞİ HAKLARI (KVKK m.11)
+11.1. Verilerinizin işlenip işlenmediğini öğrenme, bilgi talep etme, düzeltme, silme/yok etme, anonimleştirme, aktarılan üçüncü kişileri bilme, otomatik işlemeye itiraz, zararın giderilmesini talep etme haklarına sahipsiniz.
+11.2. Başvurularınız, KVKK m.13 uyarınca en geç 30 gün içinde sonuçlandırılır (işlemin ayrı maliyet gerektirmesi halinde Kurul tarifesi uygulanabilir).
+11.3. KVKK Kurulu’na şikâyet hakkınız saklıdır.
+
+12. AÇIK RIZA, ONAY GERİ ALMA VE HİZMETE ETKİSİ
+12.1. Zorunlu olmayan işlemler için ayrı onay alınır.
+12.2. Rızanızı geri almanız halinde, geri alma tarihinden sonraki işlemlere uygulanır; önceki işlemlerin hukuka uygunluğu etkilenmez.
+12.3. Silme/itiraz/hesap kapatma talepleri; teknik veya yasal zorunluluk nedeniyle bazı özelliklerin durmasına veya hesabın kapatılmasına yol açabilir.
+
+13. KULLANICI İÇERİĞİ VE ÜÇÜNCÜ KİŞİ VERİLERİ BEYANI
+13.1. Yüklediğiniz roster/PDF, ad-soyad, e-posta, fotoğraf ve diğer içeriklerde; ilgili kişilerin aydınlatılması, gerekli izin/rıza ve veri sorumlusu yükümlülüklerinin size ait olduğunu kabul edersiniz.
+13.2. Üçüncü kişi verisi işlemenizden doğan talep, zarar ve cezalardan münhasıran siz sorumlusunuz; FlyFam’i bu kapsamda tazmin etmeyi kabul edersiniz.
+
+14. ÜÇÜNCÜ TARAF UÇUŞ VERİSİ
+14.1. Uçuş verileri üçüncü taraf kaynaklardan alınır; gecikmeli, eksik, hatalı, değişmiş veya iptal edilmiş olabilir.
+14.2. Bu veriler kesin, güncel, operasyonel veya resmi bilgi değildir; FlyFam doğruluk garantisi vermez.
+
+15. ÇOCUKLAR
+15.1. Uygulama 18 yaş ve üzeri içindir. 18 yaş altına bilerek hizmet sunulmaz; tespit halinde hesap/veri silinebilir.
+
+16. ÇEREZLER VE BENZERİ TEKNOLOJİLER
+16.1. Web/yardım sayfalarında zorunlu ve (varsa) analitik çerezler kullanılabilir; tercih mekanizmaları sunulur.
+
+17. POLİTİKA DEĞİŞİKLİKLERİ
+17.1. Bu metin güncellenebilir. Önemli değişikliklerde uygulama içi bildirim ve gerekirse yeniden onay istenir.
+17.2. Onayladığınız sürüm, onay geçmişinizde kayıtlıdır; güncel tam metne uygulama içinden erişebilirsiniz.
+
+18. SON HÜKÜMLER
+18.1. Bu aydınlatma metni, Kullanım Koşulları ve Sorumluluk Reddi ile birlikte okunmalıdır.
+18.2. Metinler arasında çelişki halinde, türüne göre özel hüküm (aydınlatma / kullanım koşulları) önceliklidir.
+
+19. VERİ İHLALİ BİLDİRİMİ
+19.1. Kişisel veri ihlali şüphesinde mevzuat gereği gerekli teknik ve idari önlemler alınır; yasal bildirim yükümlülükleri yerine getirilir.
+19.2. İhlalin haklarınıza etkisi yüksekse, mümkün olan en kısa sürede bilgilendirme yapılır.
+
+20. KAYIT TUTMA VE DELİL NİTELİĞİ
+20.1. Onay kayıtlarınız (sürüm, zaman, dil, kaynak, kabul durumu) uyuşmazlık halinde delil teşkil edebilir.
+20.2. Elektronik kayıtların bütünlüğü için zaman damgası ve sistem günlükleri kullanılabilir.
+
+21. EKİP ÜYESİ VE AİLE ÜYESİNE ÖZEL NOTLAR
+21.1. Ekip üyesi olarak yüklediğiniz roster/PDF’lerde yer alan üçüncü kişi verilerinden (meslektaş, aile vb.) siz sorumlusunuz.
+21.2. Aile üyesi olarak yalnızca davet/onay ile paylaşılan verileri görürsünüz; bu verileri üçüncü kişilerle paylaşmamanız önerilir.
+
+22. ABONELİK VE ÖDEME VERİLERİ
+22.1. Mağaza makbuzları ve abonelik durumu hizmetin sunulması ve destek için işlenir; ödeme kartı verileri FlyFam sunucularında tutulmaz."""
+
+PRIVACY_NOTICE_EN = r"""FLYFAM PRIVACY NOTICE (KVKK / GDPR-STYLE INFORMATION)
+Version: """ + DOC_VERSION + r""" | Effective: """ + EFFECTIVE_DATE + r"""
+
+IMPORTANT: FlyFam is an information and family-connection software tool. It is not an aviation authority, employer, airline, or official flight information source.
+
+1. DATA CONTROLLER AND CONTACT
+Personal data is processed by FlyFam (“we”, “us”) as data controller for the FlyFam mobile app and related services. Contact us via in-app support and official FlyFam support channels. Identity verification may be required for privacy requests.
+
+2. DEFINITIONS
+“App”, “User”, “Crew Member”, “Family Member”, “User Content”, and “Third-Party Flight Data” have the meanings stated in the Turkish KVKK notice (Third-Party Flight Data may be delayed, incomplete, or inaccurate).
+
+3. DATA CATEGORIES PROCESSED
+Identity/contact; account/authentication; profile/preferences; flight and connection data; user content (rosters, PDFs, photos); technical/security logs; push tokens; subscription/store references (payments processed by app stores, not directly by FlyFam); consent/compliance records.
+
+4. COLLECTION METHODS
+Automatic (usage, APIs, logs), manual (forms, uploads), and from third parties (flight APIs, auth/email providers, app stores).
+
+5. PURPOSES
+Contract performance; displaying flight information; family connections; notifications; security; fraud/abuse prevention; support; legal compliance; marketing only with separate consent; defense of legal claims.
+
+6. LEGAL BASES
+Explicit consent where required; contract; legal obligation; establishment/exercise/defense of legal claims; legitimate interests balanced against your rights.
+
+7. RECIPIENTS AND TRANSFERS
+Infrastructure, database, auth, email, push, crash analytics, flight API providers, support tools. Family sharing only as initiated/approved by you. Authorities when legally required. Cross-border transfers with appropriate safeguards (contractual/technical).
+
+8. RETENTION
+While account is active and thereafter as required by law/disputes. Consent records typically retained at least 10 years or longer if required. Logs generally 12–24 months unless legal hold.
+
+9. SECURITY
+Access controls, encryption in transit and where feasible at rest, logging, reviews. No system is 100% secure; we use reasonable commercial efforts without absolute guarantee.
+
+10. AUTOMATED PROCESSING
+Status/phase display may be algorithmic; not intended for legal-effect automated decisions. Notification timing may be rule-based.
+
+11. YOUR RIGHTS
+Access, rectification, erasure, restriction, objection, portability where applicable, and complaint to supervisory authority. Requests answered within applicable legal deadlines.
+
+12. WITHDRAWAL OF CONSENT
+Withdrawal applies prospectively; may limit features or require account closure where necessary.
+
+13. USER CONTENT AND THIRD-PARTY PERSONAL DATA
+You are responsible for lawful upload/sharing of roster/PDF/photos and for notices/consents for third-party data. You indemnify FlyFam for claims arising from your content.
+
+14. THIRD-PARTY FLIGHT DATA
+No accuracy or timeliness guarantee; not official or operational-grade information.
+
+15. CHILDREN
+18+ only. Accounts of minors may be removed if identified.
+
+16. COOKIES
+Used on web/help surfaces with preference mechanisms where required.
+
+17. CHANGES
+Material changes notified in-app; re-consent may be required. Your accepted version is stored in consent history; full current text available in-app.
+
+18. RELATIONSHIP TO TERMS
+Read together with Terms of Use and Disclaimer."""
+
+TERMS_DISCLAIMER_TR = r"""FLYFAM KULLANIM KOŞULLARI VE SORUMLULUK REDDİ
+Sürüm: """ + DOC_VERSION + r""" | Yürürlük: """ + EFFECTIVE_DATE + r"""
+
+ÖNEMLİ: LÜTFEN DİKKATLİCE OKUYUN. UYGULAMAYI İNDİREREK, ERİŞEREK, HESAP AÇARAK VEYA KULLANARAK BU SÖZLEŞMENİN TÜM HÜKÜMLERİNİ KABUL ETMİŞ SAYILIRSINIZ. KABUL ETMİYORSANIZ UYGULAMAYI KULLANMAYINIZ.
+
+1. TARAFLAR VE SÖZLEŞMENİN KONUSU
+1.1. İşbu Kullanım Koşulları ve Sorumluluk Reddi (“Sözleşme”), FlyFam mobil uygulaması ve ilişkili hizmetlerin (“Hizmet”) kullanımına ilişkin hak ve yükümlülükleri düzenler.
+1.2. Hizmeti sunan taraf: FlyFam (“Hizmet Sağlayıcı”, “biz”). Kullanıcı: Uygulamayı kullanan gerçek kişi (“siz”, “Kullanıcı”).
+
+2. HİZMETİN NİTELİĞİ VE KAPSAM DIŞI
+2.1. FlyFam; uçuş bilgilerinin görüntülenmesi, roster yönetimi, aile bağlantısı ve bilgilendirme bildirimleri sunan bir yazılım aracıdır.
+2.2. FlyFam; havacılık işletmecisi, işveren, sendika, resmi bilgi kaynağı, seyahat acentesi, sigorta şirketi veya acil durum hizmeti değildir.
+2.3. Hizmet, operasyonel uçuş yönetimi, emniyet kararları, resmi rota/performans onayı veya yasal raporlama yerine geçmez.
+
+3. YAŞ, EHİYET VE HESAP
+3.1. Hizmet 18 yaş ve üzeri içindir.
+3.2. Hesap bilgilerinizin doğruluğundan, gizliliğinden ve hesabınız altında yapılan tüm işlemlerden siz sorumlusunuz.
+3.3. Şüpheli erişimde derhal şifre değiştirme ve bize bildirim yapılmalıdır.
+
+4. ÜÇÜNCÜ TARAF UÇUŞ VERİSİ — KAPSAMLI SORUMLULUK REDDİ
+4.1. Uçuş durumu, gecikme, kalkış/varış, kapı, rota, kuyruk/tescil ve benzeri tüm bilgiler üçüncü taraf sağlayıcılardan (ör. FR24, AirLabs, AeroDataBox ve diğerleri) alınabilir.
+4.2. Bu bilgiler gecikmeli, eksik, hatalı, çelişkili, geri alınmış veya hiç yayınlanmamış olabilir. FlyFam doğruluk, güncellik, kesinlik, süreklilik veya belirli bir amaca uygunluk garantisi VERMEZ.
+4.3. Operasyonel, emniyet kritik, tıbbi, hukuki, mali veya resmi kararlar için Hizmet TEK BAŞINA DAYANAK OLARAK KULLANILAMAZ. Nihai kararlar her zaman havayolu, havalimanı, ATPL/ops dokümanları ve yetkili resmi kaynaklara dayanmalıdır.
+4.4. Üçüncü taraf sağlayıcı kesintisi, kota aşımı, API değişikliği veya veri hatasından FlyFam sorumlu tutulamaz.
+
+5. KULLANICI İÇERİĞİ, ROSTER/PDF VE ÜÇÜNCÜ KİŞİ HAKLARI
+5.1. Yüklediğiniz/paylaştığınız tüm içeriklerden (roster, PDF, isim, e-posta, fotoğraf, mesaj) yalnızca siz sorumlusunuz.
+5.2. Üçüncü kişilerin kişisel verilerini işlemeden önce gerekli aydınlatma, izin ve KVKK yükümlülüklerini yerine getirmek sizin yükümlülüğünüzdür.
+5.3. FlyFam’e, içeriklerinizi Hizmeti sunmak için barındırma, işleme, yedekleme ve gösterme konusunda dünya çapında, devredilebilir, alt lisanslanabilir, bedelsiz ve süre sınırsız bir lisans verirsiniz.
+5.4. Hukuka aykırı, hak ihlali içeren, zararlı, yanıltıcı veya saldırgan içerik yükleyemezsiniz. İhlal şüphesinde içeriği kaldırma ve hesabı askıya alma hakkımız saklıdır.
+
+6. AİLE BAĞLANTISI VE PAYLAŞIM
+6.1. Bağlantı davetleri ve onayları sizin kontrolünüzdedir. Yanlış kişiyle paylaşımdan doğan sonuçlardan FlyFam sorumlu değildir.
+6.2. Aile üyesinin gördüğü veri kapsamını anlamak sizin sorumluluğunuzdadır.
+
+7. BİLDİRİMLER
+7.1. Push/e-posta bildirimleri cihaz, işletim sistemi, ağ ve üçüncü taraf servis koşullarına bağlıdır; zamanında veya eksiksiz iletim garanti edilmez.
+7.2. Bildirimleri kapatmanız Hizmetin diğer bölümlerini kullanmanıza engel olmayabilir.
+
+8. ABONELİK, ÜCRET VE MAĞAZA KOŞULLARI
+8.1. Ücretli planlar App Store / Google Play kurallarına tabidir; faturalama, iptal, iade mağaza politikalarıyla yönetilir.
+8.2. FlyFam, mağaza arızası veya fiyatlandırma hatalarından sorumlu değildir.
+8.3. Hizmeti “olduğu gibi” sunarız; kesintisiz veya hatasız çalışma taahhüdü yoktur.
+
+9. YASAKLI KULLANIMLAR
+9.1. Tersine mühendislik, otomatik scraping, API kötüye kullanımı, yetkisiz erişim, sahte hesap, spam, zararlı yazılım, hizmet engelleme (DoS) veya rekabet amaçlı veri madenciliği yasaktır.
+9.2. Hizmeti yürürlükteki hukuka, üçüncü kişi haklarına ve havacılık/emniyet kurallarına aykırı şekilde kullanamazsınız.
+
+10. FİKRİ MÜLKİYET
+10.1. Uygulama, marka, arayüz, yazılım ve dokümantasyon FlyFam veya lisans verenlerine aittir. İzinsiz kopyalama, dağıtım veya ticari kullanım yasaktır.
+
+11. HESABIN ASKIYA ALINMASI VE SONLANDIRILMASI
+11.1. Sözleşme ihlali, güvenlik riski, yasal zorunluluk, ödeme/mağaza ihlali veya kötüye kullanım halinde hesabı önceden bildirimli veya bildirimsiz askıya alabilir veya sonlandırabiliriz.
+11.2. Sonlandırma halinde erişiminiz durur; yasal saklama yükümlülükleri saklıdır.
+
+12. SORUMLULUĞUN SINIRLANDIRILMASI
+12.1. Mevzuatın izin verdiği azami ölçüde; FlyFam, yöneticileri ve tedarikçileri; kar kaybı, veri kaybı, itibar kaybı, dolaylı, arızi, özel veya cezai tazminatlar dahil HİÇBİR ZARARDAN SORUMLU DEĞİLDİR.
+12.2. FlyFam’in toplam sorumluluğu, talebe konu olaydan önceki 12 ayda sizin FlyFam’e ödediğiniz tutarla (ücretsiz kullanımda sıfır TL) sınırlıdır; mücbir sebep halleri hariç.
+12.3. Bu sınırlamalar, garanti, sözleşme, haksız fiil veya başka hukuki sebebe dayalı talepler için geçerlidir.
+
+13. TAZMİNAT (INDEMNITY)
+13.1. İçeriğiniz, paylaşımlarınız, KVKK ihlalleriniz, üçüncü kişi talepleri, Sözleşme ihlaliniz veya hukuka aykırı kullanımınız nedeniyle FlyFam’e yansıyan tüm talep, zarar, para cezası, masraf ve makul avukatlık ücretlerini tazmin etmeyi ve savunmayı üstlenmeyi kabul edersiniz.
+
+14. MÜCBİR SEBEP
+Doğal afet, savaş, terör, salgın, genel internet/elektrik kesintisi, regülasyon değişikliği, üçüncü taraf API kesintisi ve kontrolümüz dışındaki olaylarda gecikme veya ifa etmeme için sorumluluk kabul edilmez.
+
+15. DEVİR, BÖLÜNEBİLİRLİK, FERAGAT
+15.1. FlyFam bu Sözleşmeyi grup şirketlerine veya halefine devredebilir.
+15.2. Geçersiz hüküm, kalan hükümleri etkilemez.
+15.3. Haklarımızı kullanmamamız feragat sayılmaz.
+
+16. UYGULANACAK HUKUK VE YETKİ
+16.1. Bu Sözleşme Türkiye Cumhuriyeti hukukuna tabidir.
+16.2. Uyuşmazlıklarda İstanbul (Çağlayan) Mahkemeleri ve İcra Daireleri münhasıran yetkilidir.
+16.3. Tüketici olarak yerleşim yerinizdeki zorunlu tüketici hakları saklıdır.
+
+17. DEĞİŞİKLİKLER VE ONAY KAYDI
+17.1. Sözleşme güncellenebilir. Önemli değişikliklerde bildirim ve yeniden onay istenebilir.
+17.2. Onayladığınız sürüm ve zaman damgası sistemimizde saklanır; onay geçmişinizden tam metne erişebilirsiniz.
+
+18. HAYATTA KALAN HÜKÜMLER
+Sorumluluk sınırlaması, tazminat, fikri mülkiyet, uygulanacak hukuk ve uyuşmazlık hükümleri sona ermeden sonra da yürürlükte kalır.
+
+19. BÜTÜNLÜK
+Bu Sözleşme ile KVKK Aydınlatma Metni birlikte yorumlanır. Çelişkide, konuya özel hüküm önceliklidir.
+
+20. GARANTİ REDDİ
+20.1. Hizmet “OLDUĞU GİBİ” ve “MEVCUT OLDUĞU ŞEKİLDE” sunulur; ticari elverişlilik, belirli amaca uygunluk ve ihlalsizlik dahil açık veya zımni hiçbir garanti verilmez.
+
+21. VERİ TAŞINIRLIĞI VE YEDEKLEME
+21.1. Verilerinizi dışa aktarma talebinde makul formatta sağlamaya çalışırız; teknik kısıtlar ve yasal saklama istisnaları uygulanır.
+21.2. Düzenli yedekleme yapılabilir; yedeklerden geri dönüş garanti edilmez.
+
+22. ÜÇÜNCÜ TARAF BAĞLANTILAR
+22.1. Uygulama içi veya dışı bağlantılar üçüncü taraf sitelerine gidebilir; içerik ve güvenliklerinden sorumlu değiliz.
+
+23. UYUŞMAZLIK ÇÖZÜMÜ VE DELİL SÖZLEŞMESİ
+23.1. Uyuşmazlıklarda öncelikle destek kanalları üzerinden çözüm önerilir.
+23.2. Elektronik kayıtlar (onay geçmişi, günlükler) kesin delil niteliğinde kabul edilebilir.
+
+24. DİL
+24.1. Metinlerin Türkçe ve İngilizce versiyonları arasında fark olması halinde, Türkiye’deki kullanıcılar için Türkçe metin esas alınır (zorunlu tüketici hükümleri saklı)."""
+
+TERMS_DISCLAIMER_EN = r"""FLYFAM TERMS OF USE AND DISCLAIMER
+Version: """ + DOC_VERSION + r""" | Effective: """ + EFFECTIVE_DATE + r"""
+
+IMPORTANT: BY DOWNLOADING, ACCESSING, REGISTERING, OR USING THE APP YOU AGREE TO ALL TERMS BELOW. IF YOU DO NOT AGREE, DO NOT USE THE APP.
+
+1. PARTIES AND SCOPE
+FlyFam provides software for displaying flight information, roster management, family connections, and notifications. FlyFam is not an airline, employer, authority, travel agent, insurer, or emergency service.
+
+2. NO OPERATIONAL / SAFETY RELIANCE
+All flight data may come from third parties (e.g. FR24, AirLabs, AeroDataBox) and may be delayed, incomplete, wrong, or withdrawn. NO WARRANTY OF ACCURACY OR TIMELINESS. DO NOT USE AS SOLE BASIS FOR OPERATIONAL, SAFETY-CRITICAL, MEDICAL, LEGAL, FINANCIAL, OR OFFICIAL DECISIONS. Always rely on airline/airport/official sources.
+
+3. AGE AND ACCOUNT
+18+ only. You are responsible for account accuracy, credentials, and all activity under your account.
+
+4. USER CONTENT AND THIRD-PARTY DATA
+You are solely responsible for rosters, PDFs, photos, and third-party personal data you upload/share. You must obtain required notices/consents. You grant FlyFam a worldwide, transferable, sublicensable license to host/process content to provide the Service. You indemnify FlyFam for claims arising from your content or violations.
+
+5. FAMILY SHARING
+You control invitations/approvals. FlyFam is not liable for mistaken sharing.
+
+6. NOTIFICATIONS
+Delivery depends on device/network/third parties; not guaranteed.
+
+7. SUBSCRIPTIONS
+Paid plans subject to App Store/Google Play rules; billing/refunds via store policies. Service provided “as is”.
+
+8. PROHIBITED USE
+No reverse engineering, scraping, abuse, unauthorized access, fraud, malware, or unlawful use.
+
+9. INTELLECTUAL PROPERTY
+App/brand/software owned by FlyFam or licensors. No unauthorized copying or commercial exploitation.
+
+10. SUSPENSION / TERMINATION
+We may suspend/terminate for breach, risk, law, abuse, with or without notice. Legal retention may continue.
+
+11. LIMITATION OF LIABILITY
+TO THE MAXIMUM EXTENT PERMITTED BY LAW, FLYFAM AND AFFILIATES ARE NOT LIABLE FOR INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES, OR LOSS OF PROFITS/DATA/GOODWILL. TOTAL LIABILITY CAPPED AT AMOUNTS PAID TO FLYFAM IN THE 12 MONTHS BEFORE THE CLAIM (ZERO IF FREE), EXCEPT WHERE LAW MANDATES OTHERWISE.
+
+12. INDEMNITY
+You indemnify FlyFam for claims, fines, damages, and reasonable legal fees arising from your content, conduct, privacy violations, or breach of these Terms.
+
+13. FORCE MAJEURE
+No liability for events beyond reasonable control including disasters, war, epidemics, outages, regulatory changes, third-party API failures.
+
+14. GOVERNING LAW
+Laws of Republic of Türkiye. Exclusive jurisdiction: Istanbul (Çağlayan) courts, without prejudice to mandatory consumer rights in your country of residence.
+
+15. CHANGES
+Terms may be updated; material changes notified; re-consent may be required. Accepted version stored in consent history; full text available in-app.
+
+16. SURVIVAL
+Liability limits, indemnity, IP, governing law survive termination.
+
+17. ENTIRE AGREEMENT
+Read with Privacy/KVKK Notice. Specific provisions prevail on conflict."""
+
+def escape_ts(s: str) -> str:
+    return s.replace("\\", "\\\\").replace("`", "\\`")
+
+def main() -> None:
+    sections = [
+        ("UYARI / NOTICE", f"""FlyFam Hukuki Metinler Paketi
+Sürüm / Version: {DOC_VERSION}
+Yürürlük / Effective: {EFFECTIVE_DATE}
+
+Bu dosya bilgilendirme amaçlıdır. Yayınlamadan önce lisanslı bir avukatla gözden geçirin.
+This file is for information only. Have a qualified lawyer review before publication.
+
+Abacus AI veya başka araçlarla geliştirirken bölüm başlıklarını koruyun.
+When refining with Abacus AI or other tools, keep section headers intact.
+"""),
+        ("1. KVKK AYDINLATMA METNİ (TR)", PRIVACY_NOTICE_TR),
+        ("2. PRIVACY NOTICE (EN)", PRIVACY_NOTICE_EN),
+        ("3. KULLANIM KOŞULLARI VE SORUMLULUK REDDİ (TR)", TERMS_DISCLAIMER_TR),
+        ("4. TERMS OF USE AND DISCLAIMER (EN)", TERMS_DISCLAIMER_EN),
+    ]
+
+    txt_lines: list[str] = []
+    for title, body in sections:
+        txt_lines.append("=" * 72)
+        txt_lines.append(title)
+        txt_lines.append("=" * 72)
+        txt_lines.append("")
+        txt_lines.append(body.strip())
+        txt_lines.append("")
+        txt_lines.append("")
+
+    txt_path = ROOT / "docs" / "FLYFAM_LEGAL_TEXTS_FULL.txt"
+    txt_path.write_text("\n".join(txt_lines), encoding="utf-8")
+
+    ts_path = ROOT / "mobile" / "lib" / "legalTexts.ts"
+    ts_content = f"""// Generated by scripts/build-legal-texts.py — do not edit by hand
+// Source of truth for edits: scripts/build-legal-texts.py then re-run generator
+// Human-readable export: docs/FLYFAM_LEGAL_TEXTS_FULL.txt
+
+export const LEGAL_TEXT_VERSION = "{DOC_VERSION}";
+
+export const PRIVACY_NOTICE_TR = `{escape_ts(PRIVACY_NOTICE_TR)}`;
+
+export const PRIVACY_NOTICE_EN = `{escape_ts(PRIVACY_NOTICE_EN)}`;
+
+export const TERMS_DISCLAIMER_TR = `{escape_ts(TERMS_DISCLAIMER_TR)}`;
+
+export const TERMS_DISCLAIMER_EN = `{escape_ts(TERMS_DISCLAIMER_EN)}`;
+
+export function privacyNoticeText(locale: string): string {{
+  return locale.toLowerCase().startsWith("tr") ? PRIVACY_NOTICE_TR : PRIVACY_NOTICE_EN;
+}}
+
+export function termsDisclaimerText(locale: string): string {{
+  return locale.toLowerCase().startsWith("tr") ? TERMS_DISCLAIMER_TR : TERMS_DISCLAIMER_EN;
+}}
+"""
+    ts_path.write_text(ts_content, encoding="utf-8")
+    print(f"Wrote {txt_path} ({txt_path.stat().st_size} bytes)")
+    print(f"Wrote {ts_path} ({ts_path.stat().st_size} bytes)")
+
+if __name__ == "__main__":
+    main()

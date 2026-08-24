@@ -17,6 +17,11 @@ web-build/
 *.p12
 *.key
 *.mobileprovision
+google-services.json
+mobile/google-services.json
+*firebase-adminsdk*.json
+docs/google-services.json
+docs/*firebase-adminsdk*.json
 
 # IDE
 .idea/
@@ -27,3 +32,27 @@ web-build/
 # OS
 .DS_Store
 Thumbs.db
+
+# Generated: OurAirports full CSV (npm run airports:fetch-ourairports)
+scripts/data/airports-ourairports.csv
+
+# Large docs / personal files (keep repo lean)
+docs/Görseller/
+docs/*.pdf
+docs/*.zip
+docs/TimeZoneDB.sql/
+docs/moment-timezone-with-data-1970-2030.min.js
+docs/sessions.ics
+docs/airport-codes.csv
+docs/android-users-email-list.json
+docs/android-users-emails.txt
+docs/flyfam_logo_pack_downloader/
+docs/flyfam_node_logo_pack/
+docs/app-review-subscriptions.*
+
+# Mobile tmp screenshots
+mobile/.tmp/
+
+# Android debug keystore (not signing key, but keep out of repo)
+mobile/android/app/debug.keystore
+FlyFam

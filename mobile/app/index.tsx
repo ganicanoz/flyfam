@@ -6,7 +6,7 @@ import { useSession } from '@/contexts/SessionContext';
 import { hasRequiredConsents } from '@/lib/consents';
 
 export default function Index() {
-  const { session, profile, crewProfile, isLoading } = useSession();
+  const { session, profile, crewProfile, isLoading, needsPasswordUpdate } = useSession();
   const router = useRouter();
 
   useEffect(() => {
@@ -18,6 +18,11 @@ export default function Index() {
 
       if (!session) {
         router.replace('/(auth)/welcome');
+        return;
+      }
+
+      if (needsPasswordUpdate) {
+        router.replace('/(auth)/reset-password');
         return;
       }
 
@@ -47,7 +52,7 @@ export default function Index() {
     return () => {
       cancelled = true;
     };
-  }, [session, profile, crewProfile, isLoading, router]);
+  }, [session, profile, crewProfile, isLoading, needsPasswordUpdate, router]);
 
   return (
     <View style={styles.container}>

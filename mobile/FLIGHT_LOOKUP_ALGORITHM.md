@@ -138,7 +138,7 @@ Listede kalkış/varış saatleri **"—"** ise, o uçuş için **hiçbir kaynak
 3. **Tarih eşleşmesi**: AE timetable’da “seçilen gün” = kalkış havaalanı yerel tarihi. Tarih formatı veya timezone farkı yüzünden eşleşme kaçabiliyor.
 4. **Hiçbir API uçuşu bulamadı**: FR24, AE timetable, AE live, AE future, AeroDataBox hepsi null dönerse liste satırı route/numara ile kalır ama saatler boş (dash).
 
-**Ne yapılır?** Dash uçuşlar için uygulama **saatte bir** otomatik yeniden API çağrısı yapar; bir kaynak sonradan saat döndürürse liste güncellenir. İstersen manuel "Sync" de deneyebilirsin. Belirli bir uçuş (örn. PC2550) için konsolda `[FlightAPI PC2550]` ve `[Debug PC2550]` loglarına bakarak hangi kaynağın ne döndürdüğünü görebilirsin.
+**Ne yapılır?** Dash uçuşlar için uygulama **saatte bir** otomatik yeniden API çağrısı yapar — **yalnızca `flight_date` bugünün UTC gününe eşitse** (`getUtcDateString()`); böylece ileri tarihli dash satırlarına gereksiz AE isteği gitmez. Bir kaynak sonradan saat döndürürse liste güncellenir; plan geldikten sonra `flight_date` mümkünse planlı kalkışın **UTC gününe** hizalanır (unique çakışmasında eski tarih kalır). İstersen manuel "Sync" de deneyebilirsin.
 
 ## Bilinen riskler / iyileştirme notları
 

@@ -245,7 +245,10 @@ Deno.serve(async (req) => {
     const hasBasic = !!(Deno.env.get('FR24_USAGE_BASIC_USER')?.trim() && Deno.env.get('FR24_USAGE_BASIC_PASS')?.trim());
     const hasCookie = !!Deno.env.get('FR24_USAGE_COOKIE')?.trim();
     let hint: string | undefined;
-    if (httpStatus === 401 || httpStatus === 403) {
+    if (httpStatus === 429) {
+      hint =
+        'FR24 rate limit (429). /api/usage shares the same token quota as flight lookups — wait 15–60 min, avoid “Fetch FR24 usage” spam, or open the browser usage page below. Admin dashboard shows the last DB snapshot without calling FR24.';
+    } else if (httpStatus === 401 || httpStatus === 403) {
       hint =
         'FR24 rejected the request. Set Supabase secret FR24_API_TOKEN (same as flight-lookup) or FR24API_TOKEN / FR24_USAGE_AUTH_BEARER, or FR24_USAGE_BASIC_*, or FR24_USAGE_COOKIE.';
     } else if (!hasBearer && !hasBasic && !hasCookie) {
@@ -261,16 +264,29 @@ Deno.serve(async (req) => {
       hint =
         'FR24 returned a non-success HTTP status or an unexpected JSON body. Confirm FR24API_TOKEN and URL (prefer /api/usage).';
     }
+
+    const { data: lastSnap } = await admin
+      .from('fr24_usage_metric_snapshots')
+      .select('id, fetched_at, total_calls, total_credits, endpoint_count, period')
+      .order('fetched_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const responseStatus = httpStatus === 429 ? 429 : 502;
+    const errorLabel = httpStatus === 429 ? 'FR24 rate limit exceeded' : 'FR24 usage response invalid';
+
     return new Response(
       JSON.stringify({
-        error: 'FR24 usage response invalid',
+        error: errorLabel,
+        rate_limited: httpStatus === 429,
         status: httpStatus,
         body_preview: bodyText.slice(0, 600),
         hint,
         auth_configured: hasBearer || hasBasic || hasCookie,
+        last_snapshot: lastSnap ?? null,
       }),
       {
-        status: 502,
+        status: responseStatus,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       },
     );
