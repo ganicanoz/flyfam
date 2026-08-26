@@ -9,7 +9,7 @@
   <meta http-equiv="Expires" content="0" />
   <script>
     (function () {
-      var UI = '27';
+      var UI = '28';
       var p = new URLSearchParams(location.search);
       if (p.get('ui') !== UI) {
         p.set('ui', UI);
@@ -735,7 +735,6 @@
       .users-table td { padding: 8px 6px; }
       .drawer-body { padding-bottom: calc(24px + env(safe-area-inset-bottom, 0)); }
       .drawer-head { padding-top: calc(10px + env(safe-area-inset-top, 0)); }
-      .sidebar { top: 0; }
       .email-confirm-inline {
         display: inline-flex;
         margin-top: 4px;
@@ -2247,7 +2246,7 @@
           let hint = '';
           if (location.protocol === 'file:') {
             hint =
-              ' Paneli file:// ile açıyorsun — terminalde: cd docs && python3 -m http.server 8765 sonra http://localhost:8765/ADMIN_STATUS_DASHBOARD.html?ui=26';
+              ' Paneli file:// ile açıyorsun — terminalde: cd docs && python3 -m http.server 8765 sonra http://localhost:8765/ADMIN_STATUS_DASHBOARD.html?ui=28';
           } else {
             hint = ' Supabase URL ve anon key kontrol et; VPN/eklenti engeli olabilir.';
           }
