@@ -9,7 +9,7 @@
   <meta http-equiv="Expires" content="0" />
   <script>
     (function () {
-      var UI = '24';
+      var UI = '25';
       var p = new URLSearchParams(location.search);
       if (p.get('ui') !== UI) {
         p.set('ui', UI);
@@ -610,16 +610,26 @@
     .drawer-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
     @media (max-width: 1100px) {
       .topbar-inner { grid-template-columns: 1fr; }
-      .app { grid-template-columns: 1fr; min-height: auto; }
+      .app {
+        grid-template-columns: 1fr;
+        min-height: auto;
+        padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+      }
       .sidebar {
-        position: sticky;
-        top: var(--topbar-offset);
-        z-index: 15;
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        top: auto;
+        z-index: 35;
         height: auto;
         border-right: 0;
-        border-bottom: 1px solid var(--line);
-        padding: 8px 10px;
-        background: #fff;
+        border-top: 1px solid var(--line);
+        border-bottom: 0;
+        padding: 8px 8px calc(8px + env(safe-area-inset-bottom, 0px));
+        background: rgba(255,255,255,0.96);
+        backdrop-filter: blur(8px);
+        box-shadow: 0 -6px 24px rgba(15, 23, 42, 0.12);
       }
       .sidebar h2,
       .sidebar > .sub { display: none; }
@@ -629,7 +639,8 @@
         gap: 6px;
         overflow-x: auto;
         -webkit-overflow-scrolling: touch;
-        padding-bottom: 2px;
+        scroll-snap-type: x proximity;
+        padding: 0 2px 2px;
         margin-top: 0;
       }
       .menu button,
@@ -638,10 +649,24 @@
         flex: 0 0 auto;
         white-space: nowrap;
         text-align: center;
-        padding: 10px 12px;
-        min-height: 42px;
+        padding: 10px 14px;
+        min-height: 44px;
         font-size: 13px;
+        font-weight: 700;
         border-radius: 999px;
+        scroll-snap-align: start;
+      }
+      .submenu {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        gap: 6px;
+      }
+      .submenu .sub-btn {
+        flex: 0 0 auto;
+        min-height: 42px;
+        padding: 10px 14px;
+        white-space: nowrap;
       }
       .kpi-row { grid-template-columns: 1fr; }
       .kpi-row.kpi-row-5 { grid-template-columns: 1fr 1fr; }
@@ -658,17 +683,27 @@
         border-left: 0;
       }
       .admin-drawer.drawer-wide { width: 100vw; }
+      .drawer-actions {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 8px;
+      }
+      .drawer-actions button {
+        width: 100%;
+      }
       .drawer-actions button,
       .drawer-field input,
       .drawer-field select,
       .drawer-field textarea {
-        min-height: 42px;
-        font-size: 15px;
+        min-height: 44px;
+        font-size: 16px;
       }
       .drawer-field textarea { min-height: 96px; }
       .flights-selection-bar { flex-direction: column; align-items: stretch; }
       .flights-selection-bar button,
       .flights-selection-bar select { width: 100%; min-height: 42px; }
+      .grid { grid-template-columns: 1fr; }
+      .grid > [style*="grid-column"] { grid-column: 1 / -1 !important; }
       .main { padding: 10px; }
       .panel { padding: 10px; }
       button, .btnPrimary, .btnSmall, .btnDanger {
@@ -754,13 +789,13 @@
       <h2>Menu</h2>
       <p class="sub">Details on the left, summary on home</p>
       <nav class="menu">
-        <button class="nav-btn active" data-view="overviewView">Overview</button>
-        <button class="nav-btn" data-view="activityView">Activity</button>
+        <button class="nav-btn active" data-view="overviewView">Özet</button>
+        <button class="nav-btn" data-view="activityView">Aktivite</button>
         <button class="nav-btn" data-view="broadcastView">Broadcast</button>
         <button class="nav-btn" data-view="usersView">Users</button>
         <button class="nav-btn" data-view="flightsView">Flights</button>
-        <button class="nav-btn" data-view="historyView">History log</button>
-        <button class="nav-btn" data-view="usageView">Quota / Usage</button>
+        <button class="nav-btn" data-view="historyView">History</button>
+        <button class="nav-btn" data-view="usageView">Kota</button>
       </nav>
     </aside>
     <main class="main">
@@ -1792,25 +1827,61 @@
       const isCrew = appRole === 'crew';
       const crewSel = appRole === 'crew' ? ' selected' : '';
       const famSel = appRole === 'family' ? ' selected' : '';
-      const companyVal = escapeAttr(u.company_name || '');
-      const famAir = escapeAttr(u.family_linked_crew_company || '');
+      const locale = String(u.locale || 'en');
+      const locEn = locale === 'en' ? ' selected' : '';
+      const locTr = locale === 'tr' ? ' selected' : '';
+      const timePref = String(u.time_preference || 'local');
+      const tpLocal = timePref === 'local' ? ' selected' : '';
+      const tpUtc = timePref === 'utc' ? ' selected' : '';
+      const uid = u.id || '';
       return (
         '<div class="drawer-section">' +
-          '<h4>Edit user</h4>' +
-          '<div class="drawer-field"><label>Email</label><div class="u-email">' + escapeAttr(u.email || '-') + '</div></div>' +
+          '<h4>Kullanıcı verilerini düzenle</h4>' +
+          '<p class="mini" style="margin:0 0 8px;">ID: <code>' + escapeHtml(uid) + '</code></p>' +
+          '<div class="drawer-field"><label>İsim (full name)</label>' +
+            '<input data-role="full-name" data-user-id="' + uid + '" value="' + escapeAttr(u.full_name || '') + '" autocomplete="name" /></div>' +
+          '<div class="drawer-field"><label>Email</label>' +
+            '<input data-role="user-email" data-user-id="' + uid + '" type="email" value="' + escapeAttr(u.email || '') + '" autocomplete="email" /></div>' +
+          '<label class="mini" style="display:flex;align-items:center;gap:8px;margin:0 0 10px;">' +
+            '<input type="checkbox" data-role="email-confirm" data-user-id="' + uid + '" checked />' +
+            'Email değişince onaylı işaretle</label>' +
+          '<div class="drawer-field"><label>Telefon</label>' +
+            '<input data-role="phone" data-user-id="' + uid + '" value="' + escapeAttr(u.phone || '') + '" autocomplete="tel" /></div>' +
+          '<div class="drawer-field"><label>Dil (locale)</label>' +
+            '<select data-role="locale" data-user-id="' + uid + '">' +
+              '<option value="en"' + locEn + '>en</option>' +
+              '<option value="tr"' + locTr + '>tr</option>' +
+            '</select></div>' +
+          '<div class="drawer-field"><label>Saat dilimi (IANA)</label>' +
+            '<input data-role="timezone-iana" data-user-id="' + uid + '" placeholder="Europe/Istanbul" value="' + escapeAttr(u.timezone_iana || '') + '" /></div>' +
           '<div class="drawer-field"><label>App role</label>' +
-            '<select data-role="app-role" data-user-id="' + (u.id || '') + '">' +
+            '<select data-role="app-role" data-user-id="' + uid + '">' +
               '<option value="crew"' + crewSel + '>crew</option>' +
               '<option value="family"' + famSel + '>family</option>' +
             '</select></div>' +
           (isCrew
-            ? '<div class="drawer-field"><label>Airline (company)</label><input data-role="company-name" data-user-id="' + (u.id || '') + '" value="' + companyVal + '" /></div>'
-            : '<div class="drawer-field"><label>Linked crew airline</label><div class="mini">' + (famAir || '—') + '</div></div>') +
-          '<div class="drawer-field"><label>New password</label><input type="password" data-role="new-password" data-user-id="' + (u.id || '') + '" placeholder="Min 8 chars" autocomplete="new-password" /></div>' +
+            ? (
+              '<div class="drawer-field"><label>Havayolu (company)</label>' +
+                '<input data-role="company-name" data-user-id="' + uid + '" value="' + escapeAttr(u.company_name || '') + '" /></div>' +
+              '<div class="drawer-field"><label>Airline ICAO</label>' +
+                '<input data-role="airline-icao" data-user-id="' + uid + '" value="' + escapeAttr(u.airline_icao || '') + '" placeholder="PGT" maxlength="12" /></div>' +
+              '<div class="drawer-field"><label>Home base IATA</label>' +
+                '<input data-role="home-base-iata" data-user-id="' + uid + '" value="' + escapeAttr(u.home_base_iata || '') + '" placeholder="SAW" maxlength="4" /></div>' +
+              '<div class="drawer-field"><label>Home base city</label>' +
+                '<input data-role="home-base-city" data-user-id="' + uid + '" value="' + escapeAttr(u.home_base_city || '') + '" placeholder="Istanbul" /></div>' +
+              '<div class="drawer-field"><label>Roster time display</label>' +
+                '<select data-role="time-preference" data-user-id="' + uid + '">' +
+                  '<option value="local"' + tpLocal + '>local</option>' +
+                  '<option value="utc"' + tpUtc + '>utc</option>' +
+                '</select></div>'
+            )
+            : '<div class="drawer-field"><label>Bağlı crew havayolu</label><div class="mini">' + escapeAttr(u.family_linked_crew_company || '—') + '</div></div>') +
+          '<div class="drawer-field"><label>Yeni şifre</label>' +
+            '<input type="password" data-role="new-password" data-user-id="' + uid + '" placeholder="Min 8 chars" autocomplete="new-password" /></div>' +
           '<div class="drawer-actions">' +
-            '<button type="button" class="btnPrimary btnSmall" data-action="save-user-profile" data-user-id="' + (u.id || '') + '">Save</button>' +
-            '<button type="button" class="btnSmall" data-action="change-user-password" data-user-id="' + (u.id || '') + '">Set password</button>' +
-            '<button type="button" class="btnDanger btnSmall" data-action="delete-user" data-user-id="' + (u.id || '') + '" data-user-email="' + escapeAttr(u.email || '-') + '">Delete</button>' +
+            '<button type="button" class="btnPrimary btnSmall" data-action="save-user-profile" data-user-id="' + uid + '">Tümünü kaydet</button>' +
+            '<button type="button" class="btnSmall" data-action="change-user-password" data-user-id="' + uid + '">Sadece şifre</button>' +
+            '<button type="button" class="btnDanger btnSmall" data-action="delete-user" data-user-id="' + uid + '" data-user-email="' + escapeAttr(u.email || '-') + '">Sil</button>' +
           '</div>' +
         '</div>'
       );
@@ -1950,10 +2021,10 @@
           '</div>';
       } else {
         html =
-          renderUserDrawerSubscriptionSection(u) +
+          renderUserDrawerEditSection(u) +
           renderUserDrawerAuthEmailSection(u) +
-          renderUserDrawerPushSection(u) +
-          renderUserDrawerEditSection(u);
+          renderUserDrawerSubscriptionSection(u) +
+          renderUserDrawerPushSection(u);
       }
       openDrawer(title, html);
       if (drawerMode === 'roster') {
@@ -1961,7 +2032,7 @@
       }
       if (focusEdit && drawerMode === 'details') {
         const editHeading = document.querySelector('#drawerBody .drawer-section h4');
-        if (editHeading && editHeading.textContent === 'Edit user') {
+        if (editHeading && /düzenle|Edit user/i.test(editHeading.textContent || '')) {
           editHeading.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
       }
@@ -3318,19 +3389,52 @@
       const root = document.getElementById('drawerBody') || document;
       if (action === 'save-user-profile') {
         const roleEl = root.querySelector('select[data-role="app-role"][data-user-id="' + userId + '"]');
+        const nameEl = root.querySelector('input[data-role="full-name"][data-user-id="' + userId + '"]');
+        const emailEl = root.querySelector('input[data-role="user-email"][data-user-id="' + userId + '"]');
+        const emailConfirmEl = root.querySelector('input[data-role="email-confirm"][data-user-id="' + userId + '"]');
+        const phoneEl = root.querySelector('input[data-role="phone"][data-user-id="' + userId + '"]');
+        const localeEl = root.querySelector('select[data-role="locale"][data-user-id="' + userId + '"]');
+        const tzEl = root.querySelector('input[data-role="timezone-iana"][data-user-id="' + userId + '"]');
         const companyEl = root.querySelector('input[data-role="company-name"][data-user-id="' + userId + '"]');
+        const icaoEl = root.querySelector('input[data-role="airline-icao"][data-user-id="' + userId + '"]');
+        const homeIataEl = root.querySelector('input[data-role="home-base-iata"][data-user-id="' + userId + '"]');
+        const homeCityEl = root.querySelector('input[data-role="home-base-city"][data-user-id="' + userId + '"]');
+        const timePrefEl = root.querySelector('select[data-role="time-preference"][data-user-id="' + userId + '"]');
         const role = roleEl && roleEl.value ? roleEl.value : '';
         if (role !== 'crew' && role !== 'family') {
           setStatus('Invalid app role', 'bad');
           return;
         }
-        setStatus('Saving profile...', 'warn');
-        const payload = { user_id: userId, role };
-        if (role === 'crew') payload.company_name = companyEl ? String(companyEl.value) : '';
-        await callAdminAction('update_user_profile', payload);
+        const email = emailEl ? String(emailEl.value || '').trim() : '';
+        if (!email || email.indexOf('@') < 0) {
+          setStatus('Geçerli email gerekli', 'bad');
+          return;
+        }
+        setStatus('Kaydediliyor…', 'warn');
+        const payload = {
+          user_id: userId,
+          role,
+          full_name: nameEl ? String(nameEl.value || '') : '',
+          email,
+          email_confirm: !(emailConfirmEl && emailConfirmEl instanceof HTMLInputElement && !emailConfirmEl.checked),
+          phone: phoneEl ? String(phoneEl.value || '') : '',
+          locale: localeEl ? String(localeEl.value || 'en') : 'en',
+          timezone_iana: tzEl ? String(tzEl.value || '') : '',
+        };
+        if (role === 'crew') {
+          payload.company_name = companyEl ? String(companyEl.value || '') : '';
+          payload.airline_icao = icaoEl ? String(icaoEl.value || '') : '';
+          payload.home_base_iata = homeIataEl ? String(homeIataEl.value || '') : '';
+          payload.home_base_city = homeCityEl ? String(homeCityEl.value || '') : '';
+          payload.time_preference = timePrefEl ? String(timePrefEl.value || 'local') : 'local';
+        }
+        const json = await callAdminAction('update_user_profile', payload);
         await loadDashboard();
         if (drawerUserId === userId) await openUserDrawer(userId, drawerUserMode, true);
-        setStatus('Profile saved', 'ok');
+        setStatus(
+          'Kullanıcı kaydedildi' + (json.email_changed ? ' · email: ' + json.email_changed : ''),
+          'ok',
+        );
         return;
       }
       if (action === 'change-user-password') {

@@ -852,11 +852,14 @@ Deno.serve(async (req) => {
 
       const wantsCompany = Object.prototype.hasOwnProperty.call(body ?? {}, 'company_name');
       const wantsIcao = Object.prototype.hasOwnProperty.call(body ?? {}, 'airline_icao');
-      if (wantsCompany || wantsIcao) {
+      const wantsHomeIata = Object.prototype.hasOwnProperty.call(body ?? {}, 'home_base_iata');
+      const wantsHomeCity = Object.prototype.hasOwnProperty.call(body ?? {}, 'home_base_city');
+      const wantsTimePref = Object.prototype.hasOwnProperty.call(body ?? {}, 'time_preference');
+      if (wantsCompany || wantsIcao || wantsHomeIata || wantsHomeCity || wantsTimePref) {
         const { data: prof2 } = await adminClient.from('profiles').select('role').eq('id', userId).maybeSingle();
         const effRole = prof2?.role === 'crew' || prof2?.role === 'family' ? prof2.role : null;
         if (effRole !== 'crew') {
-          return new Response(JSON.stringify({ error: 'Company / ICAO apply only to crew users' }), {
+          return new Response(JSON.stringify({ error: 'Crew fields apply only to crew users' }), {
             status: 400,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
@@ -870,40 +873,117 @@ Deno.serve(async (req) => {
           const raw = typeof body?.airline_icao === 'string' ? body.airline_icao.trim().toUpperCase() : '';
           patch.airline_icao = raw ? raw.slice(0, 12) : null;
         }
-        if (Object.keys(patch).length === 0) {
-          return new Response(JSON.stringify({ ok: true, action, user_id: userId }), {
-            status: 200,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          });
+        if (wantsHomeIata) {
+          const raw = typeof body?.home_base_iata === 'string' ? body.home_base_iata.trim().toUpperCase() : '';
+          patch.home_base_iata = raw ? raw.slice(0, 4) : null;
         }
-        if (!cp?.id) {
-          const { error: ins2 } = await adminClient.from('crew_profiles').insert({
-            user_id: userId,
-            company_name: patch.company_name ?? null,
-            airline_icao: patch.airline_icao ?? null,
-            time_preference: 'local',
-          });
-          if (ins2) {
-            return new Response(JSON.stringify({ error: ins2.message || 'Failed to create crew profile' }), {
-              status: 400,
-              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        if (wantsHomeCity) {
+          patch.home_base_city = typeof body?.home_base_city === 'string' ? body.home_base_city.trim() || null : null;
+        }
+        if (wantsTimePref) {
+          const tp = typeof body?.time_preference === 'string' ? body.time_preference.trim() : '';
+          if (tp === 'local' || tp === 'utc') patch.time_preference = tp;
+        }
+        if (Object.keys(patch).length > 0) {
+          if (!cp?.id) {
+            const { error: ins2 } = await adminClient.from('crew_profiles').insert({
+              user_id: userId,
+              company_name: patch.company_name ?? null,
+              airline_icao: patch.airline_icao ?? null,
+              home_base_iata: patch.home_base_iata ?? null,
+              home_base_city: patch.home_base_city ?? null,
+              time_preference: patch.time_preference ?? 'local',
             });
-          }
-        } else {
-          const { error: cuErr } = await adminClient.from('crew_profiles').update(patch).eq('user_id', userId);
-          if (cuErr) {
-            return new Response(JSON.stringify({ error: cuErr.message || 'Crew profile update failed' }), {
-              status: 400,
-              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            });
+            if (ins2) {
+              return new Response(JSON.stringify({ error: ins2.message || 'Failed to create crew profile' }), {
+                status: 400,
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+              });
+            }
+          } else {
+            const { error: cuErr } = await adminClient.from('crew_profiles').update(patch).eq('user_id', userId);
+            if (cuErr) {
+              return new Response(JSON.stringify({ error: cuErr.message || 'Crew profile update failed' }), {
+                status: 400,
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+              });
+            }
           }
         }
       }
 
-      return new Response(JSON.stringify({ ok: true, action, user_id: userId }), {
-        status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      const profilePatch: Record<string, string | null> = {};
+      if (Object.prototype.hasOwnProperty.call(body ?? {}, 'full_name')) {
+        profilePatch.full_name =
+          typeof body?.full_name === 'string' ? body.full_name.trim() || null : null;
+      }
+      if (Object.prototype.hasOwnProperty.call(body ?? {}, 'phone')) {
+        profilePatch.phone = typeof body?.phone === 'string' ? body.phone.trim() || null : null;
+      }
+      if (Object.prototype.hasOwnProperty.call(body ?? {}, 'locale')) {
+        const loc = typeof body?.locale === 'string' ? body.locale.trim() : '';
+        if (loc === 'en' || loc === 'tr') profilePatch.locale = loc;
+      }
+      if (Object.prototype.hasOwnProperty.call(body ?? {}, 'timezone_iana')) {
+        profilePatch.timezone_iana =
+          typeof body?.timezone_iana === 'string' ? body.timezone_iana.trim() || null : null;
+      }
+      if (Object.keys(profilePatch).length > 0) {
+        const { error: pUpErr } = await adminClient.from('profiles').update(profilePatch).eq('id', userId);
+        if (pUpErr) {
+          return new Response(JSON.stringify({ error: pUpErr.message || 'Profile update failed' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+      }
+
+      let emailChanged: string | null = null;
+      if (Object.prototype.hasOwnProperty.call(body ?? {}, 'email')) {
+        const nextEmail = normalizeEmail(typeof body?.email === 'string' ? body.email : '');
+        if (!nextEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(nextEmail)) {
+          return new Response(JSON.stringify({ error: 'Valid email is required' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+        const { data: authUser } = await adminClient.auth.admin.getUserById(userId);
+        const currentEmail = normalizeEmail(authUser?.user?.email ?? '');
+        if (nextEmail !== currentEmail) {
+          const confirmEmail = body?.email_confirm !== false;
+          const { error: emailErr } = await adminClient.auth.admin.updateUserById(userId, {
+            email: nextEmail,
+            email_confirm: confirmEmail,
+          });
+          if (emailErr) {
+            return new Response(JSON.stringify({ error: emailErr.message || 'Email update failed' }), {
+              status: 400,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+          }
+          emailChanged = nextEmail;
+        }
+      }
+
+      console.log('[admin-dashboard] update_user_profile', {
+        user_id: userId,
+        requester: requesterEmail,
+        profile_keys: Object.keys(profilePatch),
+        email_changed: emailChanged,
       });
+
+      return new Response(
+        JSON.stringify({
+          ok: true,
+          action,
+          user_id: userId,
+          email_changed: emailChanged,
+        }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        },
+      );
     }
     if (action === 'create_flight') {
       const payload = (body?.payload ?? {}) as Record<string, unknown>;
@@ -2086,7 +2166,7 @@ Deno.serve(async (req) => {
   ] = await Promise.all([
     adminClient
       .from('profiles')
-      .select('id, role, full_name, created_at, updated_at')
+      .select('id, role, full_name, phone, locale, timezone_iana, created_at, updated_at')
       .order('updated_at', { ascending: false })
       .limit(1000),
     fetchDashboardFlights(),
@@ -2150,7 +2230,7 @@ Deno.serve(async (req) => {
 
   const { data: crewProfilesRows } = await adminClient
     .from('crew_profiles')
-    .select('id, user_id, company_name, airline_icao');
+    .select('id, user_id, company_name, airline_icao, home_base_iata, home_base_city, time_preference');
   type DeviceTokenRow = {
     user_id: string;
     platform: string | null;
@@ -2175,11 +2255,26 @@ Deno.serve(async (req) => {
         const tb = b.last_used_at ? new Date(b.last_used_at).getTime() : 0;
         return tb - ta;
       })[0] ?? null;
-  type CrewRow = { id: string; user_id: string; company_name: string | null; airline_icao: string | null };
+  type CrewRow = {
+    id: string;
+    user_id: string;
+    company_name: string | null;
+    airline_icao: string | null;
+    home_base_iata?: string | null;
+    home_base_city?: string | null;
+    time_preference?: string | null;
+  };
   const crewByUserId = new Map(
     (crewProfilesRows ?? []).map((r: CrewRow) => [
       r.user_id,
-      { id: r.id, company_name: r.company_name ?? null, airline_icao: r.airline_icao ?? null },
+      {
+        id: r.id,
+        company_name: r.company_name ?? null,
+        airline_icao: r.airline_icao ?? null,
+        home_base_iata: r.home_base_iata ?? null,
+        home_base_city: r.home_base_city ?? null,
+        time_preference: r.time_preference ?? null,
+      },
     ]),
   );
   type AdminUserConnection = {
@@ -2193,7 +2288,14 @@ Deno.serve(async (req) => {
     linked_crew_company: string | null;
   };
 
-  const userRows = (profiles ?? []).map((p: { id: string; full_name?: string | null; role?: string | null }) => {
+  const userRows = (profiles ?? []).map((p: {
+    id: string;
+    full_name?: string | null;
+    role?: string | null;
+    phone?: string | null;
+    locale?: string | null;
+    timezone_iana?: string | null;
+  }) => {
     const authU = authById.get(p.id);
     const crew = crewByUserId.get(p.id);
     const devices = deviceByUserId.get(p.id) ?? [];
@@ -2203,12 +2305,18 @@ Deno.serve(async (req) => {
       id: p.id,
       id_short: shortId(p.id),
       full_name: p.full_name ?? null,
+      phone: p.phone ?? null,
+      locale: p.locale ?? null,
+      timezone_iana: p.timezone_iana ?? null,
       role: p.role ?? null,
       created_at: (p as { created_at?: string | null }).created_at ?? null,
       updated_at: (p as { updated_at?: string | null }).updated_at ?? null,
       crew_id: crew?.id ?? null,
       company_name: crew?.company_name ?? null,
       airline_icao: crew?.airline_icao ?? null,
+      home_base_iata: crew?.home_base_iata ?? null,
+      home_base_city: crew?.home_base_city ?? null,
+      time_preference: crew?.time_preference ?? null,
       email: authU?.email ?? null,
       last_sign_in_at: authU?.last_sign_in_at ?? null,
       email_confirmed_at: authU?.email_confirmed_at ?? null,
