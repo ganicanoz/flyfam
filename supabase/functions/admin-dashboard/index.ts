@@ -690,6 +690,62 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+    if (action === 'confirm_user_email') {
+      const userId = typeof body?.user_id === 'string' ? body.user_id.trim() : '';
+      if (!userId) {
+        return new Response(JSON.stringify({ error: 'user_id is required' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      const { data: existing, error: getErr } = await adminClient.auth.admin.getUserById(userId);
+      if (getErr || !existing?.user) {
+        return new Response(JSON.stringify({ error: getErr?.message || 'User not found' }), {
+          status: 404,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      if (existing.user.email_confirmed_at) {
+        return new Response(
+          JSON.stringify({
+            ok: true,
+            action,
+            user_id: userId,
+            email: existing.user.email ?? null,
+            already_confirmed: true,
+            email_confirmed_at: existing.user.email_confirmed_at,
+            message: 'Email already confirmed',
+          }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        );
+      }
+      const { data: updated, error } = await adminClient.auth.admin.updateUserById(userId, {
+        email_confirm: true,
+      });
+      if (error) {
+        return new Response(JSON.stringify({ error: error.message || 'Email confirm failed' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      console.log('[admin-dashboard] confirm_user_email', {
+        user_id: userId,
+        email: updated?.user?.email ?? existing.user.email ?? null,
+        requester: requesterEmail,
+      });
+      return new Response(
+        JSON.stringify({
+          ok: true,
+          action,
+          user_id: userId,
+          email: updated?.user?.email ?? existing.user.email ?? null,
+          already_confirmed: false,
+          email_confirmed_at: updated?.user?.email_confirmed_at ?? null,
+          message: 'Email confirmed by admin',
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
     if (action === 'update_user_password') {
       const userId = typeof body?.user_id === 'string' ? body.user_id.trim() : '';
       const newPassword = typeof body?.new_password === 'string' ? body.new_password : '';

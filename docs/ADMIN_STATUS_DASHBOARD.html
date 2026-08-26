@@ -2,14 +2,14 @@
 <html lang="tr">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <!-- Bump UI version when changing admin layout/CSS; avoids stale disk cache for bare URL. -->
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
   <script>
     (function () {
-      var UI = '23';
+      var UI = '24';
       var p = new URLSearchParams(location.search);
       if (p.get('ui') !== UI) {
         p.set('ui', UI);
@@ -611,18 +611,111 @@
     @media (max-width: 1100px) {
       .topbar-inner { grid-template-columns: 1fr; }
       .app { grid-template-columns: 1fr; min-height: auto; }
-      .sidebar { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--line); top: 0; }
+      .sidebar {
+        position: sticky;
+        top: var(--topbar-offset);
+        z-index: 15;
+        height: auto;
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+        padding: 8px 10px;
+        background: #fff;
+      }
+      .sidebar h2,
+      .sidebar > .sub { display: none; }
+      .menu {
+        flex-direction: row;
+        flex-wrap: nowrap;
+        gap: 6px;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: 2px;
+        margin-top: 0;
+      }
+      .menu button,
+      .menu a.nav-external {
+        width: auto;
+        flex: 0 0 auto;
+        white-space: nowrap;
+        text-align: center;
+        padding: 10px 12px;
+        min-height: 42px;
+        font-size: 13px;
+        border-radius: 999px;
+      }
       .kpi-row { grid-template-columns: 1fr; }
       .kpi-row.kpi-row-5 { grid-template-columns: 1fr 1fr; }
       .kpi-row.kpi-row-6 { grid-template-columns: 1fr 1fr; }
       .act-charts-grid { grid-template-columns: 1fr; }
+      .users-toolbar { flex-direction: column; align-items: stretch; }
+      .users-toolbar > div { min-width: 0; width: 100%; }
+      .users-toolbar select,
+      .users-toolbar input,
+      .users-toolbar button { width: 100%; min-height: 42px; font-size: 14px; }
+      .admin-drawer {
+        width: 100vw;
+        max-width: 100vw;
+        border-left: 0;
+      }
+      .admin-drawer.drawer-wide { width: 100vw; }
+      .drawer-actions button,
+      .drawer-field input,
+      .drawer-field select,
+      .drawer-field textarea {
+        min-height: 42px;
+        font-size: 15px;
+      }
+      .drawer-field textarea { min-height: 96px; }
+      .flights-selection-bar { flex-direction: column; align-items: stretch; }
+      .flights-selection-bar button,
+      .flights-selection-bar select { width: 100%; min-height: 42px; }
+      .main { padding: 10px; }
+      .panel { padding: 10px; }
+      button, .btnPrimary, .btnSmall, .btnDanger {
+        min-height: 40px;
+        padding: 8px 12px;
+      }
     }
     @media (max-width: 1400px) {
       .topbar .advanced-auth-fields > .auth-field { grid-column: span 6 !important; }
     }
     @media (max-width: 760px) {
+      :root { --topbar-offset: auto; }
+      .topbar { padding-top: env(safe-area-inset-top, 0); }
       .topbar .advanced-auth-fields > .auth-field { grid-column: span 12 !important; }
       .topbar .auth-actions { justify-content: flex-start; }
+      .topbar input,
+      .topbar button {
+        padding: 10px 12px;
+        font-size: 15px;
+        min-height: 44px;
+      }
+      .brand-title { font-size: 16px; }
+      .kpi-row.kpi-row-5,
+      .kpi-row.kpi-row-6 { grid-template-columns: 1fr; }
+      .users-table { font-size: 12px; }
+      .users-table th,
+      .users-table td { padding: 8px 6px; }
+      .drawer-body { padding-bottom: calc(24px + env(safe-area-inset-bottom, 0)); }
+      .drawer-head { padding-top: calc(10px + env(safe-area-inset-top, 0)); }
+      .sidebar { top: 0; }
+      .email-confirm-inline {
+        display: inline-flex;
+        margin-top: 4px;
+      }
+    }
+    .email-confirm-inline {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-left: 4px;
+      vertical-align: middle;
+    }
+    .email-confirm-inline .btnSmall {
+      padding: 4px 8px;
+      min-height: 28px;
+      font-size: 11px;
     }
   </style>
 </head>
@@ -1601,6 +1694,9 @@
             (u.email_confirmed_at ? ' · ' + escapeHtml(fmtShortTs(u.email_confirmed_at)) : '') +
           '</p>' +
           '<div class="drawer-actions">' +
+            (confirmed
+              ? ''
+              : '<button type="button" class="btnPrimary btnSmall" data-action="confirm-user-email" data-user-id="' + (u.id || '') + '">Email’i şimdi doğrula</button>') +
             '<button type="button" class="btnSmall" data-action="send-auth-email" data-email-type="signup" data-user-id="' + (u.id || '') + '">Onay maili gönder</button>' +
             '<button type="button" class="btnSmall" data-action="send-auth-email" data-email-type="recovery" data-user-id="' + (u.id || '') + '">Şifre yenileme maili</button>' +
           '</div>' +
@@ -2326,7 +2422,12 @@
         }
         const emailOk = u.email_confirmed
           ? ''
-          : ' <span class="pill pill-warn" title="Email onaylanmamış">!</span>';
+          : (
+            '<span class="email-confirm-inline">' +
+              '<span class="pill pill-warn" title="Email onaylanmamış">!</span>' +
+              '<button type="button" class="btnSmall" data-action="confirm-user-email" data-user-id="' + (u.id || '') + '">Doğrula</button>' +
+            '</span>'
+          );
         return (
           '<tr class="user-row-main" data-user-row-id="' + (u.id || '') + '">' +
             '<td>' + (idx + 1) + '</td>' +
@@ -3303,6 +3404,29 @@
         setStatus((json.message || 'Mail kuyruğa alındı') + ' · ' + (json.email || ''), 'ok');
         return;
       }
+      if (action === 'confirm-user-email') {
+        const u = lastUsers.find((x) => x.id === userId);
+        const label = (u && (u.full_name || u.email)) || userId;
+        if (u && u.email_confirmed) {
+          setStatus('Email zaten onaylı: ' + label, 'ok');
+          return;
+        }
+        const ok = window.confirm(
+          'Bu kullanıcının emailini admin olarak doğrula?\n\n' + label +
+          '\n\nKullanıcıya mail gitmez; hesap hemen onaylı olur.',
+        );
+        if (!ok) return;
+        setStatus('Email doğrulanıyor…', 'warn');
+        const json = await callAdminAction('confirm_user_email', { user_id: userId });
+        await loadDashboard();
+        if (drawerUserId === userId) await openUserDrawer(userId, drawerUserMode, false);
+        setStatus(
+          (json.already_confirmed ? 'Zaten onaylı' : 'Email doğrulandı') +
+            (json.email ? ' · ' + json.email : ''),
+          'ok',
+        );
+        return;
+      }
       if (action === 'grant-base-subscription') {
         const ok = window.confirm('Geniş Sülale Paketi (circle / active, 7 aile) verilsin mi?');
         if (!ok) return;
@@ -3367,6 +3491,17 @@
     els.usersBody.addEventListener('click', async (e) => {
       const target = e.target;
       if (!(target instanceof HTMLElement)) return;
+      const confirmBtn = target.closest('button[data-action="confirm-user-email"]');
+      if (confirmBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        try {
+          await handleUserAction(confirmBtn);
+        } catch (err) {
+          setStatus(String(err?.message || err), 'bad');
+        }
+        return;
+      }
       const userLink = target.closest('a[data-action="open-user-details"], a[data-action="open-user-roster"]');
       if (userLink) {
         e.preventDefault();
