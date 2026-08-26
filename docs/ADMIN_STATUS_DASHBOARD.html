@@ -9,7 +9,7 @@
   <meta http-equiv="Expires" content="0" />
   <script>
     (function () {
-      var UI = '26';
+      var UI = '27';
       var p = new URLSearchParams(location.search);
       if (p.get('ui') !== UI) {
         p.set('ui', UI);
@@ -620,9 +620,11 @@
         left: 0;
         right: 0;
         bottom: 0;
-        top: auto;
+        top: auto !important;
         z-index: 35;
-        height: auto;
+        height: auto !important;
+        max-height: none;
+        overflow: visible;
         border-right: 0;
         border-top: 1px solid var(--line);
         border-bottom: 0;
