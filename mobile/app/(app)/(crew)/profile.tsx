@@ -13,6 +13,7 @@ import { Stack, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useSession } from '@/contexts/SessionContext';
 import { normalizeRosterListShow } from '@/lib/rosterListPreferences';
 import { RosterListTasksModal } from '@/components/RosterListTasksModal';
@@ -111,6 +112,23 @@ export default function CrewProfileScreen() {
                   </Text>
                 </View>
               )}
+              <View style={styles.roleBadge}>
+                <View style={styles.roleBadgeRow}>
+                  {profile?.role === 'crew' ? (
+                    <MaterialIcons name="flight-takeoff" size={16} color={colors.text} />
+                  ) : (
+                    <Ionicons name="people-outline" size={14} color={colors.text} />
+                  )}
+                  <Text style={[styles.roleBadgeText, { color: colors.text }]} numberOfLines={1}>
+                    {profile?.role === 'crew' ? t('profile.roleCrew') : t('profile.roleFamily')}
+                  </Text>
+                </View>
+                {profile?.role === 'crew' ? (
+                  <Text style={[styles.roleBaseText, { color: colors.text }]} numberOfLines={1}>
+                    {(crewProfile?.home_base_iata ?? '').trim().toUpperCase() || t('profile.notSet')}
+                  </Text>
+                ) : null}
+              </View>
             </View>
             <Text style={[styles.label, styles.labelFirst, { color: colors.textSecondary }]}>{t('profile.name')}</Text>
             <Text style={[styles.value, { color: colors.text }]}>{profile?.full_name ?? '—'}</Text>
@@ -140,11 +158,6 @@ export default function CrewProfileScreen() {
                 )}
               </>
             )}
-
-            <Text style={[styles.label, { color: colors.textSecondary }]}>{t('profile.accountType')}</Text>
-            <Text style={[styles.value, { color: colors.text }]}>
-              {profile?.role === 'crew' ? t('signUp.crew') : t('signUp.family')}
-            </Text>
 
             <TouchableOpacity
               style={styles.rosterSettingsRow}
@@ -245,6 +258,7 @@ const styles = StyleSheet.create({
     right: 12,
     zIndex: 10,
     elevation: 10,
+    alignItems: 'center',
   },
   cardAvatarImage: {
     width: 128,
@@ -262,6 +276,30 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   cardAvatarInitial: { fontSize: 20, fontWeight: '700', color: colors.primary },
+  roleBadge: {
+    marginTop: 8,
+    alignItems: 'center',
+    width: 128,
+    gap: 2,
+  },
+  roleBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  roleBadgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+    flexShrink: 1,
+    textAlign: 'center',
+  },
+  roleBaseText: {
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.4,
+    textAlign: 'center',
+  },
   airlineRow: {
     flexDirection: 'row',
     alignItems: 'center',

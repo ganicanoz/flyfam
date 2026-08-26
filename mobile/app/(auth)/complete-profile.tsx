@@ -18,12 +18,14 @@ import { useRouter } from 'expo-router';
 import { useSession } from '@/contexts/SessionContext';
 import { supabase } from '@/lib/supabase';
 import { AIRLINES, type Airline } from '@/constants/airlines';
+import { getAirportDisplay } from '@/constants/airports';
 
 export default function CompleteProfile() {
   const [selectedAirline, setSelectedAirline] = useState<Airline | null>(null);
   const [icaoEdit, setIcaoEdit] = useState('');
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [homeBaseIata, setHomeBaseIata] = useState('');
   const { profile, refreshProfile } = useSession();
   const router = useRouter();
 
@@ -42,10 +44,16 @@ export default function CompleteProfile() {
     }
 
     const icao = (icaoEdit || selectedAirline?.icao || '').trim().toUpperCase().slice(0, 12);
+    const homeBase = homeBaseIata.trim().toUpperCase().slice(0, 4);
     if (isCrew && !icao) {
       Alert.alert('Error', 'Airline ICAO code is required');
       return;
     }
+    if (isCrew && !homeBase) {
+      Alert.alert('Error', 'Home base IATA code is required (example: SAW)');
+      return;
+    }
+    const homeBaseCity = getAirportDisplay(homeBase)?.city ?? null;
 
     setLoading(true);
 
@@ -62,6 +70,8 @@ export default function CompleteProfile() {
           .update({
             company_name: selectedAirline!.name,
             airline_icao: icao,
+            home_base_iata: homeBase,
+            home_base_city: homeBaseCity,
             time_preference: 'local',
           })
           .eq('id', existing.id);
@@ -75,6 +85,8 @@ export default function CompleteProfile() {
           p_company_name: selectedAirline!.name,
           p_time_preference: 'local',
           p_airline_icao: icao,
+          p_home_base_iata: homeBase,
+          p_home_base_city: homeBaseCity,
         });
         if (error) {
           setLoading(false);
@@ -141,6 +153,17 @@ export default function CompleteProfile() {
             onChangeText={(t) => setIcaoEdit(t.toUpperCase())}
             autoCapitalize="characters"
             maxLength={12}
+            editable={!loading}
+          />
+          <Text style={styles.label}>Home base IATA</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="e.g. SAW, IST, ADB"
+            placeholderTextColor="#71717a"
+            value={homeBaseIata}
+            onChangeText={(t) => setHomeBaseIata(t.toUpperCase())}
+            autoCapitalize="characters"
+            maxLength={4}
             editable={!loading}
           />
 

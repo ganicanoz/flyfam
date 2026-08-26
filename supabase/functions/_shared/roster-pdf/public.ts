@@ -11,6 +11,7 @@ export {
   trLocalDateTimeToUtcIso,
   ROSTER_FALLBACK_TIMEZONE,
   addCalendarDays,
+  restEndOperatingYmd,
   localDateTimeInTimezoneToUtcIso,
   rowToScheduleIso,
   pegasusUtcSchedulePairFromFlightDate,

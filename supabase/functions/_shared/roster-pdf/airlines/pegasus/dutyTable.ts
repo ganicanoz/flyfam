@@ -6,7 +6,7 @@ import type { PdfFlightRow } from '../../types.ts';
 import { rosterOccupationLabelEn, rosterOccupationLabelTr, isStandbyOccupationCode } from '../../occupationLabels.ts';
 import { isSimulatorOccupationCode, simulatorFlightNumberLabel, PEGASUS_SIM_OR_IPT_OCC } from '../../simulatorDuty.ts';
 import { isLikelyFlightNumber } from '../../textUtils.ts';
-import { pegasusUtcSchedulePairFromFlightDate } from '../../timeAndSchedule.ts';
+import { pegasusUtcSchedulePairFromFlightDate, restEndOperatingYmd } from '../../timeAndSchedule.ts';
 import { detectPegasusPlanTimeBasis } from '../../normalize.ts';
 
 /** PDF’te `DD/MM/YYYY` + (sonraki satır) `HH:MM` veya `HH:MM:SS` — iki çift (duty end + resting end veya SIM duty start + duty end). */
@@ -71,10 +71,13 @@ export function parseFlightsFromPdfText_DutyLocalTableCore(text: string): PdfFli
   /** Uçuş görevi: slash tablosunda 1. çift = duty end, 2. çift = resting end */
   let pendingSlashDutyEnd: SlashDateTimePair | null = null;
   let pendingSlashRestEnd: SlashDateTimePair | null = null;
+  /** Aynı DUTY bloğundaki önceki uçuş kalkışı — gece/layover dönüşünü rest gününe bağlamak için. */
+  let prevDepInDutyBlock: string | null = null;
 
   const clearPendingSlashFlight = () => {
     pendingSlashDutyEnd = null;
     pendingSlashRestEnd = null;
+    prevDepInDutyBlock = null;
   };
 
   const setDateFromDutyYy = (m: RegExpExecArray) => {
@@ -277,15 +280,30 @@ export function parseFlightsFromPdfText_DutyLocalTableCore(text: string): PdfFli
     const depH = `${tm1[1]!.padStart(2, '0')}:${tm1[2]}`;
     const arrH = `${tm2[1]!.padStart(2, '0')}:${tm2[2]}`;
     let utcPair: { dep_schedule_utc_iso: string; arr_schedule_utc_iso: string } | null = null;
+
+    // Aynı DUTY satırına bağlı gidiş+dönüş: dönüş saati gidişten erkense bu bir gece dönüşü
+    // veya layover dönüşüdür. Tek +1 gün gece dönüşünü (21.09) verir; 20–22 LED yatısında
+    // resting end (2. slash) asıl işletme günüdür (22.09).
+    let rowDate: string = pendingDate;
+    const restOp = restEndOperatingYmd(pendingSlashRestEnd?.ymd, pendingSlashRestEnd?.hhmm);
+    if (
+      prevDepInDutyBlock &&
+      restOp &&
+      restOp > pendingDate &&
+      depH < prevDepInDutyBlock
+    ) {
+      rowDate = restOp;
+    }
+
     if (treatAsUtcPair) {
-      utcPair = pegasusUtcSchedulePairFromFlightDate(pendingDate, depH, arrH);
+      utcPair = pegasusUtcSchedulePairFromFlightDate(rowDate, depH, arrH);
       if (!utcPair) continue;
     }
 
     out.push({
       roster_entry_kind: 'flight',
       flight_number: fn,
-      flight_date: pendingDate,
+      flight_date: rowDate,
       ...(utcPair
         ? {
             dep_schedule_utc_iso: utcPair.dep_schedule_utc_iso,
@@ -306,7 +324,7 @@ export function parseFlightsFromPdfText_DutyLocalTableCore(text: string): PdfFli
       duty_rest_end_date_iso: pendingSlashRestEnd?.ymd ?? null,
       duty_rest_end_time_local: pendingSlashRestEnd?.hhmm ?? null,
     });
-    clearPendingSlashFlight();
+    prevDepInDutyBlock = depH;
   }
 
   return out;

@@ -19,6 +19,7 @@ import { useSession } from '../contexts/SessionContext';
 import { supabase } from '../lib/supabase';
 import { colors } from '../theme/colors';
 import { AIRLINES, Airline } from '../constants/airlines';
+import { getAirportDisplay } from '../constants/airports';
 
 export default function CompleteProfile() {
   const { t } = useTranslation();
@@ -26,6 +27,7 @@ export default function CompleteProfile() {
   const [icaoEdit, setIcaoEdit] = useState('');
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [homeBaseIata, setHomeBaseIata] = useState('');
   const { profile, refreshProfile } = useSession();
   const isCrew = profile?.role === 'crew';
 
@@ -40,10 +42,17 @@ export default function CompleteProfile() {
     }
 
     const icao = (icaoEdit || selectedAirline?.icao || '').trim().toUpperCase().slice(0, 12);
+    const homeBase = homeBaseIata.trim().toUpperCase().slice(0, 4);
     if (isCrew && !icao) {
       Alert.alert(t('common.error'), 'ICAO code is required');
       return;
     }
+    if (isCrew && !homeBase) {
+      Alert.alert(t('common.error'), t('completeProfile.errorHomeBaseRequired'));
+      return;
+    }
+    const homeBaseDisplay = getAirportDisplay(homeBase);
+    const homeBaseCity = homeBaseDisplay?.city ?? null;
 
     setLoading(true);
     if (isCrew && profile?.id) {
@@ -59,6 +68,8 @@ export default function CompleteProfile() {
           .update({
             company_name: selectedAirline!.name,
             airline_icao: icao,
+            home_base_iata: homeBase,
+            home_base_city: homeBaseCity,
             time_preference: 'local',
           })
           .eq('id', existing.id);
@@ -72,6 +83,8 @@ export default function CompleteProfile() {
           p_company_name: selectedAirline!.name,
           p_time_preference: 'local',
           p_airline_icao: icao,
+          p_home_base_iata: homeBase,
+          p_home_base_city: homeBaseCity,
         });
         if (error) {
           setLoading(false);
@@ -133,6 +146,22 @@ export default function CompleteProfile() {
             editable={!loading}
           />
 
+          <Text style={[styles.label, { color: colors.textSecondary }]}>{t('completeProfile.homeBaseIata')}</Text>
+          <TextInput
+            style={[
+              styles.icaoInput,
+              { color: colors.text, borderColor: colors.border, backgroundColor: colors.surface },
+            ]}
+            value={homeBaseIata}
+            onChangeText={(s) => setHomeBaseIata(s.toUpperCase())}
+            placeholder={t('completeProfile.homeBasePlaceholder')}
+            placeholderTextColor={colors.textMuted}
+            autoCapitalize="characters"
+            maxLength={4}
+            editable={!loading}
+          />
+          <Text style={[styles.helper, { color: colors.textMuted }]}>{t('completeProfile.homeBaseExample')}</Text>
+
           <Modal visible={dropdownOpen} transparent animationType="fade">
             <Pressable style={styles.modalOverlay} onPress={() => setDropdownOpen(false)}>
               <View style={styles.modalContent}>
@@ -180,6 +209,7 @@ const styles = StyleSheet.create({
   title: { fontSize: 28, fontWeight: '700', marginTop: 80, marginBottom: 4 },
   subtitle: { fontSize: 16, marginBottom: 32 },
   label: { fontSize: 14, marginBottom: 8 },
+  helper: { fontSize: 12, marginTop: -16, marginBottom: 18 },
   icaoInput: {
     fontSize: 16,
     borderWidth: 1,

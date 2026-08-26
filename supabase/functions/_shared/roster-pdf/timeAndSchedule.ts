@@ -31,6 +31,18 @@ export function addCalendarDays(dateYmd: string, deltaDays: number): string {
   return new Date(u).toISOString().slice(0, 10);
 }
 
+/**
+ * Pegasus ikinci slash = resting end.
+ * 00:00–03:59 bitiş bir önceki takvim gününün görevini kapatır (layover dönüş günü o gün değil).
+ */
+export function restEndOperatingYmd(restYmd: string | null | undefined, restHhmm: string | null | undefined): string | null {
+  const ymd = restYmd?.trim() ?? '';
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(ymd)) return null;
+  const clock = timeToMinutes(restHhmm ?? '');
+  if (Number.isFinite(clock) && clock < 4 * 60) return addCalendarDays(ymd, -1);
+  return ymd;
+}
+
 function getCalendarPartsInTimeZone(
   utcMs: number,
   timeZone: string

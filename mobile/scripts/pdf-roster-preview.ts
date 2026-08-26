@@ -21,6 +21,7 @@ import {
   parseFlightsFromPdfText_DutyLocalTable,
   parseFlightsFromPdfText_DutyLocalTableCore,
   parseFlightsFromPdfText_DutySingleLineSameRow,
+  restEndOperatingYmd,
   rowToScheduleIso,
   type PdfFlightRow,
 } from '../lib/pdfRosterImport';
@@ -245,6 +246,22 @@ type DutyDateFixHint = {
   reason: string | null;
 };
 
+function detectRestEndDateFixes(pcFlights: PdfFlightRow[]): Map<number, DutyDateFixHint> {
+  const out = new Map<number, DutyDateFixHint>();
+  for (let i = 0; i < pcFlights.length; i += 1) {
+    const r = pcFlights[i];
+    const dep = timeToMinutes(r.dep_time_local);
+    const restOp = restEndOperatingYmd(r.duty_rest_end_date_iso, r.duty_rest_end_time_local);
+    if (dep == null || restOp == null || dep >= 12 * 60 || restOp < r.flight_date) continue;
+    if (restOp === r.flight_date) continue;
+    out.set(i, {
+      suggestNextDay: true,
+      reason: `RestEnd ${restOp} ${r.duty_rest_end_time_local ?? ''} (sabah dönüş / layover)`,
+    });
+  }
+  return out;
+}
+
 function detectDutyStartDateFixes(pcFlights: PdfFlightRow[]): Map<number, DutyDateFixHint> {
   const out = new Map<number, DutyDateFixHint>();
   for (let i = 0; i < pcFlights.length; i += 1) {
@@ -266,13 +283,15 @@ function detectDutyStartDateFixes(pcFlights: PdfFlightRow[]): Map<number, DutyDa
 
 function detectOvernightReturnHints(
   pcFlights: PdfFlightRow[],
-  baseDateByIndex: string[]
+  baseDateByIndex: string[],
+  skipIndex?: Set<number>
 ): Map<number, OvernightHint> {
   const out = new Map<number, OvernightHint>();
 
   for (let i = 0; i < pcFlights.length - 1; i += 1) {
     const a = pcFlights[i];
     const b = pcFlights[i + 1];
+    if (skipIndex?.has(i + 1)) continue;
     if (baseDateByIndex[i] !== baseDateByIndex[i + 1]) continue;
 
     const an = pcNumber(a.flight_number);
@@ -454,13 +473,21 @@ Kullanım:
   }
 
   const pcFlights = previewRows.filter(isPcFlight);
+  const restDateFixHints = detectRestEndDateFixes(pcFlights);
   const dutyDateFixHints = detectDutyStartDateFixes(pcFlights);
-  const baseDateByIndex = pcFlights.map((r, i) =>
-    dutyDateFixHints.get(i)?.suggestNextDay ? addDaysIso(r.flight_date, 1) : r.flight_date
+  const baseDateByIndex = pcFlights.map((r, i) => {
+    const restOp = restEndOperatingYmd(r.duty_rest_end_date_iso, r.duty_rest_end_time_local);
+    const dep = timeToMinutes(r.dep_time_local);
+    if (restOp && dep != null && dep < 12 * 60 && restOp >= r.flight_date) return restOp;
+    return dutyDateFixHints.get(i)?.suggestNextDay ? addDaysIso(r.flight_date, 1) : r.flight_date;
+  });
+  const overnightHints = detectOvernightReturnHints(
+    pcFlights,
+    baseDateByIndex,
+    new Set(restDateFixHints.keys()),
   );
-  const overnightHints = detectOvernightReturnHints(pcFlights, baseDateByIndex);
   const finalDateByIndex = baseDateByIndex.map((d, i) =>
-    overnightHints.get(i)?.suggestNextDay ? addDaysIso(d, 1) : d
+    restDateFixHints.has(i) ? d : overnightHints.get(i)?.suggestNextDay ? addDaysIso(d, 1) : d
   );
   const pcIndexByRef = new Map<PdfFlightRow, number>();
   pcFlights.forEach((r, i) => pcIndexByRef.set(r, i));

@@ -7,6 +7,7 @@ import type { PdfFlightRow } from '../../supabase/functions/_shared/pdfRosterImp
 import {
   rowFlightRestEndUtc,
   rowToScheduleIso,
+  restEndOperatingYmd,
   isSimulatorOccupationCode,
   isStandbyOccupationCode,
 } from '../../supabase/functions/_shared/pdfRosterImport';
@@ -414,9 +415,24 @@ function prepareImportRows(
     if (isPcFlightCode(code)) pcEntries.push({ idx, row: r, code });
   });
 
+  const restDateByIdx = new Map<number, string>();
+  for (const e of pcEntries) {
+    const dep = depMinutesForPcOvernightHeuristic(e.row);
+    const restOp = restEndOperatingYmd(e.row.duty_rest_end_date_iso, e.row.duty_rest_end_time_local);
+    if (
+      restOp &&
+      dep != null &&
+      dep < 12 * 60 &&
+      restOp >= e.row.flight_date &&
+      calendarDaysBetweenYmd(e.row.flight_date, restOp) <= 3
+    ) {
+      restDateByIdx.set(e.idx, restOp);
+    }
+  }
+
   const dutyFixByIdx = new Map<number, boolean>();
   for (const e of pcEntries) {
-    if (rowHasUtcSchedulePair(e.row)) {
+    if (restDateByIdx.has(e.idx) || rowHasUtcSchedulePair(e.row)) {
       dutyFixByIdx.set(e.idx, false);
       continue;
     }
@@ -427,6 +443,11 @@ function prepareImportRows(
 
   const baseDateByIdx = new Map<number, string>();
   for (const e of pcEntries) {
+    const restDate = restDateByIdx.get(e.idx);
+    if (restDate) {
+      baseDateByIdx.set(e.idx, restDate);
+      continue;
+    }
     baseDateByIdx.set(e.idx, dutyFixByIdx.get(e.idx) ? addDaysIso(e.row.flight_date, 1) : e.row.flight_date);
   }
 
@@ -434,12 +455,13 @@ function prepareImportRows(
   for (let i = 0; i < pcEntries.length - 1; i += 1) {
     const a = pcEntries[i];
     const b = pcEntries[i + 1];
+    if (restDateByIdx.has(b.idx)) continue;
     if (baseDateByIdx.get(a.idx) !== baseDateByIdx.get(b.idx)) continue;
     const an = pcNumber(a.code);
     const bn = pcNumber(b.code);
     if (an == null || bn == null || bn !== an + 1) continue;
-    const aDep = timeToMinutes(a.row.dep_time_local);
-    const bDep = timeToMinutes(b.row.dep_time_local);
+    const aDep = depMinutesForPcOvernightHeuristic(a.row);
+    const bDep = depMinutesForPcOvernightHeuristic(b.row);
     if (aDep == null || bDep == null) continue;
     if (bDep < aDep) overnightByIdx.set(b.idx, true);
   }

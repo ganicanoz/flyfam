@@ -22,6 +22,7 @@ import { matchAirlineByCompanyText } from '../lib/airlineLookup';
 import { normalizeCrewAirlineIcaoTypo } from '../lib/pdfRosterImport';
 import { changeAppLocale, type Locale } from '../lib/i18n';
 import KeyboardSafeScroll from '../components/KeyboardSafeScroll';
+import { getAirportDisplay } from '../constants/airports';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 
@@ -35,6 +36,7 @@ export default function EditProfile() {
   const [selectedLocale, setSelectedLocale] = useState<Locale>(profile?.locale ?? 'en');
   const [selectedAirline, setSelectedAirline] = useState<Airline | null>(null);
   const [icaoEdit, setIcaoEdit] = useState('');
+  const [homeBaseIata, setHomeBaseIata] = useState('');
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(profile?.avatar_url ?? null);
@@ -95,6 +97,10 @@ export default function EditProfile() {
     setSelectedAirline(null);
     setIcaoEdit('');
   }, [crewProfile?.airline_icao, crewProfile?.company_name]);
+
+  useEffect(() => {
+    setHomeBaseIata((crewProfile?.home_base_iata ?? '').trim().toUpperCase());
+  }, [crewProfile?.home_base_iata]);
 
   const handlePickAvatar = async () => {
     if (!profile?.id) return;
@@ -158,6 +164,13 @@ export default function EditProfile() {
       Alert.alert(t('common.error'), 'ICAO code is required');
       return;
     }
+    const homeBase = homeBaseIata.trim().toUpperCase().slice(0, 4);
+    if (isCrew && !homeBase) {
+      Alert.alert(t('common.error'), t('completeProfile.errorHomeBaseRequired'));
+      return;
+    }
+    const homeBaseDisplay = getAirportDisplay(homeBase);
+    const homeBaseCity = homeBaseDisplay?.city ?? null;
 
     setLoading(true);
     const userId = profile?.id;
@@ -183,6 +196,8 @@ export default function EditProfile() {
         .update({
           company_name: selectedAirline!.name,
           airline_icao: icao,
+          home_base_iata: homeBase,
+          home_base_city: homeBaseCity,
         })
         .eq('user_id', userId);
 
@@ -258,7 +273,7 @@ export default function EditProfile() {
 
         {isCrew && (
           <>
-            <Text style={styles.label}>{t('editProfile.airline')}</Text>
+            <Text style={[styles.label, styles.labelInRow]}>{t('editProfile.airline')}</Text>
             <TouchableOpacity
               style={styles.dropdown}
               onPress={() => setDropdownOpen(true)}
@@ -268,25 +283,46 @@ export default function EditProfile() {
                 <View style={styles.dropdownSelected}>
                   <Image source={{ uri: selectedAirline.logoUrl }} style={styles.logo} />
                   <View style={styles.dropdownText}>
-                    <Text style={styles.airlineName}>{selectedAirline.name}</Text>
+                    <Text style={styles.airlineName} numberOfLines={1} ellipsizeMode="tail">
+                      {selectedAirline.name}
+                    </Text>
                   </View>
                 </View>
               ) : (
-                <Text style={styles.placeholder}>{t('editProfile.selectAirline')}</Text>
+                <Text style={styles.placeholder} numberOfLines={1}>
+                  {t('editProfile.selectAirline')}
+                </Text>
               )}
               <Text style={styles.chevron}>▼</Text>
             </TouchableOpacity>
 
-            <Text style={[styles.label, { marginTop: 0 }]}>ICAO (auto from airline, editable)</Text>
-            <TextInput
-              style={styles.input}
-              value={icaoEdit}
-              onChangeText={(s) => setIcaoEdit(s.toUpperCase())}
-              placeholder="PGT, THY, …"
-              placeholderTextColor={colors.textMuted}
-              autoCapitalize="characters"
-              maxLength={12}
-            />
+            <View style={styles.fieldRow}>
+              <View style={styles.fieldCol}>
+                <Text style={[styles.label, styles.labelInRow]}>{t('editProfile.homeBase')}</Text>
+                <TextInput
+                  style={[styles.input, styles.inputInRow]}
+                  value={homeBaseIata}
+                  onChangeText={(s) => setHomeBaseIata(s.toUpperCase())}
+                  placeholder={t('completeProfile.homeBasePlaceholder')}
+                  placeholderTextColor={colors.textMuted}
+                  autoCapitalize="characters"
+                  maxLength={4}
+                />
+              </View>
+              <View style={styles.fieldCol}>
+                <Text style={[styles.label, styles.labelInRow]}>{t('editProfile.icao')}</Text>
+                <TextInput
+                  style={[styles.input, styles.inputInRow]}
+                  value={icaoEdit}
+                  onChangeText={(s) => setIcaoEdit(s.toUpperCase())}
+                  placeholder="PGT, THY, …"
+                  placeholderTextColor={colors.textMuted}
+                  autoCapitalize="characters"
+                  maxLength={12}
+                />
+              </View>
+            </View>
+            <Text style={styles.helperText}>{t('editProfile.homeBaseHint')}</Text>
 
             <Modal visible={dropdownOpen} transparent animationType="fade">
               <Pressable style={styles.modalOverlay} onPress={() => setDropdownOpen(false)}>
@@ -356,15 +392,15 @@ function createEditProfileStyles(themeMode: 'light' | 'dark') {
       marginBottom: 16,
     },
     avatarImage: {
-      width: 128,
-      height: 160,
-      borderRadius: 12,
+      width: 88,
+      height: 110,
+      borderRadius: 10,
       marginBottom: 8,
     },
     avatarFallback: {
-      width: 128,
-      height: 160,
-      borderRadius: 12,
+      width: 88,
+      height: 110,
+      borderRadius: 10,
       backgroundColor: surfaceAlt,
       alignItems: 'center',
       justifyContent: 'center',
@@ -389,8 +425,13 @@ function createEditProfileStyles(themeMode: 'light' | 'dark') {
       marginTop: 16,
       color: textSecondary,
     },
+    helperText: { fontSize: 12, marginTop: -2, marginBottom: 8, color: textMuted },
     labelFirst: { marginTop: 0 },
-    roleRow: { flexDirection: 'row', gap: 12, marginBottom: 24 },
+    fieldRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 10 },
+    fieldCol: { flex: 1, minWidth: 0 },
+    labelInRow: { marginTop: 12 },
+    inputInRow: { marginBottom: 8 },
+    roleRow: { flexDirection: 'row', gap: 12, marginBottom: 8 },
     roleButton: {
       flex: 1,
       padding: 16,
@@ -419,14 +460,16 @@ function createEditProfileStyles(themeMode: 'light' | 'dark') {
       justifyContent: 'space-between',
       backgroundColor: surface,
       borderRadius: 12,
-      padding: 16,
-      marginBottom: 24,
+      paddingVertical: 12,
+      paddingHorizontal: 14,
+      marginBottom: 8,
       borderWidth: 1,
       borderColor: border,
+      minHeight: 52,
     },
-    dropdownSelected: { flexDirection: 'row', alignItems: 'center', flex: 1 },
-    dropdownText: { marginLeft: 12, flex: 1 },
-    airlineName: { fontSize: 16, fontWeight: '600', color: text },
+    dropdownSelected: { flexDirection: 'row', alignItems: 'center', flex: 1, minWidth: 0 },
+    dropdownText: { marginLeft: 12, flex: 1, minWidth: 0 },
+    airlineName: { fontSize: 16, fontWeight: '600', color: text, lineHeight: 22 },
     airlineIcao: { fontSize: 12, color: textMuted },
     placeholder: { fontSize: 16, color: textMuted },
     chevron: { fontSize: 10, color: textMuted },

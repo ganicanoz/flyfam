@@ -97,15 +97,19 @@ function calendarDayMarksStorageKey(userKey: string): string {
   return `flyfam.calendarDayMarks.v1:${userKey}`;
 }
 
+const LAYOVER_PLACEHOLDER_FN = 'LAYOVER';
+
 type CalendarDayKind = 'empty' | 'flight' | 'standby' | 'duty_off' | 'layover';
 
 function calendarDayKindForEntry(f: {
   roster_entry_kind?: string | null;
   flight_number?: string | null;
   duty_occupation_code?: string | null;
+  id?: string | null;
 }): CalendarDayKind {
   const blockCode = (f.flight_number || '').trim().toUpperCase();
   const occCode = (f.duty_occupation_code || '').trim().toUpperCase();
+  if (isLayoverPlaceholder(f) || blockCode === LAYOVER_PLACEHOLDER_FN) return 'layover';
   const isSim = f.roster_entry_kind === 'sim' || isSimulatorOccupationCode(blockCode);
   if (isSim) return 'duty_off';
   // Yer dersi / ofis: görev — takvimde kırmızı (uçuş günü).
@@ -130,51 +134,209 @@ function mergeCalendarDayKind(prev: CalendarDayKind | undefined, next: CalendarD
 
 const LAYOVER_MIN_HOURS = 10;
 
-/**
- * Detects layover date ranges from a sorted flight list.
- * A layover occurs when a crew arrives at a station and the next departure
- * from that same station is ≥ LAYOVER_MIN_HOURS later.
- * Returns a Set of YYYY-MM-DD strings that are layover days.
- */
-function computeLayoverDates(flights: readonly { flight_date: string; origin_airport: string | null; destination_airport: string | null; scheduled_departure: string | null; scheduled_arrival: string | null; roster_entry_kind?: string | null }[]): Set<string> {
-  const layoverDates = new Set<string>();
-  const realFlights = flights.filter(f => (f.roster_entry_kind ?? 'flight') === 'flight' && f.destination_airport);
+type LayoverWindow = {
+  key: string;
+  station: string;
+  startYmd: string;
+  endYmd: string;
+  inboundId: string;
+  outboundId: string;
+};
 
-  for (let i = 0; i < realFlights.length; i++) {
-    const inbound = realFlights[i];
-    const station = inbound.destination_airport!;
+function isLayoverPlaceholder(f: { id?: string | null; flight_number?: string | null }): boolean {
+  const id = String(f.id ?? '');
+  const fn = (f.flight_number ?? '').trim().toUpperCase();
+  return id.startsWith('layover:') || fn === LAYOVER_PLACEHOLDER_FN;
+}
+
+function isoToYmd(iso: string | null | undefined): string | null {
+  if (!iso) return null;
+  const m = iso.trim().match(/^(\d{4}-\d{2}-\d{2})/);
+  return m ? m[1] : null;
+}
+
+function minYmd(a: string, b: string | null | undefined): string {
+  if (!b) return a;
+  return b < a ? b : a;
+}
+
+function maxYmd(a: string, b: string | null | undefined): string {
+  if (!b) return a;
+  return b > a ? b : a;
+}
+
+/**
+ * A layover is a stay at a non-home station until the next departure from that
+ * station (≥ LAYOVER_MIN_HOURS). Calendar paints the full gidiş–dönüş span
+ * (flight_date + schedule days) so 20–22 LED becomes one merged block.
+ */
+function computeLayoverWindows(
+  flights: readonly {
+    id: string;
+    flight_date: string;
+    origin_airport: string | null;
+    destination_airport: string | null;
+    scheduled_departure: string | null;
+    scheduled_arrival: string | null;
+    roster_entry_kind?: string | null;
+    flight_number?: string | null;
+  }[],
+  homeBaseIata?: string | null,
+): LayoverWindow[] {
+  const realFlights = flights.filter(
+    (f) =>
+      (f.roster_entry_kind ?? 'flight') === 'flight' &&
+      f.destination_airport &&
+      !isLayoverPlaceholder(f),
+  );
+  const normalizedHomeBase = (homeBaseIata ?? '').trim().toUpperCase();
+  const homeBaseCity =
+    (normalizedHomeBase ? getAirportDisplay(normalizedHomeBase)?.city : null)?.trim().toLowerCase() ?? null;
+  const windows: LayoverWindow[] = [];
+  const usedOutbound = new Set<string>();
+
+  for (const inbound of realFlights) {
+    const station = (inbound.destination_airport ?? '').trim().toUpperCase();
+    if (!station) continue;
+    const stationCity = getAirportDisplay(station)?.city?.trim().toLowerCase() ?? null;
+    if (normalizedHomeBase && station === normalizedHomeBase) continue;
+    if (homeBaseCity && stationCity && stationCity === homeBaseCity) continue;
     const arrMs = parseUtcMsStatic(inbound.scheduled_arrival);
     if (!arrMs) continue;
 
-    // Find next departure from same station
-    let outbound: typeof realFlights[0] | null = null;
-    for (let j = i + 1; j < realFlights.length; j++) {
-      if (realFlights[j].origin_airport === station) {
-        outbound = realFlights[j];
-        break;
+    let outbound: (typeof realFlights)[number] | null = null;
+    let depMs: number | null = null;
+    for (const cand of realFlights) {
+      if (cand.id === inbound.id || usedOutbound.has(cand.id)) continue;
+      const origin = (cand.origin_airport ?? '').trim().toUpperCase();
+      if (origin !== station) continue;
+      const ms = parseUtcMsStatic(cand.scheduled_departure);
+      if (!ms || ms <= arrMs) continue;
+      if (depMs == null || ms < depMs) {
+        depMs = ms;
+        outbound = cand;
       }
     }
-    if (!outbound) continue;
-    const depMs = parseUtcMsStatic(outbound.scheduled_departure);
-    if (!depMs) continue;
-
+    if (!outbound || depMs == null) continue;
     const gapHours = (depMs - arrMs) / (1000 * 60 * 60);
-    if (gapHours >= LAYOVER_MIN_HOURS) {
-      // Mark all calendar days between arrival date and departure date (inclusive) as layover
-      const arrDate = new Date(arrMs);
-      const depDate = new Date(depMs);
-      const startYmd = arrDate.toISOString().slice(0, 10);
-      const endYmd = depDate.toISOString().slice(0, 10);
-      let cur = startYmd;
-      while (cur <= endYmd) {
-        layoverDates.add(cur);
-        const d = new Date(cur + 'T00:00:00Z');
-        d.setUTCDate(d.getUTCDate() + 1);
-        cur = d.toISOString().slice(0, 10);
-      }
+    if (gapHours < LAYOVER_MIN_HOURS) continue;
+
+    const startYmd = minYmd(inbound.flight_date, isoToYmd(inbound.scheduled_arrival));
+    const endYmd = maxYmd(outbound.flight_date, isoToYmd(outbound.scheduled_departure));
+    if (!startYmd || !endYmd || endYmd < startYmd) continue;
+    usedOutbound.add(outbound.id);
+    windows.push({
+      key: `${station}|${startYmd}|${endYmd}|${inbound.id}|${outbound.id}`,
+      station,
+      startYmd,
+      endYmd,
+      inboundId: inbound.id,
+      outboundId: outbound.id,
+    });
+  }
+  return windows;
+}
+
+function layoverDatesFromWindows(windows: readonly LayoverWindow[]): Set<string> {
+  const dates = new Set<string>();
+  for (const w of windows) {
+    let cur = w.startYmd;
+    while (cur <= w.endYmd) {
+      dates.add(cur);
+      cur = addUtcDaysToYmd(cur, 1);
     }
   }
-  return layoverDates;
+  return dates;
+}
+
+function makeLayoverPlaceholder(w: LayoverWindow, ymd: string, city: string | null): Flight {
+  return {
+    id: `layover:${w.key}:${ymd}`,
+    flight_number: LAYOVER_PLACEHOLDER_FN,
+    origin_airport: w.station,
+    destination_airport: w.station,
+    origin_city: city,
+    destination_city: city,
+    flight_date: ymd,
+    scheduled_departure: `${ymd}T12:00:00.000Z`,
+    scheduled_arrival: `${ymd}T12:00:00.000Z`,
+    actual_departure: null,
+    actual_arrival: null,
+    is_delayed: false,
+    roster_entry_kind: 'duty_off',
+    duty_rest_end: `${w.endYmd}T23:59:00.000Z`,
+  };
+}
+
+const CALENDAR_COL_H = 32;
+const CALENDAR_DAY_RADIUS = 15;
+const CALENDAR_VISIBLE_WEEKS = 6;
+const CALENDAR_GRID_H = CALENDAR_VISIBLE_WEEKS * CALENDAR_COL_H;
+const CALENDAR_RANGE_DAYS_BACK = 30;
+const CALENDAR_RANGE_DAYS_AHEAD = 45;
+
+type CalendarDayCell = { ymd: string; day: number };
+
+function formatUtcYmd(dt: Date): string {
+  return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, '0')}-${String(dt.getUTCDate()).padStart(2, '0')}`;
+}
+
+function addUtcDaysToYmd(ymd: string, days: number): string {
+  const [y, m, d] = ymd.split('-').map((x) => parseInt(x, 10));
+  const dt = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
+  dt.setUTCDate(dt.getUTCDate() + days);
+  return formatUtcYmd(dt);
+}
+
+function mondayYmdOf(ymd: string): string | null {
+  const [y, m, d] = ymd.split('-').map((x) => parseInt(x, 10));
+  if (!Number.isFinite(y) || !Number.isFinite(m) || !Number.isFinite(d)) return null;
+  const noon = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
+  noon.setUTCDate(noon.getUTCDate() - ((noon.getUTCDay() + 6) % 7));
+  return formatUtcYmd(noon);
+}
+
+function weekCellsFromMonday(mondayYmd: string): CalendarDayCell[] {
+  return Array.from({ length: 7 }, (_, i) => {
+    const ymd = addUtcDaysToYmd(mondayYmd, i);
+    return { ymd, day: parseInt(ymd.slice(8, 10), 10) };
+  });
+}
+
+function weeksCoveringRange(startYmd: string, endYmd: string): CalendarDayCell[][] {
+  const startMonday = mondayYmdOf(startYmd);
+  const endMonday = mondayYmdOf(endYmd);
+  if (!startMonday || !endMonday) return [];
+  const weeks: CalendarDayCell[][] = [];
+  let cur = startMonday;
+  while (cur <= endMonday) {
+    weeks.push(weekCellsFromMonday(cur));
+    cur = addUtcDaysToYmd(cur, 7);
+  }
+  return weeks;
+}
+
+function dominantMonthFromWeeks(weeks: CalendarDayCell[][], preferYm?: string): string {
+  const counts = new Map<string, number>();
+  for (const week of weeks) {
+    for (const cell of week) {
+      const ym = cell.ymd.slice(0, 7);
+      counts.set(ym, (counts.get(ym) ?? 0) + 1);
+    }
+  }
+  let bestYm = '';
+  let bestN = -1;
+  for (const [ym, n] of counts) {
+    if (n > bestN || (n === bestN && preferYm && ym === preferYm)) {
+      bestYm = ym;
+      bestN = n;
+    }
+  }
+  return bestYm;
+}
+
+function isCalendarBlockKind(kind: CalendarDayKind): kind is 'layover' | 'duty_off' {
+  return kind === 'layover' || kind === 'duty_off';
 }
 
 function parseUtcMsStatic(iso: string | null | undefined): number {
@@ -185,6 +347,22 @@ function parseUtcMsStatic(iso: string | null | undefined): number {
   if (!hasOffset) s = s.replace(/\.\d+$/, '') + (s.includes('.') ? 'Z' : '.000Z');
   const ms = new Date(s).getTime();
   return Number.isNaN(ms) ? 0 : ms;
+}
+
+function monthLabelFromYm(yyyyMm: string, locale: string, style: 'long' | 'short' = 'long'): string {
+  const [yStr, mStr] = yyyyMm.split('-');
+  const y = Number(yStr);
+  const m = Number(mStr);
+  if (!Number.isFinite(y) || !Number.isFinite(m)) return yyyyMm;
+  return new Date(Date.UTC(y, m - 1, 15)).toLocaleDateString(locale, {
+    month: style,
+    year: style === 'long' ? 'numeric' : undefined,
+    timeZone: 'UTC',
+  });
+}
+
+function monthAbbrevFromYmd(ymd: string, locale: string): string {
+  return monthLabelFromYm(ymd.slice(0, 7), locale, 'short');
 }
 
 /** Roster’da gecikme metni / takvim rengi: 20 dk ve altı hiç gösterilmez (kaynak fark etmez). */
@@ -416,6 +594,7 @@ function dutyOffEndedReferenceUtcMs(r: RowForLandedListPurge): number {
 }
 
 function isEndedDutyOffRow(r: RowForLandedListPurge, nowMs = Date.now()): boolean {
+  if (isLayoverPlaceholder(r)) return false;
   const kind = (r.roster_entry_kind ?? '').toLowerCase();
   if (kind !== 'duty_off') return false;
   const endMs = dutyOffEndedReferenceUtcMs(r);
@@ -643,6 +822,13 @@ async function fetchFlightIdsForFamily(supabaseClient: ReturnType<typeof supabas
   return (flights ?? []).map((f: { id: string }) => f.id);
 }
 
+/** Takvim/roster “bugün”: crew UTC görünümü, aile profil/cihaz TZ, aksi halde cihaz yerel günü. */
+function resolveRosterTodayYmd(crewUtcView: boolean, familyRosterTz: string | null): string {
+  if (crewUtcView) return getUtcDateString();
+  if (familyRosterTz) return getCalendarDateStringInTimeZone(new Date(), familyRosterTz);
+  return getLocalDateString();
+}
+
 export default function Roster({
   showAdminFr24Debug = false,
   exemptLandedAutoPurge = false,
@@ -710,6 +896,9 @@ export default function Roster({
   const [rosterTasksModalVisible, setRosterTasksModalVisible] = useState(false);
   const [calendarExpanded, setCalendarExpanded] = useState(false);
   const [calendarMonth, setCalendarMonth] = useState(() => todayStr.slice(0, 7));
+  const programmaticListScrollRef = useRef(false);
+  const pendingRosterAnchorRef = useRef<string | null>(null);
+  const [rosterAnchorNonce, setRosterAnchorNonce] = useState(0);
   /** Geçmiş gün takvim renkleri (uçuş listeden düşünce de kırmızı/turuncu/yeşil kalsın). */
   const [persistedDayKinds, setPersistedDayKinds] = useState<Record<string, CalendarDayKind>>({});
   const [familyCrewOptions, setFamilyCrewOptions] = useState<Array<{ id: string; name: string }>>([]);
@@ -727,6 +916,14 @@ export default function Roster({
   const crewUtcView = isCrew && rosterListPrefs.time_display === 'utc';
   /** Aile: profil `timezone_iana` veya cihaz — liste günü ve sıra bu TZ’ye göre. */
   const familyRosterTz = !isCrew ? (profile?.timezone_iana?.trim() || getDeviceIanaTimeZone()) : null;
+  const rosterTodayYmd = useMemo(
+    () => resolveRosterTodayYmd(crewUtcView, familyRosterTz),
+    [crewUtcView, familyRosterTz, nowTick, todayStr],
+  );
+  const crewUtcViewRef = useRef(crewUtcView);
+  crewUtcViewRef.current = crewUtcView;
+  const familyRosterTzRef = useRef(familyRosterTz);
+  familyRosterTzRef.current = familyRosterTz;
 
   const listGroupDate = useCallback(
     (f: Flight) => {
@@ -756,9 +953,14 @@ export default function Roster({
     }
     if (crewTimeDisplayPrevRef.current !== v) {
       crewTimeDisplayPrevRef.current = v;
-      setSelectedDate(v === 'utc' ? getUtcDateString() : getLocalDateString());
+      const today = resolveRosterTodayYmd(v === 'utc', familyRosterTz);
+      setSelectedDate(today);
+      setCalendarMonth(today.slice(0, 7));
+      pendingRosterAnchorRef.current = today;
+      programmaticListScrollRef.current = true;
+      setRosterAnchorNonce((n) => n + 1);
     }
-  }, [isCrew, rosterListPrefs.time_display]);
+  }, [isCrew, rosterListPrefs.time_display, familyRosterTz]);
 
   /** Uçuş + duty_off satırları gösterilir; sim blokları listede gizlenir. Önümüzdeki N gün. Biten boş gün anında düşer. */
   const displayFlights = React.useMemo(() => {
@@ -935,13 +1137,64 @@ export default function Roster({
     () => displayFlights.filter((f) => listGroupDate(f) === selectedDate),
     [displayFlights, selectedDate, listGroupDate]
   );
+
+  /** Layover pencereleri — list sort / grouping / takvimden önce hesaplanmalı. */
+  const layoverWindows = useMemo(
+    () => computeLayoverWindows(flights, crewProfile?.home_base_iata ?? null),
+    [flights, crewProfile?.home_base_iata],
+  );
+  const layoverDateSet = useMemo(() => layoverDatesFromWindows(layoverWindows), [layoverWindows]);
+  const layoverKeyByFlightId = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const w of layoverWindows) {
+      map.set(w.inboundId, w.key);
+      map.set(w.outboundId, w.key);
+      let cur = addUtcDaysToYmd(w.startYmd, 1);
+      while (cur < w.endYmd) {
+        map.set(`layover:${w.key}:${cur}`, w.key);
+        cur = addUtcDaysToYmd(cur, 1);
+      }
+    }
+    return map;
+  }, [layoverWindows]);
+
   /**
    * Önce roster günü (`flight_date`), sonra aynı gün içinde kalkış saati.
    * Sadece UTC kalkışa göre global sıralama yapılırsa farklı günler iç içe geçer;
    * gün ayırıcı aynı tarih için iki kez üretilir → `day-2026-04-04` duplicate key hatası.
    */
   const allFlightsSorted = React.useMemo(() => {
-    const copy = [...displayFlights];
+    const interiorLayoverDays = new Set<string>();
+    for (const w of layoverWindows) {
+      let cur = addUtcDaysToYmd(w.startYmd, 1);
+      while (cur < w.endYmd) {
+        interiorLayoverDays.add(cur);
+        cur = addUtcDaysToYmd(cur, 1);
+      }
+    }
+    const withoutInteriorOff = displayFlights.filter((f) => {
+      if (isLayoverPlaceholder(f)) return true;
+      const kind = (f.roster_entry_kind ?? 'flight').toLowerCase();
+      if (kind !== 'duty_off') return true;
+      return !interiorLayoverDays.has(listGroupDate(f));
+    });
+    const datesWithRealFlight = new Set(
+      withoutInteriorOff
+        .filter((f) => (f.roster_entry_kind ?? 'flight') === 'flight')
+        .map((f) => listGroupDate(f)),
+    );
+    const placeholders: Flight[] = [];
+    for (const w of layoverWindows) {
+      const city = getAirportDisplay(w.station)?.city?.trim() || null;
+      let cur = addUtcDaysToYmd(w.startYmd, 1);
+      while (cur < w.endYmd) {
+        if (!datesWithRealFlight.has(cur)) {
+          placeholders.push(makeLayoverPlaceholder(w, cur, city));
+        }
+        cur = addUtcDaysToYmd(cur, 1);
+      }
+    }
+    const copy = [...withoutInteriorOff, ...placeholders];
     copy.sort((a, b) => {
       const ga = listGroupDate(a);
       const gb = listGroupDate(b);
@@ -949,8 +1202,11 @@ export default function Roster({
       return sortByDepartureAsc(a, b);
     });
     return copy;
-  }, [displayFlights, sortByDepartureAsc, listGroupDate]);
+  }, [displayFlights, sortByDepartureAsc, listGroupDate, layoverWindows]);
   const sameDutyFlightGroup = useCallback((a: Flight, b: Flight): boolean => {
+    const aLay = layoverKeyByFlightId.get(a.id);
+    const bLay = layoverKeyByFlightId.get(b.id);
+    if (aLay && bLay && aLay === bLay) return true;
     const aKind = (a.roster_entry_kind ?? 'flight') as string;
     const bKind = (b.roster_entry_kind ?? 'flight') as string;
     // Aynı uçuş görevi: aynı duty bitişi.
@@ -962,6 +1218,9 @@ export default function Roster({
     }
     // Aynı non-flight görev bloğu: aynı kod + aynı duty bitişi.
     if (aKind === 'duty_off' && bKind === 'duty_off') {
+      if (isLayoverPlaceholder(a) && isLayoverPlaceholder(b)) {
+        return (a.duty_rest_end ?? '') === (b.duty_rest_end ?? '') && (a.origin_airport ?? '') === (b.origin_airport ?? '');
+      }
       const da = (a.duty_rest_end ?? '').trim();
       const db = (b.duty_rest_end ?? '').trim();
       const ca = (a.flight_number ?? '').trim().toUpperCase();
@@ -969,7 +1228,7 @@ export default function Roster({
       return da.length > 0 && da === db && ca.length > 0 && ca === cb;
     }
     return false;
-  }, [listGroupDate]);
+  }, [listGroupDate, layoverKeyByFlightId]);
 
   /**
    * Tarih ayırıcı satırı yok; boşlukla gruplama:
@@ -993,10 +1252,16 @@ export default function Roster({
     let prevFlight: Flight | null = null;
     for (const f of allFlightsSorted) {
       const g = listGroupDate(f);
-      if (g !== prevDate) {
+      const sameLayoverGroup =
+        prevFlight != null &&
+        !!layoverKeyByFlightId.get(prevFlight.id) &&
+        layoverKeyByFlightId.get(prevFlight.id) === layoverKeyByFlightId.get(f.id);
+      if (g !== prevDate && !sameLayoverGroup) {
         prevDate = g;
         dayGroupIndex += 1;
         dayIndex = 0;
+      } else if (g !== prevDate) {
+        prevDate = g;
       }
       dayIndex += 1;
       const gapBefore: 'none' | 'tight' | 'normal' =
@@ -1018,7 +1283,7 @@ export default function Roster({
       if (!next || next.dayGroupIndex !== cur.dayGroupIndex) cur.isLastInDay = true;
     }
     return out;
-  }, [allFlightsSorted, listGroupDate, sameDutyFlightGroup]);
+  }, [allFlightsSorted, listGroupDate, sameDutyFlightGroup, layoverKeyByFlightId]);
   const flightsSorted = React.useMemo(() => {
     const copy = [...flightsForSelectedDay];
     copy.sort(sortByDepartureAsc);
@@ -1816,15 +2081,21 @@ export default function Roster({
 
   useFocusEffect(
     React.useCallback(() => {
+      const addedDate = route?.params?.addedFlightDate as string | undefined;
+      const todayLocal = resolveRosterTodayYmd(crewUtcViewRef.current, familyRosterTzRef.current);
+      const anchor =
+        addedDate && /^\d{4}-\d{2}-\d{2}$/.test(addedDate) ? addedDate : todayLocal;
+      setSelectedDate(anchor);
+      setCalendarMonth(anchor.slice(0, 7));
+      pendingRosterAnchorRef.current = anchor;
+      programmaticListScrollRef.current = true;
+      setRosterAnchorNonce((n) => n + 1);
+    }, [route?.params?.addedFlightDate]),
+  );
+
+  useFocusEffect(
+    React.useCallback(() => {
       let cancelled = false;
-      // Bugün: crew UTC görünümü → UTC günü; aile → profil/cihaz TZ takvim günü; crew yerel → cihaz günü.
-      setSelectedDate(
-        crewUtcView
-          ? getUtcDateString()
-          : familyRosterTz
-            ? getCalendarDateStringInTimeZone(new Date(), familyRosterTz)
-            : getLocalDateString()
-      );
       // Avoid flicker when we already have a list on screen.
       if (flightsRef.current.length === 0) setLoading(true);
       const done = () => !cancelled && setLoading(false);
@@ -1872,8 +2143,6 @@ export default function Roster({
             scheduleLandedFlightsDbPurge(supabase, crewProfile?.id, dbPurgeIds);
             if (!cancelled && (kept.length > 0 || flightsRef.current.length === 0)) setFlights(kept);
             maybeAutoRefresh(kept as any);
-            const addedDate = route?.params?.addedFlightDate as string | undefined;
-            if (!cancelled && addedDate && /^\d{4}-\d{2}-\d{2}$/.test(addedDate)) setSelectedDate(addedDate);
             done();
             // Listeyi gösterdikten sonra pencere dışı eski uçuşları temizle (admin rosterda tarih penceresi geniş; silme yok).
             if (!cancelled && crewProfile?.id && !exemptLandedAutoPurge) {
@@ -2561,64 +2830,108 @@ export default function Roster({
 
   const dateRollerDates = React.useMemo(() => {
     const out: string[] = [];
-    const back = getRosterMinDaysAgo(exemptLandedAutoPurge, isCrew);
     if (crewUtcView) {
-      for (let d = -back; d <= ROSTER_MAX_DAYS_AHEAD; d++) {
+      for (let d = -CALENDAR_RANGE_DAYS_BACK; d <= CALENDAR_RANGE_DAYS_AHEAD; d++) {
         out.push(getUtcDateStringPlusDays(d));
       }
       return out;
     }
     if (familyRosterTz) {
       const base = getCalendarDateStringInTimeZone(new Date(), familyRosterTz);
-      for (let d = -back; d <= ROSTER_MAX_DAYS_AHEAD; d++) {
+      for (let d = -CALENDAR_RANGE_DAYS_BACK; d <= CALENDAR_RANGE_DAYS_AHEAD; d++) {
         out.push(addCalendarDaysToYmd(base, d));
       }
       return out;
     }
-    for (let d = -back; d <= ROSTER_MAX_DAYS_AHEAD; d++) {
+    for (let d = -CALENDAR_RANGE_DAYS_BACK; d <= CALENDAR_RANGE_DAYS_AHEAD; d++) {
       out.push(getLocalDateStringPlusDays(d));
     }
     return out;
-  }, [todayStr, crewUtcView, familyRosterTz, exemptLandedAutoPurge, isCrew]);
+  }, [todayStr, crewUtcView, familyRosterTz]);
+  const calendarRangeSet = useMemo(() => new Set(dateRollerDates), [dateRollerDates]);
+  const calendarWeeks = useMemo(() => {
+    if (dateRollerDates.length === 0) return [];
+    return weeksCoveringRange(dateRollerDates[0], dateRollerDates[dateRollerDates.length - 1]);
+  }, [dateRollerDates]);
 
   const listRef = useRef<FlatList>(null);
+  const calendarWeekListRef = useRef<FlatList<CalendarDayCell[]>>(null);
+  const calendarWasExpandedRef = useRef(false);
+  const calendarExpandedRef = useRef(false);
+  const calendarMonthRef = useRef(calendarMonth);
+  const calendarProgrammaticRef = useRef(false);
+  const lastCalendarWeekIdxRef = useRef(-1);
+  calendarMonthRef.current = calendarMonth;
+  calendarExpandedRef.current = calendarExpanded;
 
-  /** Tarih seçilince listeyi o tarihe kaydır. */
-  const scrollListToDate = useCallback(
+  const indexForRosterDate = useCallback(
     (dateStr: string) => {
-      const idx = listData.findIndex((e) => listGroupDate(e.flight) === dateStr);
-      if (idx >= 0) listRef.current?.scrollToIndex({ index: idx, animated: true, viewPosition: 0 });
+      if (listData.length === 0) return -1;
+      const exact = listData.findIndex((e) => listGroupDate(e.flight) === dateStr);
+      if (exact >= 0) return exact;
+      const next = listData.findIndex((e) => listGroupDate(e.flight) >= dateStr);
+      if (next >= 0) return next;
+      return listData.length - 1;
     },
-    [listData, listGroupDate]
+    [listData, listGroupDate],
   );
 
-  /** Scroll'da görünen ilk öğeye göre tarihi senkronize et. */
+  /** Tarih seçilince listeyi o tarihe (veya en yakın güne) kaydır. */
+  const scrollListToDate = useCallback(
+    (dateStr: string, animated = true) => {
+      const idx = indexForRosterDate(dateStr);
+      if (idx < 0) return;
+      programmaticListScrollRef.current = true;
+      try {
+        listRef.current?.scrollToIndex({ index: idx, animated, viewPosition: 0 });
+      } catch {
+        /* layout not ready */
+      }
+      setTimeout(() => {
+        programmaticListScrollRef.current = false;
+      }, animated ? 480 : 220);
+    },
+    [indexForRosterDate],
+  );
+
+  /** Scroll'da görünen ilk öğeye göre tarihi senkronize et. Programatik kaydırmayı ezme. */
   const viewabilityConfig = useRef({ viewAreaCoveragePercentThreshold: 50 }).current;
   const onViewableItemsChanged = useCallback(
     (info: { viewableItems: Array<{ item: ListEntry; key: string; index: number | null; isViewable: boolean }> }) => {
+      if (programmaticListScrollRef.current || pendingRosterAnchorRef.current) return;
       const first = info.viewableItems[0]?.item;
       const date = first ? listGroupDate(first.flight) : null;
       if (!date) return;
       setSelectedDate(date);
-      setCalendarMonth(date.slice(0, 7));
+      if (!calendarExpandedRef.current) {
+        const monday = mondayYmdOf(date);
+        setCalendarMonth(
+          monday ? dominantMonthFromWeeks([weekCellsFromMonday(monday)], date.slice(0, 7)) : date.slice(0, 7),
+        );
+      }
     },
     [listGroupDate]
   );
 
-  /** Yeni eklenen uçuşun tarihine scroll (AddFlight sonrası). */
+  /** Ekran odağında / uçuş listesi gelince yerel bugüne (veya eklenen uçuş gününe) hizala. */
   React.useEffect(() => {
-    const addedDate = route?.params?.addedFlightDate as string | undefined;
-    if (!addedDate || !/^\d{4}-\d{2}-\d{2}$/.test(addedDate) || listData.length === 0) return;
-    setSelectedDate(addedDate);
-    setCalendarMonth(addedDate.slice(0, 7));
-    const idx = listData.findIndex((e) => e.flight.flight_date === addedDate);
-    if (idx === -1) return;
-    const t = setTimeout(() => {
-      listRef.current?.scrollToIndex({ index: idx, animated: true, viewPosition: 0 });
-      try { navigation.setParams({ addedFlightDate: undefined }); } catch {}
-    }, 400);
-    return () => clearTimeout(t);
-  }, [listData, route.params?.addedFlightDate, navigation]);
+    const target = pendingRosterAnchorRef.current;
+    if (!target || loading) return;
+    if (listData.length === 0) {
+      programmaticListScrollRef.current = false;
+      return;
+    }
+    const handle = InteractionManager.runAfterInteractions(() => {
+      setSelectedDate(target);
+      setCalendarMonth(target.slice(0, 7));
+      scrollListToDate(target, false);
+      pendingRosterAnchorRef.current = null;
+      if (route?.params?.addedFlightDate) {
+        try { navigation.setParams({ addedFlightDate: undefined }); } catch {}
+      }
+    });
+    return () => handle.cancel();
+  }, [listData, loading, scrollListToDate, navigation, route?.params?.addedFlightDate, rosterAnchorNonce]);
 
   /** Nöbet → görev tebliği: ilgili günleri kalıcı kırmızı (uçuş) işaretle. */
   React.useEffect(() => {
@@ -2647,11 +2960,14 @@ export default function Roster({
 
   const onDateRollerChipPress = useCallback((dateStr: string) => {
     setSelectedDate(dateStr);
-    setCalendarMonth(dateStr.slice(0, 7));
+    if (!calendarExpandedRef.current) {
+      const monday = mondayYmdOf(dateStr);
+      setCalendarMonth(
+        monday ? dominantMonthFromWeeks([weekCellsFromMonday(monday)], dateStr.slice(0, 7)) : dateStr.slice(0, 7),
+      );
+    }
     scrollListToDate(dateStr);
   }, [scrollListToDate]);
-
-  const layoverDateSet = useMemo(() => computeLayoverDates(flights), [flights]);
 
   const dayKindByDate = useMemo(() => {
     const map = new Map<string, CalendarDayKind>();
@@ -2666,7 +2982,7 @@ export default function Roster({
     for (const ymd of layoverDateSet) {
       map.set(ymd, mergeCalendarDayKind(map.get(ymd), 'layover'));
     }
-    const todayAnchor = crewUtcView ? getUtcDateString() : todayStr;
+    const todayAnchor = rosterTodayYmd;
     for (const [ymd, kind] of Object.entries(persistedDayKinds)) {
       if (!kind || kind === 'empty') continue;
       if (ymd >= todayAnchor) {
@@ -2680,7 +2996,7 @@ export default function Roster({
       map.set(ymd, mergeCalendarDayKind(map.get(ymd), kind));
     }
     return map;
-  }, [flights, listGroupDate, persistedDayKinds, todayStr, crewUtcView, layoverDateSet]);
+  }, [flights, listGroupDate, persistedDayKinds, rosterTodayYmd, layoverDateSet]);
 
   const calendarMarksUserKey =
     (isCrew ? crewProfile?.id : profile?.id) ?? (isCrew ? 'crew' : 'family');
@@ -2747,115 +3063,188 @@ export default function Roster({
     setCalendarExpanded((v) => !v);
   }, []);
 
-  const calendarCells = useMemo(() => {
-    const [yStr, mStr] = calendarMonth.split('-');
-    const y = Number(yStr);
-    const m = Number(mStr);
-    if (!Number.isFinite(y) || !Number.isFinite(m)) return [];
-    const first = new Date(Date.UTC(y, m - 1, 1));
-    // Monday-first grid
-    const jsDow = first.getUTCDay(); // 0 Sun
-    const mondayIndex = (jsDow + 6) % 7;
-    const daysInMonth = new Date(Date.UTC(y, m, 0)).getUTCDate();
-    const cells: Array<{ ymd: string | null; day: number | null }> = [];
-    for (let i = 0; i < mondayIndex; i++) cells.push({ ymd: null, day: null });
-    for (let d = 1; d <= daysInMonth; d++) {
-      const ymd = `${yStr}-${mStr}-${String(d).padStart(2, '0')}`;
-      cells.push({ ymd, day: d });
-    }
-    while (cells.length % 7 !== 0) cells.push({ ymd: null, day: null });
-    return cells;
-  }, [calendarMonth]);
+  const calendarLocale = i18n.language === 'tr' ? 'tr-TR' : 'en-US';
 
   /** Collapsed: selectedDate'in haftası (Pzt–Paz). */
   const calendarWeekCells = useMemo(() => {
-    const ymd = selectedDate;
-    const [y, mo, d] = ymd.split('-').map((x) => parseInt(x, 10));
-    if (!Number.isFinite(y) || !Number.isFinite(mo) || !Number.isFinite(d)) return [];
-    const noon = new Date(Date.UTC(y, mo - 1, d, 12, 0, 0));
-    const jsDow = noon.getUTCDay();
-    const mondayOffset = (jsDow + 6) % 7;
-    const monday = new Date(noon);
-    monday.setUTCDate(noon.getUTCDate() - mondayOffset);
-    const cells: Array<{ ymd: string; day: number }> = [];
-    for (let i = 0; i < 7; i++) {
-      const dt = new Date(monday);
-      dt.setUTCDate(monday.getUTCDate() + i);
-      const yy = dt.getUTCFullYear();
-      const mm = String(dt.getUTCMonth() + 1).padStart(2, '0');
-      const dd = String(dt.getUTCDate()).padStart(2, '0');
-      cells.push({ ymd: `${yy}-${mm}-${dd}`, day: dt.getUTCDate() });
-    }
-    return cells;
+    const monday = mondayYmdOf(selectedDate);
+    return monday ? weekCellsFromMonday(monday) : [];
   }, [selectedDate]);
 
-  const calendarMonthLabel = useMemo(() => {
-    const locale = i18n.language === 'tr' ? 'tr-TR' : 'en-US';
-    const [yStr, mStr] = calendarMonth.split('-');
-    const y = Number(yStr);
-    const m = Number(mStr);
-    if (!Number.isFinite(y) || !Number.isFinite(m)) return calendarMonth;
-    const d = new Date(Date.UTC(y, m - 1, 15));
-    return d.toLocaleDateString(locale, { month: 'long', year: 'numeric', timeZone: 'UTC' });
-  }, [calendarMonth, i18n.language]);
+  const collapsedDominantYm = useMemo(
+    () => dominantMonthFromWeeks(calendarWeekCells.length ? [calendarWeekCells] : [], selectedDate.slice(0, 7)),
+    [calendarWeekCells, selectedDate],
+  );
 
-  const shiftCalendarMonth = (delta: number) => {
-    const [yStr, mStr] = calendarMonth.split('-');
-    let y = Number(yStr);
-    let m = Number(mStr) + delta;
-    while (m < 1) {
-      m += 12;
-      y -= 1;
+  const calendarMonthLabel = useMemo(
+    () =>
+      monthLabelFromYm(
+        calendarExpanded ? calendarMonth : collapsedDominantYm || calendarMonth,
+        calendarLocale,
+        'long',
+      ),
+    [calendarExpanded, calendarMonth, collapsedDominantYm, calendarLocale],
+  );
+
+  const applyVisibleWeeksMonth = useCallback((firstWeekIdx: number) => {
+    const window = calendarExpandedRef.current ? CALENDAR_VISIBLE_WEEKS : 1;
+    const maxIdx = Math.max(0, calendarWeeks.length - window);
+    const idx = Math.max(0, Math.min(firstWeekIdx, maxIdx));
+    const visible = calendarWeeks.slice(idx, idx + window);
+    const ym = dominantMonthFromWeeks(visible, calendarMonthRef.current);
+    if (ym && ym !== calendarMonthRef.current) {
+      calendarMonthRef.current = ym;
+      setCalendarMonth(ym);
     }
-    while (m > 12) {
-      m -= 12;
-      y += 1;
-    }
-    setCalendarMonth(`${y}-${String(m).padStart(2, '0')}`);
-    if (!calendarExpanded) {
-      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-      setCalendarExpanded(true);
-    }
-  };
+  }, [calendarWeeks]);
+
+  const scrollCalendarToWeekOf = useCallback(
+    (ymd: string, animated: boolean) => {
+      if (calendarWeeks.length === 0) return;
+      const idx = calendarWeeks.findIndex((w) => w.some((c) => c.ymd === ymd));
+      if (idx < 0) return;
+      const window = calendarExpandedRef.current ? CALENDAR_VISIBLE_WEEKS : 1;
+      const maxIdx = Math.max(0, calendarWeeks.length - window);
+      const clamped = Math.max(0, Math.min(idx, maxIdx));
+      if (clamped === lastCalendarWeekIdxRef.current && animated) return;
+      const useAnim = animated && lastCalendarWeekIdxRef.current >= 0;
+      lastCalendarWeekIdxRef.current = clamped;
+      calendarProgrammaticRef.current = true;
+      try {
+        calendarWeekListRef.current?.scrollToOffset({
+          offset: clamped * CALENDAR_COL_H,
+          animated: useAnim,
+        });
+      } catch {
+        /* layout not ready */
+      }
+      applyVisibleWeeksMonth(clamped);
+      setTimeout(() => {
+        calendarProgrammaticRef.current = false;
+      }, useAnim ? 420 : 80);
+    },
+    [calendarWeeks, applyVisibleWeeksMonth],
+  );
+
+  useEffect(() => {
+    if (calendarExpanded) return;
+    scrollCalendarToWeekOf(selectedDate, true);
+  }, [selectedDate, calendarExpanded, scrollCalendarToWeekOf]);
+
+  useEffect(() => {
+    const justOpened = calendarExpanded && !calendarWasExpandedRef.current;
+    calendarWasExpandedRef.current = calendarExpanded;
+    if (!justOpened || calendarWeeks.length === 0) return;
+    scrollCalendarToWeekOf(selectedDate, false);
+  }, [calendarExpanded, calendarWeeks, selectedDate, scrollCalendarToWeekOf]);
 
   const getCalendarDayStyle = useCallback(
-    (ymd: string, selected: boolean) => {
+    (ymd: string) => {
       const kind = dayKindByDate.get(ymd) ?? 'empty';
       if (kind === 'empty') {
         return {
           backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#FFFFFF',
-          borderColor: selected ? colors.primary : (isDark ? 'rgba(255,255,255,0.14)' : '#E5E7EB'),
-          borderWidth: selected ? 2 : StyleSheet.hairlineWidth,
-          textColor: selected ? colors.primary : cardInk.muted,
+          borderColor: isDark ? 'rgba(255,255,255,0.14)' : '#E5E7EB',
+          borderWidth: StyleSheet.hairlineWidth,
+          textColor: cardInk.muted,
         };
       }
-      // Görev/uçuş günleri: kırmızı; nöbet turuncu; izin yeşil.
-      if (kind === 'layover') {
+      if (kind === 'layover' || kind === 'flight') {
         return {
           backgroundColor: isDark ? '#3A2226' : '#FFEBEE',
-          borderColor: selected ? colors.primary : (isDark ? '#E57373' : '#EF9A9A'),
-          borderWidth: selected ? 2 : 1,
-          textColor: selected ? colors.primary : cardInk.primary,
-        };
-      }
-      if (kind === 'flight') {
-        return {
-          backgroundColor: isDark ? '#3A2226' : '#FFEBEE',
-          borderColor: selected ? colors.primary : (isDark ? '#E57373' : '#EF9A9A'),
-          borderWidth: selected ? 2 : 1,
-          textColor: selected ? colors.primary : cardInk.primary,
+          borderColor: isDark ? '#E57373' : '#EF9A9A',
+          borderWidth: 1,
+          textColor: cardInk.primary,
         };
       }
       const visual: RosterCardVisualKind = kind === 'standby' ? 'standby' : 'duty_off';
       const chrome = rosterCardChrome(visual, themeMode);
       return {
         backgroundColor: chrome.backgroundColor,
-        borderColor: selected ? colors.primary : chrome.borderColor,
-        borderWidth: selected ? 2 : Math.max(chrome.borderWidth, 1),
-        textColor: selected ? colors.primary : cardInk.primary,
+        borderColor: chrome.borderColor,
+        borderWidth: Math.max(chrome.borderWidth, 1),
+        textColor: cardInk.primary,
       };
     },
     [dayKindByDate, isDark, themeMode, cardInk.primary, cardInk.muted]
+  );
+
+  const renderCalendarWeek = (week: CalendarDayCell[], extraKey: string) => (
+    <View key={extraKey} style={styles.calendarWeek}>
+      {week.map((cell, colIdx) => {
+        const inRange = calendarRangeSet.has(cell.ymd);
+        const kind = dayKindByDate.get(cell.ymd) ?? 'empty';
+        const dayStyle = getCalendarDayStyle(cell.ymd);
+        const dimOutOfRange = !inRange && kind === 'empty';
+        const blockKind = isCalendarBlockKind(kind) ? kind : null;
+        const prevYmd = colIdx > 0 ? week[colIdx - 1]?.ymd : null;
+        const nextYmd = colIdx < 6 ? week[colIdx + 1]?.ymd : null;
+        const prevKind = prevYmd ? (dayKindByDate.get(prevYmd) ?? 'empty') : 'empty';
+        const nextKind = nextYmd ? (dayKindByDate.get(nextYmd) ?? 'empty') : 'empty';
+        const cellDate = new Date(`${cell.ymd}T00:00:00Z`);
+        const prevDate = new Date(cellDate);
+        prevDate.setUTCDate(prevDate.getUTCDate() - 1);
+        const nextDate = new Date(cellDate);
+        nextDate.setUTCDate(nextDate.getUTCDate() + 1);
+        const kindBefore = dayKindByDate.get(prevDate.toISOString().slice(0, 10)) ?? 'empty';
+        const kindAfter = dayKindByDate.get(nextDate.toISOString().slice(0, 10)) ?? 'empty';
+        const connectLeft = Boolean(blockKind && prevKind === blockKind);
+        const connectRight = Boolean(blockKind && nextKind === blockKind);
+        const keepLeftSquare = Boolean(blockKind && (connectLeft || (colIdx === 0 && kindBefore === blockKind)));
+        const keepRightSquare = Boolean(blockKind && (connectRight || (colIdx === 6 && kindAfter === blockKind)));
+        return (
+          <View key={cell.ymd} style={styles.calendarCol}>
+            <TouchableOpacity
+              style={[
+                styles.calendarDayInner,
+                {
+                  backgroundColor: dayStyle.backgroundColor,
+                  borderColor: dayStyle.borderColor,
+                  borderWidth: dayStyle.borderWidth,
+                  borderTopLeftRadius: keepLeftSquare ? 0 : CALENDAR_DAY_RADIUS,
+                  borderBottomLeftRadius: keepLeftSquare ? 0 : CALENDAR_DAY_RADIUS,
+                  borderTopRightRadius: keepRightSquare ? 0 : CALENDAR_DAY_RADIUS,
+                  borderBottomRightRadius: keepRightSquare ? 0 : CALENDAR_DAY_RADIUS,
+                },
+                dimOutOfRange && styles.calendarCellOutOfRange,
+              ]}
+              disabled={!inRange && kind === 'empty'}
+              onPress={() => onDateRollerChipPress(cell.ymd)}
+              accessibilityLabel={
+                kind === 'layover'
+                  ? t('roster.dayLayover')
+                  : kind === 'flight'
+                    ? t('roster.dayHasFlights')
+                    : kind === 'standby'
+                      ? t('roster.dayStandby')
+                      : kind === 'duty_off'
+                        ? t('roster.dayOffDuty')
+                        : t('roster.dayEmpty')
+              }
+            >
+              <Text style={{ color: dayStyle.textColor, fontWeight: '700', fontSize: cell.day === 1 ? 11 : 12 }}>
+                {cell.day}
+              </Text>
+              {cell.day === 1 ? (
+                <Text
+                  style={{
+                    color: dayStyle.textColor,
+                    fontWeight: '800',
+                    fontSize: 7,
+                    lineHeight: 8,
+                    textTransform: 'capitalize',
+                    marginTop: -1,
+                  }}
+                  numberOfLines={1}
+                >
+                  {monthAbbrevFromYmd(cell.ymd, calendarLocale)}
+                </Text>
+              ) : null}
+            </TouchableOpacity>
+          </View>
+        );
+      })}
+    </View>
   );
 
   const onFamilyCrewFilter = (id: string) => {
@@ -2915,14 +3304,6 @@ export default function Roster({
         <View style={styles.inlineCalendar}>
           <View style={styles.inlineCalendarHeader}>
             <TouchableOpacity
-              onPress={() => shiftCalendarMonth(-1)}
-              hitSlop={10}
-              style={styles.inlineCalendarNavBtn}
-              accessibilityLabel={t('roster.calendarPrevMonth')}
-            >
-              <Ionicons name="chevron-back" size={20} color={colors.text} />
-            </TouchableOpacity>
-            <TouchableOpacity
               style={styles.inlineCalendarTitleBtn}
               onPress={toggleCalendarExpanded}
               accessibilityLabel={calendarExpanded ? t('roster.calendarCollapse') : t('roster.calendarExpand')}
@@ -2930,19 +3311,7 @@ export default function Roster({
               <Text style={[styles.inlineCalendarTitle, { color: colors.text }]} numberOfLines={1}>
                 {calendarMonthLabel}
               </Text>
-              <Ionicons
-                name={calendarExpanded ? 'chevron-up' : 'chevron-down'}
-                size={18}
-                color={colors.textMuted}
-              />
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => shiftCalendarMonth(1)}
-              hitSlop={10}
-              style={styles.inlineCalendarNavBtn}
-              accessibilityLabel={t('roster.calendarNextMonth')}
-            >
-              <Ionicons name="chevron-forward" size={20} color={colors.text} />
+              <Ionicons name={calendarExpanded ? 'chevron-up' : 'chevron-down'} size={16} color={colors.textMuted} />
             </TouchableOpacity>
           </View>
           <View style={styles.calendarWeekRow}>
@@ -2955,75 +3324,52 @@ export default function Roster({
               </Text>
             ))}
           </View>
-          <View style={styles.calendarGrid}>
-            {(calendarExpanded ? calendarCells : calendarWeekCells).map((cell, idx, arr) => {
-              if (!cell.ymd) {
-                return <View key={`e-${idx}`} style={styles.calendarCell} />;
-              }
-              const inRange = dateRollerDates.includes(cell.ymd);
-              const kind = dayKindByDate.get(cell.ymd) ?? 'empty';
-              const sel = cell.ymd === selectedDate;
-              const dayStyle = getCalendarDayStyle(cell.ymd, sel);
-              const dimOutOfRange = !inRange && kind === 'empty';
-
-              const isLayover = kind === 'layover';
-              const prevYmd = idx > 0 ? arr[idx - 1]?.ymd : null;
-              const nextYmd = idx < arr.length - 1 ? arr[idx + 1]?.ymd : null;
-              const prevIsLayover = prevYmd ? (dayKindByDate.get(prevYmd) ?? 'empty') === 'layover' : false;
-              const nextIsLayover = nextYmd ? (dayKindByDate.get(nextYmd) ?? 'empty') === 'layover' : false;
-              const colIdx = idx % 7;
-              const isRowStart = colIdx === 0;
-              const isRowEnd = colIdx === 6;
-
-              let borderRadiusStyle: any = {};
-              if (isLayover) {
-                const connectLeft = prevIsLayover && !isRowStart;
-                const connectRight = nextIsLayover && !isRowEnd;
-                borderRadiusStyle = {
-                  borderTopLeftRadius: connectLeft ? 0 : 17,
-                  borderBottomLeftRadius: connectLeft ? 0 : 17,
-                  borderTopRightRadius: connectRight ? 0 : 17,
-                  borderBottomRightRadius: connectRight ? 0 : 17,
-                  marginLeft: connectLeft ? 0 : 2,
-                  marginRight: connectRight ? 0 : 2,
-                };
-              }
-
-              return (
-                <TouchableOpacity
-                  key={cell.ymd}
-                  style={[
-                    styles.calendarCell,
-                    {
-                      backgroundColor: dayStyle.backgroundColor,
-                      borderColor: dayStyle.borderColor,
-                      borderWidth: dayStyle.borderWidth,
-                    },
-                    dimOutOfRange && styles.calendarCellOutOfRange,
-                    borderRadiusStyle,
-                  ]}
-                  disabled={!inRange && kind === 'empty'}
-                  onPress={() => onDateRollerChipPress(cell.ymd!)}
-                  accessibilityLabel={
-                    kind === 'layover'
-                      ? t('roster.dayLayover')
-                      : kind === 'flight'
-                        ? t('roster.dayHasFlights')
-                        : kind === 'standby'
-                          ? t('roster.dayStandby')
-                          : kind === 'duty_off'
-                            ? t('roster.dayOffDuty')
-                            : t('roster.dayEmpty')
-                  }
-                >
-                  <Text style={{ color: dayStyle.textColor, fontWeight: sel ? '800' : '700', fontSize: 12 }}>
-                    {cell.day}
-                  </Text>
-                </TouchableOpacity>
-              );
+          <FlatList
+            ref={calendarWeekListRef}
+            data={calendarWeeks}
+            keyExtractor={(week) => week[0]?.ymd ?? 'week'}
+            nestedScrollEnabled
+            showsVerticalScrollIndicator={false}
+            pagingEnabled={!calendarExpanded}
+            snapToInterval={calendarExpanded ? undefined : CALENDAR_COL_H}
+            disableIntervalMomentum={!calendarExpanded}
+            decelerationRate={calendarExpanded ? 'normal' : 'fast'}
+            style={{ height: calendarExpanded ? CALENDAR_GRID_H : CALENDAR_COL_H }}
+            getItemLayout={(_d, index) => ({
+              length: CALENDAR_COL_H,
+              offset: CALENDAR_COL_H * index,
+              index,
             })}
-          </View>
+            extraData={`${layoverDateSet.size}|${dayKindByDate.size}|${calendarExpanded}`}
+            scrollEventThrottle={16}
+            onScroll={(e) => {
+              const y = e.nativeEvent.contentOffset.y;
+              const first = Math.max(0, Math.floor((y + CALENDAR_COL_H / 2) / CALENDAR_COL_H));
+              lastCalendarWeekIdxRef.current = first;
+              applyVisibleWeeksMonth(first);
+            }}
+            onMomentumScrollEnd={(e) => {
+              if (calendarProgrammaticRef.current || calendarExpanded) return;
+              const y = e.nativeEvent.contentOffset.y;
+              const idx = Math.max(0, Math.round(y / CALENDAR_COL_H));
+              const week = calendarWeeks[idx];
+              if (!week) return;
+              if (week.some((c) => c.ymd === selectedDate)) return;
+              const pick =
+                week.find((c) => calendarRangeSet.has(c.ymd))?.ymd ?? week[0]?.ymd;
+              if (!pick) return;
+              setSelectedDate(pick);
+              scrollListToDate(pick);
+            }}
+            renderItem={({ item: week, index }) => renderCalendarWeek(week, `w-${index}`)}
+          />
         </View>
+        <View
+          style={[
+            styles.calendarRosterDivider,
+            { backgroundColor: isDark ? 'rgba(255,255,255,0.28)' : '#B7C4D6' },
+          ]}
+        />
         </>
       )}
 
@@ -3085,7 +3431,11 @@ export default function Roster({
             scrollIndicatorInsets={{ right: 0 }}
             onViewableItemsChanged={onViewableItemsChanged}
             viewabilityConfig={viewabilityConfig}
-            onScrollToIndexFailed={() => {}}
+            onScrollToIndexFailed={({ index }) => {
+              setTimeout(() => {
+                listRef.current?.scrollToIndex({ index, animated: false, viewPosition: 0 });
+              }, 80);
+            }}
             refreshControl={
               <RefreshControl
                 refreshing={refreshingList || (isCrew && updatingTimes)}
@@ -3151,18 +3501,20 @@ export default function Roster({
             const depCity = formatCityAndCode(item.origin_airport, item.origin_city);
             const arrCity = formatCityAndCode(item.destination_airport, item.destination_city);
             const blockCode = (item.flight_number || '').trim().toUpperCase();
-            const isSimBlock = item.roster_entry_kind === 'sim' || isSimulatorOccupationCode(blockCode);
-            const isOffDayDutyCode = isOffDayOccupationCode(blockCode);
+            const isLayoverBlock = isLayoverPlaceholder(item);
+            const isSimBlock = !isLayoverBlock && (item.roster_entry_kind === 'sim' || isSimulatorOccupationCode(blockCode));
+            const isOffDayDutyCode = !isLayoverBlock && isOffDayOccupationCode(blockCode);
             const isAnnualLeaveCode = isAnnualLeaveOccupationCode(blockCode);
-            const isGroundDutyCode = isGroundDutyOccupationCode(blockCode);
+            const isGroundDutyCode = !isLayoverBlock && isGroundDutyOccupationCode(blockCode);
             const isOfficeDutyCode = isOfficeDutyOccupationCode(blockCode);
             /** Yer dersi/ofis: gri görev kutusu (uçuş chrome); yeşil off değil. */
             const isDutyOffBlock =
+              !isLayoverBlock &&
               !isSimBlock &&
               !isGroundDutyCode &&
               (item.roster_entry_kind === 'duty_off' || isOffDayDutyCode);
             const isGroundDutyBlock = !isSimBlock && isGroundDutyCode;
-            const isNonFlightBlock = isDutyOffBlock || isSimBlock || isGroundDutyBlock;
+            const isNonFlightBlock = isDutyOffBlock || isSimBlock || isGroundDutyBlock || isLayoverBlock;
             const nonFlightStatus = isNonFlightBlock ? getNonFlightBlockStatus(item) : null;
             const isStandbyDutyCode = isStandbyOccupationCode(blockCode);
             const isReserveDutyCode =
@@ -3177,7 +3529,9 @@ export default function Roster({
             const indigoDutyTr = indigoDutyBlockTitleTr(blockCode);
             const indigoDutyEn = indigoDutyBlockTitleEn(blockCode);
             const blockLabel =
-              indigoLabels && isDutyOffBlock && indigoDutyTr && indigoDutyEn
+              isLayoverBlock
+                ? t('roster.dayLayover')
+                : indigoLabels && isDutyOffBlock && indigoDutyTr && indigoDutyEn
                 ? (isTr ? indigoDutyTr : indigoDutyEn)
                 : isReserveDutyCode
                   ? (isTr ? 'Rezerve' : 'Reserve')
@@ -3197,7 +3551,12 @@ export default function Roster({
                               ? rosterOccupationLabelTr(item.flight_number)
                               : rosterOccupationLabelEn(item.flight_number)) ?? item.flight_number;
             const blockTitle =
-              isDutyOffBlock
+              isLayoverBlock
+                ? (() => {
+                    const city = formatCityAndCode(item.origin_airport, item.origin_city);
+                    return city && city !== '—' ? city : blockLabel;
+                  })()
+                : isDutyOffBlock
                 ? blockLabel
                 : blockCode
                   ? `${blockLabel} (${blockCode})`
@@ -3243,6 +3602,7 @@ export default function Roster({
                 <TouchableOpacity
                   activeOpacity={0.7}
                   onPress={() => {
+                    if (isLayoverBlock) return;
                     if (isCrew && selectionMode) {
                       toggleSelectFlight(item.id);
                       return;
@@ -3258,6 +3618,7 @@ export default function Roster({
                     }
                   }}
                   onLongPress={() => {
+                    if (isLayoverBlock) return;
                     if (isCrew) enterSelectionModeWith(item.id);
                   }}
                   style={styles.cardMain}
@@ -3307,7 +3668,11 @@ export default function Roster({
                         <Text style={[styles.route, { color: cardInk.primary }]}>
                           <>
                             <Text style={styles.routeLabel}>
-                              {isSimBlock ? t('roster.simulatorBlockType') : t('roster.offDutyType')}{' '}
+                              {isLayoverBlock
+                                ? `${t('roster.dayLayover')}: `
+                                : isSimBlock
+                                  ? t('roster.simulatorBlockType')
+                                  : t('roster.offDutyType')}{' '}
                             </Text>
                             <Text style={[styles.flightNumber, { color: cardInk.primary }]}>{blockTitle}</Text>
                           </>
@@ -3567,7 +3932,7 @@ export default function Roster({
                 </TouchableOpacity>
               </View>
             );
-            const cardContent = selectionMode
+            const cardContent = selectionMode || isLayoverBlock
               ? (
                 <View
                   style={[
@@ -3785,61 +4150,68 @@ function createRosterStyles(fs: (n: number) => number, themeMode: 'light' | 'dar
   },
   headerRoundIconBtnDisabled: { opacity: 0.55 },
   inlineCalendar: {
-    marginBottom: 4,
-    marginHorizontal: -8,
-    paddingHorizontal: 4,
+    marginBottom: 0,
+    marginHorizontal: 0,
+    paddingHorizontal: 8,
     paddingTop: 0,
     paddingBottom: 0,
   },
   inlineCalendarHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 2,
-  },
-  inlineCalendarNavBtn: {
-    width: 32,
-    height: 32,
-    alignItems: 'center',
     justifyContent: 'center',
+    marginBottom: 0,
+    minHeight: 28,
   },
   inlineCalendarTitleBtn: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
+    gap: 4,
     paddingHorizontal: 8,
+    paddingVertical: 2,
   },
   inlineCalendarTitle: {
     fontSize: fs(15),
     fontWeight: '800',
     textTransform: 'capitalize',
   },
-  crewFilterScroll: { marginBottom: 8, maxHeight: 40 },
+  crewFilterScroll: { marginBottom: 4, maxHeight: 36 },
   crewFilterRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 4 },
   crewFilterLabel: { fontSize: 12, fontWeight: '700', marginRight: 2 },
   crewFilterChip: {
     paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingVertical: 6,
     borderRadius: 16,
     borderWidth: 1,
     maxWidth: 140,
   },
   crewFilterChipSelected: {},
-  calendarWeekRow: { flexDirection: 'row', marginBottom: 2 },
-  calendarWeekday: { flex: 1, textAlign: 'center', fontSize: 11, fontWeight: '700' },
-  calendarGrid: { flexDirection: 'row', flexWrap: 'wrap' },
-  calendarCell: {
-    width: '14.2857%',
-    height: 34,
+  calendarWeekRow: { flexDirection: 'row', marginBottom: 0 },
+  calendarWeekday: { flex: 1, textAlign: 'center', fontSize: 11, fontWeight: '700', paddingVertical: 2 },
+  calendarWeek: { flexDirection: 'row', height: CALENDAR_COL_H },
+  calendarCol: {
+    flex: 1,
+    height: CALENDAR_COL_H,
+    alignItems: 'stretch',
+    justifyContent: 'center',
+  },
+  calendarDayInner: {
+    height: 30,
+    width: '100%',
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 17,
-    marginBottom: 2,
+    borderRadius: CALENDAR_DAY_RADIUS,
   },
   calendarCellOutOfRange: {
     opacity: 0.32,
+  },
+  calendarRosterDivider: {
+    height: 2,
+    marginHorizontal: 8,
+    marginTop: 8,
+    marginBottom: 8,
+    borderRadius: 1,
   },
   syncedDateWrap: {
     paddingVertical: 10,
@@ -3870,7 +4242,7 @@ function createRosterStyles(fs: (n: number) => number, themeMode: 'light' | 'dar
   rosterActionsRow: {
     flexDirection: 'row',
     gap: 6,
-    paddingTop: 6,
+    paddingTop: 4,
     paddingBottom: 2,
   },
   rosterActionButton: {

@@ -13,6 +13,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useSession } from '../contexts/SessionContext';
 import { useAdminRoster } from '../contexts/AdminRosterContext';
 import { colors, setThemePreference, useThemeMode, useThemePreference, type ThemePreference } from '../theme/colors';
@@ -107,36 +108,35 @@ export default function Profile() {
                 </>
               )}
 
-              <Text style={[styles.label, { color: colors.textSecondary }]}>{t('profile.language')}</Text>
-              <Text style={[styles.value, styles.valueInColumn, { color: colors.text }]} numberOfLines={2}>
-                {profile?.locale ? LOCALE_LABELS[profile.locale as Locale] : LOCALE_LABELS.en}
-              </Text>
-
               {crewProfile && (
                 <>
-                  <Text style={[styles.label, { color: colors.textSecondary }]}>{t('profile.airline')}</Text>
+                  <Text style={[styles.label, styles.labelCompact, { color: colors.textSecondary }]}>
+                    {t('profile.airline')}
+                  </Text>
                   {airline ? (
                     <View style={styles.airlineRow}>
                       <Image source={{ uri: airline.logoUrl }} style={styles.airlineLogo} />
                       <Text
-                        style={[styles.value, styles.airlineNameText, styles.valueInColumn, { color: colors.text }]}
-                        numberOfLines={2}
+                        style={[styles.value, styles.airlineNameText, { color: colors.text }]}
+                        numberOfLines={1}
                         ellipsizeMode="tail"
                       >
                         {airline.name}
                       </Text>
                     </View>
                   ) : (
-                    <Text style={[styles.value, styles.valueInColumn, { color: colors.text }]} numberOfLines={2}>
+                    <Text style={[styles.value, { color: colors.text }]} numberOfLines={1} ellipsizeMode="tail">
                       {airlineName ?? t('profile.notSet')}
                     </Text>
                   )}
                 </>
               )}
 
-              <Text style={[styles.label, { color: colors.textSecondary }]}>{t('profile.accountType')}</Text>
-              <Text style={[styles.value, styles.valueInColumn, { color: colors.text }]} numberOfLines={2}>
-                {profile?.role === 'crew' ? t('signUp.crew') : t('signUp.family')}
+              <Text style={[styles.label, styles.labelCompact, { color: colors.textSecondary }]}>
+                {t('profile.language')}
+              </Text>
+              <Text style={[styles.value, { color: colors.text }]} numberOfLines={1}>
+                {profile?.locale ? LOCALE_LABELS[profile.locale as Locale] : LOCALE_LABELS.en}
               </Text>
             </View>
 
@@ -161,6 +161,23 @@ export default function Profile() {
                   </Text>
                 </View>
               )}
+              <View style={styles.roleBadge}>
+                <View style={styles.roleBadgeRow}>
+                  {profile?.role === 'crew' ? (
+                    <MaterialIcons name="flight-takeoff" size={16} color={colors.text} />
+                  ) : (
+                    <Ionicons name="people-outline" size={14} color={colors.text} />
+                  )}
+                  <Text style={[styles.roleBadgeText, { color: colors.text }]} numberOfLines={1}>
+                    {profile?.role === 'crew' ? t('profile.roleCrew') : t('profile.roleFamily')}
+                  </Text>
+                </View>
+                {profile?.role === 'crew' ? (
+                  <Text style={[styles.roleBaseText, { color: colors.text }]} numberOfLines={1}>
+                    {(crewProfile?.home_base_iata ?? '').trim().toUpperCase() || t('profile.notSet')}
+                  </Text>
+                ) : null}
+              </View>
             </View>
           </View>
 
@@ -299,36 +316,76 @@ const styles = StyleSheet.create({
   },
   cardAvatarWrap: {
     flexShrink: 0,
+    alignItems: 'center',
+    width: 76,
   },
   cardAvatarImage: {
-    width: 112,
-    height: 140,
-    borderRadius: 12,
+    width: 76,
+    height: 96,
+    borderRadius: 10,
   },
   cardAvatarFallback: {
-    width: 112,
-    height: 140,
-    borderRadius: 12,
+    width: 76,
+    height: 96,
+    borderRadius: 10,
     backgroundColor: colors.surfaceAlt,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: colors.border,
   },
-  cardAvatarInitial: { fontSize: 20, fontWeight: '700', color: colors.primary },
+  cardAvatarInitial: { fontSize: 18, fontWeight: '700', color: colors.primary },
+  roleBadge: {
+    marginTop: 8,
+    alignItems: 'center',
+    width: 88,
+    gap: 2,
+  },
+  roleBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  roleBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    flexShrink: 1,
+    textAlign: 'center',
+  },
+  roleBaseText: {
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.4,
+    textAlign: 'center',
+  },
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  infoCol: {
+    flex: 1,
+    minWidth: 0,
+  },
+  labelCompact: { marginTop: 12 },
   airlineRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    marginTop: 4,
+    gap: 8,
+    minHeight: 22,
   },
   airlineLogo: {
-    width: 28,
-    height: 28,
-    borderRadius: 6,
+    width: 22,
+    height: 22,
+    borderRadius: 4,
+    flexShrink: 0,
   },
   airlineNameText: {
     flex: 1,
+    minWidth: 0,
+    fontSize: 16,
+    lineHeight: 22,
   },
   editInCard: {
     marginTop: 16,

@@ -32,6 +32,7 @@ import { importPdfFlightsViaRpc, isRosterPdfImportSupportedForCrewAirline } from
 import { mergePdfRowsFromTextParse } from '../lib/pdfRowMerge';
 import { parseRosterPdfFromDevice, pdfParseSourceDevLabel } from '../lib/rosterPdfParse';
 import type { PdfFlightRow } from '../lib/pdfRosterImport';
+import { maybePromptHomeBaseAfterRosterImport } from '../lib/homeBaseFromRoster';
 import { triggerAirportBoardCacheRefreshIfDue } from '../lib/airportBoardCache';
 import { alertWithCopy } from '../lib/alertWithCopy';
 import { buildPdfImportReport, showPdfImportAlert } from '../lib/pdfImportAlert';
@@ -137,7 +138,7 @@ export default function AddFlight() {
   const { t } = useTranslation();
   const themeMode = useThemeMode();
   const styles = useMemo(() => createAddFlightStyles(), [themeMode]);
-  const { crewProfile } = useSession();
+  const { crewProfile, refreshProfile } = useSession();
   const [rows, setRows] = useState<FlightRow[]>([createEmptyRow()]);
   const [loading, setLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState('');
@@ -248,6 +249,25 @@ export default function AddFlight() {
           ? `\n\n${t('addFlight.importFlightsSkippedWrongAirline', { count: skippedWrongAirline })}`
           : '';
       if (added > 0) {
+        if (crewProfile.id && crewProfile.user_id) {
+          await maybePromptHomeBaseAfterRosterImport({
+            userId: crewProfile.user_id,
+            crewProfileId: crewProfile.id,
+            currentHomeBaseIata: crewProfile.home_base_iata,
+            importedRows: flights,
+            supabase,
+            refreshProfile,
+            copy: {
+              title: t('addFlight.homeBaseChangeTitle'),
+              message: (iata, city) =>
+                city
+                  ? t('addFlight.homeBaseChangeMessageCity', { iata, city })
+                  : t('addFlight.homeBaseChangeMessage', { iata }),
+              yes: t('addFlight.homeBaseChangeYes'),
+              no: t('addFlight.homeBaseChangeNo'),
+            },
+          });
+        }
         Alert.alert(t('addFlight.importFlightsSuccessTitle'), t('addFlight.importFlightsSuccess'), [
           {
             text: t('common.ok'),

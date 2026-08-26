@@ -20,36 +20,60 @@ export type AirportDisplay = {
 /** Cache from Supabase (airport-codes.csv). Key = ICAO or IATA (uppercase). */
 let airportDisplayCache: Map<string, AirportDisplay> = new Map();
 
+type AirportCacheRow = {
+  icao: string;
+  iata: string | null;
+  city: string | null;
+  city_tr: string | null;
+  timezone_iana?: string | null;
+};
+
 /** DB'den yüklenen havalimanı listesini cache'e yazar. Tek kaynak: docs/airport-codes.csv. */
-export function setAirportDisplayCache(
-  rows: { icao: string; iata: string | null; city: string | null; city_tr: string | null }[]
-): void {
+export function setAirportDisplayCache(rows: AirportCacheRow[]): void {
   const next = new Map<string, AirportDisplay>();
   for (const r of rows) {
     const icao = (r.icao || '').trim().toUpperCase();
     const iata = (r.iata || icao || '').trim().toUpperCase();
     const city = (r.city || '').trim() || '';
     const city_tr = (r.city_tr || '').trim() || undefined;
+    const timezone_iana = r.timezone_iana?.trim() || undefined;
     const display: AirportDisplay = { iata: iata || icao, city, city_tr };
+    if (timezone_iana) display.timezone_iana = timezone_iana;
     if (icao) next.set(icao, display);
     if (iata && iata !== icao) next.set(iata, display);
   }
   airportDisplayCache = next;
 }
 
+type AirportSelectBuilder = {
+  select: (cols: string) => {
+    not: (col: string, op: string, val: null) => {
+      range: (from: number, to: number) => Promise<{ data: unknown[] | null }>;
+    };
+  };
+};
+
+const AIRPORT_DISPLAY_PAGE = 1000;
+
 /** Supabase public.airports tablosunu çeker ve cache'i doldurur (kaynak: airport-codes.csv). */
 export async function loadAirportDisplayFromSupabase(supabase: {
-  from: (table: string) => { select: (cols: string) => Promise<{ data: unknown[] | null }> };
+  from: (table: string) => AirportSelectBuilder;
 }): Promise<void> {
   try {
-    const { data } = await supabase.from('airports').select('icao,iata,city,city_tr,timezone_iana');
-    const rows = (data || []) as {
-      icao: string;
-      iata: string | null;
-      city: string | null;
-      city_tr: string | null;
-      timezone_iana: string | null;
-    }[];
+    const rows: AirportCacheRow[] = [];
+    let from = 0;
+    while (true) {
+      const { data } = await supabase
+        .from('airports')
+        .select('icao,iata,city,city_tr,timezone_iana')
+        .not('iata', 'is', null)
+        .range(from, from + AIRPORT_DISPLAY_PAGE - 1);
+      const chunk = (data || []) as AirportCacheRow[];
+      if (chunk.length === 0) break;
+      rows.push(...chunk);
+      if (chunk.length < AIRPORT_DISPLAY_PAGE) break;
+      from += AIRPORT_DISPLAY_PAGE;
+    }
     if (rows.length > 0) setAirportDisplayCache(rows);
   } catch {
     // offline veya hata → static fallback kullanılır
@@ -506,6 +530,20 @@ const AIRPORTS: Record<string, AirportDisplay> = {
   TEQ: { iata: 'TEQ', city: 'Tekirdağ' },
   LTCI: { iata: 'VAN', city: 'Van' }, // Van Ferit Melen (LTCI was wrongly listed as Izmir before)
   VAN: { iata: 'VAN', city: 'Van' },
+  GUCY: { iata: 'CKY', city: 'Conakry', city_tr: 'Konakri' },
+  CKY: { iata: 'CKY', city: 'Conakry', city_tr: 'Konakri' },
+  DFFD: { iata: 'OUA', city: 'Ouagadougou', city_tr: 'Uagadugu' },
+  OUA: { iata: 'OUA', city: 'Ouagadougou', city_tr: 'Uagadugu' },
+  UARR: { iata: 'URA', city: 'Oral', city_tr: 'Oral' },
+  URA: { iata: 'URA', city: 'Oral', city_tr: 'Oral' },
+  VCBI: { iata: 'CMB', city: 'Colombo', city_tr: 'Kolombo' },
+  CMB: { iata: 'CMB', city: 'Colombo', city_tr: 'Kolombo' },
+  LIBD: { iata: 'BRI', city: 'Bari', city_tr: 'Bari' },
+  BRI: { iata: 'BRI', city: 'Bari', city_tr: 'Bari' },
+  LYPG: { iata: 'TGD', city: 'Podgorica', city_tr: 'Podgorica' },
+  TGD: { iata: 'TGD', city: 'Podgorica', city_tr: 'Podgorica' },
+  LFBO: { iata: 'TLS', city: 'Toulouse', city_tr: 'Toulouse' },
+  TLS: { iata: 'TLS', city: 'Toulouse', city_tr: 'Toulouse' },
 };
 
 /** DB satırı şehirsiz / eksikse statik listeden doldur (cache tek başına yeterli değil). */
@@ -524,9 +562,10 @@ function mergeDbAndStaticAirport(
   const iataSt = fromStatic.iata?.trim() ?? '';
   const merged: AirportDisplay = {
     iata: iataDb || iataSt,
-    city: cityDb || citySt,
+    // Statik şehir (İzmir, Leipzig…) ilçe/belediye adından (Gaziemir, Schkeuditz) öncelikli.
+    city: citySt || cityDb,
   };
-  const tr = city_trDb || city_trSt;
+  const tr = city_trSt || city_trDb;
   if (tr) merged.city_tr = tr;
   const tzDb = fromDb.timezone_iana?.trim();
   if (tzDb) merged.timezone_iana = tzDb;
@@ -676,6 +715,13 @@ const AIRPORT_TIMEZONES: Record<string, string> = {
   LTCS: 'Europe/Istanbul', GNY: 'Europe/Istanbul', LTCP: 'Europe/Istanbul', ADF: 'Europe/Istanbul', LTCQ: 'Europe/Istanbul', NOP: 'Europe/Istanbul', SIC: 'Europe/Istanbul', LTAR: 'Europe/Istanbul', VAS: 'Europe/Istanbul',
   LTFC: 'Europe/Istanbul', TEQ: 'Europe/Istanbul', LTCI: 'Europe/Istanbul', VAN: 'Europe/Istanbul',
   LTBY: 'Europe/Istanbul', AFY: 'Europe/Istanbul', LTCO: 'Europe/Istanbul', AJI: 'Europe/Istanbul', AOE: 'Europe/Istanbul', LTBH: 'Europe/Istanbul', CKZ: 'Europe/Istanbul', LTAL: 'Europe/Istanbul', KFS: 'Europe/Istanbul', LTBQ: 'Europe/Istanbul', KCO: 'Europe/Istanbul',
+  GUCY: 'Africa/Conakry', CKY: 'Africa/Conakry',
+  DFFD: 'Africa/Ouagadougou', OUA: 'Africa/Ouagadougou',
+  UARR: 'Asia/Oral', URA: 'Asia/Oral',
+  VCBI: 'Asia/Colombo', CMB: 'Asia/Colombo',
+  LIBD: 'Europe/Rome', BRI: 'Europe/Rome',
+  LYPG: 'Europe/Podgorica', TGD: 'Europe/Podgorica',
+  LFBO: 'Europe/Paris', TLS: 'Europe/Paris',
 };
 
 export function getAirportTimezone(code: string | null | undefined): string | null {

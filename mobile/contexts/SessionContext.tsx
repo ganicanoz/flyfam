@@ -25,6 +25,8 @@ export type CrewProfile = {
   user_id: string;
   company_name: string | null;
   airline_icao: string | null;
+  home_base_iata: string | null;
+  home_base_city: string | null;
   time_preference: string;
   roster_list_show?: RosterListShowPrefs | null;
 };
@@ -44,6 +46,11 @@ const SessionContext = createContext<SessionContextType | undefined>(undefined);
 
 function crewProfileSelectErrorMissingRosterShow(msg: string | undefined): boolean {
   return (msg || '').toLowerCase().includes('roster_list_show');
+}
+
+function crewProfileSelectErrorMissingHomeBase(msg: string | undefined): boolean {
+  const m = (msg || '').toLowerCase();
+  return m.includes('home_base_iata') || m.includes('home_base_city');
 }
 
 export function SessionProvider({ children }: { children: React.ReactNode }) {
@@ -80,17 +87,21 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       let crewRow: CrewProfile | null = null;
       const full = await supabase
         .from('crew_profiles')
-        .select('id, user_id, company_name, airline_icao, time_preference, roster_list_show')
+        .select('id, user_id, company_name, airline_icao, home_base_iata, home_base_city, time_preference, roster_list_show')
         .eq('user_id', userId)
         .maybeSingle();
-      if (full.error && crewProfileSelectErrorMissingRosterShow(full.error.message)) {
+      if (
+        full.error &&
+        (crewProfileSelectErrorMissingRosterShow(full.error.message) ||
+          crewProfileSelectErrorMissingHomeBase(full.error.message))
+      ) {
         const basic = await supabase
           .from('crew_profiles')
           .select('id, user_id, company_name, airline_icao, time_preference')
           .eq('user_id', userId)
           .maybeSingle();
         crewRow = basic.data
-          ? ({ ...basic.data, roster_list_show: null } as CrewProfile)
+          ? ({ ...basic.data, home_base_iata: null, home_base_city: null, roster_list_show: null } as CrewProfile)
           : null;
       } else if (!full.error) {
         crewRow = full.data as CrewProfile | null;
