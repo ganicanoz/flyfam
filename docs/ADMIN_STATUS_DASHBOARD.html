@@ -9,7 +9,7 @@
   <meta http-equiv="Expires" content="0" />
   <script>
     (function () {
-      var UI = '22';
+      var UI = '23';
       var p = new URLSearchParams(location.search);
       if (p.get('ui') !== UI) {
         p.set('ui', UI);
@@ -410,23 +410,35 @@
       border-bottom: 1px solid #dbe4f1;
       font-weight: 700;
     }
-    .users-table thead th.sortable {
+    table thead th.sortable,
+    .users-table thead th.sortable,
+    .board-table thead th.sortable,
+    .drawer-roster-table thead th.sortable {
       cursor: pointer;
       user-select: none;
       white-space: nowrap;
     }
-    .users-table thead th.sortable:hover {
+    table thead th.sortable:hover,
+    .users-table thead th.sortable:hover,
+    .board-table thead th.sortable:hover,
+    .drawer-roster-table thead th.sortable:hover {
       color: #1d4ed8;
       background: #e8effc;
     }
-    .users-table thead th.sortable .sort-ind {
+    table thead th.sortable .sort-ind,
+    .users-table thead th.sortable .sort-ind,
+    .board-table thead th.sortable .sort-ind,
+    .drawer-roster-table thead th.sortable .sort-ind {
       display: inline-block;
       margin-left: 4px;
       font-size: 10px;
       color: #94a3b8;
       min-width: 10px;
     }
-    .users-table thead th.sortable.is-sorted .sort-ind {
+    table thead th.sortable.is-sorted .sort-ind,
+    .users-table thead th.sortable.is-sorted .sort-ind,
+    .board-table thead th.sortable.is-sorted .sort-ind,
+    .drawer-roster-table thead th.sortable.is-sorted .sort-ind {
       color: #2563eb;
       font-weight: 800;
     }
@@ -790,15 +802,15 @@
               <tbody id="activityUsersBody"></tbody>
             </table>
           </div>
-          <h3 style="margin:16px 0 8px;">Son olaylar</h3>
+          <h3 style="margin:16px 0 8px;">Son olaylar <span class="mini">(sütun başlığına tıkla → sırala)</span></h3>
           <div class="users-table-wrap">
-            <table class="users-table">
+            <table class="users-table" id="activityRecentTable">
               <thead>
-                <tr>
-                  <th>Zaman</th>
-                  <th>Olay</th>
-                  <th>Kullanıcı</th>
-                  <th>Detay</th>
+                <tr id="activityRecentHead">
+                  <th class="sortable is-sorted" data-sort="occurred_at">Zaman <span class="sort-ind">▼</span></th>
+                  <th class="sortable" data-sort="event_type">Olay <span class="sort-ind"></span></th>
+                  <th class="sortable" data-sort="user">Kullanıcı <span class="sort-ind"></span></th>
+                  <th class="sortable" data-sort="detail">Detay <span class="sort-ind"></span></th>
                 </tr>
               </thead>
               <tbody id="activityRecentBody"></tbody>
@@ -875,20 +887,20 @@
             </div>
           </div>
           <div class="users-table-wrap">
-            <table class="users-table">
+            <table class="users-table" id="usersTable">
               <thead>
-                <tr>
+                <tr id="usersHead">
                   <th>#</th>
-                  <th>Full name</th>
-                  <th>Email</th>
-                  <th>Role</th>
-                  <th>Abonelik</th>
-                  <th>Slot</th>
-                  <th>Platform</th>
-                  <th>Version</th>
-                  <th>Havayolu (app)</th>
-                  <th>Bağlantılı</th>
-                  <th>Last sign in</th>
+                  <th class="sortable" data-sort="full_name">Full name <span class="sort-ind"></span></th>
+                  <th class="sortable" data-sort="email">Email <span class="sort-ind"></span></th>
+                  <th class="sortable" data-sort="role">Role <span class="sort-ind"></span></th>
+                  <th class="sortable" data-sort="subscription">Abonelik <span class="sort-ind"></span></th>
+                  <th class="sortable" data-sort="slots">Slot <span class="sort-ind"></span></th>
+                  <th class="sortable" data-sort="platform">Platform <span class="sort-ind"></span></th>
+                  <th class="sortable" data-sort="version">Version <span class="sort-ind"></span></th>
+                  <th class="sortable" data-sort="airline">Havayolu (app) <span class="sort-ind"></span></th>
+                  <th class="sortable" data-sort="connections">Bağlantılı <span class="sort-ind"></span></th>
+                  <th class="sortable is-sorted" data-sort="last_sign_in_at">Last sign in <span class="sort-ind">▼</span></th>
                   <th></th>
                 </tr>
               </thead>
@@ -965,9 +977,18 @@
               <button type="button" id="btnBulkSelClear" class="btnSmall">Clear</button>
             </div>
             <p id="flightsApiHint" class="mini" style="margin:8px 0;display:none;"></p>
-            <table><thead><tr>
+            <table id="flightsTable"><thead><tr id="flightsHead">
               <th style="width:28px;"><input type="checkbox" id="flightsSelectAll" title="Select all" /></th>
-              <th>Flight</th><th>DEP</th><th>ARR</th><th>Tail</th><th>Date</th><th>Delay</th><th>Phase</th><th>Status</th><th>Crew</th><th></th>
+              <th class="sortable" data-sort="flight_number">Flight <span class="sort-ind"></span></th>
+              <th class="sortable" data-sort="origin">DEP <span class="sort-ind"></span></th>
+              <th class="sortable" data-sort="destination">ARR <span class="sort-ind"></span></th>
+              <th class="sortable" data-sort="tail">Tail <span class="sort-ind"></span></th>
+              <th class="sortable" data-sort="date">Date <span class="sort-ind"></span></th>
+              <th class="sortable" data-sort="delay">Delay <span class="sort-ind"></span></th>
+              <th class="sortable is-sorted" data-sort="phase">Phase <span class="sort-ind">▲</span></th>
+              <th class="sortable" data-sort="status">Status <span class="sort-ind"></span></th>
+              <th class="sortable" data-sort="crew">Crew <span class="sort-ind"></span></th>
+              <th></th>
             </tr></thead><tbody id="flightsBody"></tbody></table>
           </div>
         </div>
@@ -1013,20 +1034,20 @@
             </div>
           </div>
           <div class="users-table-wrap">
-            <table class="users-table">
+            <table class="users-table" id="historyTable">
               <thead>
-                <tr>
-                  <th>Zaman</th>
-                  <th>Tür</th>
-                  <th>Uçuş</th>
-                  <th>Tarih</th>
-                  <th>Rota</th>
-                  <th>Status / phase</th>
-                  <th>STD → STA</th>
-                  <th>FR24 takeoff / land</th>
-                  <th>Delay d/a</th>
-                  <th>Crew</th>
-                  <th>Not</th>
+                <tr id="historyHead">
+                  <th class="sortable is-sorted" data-sort="when">Zaman <span class="sort-ind">▼</span></th>
+                  <th class="sortable" data-sort="kind">Tür <span class="sort-ind"></span></th>
+                  <th class="sortable" data-sort="flight_number">Uçuş <span class="sort-ind"></span></th>
+                  <th class="sortable" data-sort="flight_date">Tarih <span class="sort-ind"></span></th>
+                  <th class="sortable" data-sort="route">Rota <span class="sort-ind"></span></th>
+                  <th class="sortable" data-sort="statusPhase">Status / phase <span class="sort-ind"></span></th>
+                  <th class="sortable" data-sort="stdSta">STD → STA <span class="sort-ind"></span></th>
+                  <th class="sortable" data-sort="fr24">FR24 takeoff / land <span class="sort-ind"></span></th>
+                  <th class="sortable" data-sort="delay">Delay d/a <span class="sort-ind"></span></th>
+                  <th class="sortable" data-sort="crew">Crew <span class="sort-ind"></span></th>
+                  <th class="sortable" data-sort="note">Not <span class="sort-ind"></span></th>
                 </tr>
               </thead>
               <tbody id="historyBody"></tbody>
@@ -1054,7 +1075,14 @@
             <iframe id="fr24Frame" src="https://fr24api.flightradar24.com/usage-metrics?period=30d" title="FR24 login" style="width:100%; min-height:420px; border:1px solid var(--line); border-radius:8px; background:#fff;"></iframe>
           </div>
           <p id="quotaHint" class="mini" style="margin-top:0;"></p>
-          <table><thead><tr><th>Provider</th><th>Quota</th><th>Used</th><th>Remaining</th><th>Cumulative</th><th>Cooldown</th></tr></thead><tbody id="usageBody"></tbody></table>
+          <table id="usageTable"><thead><tr id="usageHead">
+            <th class="sortable" data-sort="provider">Provider <span class="sort-ind"></span></th>
+            <th class="sortable" data-sort="quota">Quota <span class="sort-ind"></span></th>
+            <th class="sortable is-sorted" data-sort="used">Used <span class="sort-ind">▼</span></th>
+            <th class="sortable" data-sort="remaining">Remaining <span class="sort-ind"></span></th>
+            <th class="sortable" data-sort="percent">Cumulative <span class="sort-ind"></span></th>
+            <th class="sortable" data-sort="cooldown">Cooldown <span class="sort-ind"></span></th>
+          </tr></thead><tbody id="usageBody"></tbody></table>
         </div>
       </section>
     </main>
@@ -1104,12 +1132,16 @@
       flightsSubButtons: Array.from(document.querySelectorAll('.sub-btn')),
       flightSubViews: Array.from(document.querySelectorAll('.subview')),
       usersBody: document.getElementById('usersBody'),
+      usersHead: document.getElementById('usersHead'),
       usersApiHint: document.getElementById('usersApiHint'),
       userTypeFilter: document.getElementById('userTypeFilter'),
       airlineFilter: document.getElementById('airlineFilter'),
       flightsBody: document.getElementById('flightsBody'),
+      flightsHead: document.getElementById('flightsHead'),
       usageBody: document.getElementById('usageBody'),
+      usageHead: document.getElementById('usageHead'),
       historyBody: document.getElementById('historyBody'),
+      historyHead: document.getElementById('historyHead'),
       historyDays: document.getElementById('historyDays'),
       historySource: document.getElementById('historySource'),
       historyFlightNo: document.getElementById('historyFlightNo'),
@@ -1134,6 +1166,7 @@
       activityUsersBody: document.getElementById('activityUsersBody'),
       activityUsersHead: document.getElementById('activityUsersHead'),
       activityRecentBody: document.getElementById('activityRecentBody'),
+      activityRecentHead: document.getElementById('activityRecentHead'),
       broadcastRole: document.getElementById('broadcastRole'),
       broadcastPlatform: document.getElementById('broadcastPlatform'),
       broadcastAirline: document.getElementById('broadcastAirline'),
@@ -1166,12 +1199,29 @@
     let accessToken = null;
     let lastUsers = [];
     let lastFlights = [];
+    let lastUsageRows = [];
+    let lastHistoryRows = [];
+    let lastActivityRecent = [];
+    let usersSortKey = 'last_sign_in_at';
+    let usersSortDir = 'desc';
+    let flightsSortKey = 'phase';
+    let flightsSortDir = 'asc';
+    let usageSortKey = 'used';
+    let usageSortDir = 'desc';
+    let historySortKey = 'when';
+    let historySortDir = 'desc';
+    let activityRecentSortKey = 'occurred_at';
+    let activityRecentSortDir = 'desc';
     let selectedFlightIds = new Set();
     let drawerUserId = null;
     let drawerUserMode = 'details';
     let hubBoardCacheRows = null;
     let hubBoardCacheMeta = null;
     let fr24FetchCooldownUntil = 0;
+    let boardSortKey = 'time';
+    let boardSortDir = 'asc';
+    let boardSortRows = [];
+    let boardSortDirection = 'departure';
 
     function escapeHtml(s) {
       return String(s ?? '')
@@ -1184,6 +1234,59 @@
 
     function escapeAttr(s) {
       return escapeHtml(s);
+    }
+
+    function parseSortTs(v) {
+      if (!v) return 0;
+      const t = Date.parse(v);
+      return Number.isFinite(t) ? t : 0;
+    }
+
+    function cmpSortValues(av, bv) {
+      if (typeof av === 'number' && typeof bv === 'number') return av - bv;
+      return String(av ?? '').localeCompare(String(bv ?? ''), 'tr', { sensitivity: 'base', numeric: true });
+    }
+
+    function sortByKey(rows, key, dir, getValue, tieKey) {
+      return (rows || []).slice().sort((a, b) => {
+        let cmp = cmpSortValues(getValue(a, key), getValue(b, key));
+        if (cmp === 0 && tieKey && tieKey !== key) {
+          cmp = cmpSortValues(getValue(a, tieKey), getValue(b, tieKey));
+        }
+        return dir === 'asc' ? cmp : -cmp;
+      });
+    }
+
+    function updateSortableHeaders(headEl, key, dir) {
+      if (!headEl) return;
+      headEl.querySelectorAll('th.sortable').forEach((th) => {
+        const k = th.getAttribute('data-sort');
+        const ind = th.querySelector('.sort-ind');
+        const active = k === key;
+        th.classList.toggle('is-sorted', active);
+        if (ind) ind.textContent = active ? (dir === 'asc' ? '▲' : '▼') : '';
+      });
+    }
+
+    function toggleSortKey(state, key, textKeys) {
+      if (state.key === key) {
+        state.dir = state.dir === 'desc' ? 'asc' : 'desc';
+      } else {
+        state.key = key;
+        state.dir = textKeys && textKeys.has(key) ? 'asc' : 'desc';
+      }
+    }
+
+    function wireSortableHead(headEl, handler) {
+      if (!headEl || headEl.dataset.sortWired === '1') return;
+      headEl.dataset.sortWired = '1';
+      headEl.addEventListener('click', (ev) => {
+        if (ev.target && ev.target.closest && ev.target.closest('input')) return;
+        const th = ev.target && ev.target.closest ? ev.target.closest('th.sortable') : null;
+        if (!th) return;
+        const key = th.getAttribute('data-sort');
+        if (key) handler(key);
+      });
     }
 
     function normFlightCode(no) {
@@ -1311,18 +1414,40 @@
           'Hub tahtaları (SAW, IST, AYT, ESB, ADB, ECN) cron ile doldurulur; kısmi tur olabilir.</p>'
         );
       }
-      const peerHeader = direction === 'departure' ? 'Varış' : 'Kalkış';
-      const timeHeader = direction === 'departure' ? 'STD' : 'STA';
-      const sorted = filtered.slice().sort((a, b) => boardRowSortKey(a, direction).localeCompare(boardRowSortKey(b, direction)));
+      boardSortRows = filtered.slice();
+      boardSortDirection = direction;
+      boardSortKey = 'time';
+      boardSortDir = 'asc';
+      return paintAirportBoardTableHtml();
+    }
+
+    function boardRowSortValue(row, key) {
+      const direction = boardSortDirection;
+      if (key === 'flight') return String(boardFlightNumber(row) || '').toLowerCase();
+      if (key === 'peer') return String(boardPeerAirport(row, direction) || '').toUpperCase();
+      if (key === 'time') return boardRowSortKey(row, direction);
+      if (key === 'status') return String(boardStatus(row) || '').toLowerCase();
+      return '';
+    }
+
+    function paintAirportBoardTableHtml() {
+      const peerHeader = boardSortDirection === 'departure' ? 'Varış' : 'Kalkış';
+      const timeHeader = boardSortDirection === 'departure' ? 'STD' : 'STA';
+      const sorted = sortByKey(boardSortRows, boardSortKey, boardSortDir, boardRowSortValue, 'time');
+      const head =
+        '<tr id="boardSortHead">' +
+        '<th class="sortable' + (boardSortKey === 'flight' ? ' is-sorted' : '') + '" data-sort="flight">Uçuş <span class="sort-ind">' + (boardSortKey === 'flight' ? (boardSortDir === 'asc' ? '▲' : '▼') : '') + '</span></th>' +
+        '<th class="sortable' + (boardSortKey === 'peer' ? ' is-sorted' : '') + '" data-sort="peer">' + peerHeader + ' <span class="sort-ind">' + (boardSortKey === 'peer' ? (boardSortDir === 'asc' ? '▲' : '▼') : '') + '</span></th>' +
+        '<th class="sortable' + (boardSortKey === 'time' ? ' is-sorted' : '') + '" data-sort="time">' + timeHeader + ' <span class="sort-ind">' + (boardSortKey === 'time' ? (boardSortDir === 'asc' ? '▲' : '▼') : '') + '</span></th>' +
+        '<th class="sortable' + (boardSortKey === 'status' ? ' is-sorted' : '') + '" data-sort="status">Durum <span class="sort-ind">' + (boardSortKey === 'status' ? (boardSortDir === 'asc' ? '▲' : '▼') : '') + '</span></th>' +
+        '<th></th></tr>';
       return (
-        '<div class="users-table-wrap" style="margin-top:8px;"><table class="board-table"><thead><tr>' +
-        '<th>Uçuş</th><th>' + peerHeader + '</th><th>' + timeHeader + '</th><th>Durum</th><th></th>' +
-        '</tr></thead><tbody>' +
+        '<div class="users-table-wrap" style="margin-top:8px;"><table class="board-table"><thead>' + head + '</thead><tbody>' +
         sorted
           .map((row) => {
             const fn = boardFlightNumber(row);
-            const peer = boardPeerAirport(row, direction);
-            const leg = direction === 'departure' ? row.departure : row.arrival;
+            const peer = boardPeerAirport(row, boardSortDirection);
+            const leg = boardSortDirection === 'departure' ? row.departure : row.arrival;
             const time = fmtBoardTime(leg);
             const st = boardStatus(row);
             const fr = fr24FlightUrl(fn, '');
@@ -1632,14 +1757,51 @@
       return '<span class="badge b-bad">+' + mins + 'm</span>';
     }
 
+    let drawerRosterRows = [];
+    let drawerRosterSortKey = 'date';
+    let drawerRosterSortDir = 'desc';
+
     function renderUserRosterTable(flights) {
-      const rows = flights || [];
-      if (rows.length === 0) {
+      drawerRosterRows = flights || [];
+      drawerRosterSortKey = 'date';
+      drawerRosterSortDir = 'desc';
+      if (drawerRosterRows.length === 0) {
         return '<p class="mini" style="margin:0;">No flights linked to this user.</p>';
       }
+      return paintDrawerRosterTable();
+    }
+
+    function drawerRosterSortValue(f, key) {
+      if (key === 'flight') return String(f.flight_number || '').toLowerCase();
+      if (key === 'dep') return String(f.origin_airport || '').toUpperCase();
+      if (key === 'arr') return String(f.destination_airport || '').toUpperCase();
+      if (key === 'date') return String(f.flight_date || '');
+      if (key === 'delay') return delayMinutesForFlight(f) || 0;
+      if (key === 'phase') return String(f.api_refresh_phase || '').toLowerCase();
+      return '';
+    }
+
+    function paintDrawerRosterTable() {
+      const sorted = sortByKey(
+        drawerRosterRows,
+        drawerRosterSortKey,
+        drawerRosterSortDir,
+        drawerRosterSortValue,
+        'date',
+      );
+      const ind = (k) =>
+        drawerRosterSortKey === k ? (drawerRosterSortDir === 'asc' ? '▲' : '▼') : '';
+      const cls = (k) => 'sortable' + (drawerRosterSortKey === k ? ' is-sorted' : '');
       return (
-        '<table class="drawer-roster-table"><thead><tr><th>Flight</th><th>DEP</th><th>ARR</th><th>Date</th><th>Delay</th><th>Phase</th></tr></thead><tbody>' +
-        rows.map((f) => (
+        '<table class="drawer-roster-table"><thead><tr id="drawerRosterHead">' +
+          '<th class="' + cls('flight') + '" data-sort="flight">Flight <span class="sort-ind">' + ind('flight') + '</span></th>' +
+          '<th class="' + cls('dep') + '" data-sort="dep">DEP <span class="sort-ind">' + ind('dep') + '</span></th>' +
+          '<th class="' + cls('arr') + '" data-sort="arr">ARR <span class="sort-ind">' + ind('arr') + '</span></th>' +
+          '<th class="' + cls('date') + '" data-sort="date">Date <span class="sort-ind">' + ind('date') + '</span></th>' +
+          '<th class="' + cls('delay') + '" data-sort="delay">Delay <span class="sort-ind">' + ind('delay') + '</span></th>' +
+          '<th class="' + cls('phase') + '" data-sort="phase">Phase <span class="sort-ind">' + ind('phase') + '</span></th>' +
+        '</tr></thead><tbody>' +
+        sorted.map((f) => (
           '<tr>' +
             '<td>' + fr24Link(fr24FlightUrl(f.flight_number, f.flight_date), f.flight_number || '—') + '</td>' +
             '<td>' + airportBoardLink(f.origin_airport, 'departure', f.origin_airport || '—') + '</td>' +
@@ -2086,17 +2248,38 @@
       if (unique.includes(current)) els.airlineFilter.value = current;
     }
 
+    function userSortValue(u, key) {
+      const appRole = String(u.role || '');
+      const isCrew = appRole === 'crew';
+      const sub = u.subscription;
+      if (key === 'full_name') return String(u.full_name || '').toLowerCase();
+      if (key === 'email') return String(u.email || '').toLowerCase();
+      if (key === 'role') return appRole.toLowerCase();
+      if (key === 'subscription') {
+        if (!sub) return isCrew ? 'zzz_yok' : 'zzzz';
+        return String(sub.status || 'none').toLowerCase();
+      }
+      if (key === 'slots') return Number(sub && sub.total_family_slots != null ? sub.total_family_slots : 0);
+      if (key === 'platform') return String(u.device_platforms_text || '').toLowerCase();
+      if (key === 'version') {
+        return [u.app_version || '', u.app_build || '', u.os_version || ''].join(' ').toLowerCase();
+      }
+      if (key === 'airline') {
+        return String(
+          isCrew ? (u.company_name || u.airline_icao || '') : (u.family_linked_crew_company || '')
+        ).toLowerCase();
+      }
+      if (key === 'connections') return Array.isArray(u.connections) ? u.connections.length : 0;
+      if (key === 'last_sign_in_at') return parseSortTs(u.last_sign_in_at);
+      return '';
+    }
+
     function renderUsers(rows) {
-      lastUsers = rows || [];
+      if (rows) lastUsers = rows;
       upsertAirlineFilter(lastUsers);
       const typeFilter = els.userTypeFilter.value || 'all';
       const airlineFilter = els.airlineFilter.value || 'all';
-      const sorted = lastUsers.slice().sort((a, b) => {
-        const ta = a.last_sign_in_at ? new Date(a.last_sign_in_at).getTime() : 0;
-        const tb = b.last_sign_in_at ? new Date(b.last_sign_in_at).getTime() : 0;
-        return tb - ta;
-      });
-      const filtered = sorted.filter((u) => {
+      const filtered = lastUsers.filter((u) => {
         const appRole = String(u.role || '');
         if (typeFilter !== 'all' && appRole !== typeFilter) return false;
         if (airlineFilter !== 'all') {
@@ -2109,7 +2292,9 @@
         }
         return true;
       });
-      els.usersBody.innerHTML = filtered.map((u, idx) => {
+      const sorted = sortByKey(filtered, usersSortKey, usersSortDir, userSortValue, 'last_sign_in_at');
+      updateSortableHeaders(els.usersHead, usersSortKey, usersSortDir);
+      els.usersBody.innerHTML = sorted.map((u, idx) => {
         const appRole = String(u.role || '');
         const roleBadgeCls = appRole === 'crew' ? 'role-crew' : (appRole === 'family' ? 'role-family' : '');
         const isCrew = appRole === 'crew';
@@ -2169,18 +2354,29 @@
     }
 
     function renderFlights(rows) {
-      lastFlights = rows || [];
+      if (rows) lastFlights = rows;
       if (!els.flightsBody) return;
       const phasePriority = { active: 0, semi_active: 1, passive_future: 2, passive_upcoming: 3, passive_past: 4 };
-      const sorted = (rows || []).slice().sort((a, b) => {
-        const pa = phasePriority[a.api_refresh_phase] ?? 9;
-        const pb = phasePriority[b.api_refresh_phase] ?? 9;
-        if (pa !== pb) return pa - pb;
-        const ta = a.scheduled_departure ? new Date(a.scheduled_departure).getTime() : Number.POSITIVE_INFINITY;
-        const tb = b.scheduled_departure ? new Date(b.scheduled_departure).getTime() : Number.POSITIVE_INFINITY;
-        if (ta !== tb) return ta - tb;
-        return String(a.flight_date || '').localeCompare(String(b.flight_date || ''));
-      });
+      function flightSortValue(f, key) {
+        if (key === 'flight_number') return String(f.flight_number || '').toLowerCase();
+        if (key === 'origin') return String(f.origin_airport || '').toUpperCase();
+        if (key === 'destination') return String(f.destination_airport || '').toUpperCase();
+        if (key === 'tail') return String(f.aircraft_registration || '').toLowerCase();
+        if (key === 'date') {
+          const t = parseSortTs(f.scheduled_departure);
+          return t || parseSortTs(f.flight_date);
+        }
+        if (key === 'delay') return delayMinutesForFlight(f) || 0;
+        if (key === 'phase') return phasePriority[f.api_refresh_phase] ?? 9;
+        if (key === 'status') return String(f.flight_status || '').toLowerCase();
+        if (key === 'crew') {
+          const list = Array.isArray(f.crew_names) ? f.crew_names.filter(Boolean) : [];
+          return list.length ? list.join(' ').toLowerCase() : '';
+        }
+        return '';
+      }
+      const sorted = sortByKey(lastFlights, flightsSortKey, flightsSortDir, flightSortValue, 'date');
+      updateSortableHeaders(els.flightsHead, flightsSortKey, flightsSortDir);
 
       function crewCellHtml(names) {
         const list = Array.isArray(names) ? names.filter(Boolean) : [];
@@ -2382,7 +2578,23 @@
     }
 
     function renderUsage(rows) {
-      els.usageBody.innerHTML = rows.map((r) => {
+      if (rows) lastUsageRows = rows || [];
+      function usageSortValue(r, key) {
+        const q = r.quota_monthly;
+        const u = r.used_monthly;
+        const rem = r.remaining_monthly;
+        const percent = (q && u != null) ? Math.max(0, Math.min(100, (u / q) * 100)) : 0;
+        if (key === 'provider') return String(r.provider || '').toLowerCase();
+        if (key === 'quota') return Number(q != null ? q : -1);
+        if (key === 'used') return Number(u != null ? u : -1);
+        if (key === 'remaining') return Number(rem != null ? rem : -1);
+        if (key === 'percent') return percent;
+        if (key === 'cooldown') return r.cooldown_active ? 2 : (r.blocked_until ? 1 : 0);
+        return '';
+      }
+      const sorted = sortByKey(lastUsageRows, usageSortKey, usageSortDir, usageSortValue, 'provider');
+      updateSortableHeaders(els.usageHead, usageSortKey, usageSortDir);
+      els.usageBody.innerHTML = sorted.map((r) => {
         const q = r.quota_monthly;
         const u = r.used_monthly;
         const rem = r.remaining_monthly;
@@ -2414,6 +2626,51 @@
       const d = new Date(v);
       if (!Number.isFinite(d.getTime())) return '—';
       return d.toISOString().replace('T', ' ').replace(/\.\d{3}Z$/, 'Z');
+    }
+
+    function paintHistoryTable() {
+      if (!els.historyBody) return;
+      updateSortableHeaders(els.historyHead, historySortKey, historySortDir);
+      if (!lastHistoryRows.length) {
+        els.historyBody.innerHTML = '<tr><td colspan="11" class="mini">Kayıt yok. Filtreyi genişlet veya ops event birikmesini bekle.</td></tr>';
+        return;
+      }
+      function historySortValue(r, key) {
+        if (key === 'when') return parseSortTs(r.when);
+        if (key === 'kind') return String(r.kind || '').toLowerCase();
+        if (key === 'flight_number') return String(r.flight_number || '').toLowerCase();
+        if (key === 'flight_date') return String(r.flight_date || '');
+        if (key === 'route') return String(r.route || '').toLowerCase();
+        if (key === 'statusPhase') return String(r.statusPhase || '').toLowerCase();
+        if (key === 'stdSta') return String(r.stdSta || '');
+        if (key === 'fr24') return String(r.fr24 || '');
+        if (key === 'delay') return String(r.delay || '');
+        if (key === 'crew') return String(r.crew || '').toLowerCase();
+        if (key === 'note') return String(r.note || '').toLowerCase();
+        return '';
+      }
+      const ranked = sortByKey(
+        lastHistoryRows,
+        historySortKey,
+        historySortDir,
+        historySortValue,
+        'when',
+      );
+      els.historyBody.innerHTML = ranked.map((r) => (
+        '<tr>' +
+          '<td class="mini">' + escapeHtml(fmtShortTs(r.when)) + '</td>' +
+          '<td><code>' + escapeHtml(r.kind) + '</code></td>' +
+          '<td><strong>' + escapeHtml(r.flight_number || '—') + '</strong></td>' +
+          '<td>' + escapeHtml(r.flight_date || '—') + '</td>' +
+          '<td>' + escapeHtml(r.route) + '</td>' +
+          '<td class="mini">' + escapeHtml(r.statusPhase) + '</td>' +
+          '<td class="mini">' + escapeHtml(r.stdSta) + '</td>' +
+          '<td class="mini">' + escapeHtml(r.fr24) + '</td>' +
+          '<td class="mini">' + escapeHtml(r.delay) + '</td>' +
+          '<td class="mini">' + escapeHtml(r.crew) + '</td>' +
+          '<td class="mini">' + escapeHtml(r.note) + '</td>' +
+        '</tr>'
+      )).join('');
     }
 
     function renderHistoryTable(json) {
@@ -2454,26 +2711,10 @@
           });
         });
       }
-      rows.sort((a, b) => new Date(b.when).getTime() - new Date(a.when).getTime());
-      if (!rows.length) {
-        els.historyBody.innerHTML = '<tr><td colspan="11" class="mini">Kayıt yok. Filtreyi genişlet veya ops event birikmesini bekle.</td></tr>';
-        return;
-      }
-      els.historyBody.innerHTML = rows.map((r) => (
-        '<tr>' +
-          '<td class="mini">' + escapeHtml(fmtShortTs(r.when)) + '</td>' +
-          '<td><code>' + escapeHtml(r.kind) + '</code></td>' +
-          '<td><strong>' + escapeHtml(r.flight_number || '—') + '</strong></td>' +
-          '<td>' + escapeHtml(r.flight_date || '—') + '</td>' +
-          '<td>' + escapeHtml(r.route) + '</td>' +
-          '<td class="mini">' + escapeHtml(r.statusPhase) + '</td>' +
-          '<td class="mini">' + escapeHtml(r.stdSta) + '</td>' +
-          '<td class="mini">' + escapeHtml(r.fr24) + '</td>' +
-          '<td class="mini">' + escapeHtml(r.delay) + '</td>' +
-          '<td class="mini">' + escapeHtml(r.crew) + '</td>' +
-          '<td class="mini">' + escapeHtml(r.note) + '</td>' +
-        '</tr>'
-      )).join('');
+      lastHistoryRows = rows;
+      historySortKey = 'when';
+      historySortDir = 'desc';
+      paintHistoryTable();
     }
 
     async function loadHistory() {
@@ -2691,34 +2932,59 @@
       activitySortDir = 'desc';
       renderActivityUsersTable();
 
-      const recent = json.recent || [];
-      if (els.activityRecentBody) {
-        if (!recent.length) {
-          els.activityRecentBody.innerHTML = '<tr><td colspan="4" class="mini">Henüz olay yok. Migration + yeni app build sonrası dolacak.</td></tr>';
-        } else {
-          els.activityRecentBody.innerHTML = recent.map((r) => {
-            const meta = r.meta && typeof r.meta === 'object' ? r.meta : {};
-            const bits = [];
-            if (meta.screen) bits.push(String(meta.screen));
-            if (meta.kind) bits.push(String(meta.kind));
-            if (meta.sent != null) bits.push('sent ' + meta.sent);
-            if (meta.ok != null) bits.push('ok ' + meta.ok);
-            if (meta.imported_flights != null) bits.push('flights ' + meta.imported_flights);
-            if (meta.url) bits.push(String(meta.url).slice(0, 40));
-            if (meta.platform) bits.push(String(meta.platform));
-            if (meta.app_version) bits.push('v' + meta.app_version);
-            const who = (r.full_name || r.email || r.user_id || '—');
-            return (
-              '<tr>' +
-                '<td class="mini">' + escapeHtml(fmtShortTs(r.occurred_at)) + '</td>' +
-                '<td><code>' + escapeHtml(eventTypeLabel(r.event_type)) + '</code></td>' +
-                '<td class="mini">' + escapeHtml(who) + (r.role ? ' · ' + escapeHtml(r.role) : '') + '</td>' +
-                '<td class="mini">' + escapeHtml(bits.join(' · ') || '—') + '</td>' +
-              '</tr>'
-            );
-          }).join('');
-        }
+      lastActivityRecent = (json.recent || []).map((r) => {
+        const meta = r.meta && typeof r.meta === 'object' ? r.meta : {};
+        const bits = [];
+        if (meta.screen) bits.push(String(meta.screen));
+        if (meta.kind) bits.push(String(meta.kind));
+        if (meta.sent != null) bits.push('sent ' + meta.sent);
+        if (meta.ok != null) bits.push('ok ' + meta.ok);
+        if (meta.imported_flights != null) bits.push('flights ' + meta.imported_flights);
+        if (meta.url) bits.push(String(meta.url).slice(0, 40));
+        if (meta.platform) bits.push(String(meta.platform));
+        if (meta.app_version) bits.push('v' + meta.app_version);
+        return {
+          occurred_at: r.occurred_at,
+          event_type: r.event_type,
+          event_label: eventTypeLabel(r.event_type),
+          user: (r.full_name || r.email || r.user_id || '—') + (r.role ? ' · ' + r.role : ''),
+          detail: bits.join(' · ') || '—',
+        };
+      });
+      activityRecentSortKey = 'occurred_at';
+      activityRecentSortDir = 'desc';
+      paintActivityRecentTable();
+    }
+
+    function paintActivityRecentTable() {
+      if (!els.activityRecentBody) return;
+      updateSortableHeaders(els.activityRecentHead, activityRecentSortKey, activityRecentSortDir);
+      if (!lastActivityRecent.length) {
+        els.activityRecentBody.innerHTML = '<tr><td colspan="4" class="mini">Henüz olay yok. Migration + yeni app build sonrası dolacak.</td></tr>';
+        return;
       }
+      function recentSortValue(r, key) {
+        if (key === 'occurred_at') return parseSortTs(r.occurred_at);
+        if (key === 'event_type') return String(r.event_label || r.event_type || '').toLowerCase();
+        if (key === 'user') return String(r.user || '').toLowerCase();
+        if (key === 'detail') return String(r.detail || '').toLowerCase();
+        return '';
+      }
+      const ranked = sortByKey(
+        lastActivityRecent,
+        activityRecentSortKey,
+        activityRecentSortDir,
+        recentSortValue,
+        'occurred_at',
+      );
+      els.activityRecentBody.innerHTML = ranked.map((r) => (
+        '<tr>' +
+          '<td class="mini">' + escapeHtml(fmtShortTs(r.occurred_at)) + '</td>' +
+          '<td><code>' + escapeHtml(r.event_label || r.event_type || '—') + '</code></td>' +
+          '<td class="mini">' + escapeHtml(r.user) + '</td>' +
+          '<td class="mini">' + escapeHtml(r.detail) + '</td>' +
+        '</tr>'
+      )).join('');
     }
 
     async function loadActivity() {
@@ -3119,6 +3385,29 @@
       drawerBody.addEventListener('click', async (e) => {
         const target = e.target;
         if (!(target instanceof HTMLElement)) return;
+        const sortTh = target.closest('th.sortable[data-sort]');
+        if (sortTh && sortTh.closest('.board-table')) {
+          e.preventDefault();
+          const key = sortTh.getAttribute('data-sort');
+          const st = { key: boardSortKey, dir: boardSortDir };
+          toggleSortKey(st, key, new Set(['flight', 'peer', 'status']));
+          boardSortKey = st.key;
+          boardSortDir = st.dir;
+          const wrap = drawerBody.querySelector('.users-table-wrap');
+          if (wrap) wrap.outerHTML = paintAirportBoardTableHtml();
+          return;
+        }
+        if (sortTh && sortTh.closest('.drawer-roster-table')) {
+          e.preventDefault();
+          const key = sortTh.getAttribute('data-sort');
+          const st = { key: drawerRosterSortKey, dir: drawerRosterSortDir };
+          toggleSortKey(st, key, new Set(['flight', 'dep', 'arr', 'phase']));
+          drawerRosterSortKey = st.key;
+          drawerRosterSortDir = st.dir;
+          const host = document.getElementById('userRosterHost');
+          if (host) host.innerHTML = paintDrawerRosterTable();
+          return;
+        }
         if (handleAirportBoardLinkClick(e)) return;
         const btn = target.closest('button[data-action]');
         if (!btn) return;
@@ -3295,6 +3584,49 @@
       const th = ev.target && ev.target.closest ? ev.target.closest('th.sortable') : null;
       if (!th) return;
       setActivitySort(th.getAttribute('data-sort'));
+    });
+    wireSortableHead(els.activityRecentHead, (key) => {
+      const st = { key: activityRecentSortKey, dir: activityRecentSortDir };
+      toggleSortKey(st, key, new Set(['event_type', 'user', 'detail']));
+      activityRecentSortKey = st.key;
+      activityRecentSortDir = st.dir;
+      paintActivityRecentTable();
+    });
+    wireSortableHead(els.usersHead, (key) => {
+      const st = { key: usersSortKey, dir: usersSortDir };
+      toggleSortKey(st, key, new Set(['full_name', 'email', 'role', 'subscription', 'platform', 'version', 'airline']));
+      usersSortKey = st.key;
+      usersSortDir = st.dir;
+      renderUsers(lastUsers);
+    });
+    wireSortableHead(els.flightsHead, (key) => {
+      const st = { key: flightsSortKey, dir: flightsSortDir };
+      // phase default asc; text columns asc; numbers/dates desc
+      if (st.key === key) {
+        st.dir = st.dir === 'desc' ? 'asc' : 'desc';
+      } else {
+        st.key = key;
+        st.dir = (key === 'phase' || key === 'flight_number' || key === 'origin' || key === 'destination' || key === 'tail' || key === 'status' || key === 'crew')
+          ? 'asc'
+          : 'desc';
+      }
+      flightsSortKey = st.key;
+      flightsSortDir = st.dir;
+      renderFlights(lastFlights);
+    });
+    wireSortableHead(els.historyHead, (key) => {
+      const st = { key: historySortKey, dir: historySortDir };
+      toggleSortKey(st, key, new Set(['kind', 'flight_number', 'flight_date', 'route', 'statusPhase', 'stdSta', 'fr24', 'delay', 'crew', 'note']));
+      historySortKey = st.key;
+      historySortDir = st.dir;
+      paintHistoryTable();
+    });
+    wireSortableHead(els.usageHead, (key) => {
+      const st = { key: usageSortKey, dir: usageSortDir };
+      toggleSortKey(st, key, new Set(['provider']));
+      usageSortKey = st.key;
+      usageSortDir = st.dir;
+      renderUsage(lastUsageRows);
     });
     els.btnBroadcastSend?.addEventListener('click', async () => {
       const title = String(els.broadcastTitle?.value || 'FlyFam').trim() || 'FlyFam';
