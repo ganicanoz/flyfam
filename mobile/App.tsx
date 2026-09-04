@@ -438,7 +438,7 @@ function MainTabs() {
         options={{
           title: t('nav.roster'),
           tabBarAccessibilityLabel: t('nav.rosterTab'),
-          headerShown: true,
+          headerShown: false,
         }}
       />
       {hasPeerFollow ? (
@@ -446,7 +446,7 @@ function MainTabs() {
           name="PeerRoster"
           component={PeerRosterTabScreen}
           options={{
-            headerShown: true,
+            headerShown: false,
             title: peerTabTitle,
             tabBarAccessibilityLabel: peerTabTitle,
           }}

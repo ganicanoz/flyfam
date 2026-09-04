@@ -46,8 +46,6 @@ export type RosterFlightCardModel = {
   footerHint?: string | null;
   showAssignAction?: boolean;
   aircraftReg?: string | null;
-  selectionMode?: boolean;
-  selected?: boolean;
   isPast?: boolean;
 };
 
@@ -130,22 +128,7 @@ export function RosterFlightCard({
         ? cardAccent('standby', themeMode)
         : chrome.accentColor;
 
-  const selectionOrChevron = (
-    <>
-      {model.selectionMode ? (
-        <View
-          style={[
-            styles.check,
-            model.selected && { backgroundColor: colors.primary, borderColor: colors.primary },
-          ]}
-        >
-          {model.selected ? <Ionicons name="checkmark" size={12} color={colors.onPrimary} /> : null}
-        </View>
-      ) : (
-        <Ionicons name="chevron-forward" size={16} color={ink.muted} />
-      )}
-    </>
-  );
+  const chevron = <Ionicons name="chevron-forward" size={16} color={ink.muted} />;
 
   // —— Kompakt: nöbet / off / yatı ——
   if (isStandby || isOffCompact || isLayover) {
@@ -179,7 +162,6 @@ export function RosterFlightCard({
             borderColor: colors.border,
             opacity: model.isPast ? 0.72 : 1,
           },
-          model.selectionMode && model.selected && { borderColor: colors.primary, borderWidth: 2 },
         ]}
       >
         <View style={[styles.accent, { backgroundColor: accent }]} />
@@ -200,7 +182,7 @@ export function RosterFlightCard({
             >
               {detailLine}
             </Text>
-            {selectionOrChevron}
+            {chevron}
           </View>
           {isLayover && model.hotelHint ? (
             <Text style={[styles.hotelHint, { color: ink.muted, fontSize: fs(12) }]} numberOfLines={1}>
@@ -243,7 +225,6 @@ export function RosterFlightCard({
           borderColor: colors.border,
           opacity: model.isPast ? 0.72 : 1,
         },
-        model.selectionMode && model.selected && { borderColor: colors.primary, borderWidth: 2 },
       ]}
     >
       <View style={[styles.accent, { backgroundColor: accent }]} />
@@ -260,18 +241,7 @@ export function RosterFlightCard({
               {statusLabel}
             </Text>
           </View>
-          {model.selectionMode ? (
-            <View
-              style={[
-                styles.check,
-                model.selected && { backgroundColor: colors.primary, borderColor: colors.primary },
-              ]}
-            >
-              {model.selected ? <Ionicons name="checkmark" size={14} color={colors.onPrimary} /> : null}
-            </View>
-          ) : (
-            <Ionicons name="chevron-forward" size={18} color={ink.muted} />
-          )}
+          <Ionicons name="chevron-forward" size={18} color={ink.muted} />
         </View>
 
         <View style={[styles.routeRow, !showFooter && !inFlight && { marginBottom: 0 }]}>
@@ -292,7 +262,7 @@ export function RosterFlightCard({
             </Text>
             <View style={styles.routeLine}>
               <View style={[styles.line, { backgroundColor: colors.border }]} />
-              <Ionicons name="airplane" size={14} color={ink.muted} style={styles.planeIcon} />
+              <Ionicons name="airplane" size={14} color={ink.secondary} style={styles.planeIcon} />
               <View style={[styles.line, { backgroundColor: colors.border }]} />
             </View>
           </View>
@@ -322,7 +292,7 @@ export function RosterFlightCard({
                   styles.progressFill,
                   {
                     width: `${Math.round(Math.min(1, Math.max(0, progress)) * 1000) / 10}%`,
-                    backgroundColor: colors.primary,
+                    backgroundColor: ink.secondary,
                   },
                 ]}
               />
@@ -381,26 +351,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-    minHeight: 36,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: radius.button,
+    minHeight: 44,
   },
   assignPillText: { fontWeight: '700' },
   topRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
   flightNo: { fontWeight: '800', flexShrink: 1 },
   badge: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
   badgeText: { fontWeight: '600' },
-  check: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: 'auto',
-  },
+
   routeRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
   timeCol: { flex: 1.1 },
   timeColRight: { alignItems: 'flex-end' },
@@ -418,8 +379,21 @@ const styles = StyleSheet.create({
   progressBar: { flex: 1, height: 4, borderRadius: 999, overflow: 'hidden' },
   progressFill: { height: 4, borderRadius: 999 },
   progressPct: { fontWeight: '600', minWidth: 28 },
-  footerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  footerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+    minHeight: 44,
+  },
   footerHint: { flex: 1, fontWeight: '500' },
-  liveBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, minHeight: 44, paddingHorizontal: 2 },
+  liveBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    minHeight: 44,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+  },
   liveText: { fontWeight: '600' },
 });

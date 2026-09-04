@@ -255,7 +255,7 @@ function layoverDatesFromWindows(windows: readonly LayoverWindow[]): Set<string>
   return dates;
 }
 
-const CALENDAR_COL_H = 40;
+const CALENDAR_COL_H = 44;
 const CALENDAR_DAY_RADIUS = 10;
 const CALENDAR_VISIBLE_WEEKS = 4;
 const CALENDAR_GRID_H = CALENDAR_VISIBLE_WEEKS * CALENDAR_COL_H;
@@ -957,7 +957,7 @@ export default function Roster({
 
   useEffect(() => subscribeRosterLastSyncedAt(() => setLastSyncedAtMs(getRosterLastSyncedAt())), []);
   useEffect(() => {
-    const id = setInterval(() => setSyncNowMs(Date.now()), 30_000);
+    const id = setInterval(() => setSyncNowMs(Date.now()), 15_000);
     return () => clearInterval(id as any);
   }, []);
   const rosterSyncMetaText = useMemo(
@@ -3243,7 +3243,7 @@ export default function Roster({
 
       // Hücreler beyaz/surface kalır — pastel dolgu yok; bugün ince mavi çerçeve
       return {
-        backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : colors.surface,
+        backgroundColor: colors.surface,
         borderColor: isToday ? colors.primary : 'transparent',
         borderWidth: isToday ? 1.5 : 0,
         textColor: isOffOnly ? colors.textMuted : cardInk.primary,
@@ -3251,7 +3251,6 @@ export default function Roster({
       };
     },
     [
-      isDark,
       cardInk.primary,
       selectedDate,
       rosterTodayYmd,
@@ -3417,7 +3416,7 @@ export default function Roster({
                       style={{
                         height: CALENDAR_BAR_H,
                         backgroundColor: isSelected
-                          ? 'rgba(255,255,255,0.85)'
+                          ? colors.onPrimary
                           : barColor,
                         marginLeft: connectLeft ? 0 : 4,
                         marginRight: connectRight ? 0 : 4,
@@ -3757,8 +3756,8 @@ export default function Roster({
 
       <View style={styles.rosterContentWrap}>
         {cleanupMessage ? (
-          <View style={{ paddingVertical: 8, paddingHorizontal: 12, backgroundColor: colors.primary + '20', marginHorizontal: 16, marginBottom: 8, borderRadius: 8 }}>
-            <Text style={{ color: colors.primary, fontSize: Math.round(14 * fontScale) }}>{cleanupMessage}</Text>
+          <View style={[styles.cleanupBanner, { backgroundColor: colors.primaryLight }]}>
+            <Text style={[styles.cleanupBannerText, { color: colors.primary }]}>{cleanupMessage}</Text>
           </View>
         ) : null}
 
@@ -4217,7 +4216,13 @@ export default function Roster({
 
       {isCrew ? (
         <TouchableOpacity
-          style={[styles.fab, { backgroundColor: colors.primary }]}
+          style={[
+            styles.fab,
+            {
+              backgroundColor: colors.primary,
+              bottom: Math.max(insets.bottom, 10) + 8,
+            },
+          ]}
           onPress={() => navigation.navigate('AddFlight')}
           accessibilityLabel={t('roster.addFlight')}
           activeOpacity={0.9}
@@ -4377,11 +4382,12 @@ function createRosterStyles(fs: (n: number) => number, themeMode: 'light' | 'dar
     justifyContent: 'center',
   },
   calendarDayInner: {
-    height: 36,
+    height: '100%',
     width: '100%',
+    minHeight: 44,
     alignItems: 'center',
     justifyContent: 'flex-start',
-    paddingTop: 2,
+    paddingTop: 4,
     borderRadius: CALENDAR_DAY_RADIUS,
   },
   calendarMarkers: {
@@ -4476,18 +4482,28 @@ function createRosterStyles(fs: (n: number) => number, themeMode: 'light' | 'dar
   fab: {
     position: 'absolute',
     right: 18,
-    bottom: 18,
     width: rosterListSpacing.fabSize,
     height: rosterListSpacing.fabSize,
     borderRadius: rosterListSpacing.fabSize / 2,
     alignItems: 'center',
     justifyContent: 'center',
     elevation: 6,
-    shadowColor: '#0F172A',
+    shadowColor: colors.secondary,
     shadowOpacity: 0.22,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },
     zIndex: 40,
+  },
+  cleanupBanner: {
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginHorizontal: 0,
+    marginBottom: 8,
+    borderRadius: radius.button,
+  },
+  cleanupBannerText: {
+    fontSize: fs(14),
+    fontWeight: '600',
   },
   rosterActionButton: {
     flex: 1,
