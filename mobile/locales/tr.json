@@ -22,6 +22,13 @@
     "copyErrorDone": "Hata metni panoya kopyalandı. Destek veya sohbete yapıştırabilirsiniz.",
     "copyErrorFailed": "Panoya kopyalanamadı."
   },
+  "forceUpdate": {
+    "title": "Yeni sürüm gerekli",
+    "body": "Yeni özellikler için güncel FlyFam sürümünü kullanın. Eski sürüm yakında kullanıma kapatılacaktır. iOS: TestFlight veya App Store’dan güncelleyin. Android: Play Store closed testing üzerinden güncelleyin; listede değilseniz flyfamapp@gmail.com adresine yazarak davet isteyin.",
+    "openStoreIos": "App Store / TestFlight’ı aç",
+    "openStoreAndroid": "Play Store’u aç",
+    "requestInvite": "Closed testing daveti iste (e-posta)"
+  },
   "welcome": {
     "title": "FlyFam",
     "subtitle": "Uçuş ekibinizin uçuşlarıyla bağlantıda kalın",
@@ -59,7 +66,7 @@
     "title": "Yeni şifre belirle",
     "subtitle": "FlyFam hesabınız için yeni bir şifre seçin.",
     "password": "Yeni şifre (en az 6 karakter)",
-    "confirmPassword": "Yeni şifreyi tekrar yaz",
+    "confirmPassword": "Yeni şifreyi tekrar yazın",
     "submit": "Şifreyi kaydet",
     "successTitle": "Şifre güncellendi",
     "successMessage": "Yeni şifreniz kaydedildi. FlyFam'e devam edebilirsiniz.",
@@ -73,7 +80,7 @@
     "fullName": "Ad soyad",
     "email": "E-posta",
     "password": "Şifre (en az 6 karakter)",
-    "confirmPassword": "Şifreyi tekrar yaz",
+    "confirmPassword": "Şifreyi tekrar yazın",
     "iAm": "Ben",
     "crew": "Ekip",
     "family": "Aile",
@@ -92,8 +99,8 @@
     "termsDisclaimerLink": "Kullanım Koşulları ve Sorumluluk Reddi",
     "acceptTermsAfter": " metnini (paylaşılan içeriklerin sorumluluğu bana ait olacak şekilde) kabul ediyorum.",
     "acceptMarketingOptional": "Kampanya ve duyuru bildirimleri almak istiyorum (opsiyonel).",
-    "readPrivacyNotice": "KVKK tam metnini aç",
-    "readDisclaimer": "Kullanım koşulları tam metnini aç",
+    "readPrivacyNotice": "KVKK tam metnini açın",
+    "readDisclaimer": "Kullanım koşulları tam metnini açın",
     "preferredLanguage": "Tercih edilen dil",
     "languageEnglish": "English",
     "languageTurkish": "Türkçe"
@@ -162,7 +169,7 @@
     "manageSubscription": "Aboneliği yönet"
   },
   "legal": {
-    "privacyTitle": "KVKK Aydınlatma Metni",
+    "privacyTitle": "Gizlilik Politikası ve KVKK Aydınlatma Metni",
     "termsTitle": "Kullanım Koşulları ve Sorumluluk Reddi"
   },
   "consent": {
@@ -174,7 +181,7 @@
     "historyDocumentsHint": "Onayladığınız sürümlerin tam metinlerine her zaman buradan ulaşabilirsiniz.",
     "historyOpenPrivacy": "KVKK Aydınlatma Metni — tam metin",
     "historyOpenTerms": "Kullanım Koşulları ve Sorumluluk Reddi — tam metin",
-    "historyViewFull": "Bu onay türünün tam metnini aç",
+    "historyViewFull": "Bu onay türünün tam metnini açın",
     "historyVersionNote": "Onayladığınız sürüm: {{accepted}}. Uygulamada güncel tam metin ({{current}}) gösterilir.",
     "historyAccepted": "Onaylandı",
     "historyRejected": "Reddedildi",
@@ -212,8 +219,8 @@
     "calendarTitle": "Takvim",
     "calendarOpen": "Takvim",
     "calendarClose": "Kapat",
-    "calendarExpand": "Ayı aç",
-    "calendarCollapse": "Ayı kapat",
+    "calendarExpand": "Ayı açın",
+    "calendarCollapse": "Ayı kapatın",
     "calendarPrevMonth": "Önceki ay",
     "calendarNextMonth": "Sonraki ay",
     "crewFilterAll": "Tümü",
@@ -237,7 +244,7 @@
     "allRosterRowsHidden": "Bu görünümde liste boş. Üstteki liste görevleri veya Profil’deki ayardan görev türlerini açın; veya henüz kayıt yok.",
     "dep": "Kalkış:",
     "arr": "Varış:",
-      "trackOnFr24": "Canlı Takip",
+    "trackOnFr24": "Canlı Takip",
     "nextDay": "Yarının Uçuşu",
     "divertedTo": "Yönlendi ({{place}})",
     "divertExtra": "Yönlendi: {{place}}",
@@ -271,17 +278,14 @@
       "passive_past": "Pasif (geçmiş)",
       "passive_complete": "Pasif (geçmiş)"
     },
-    "today": "Bugün",
-    "tomorrow": "Yarın",
-    "yesterday": "Dün",
     "adminModeTitle": "ADMIN MODE",
     "deleteFlightsSuccessOne": "Uçuş listeden kaldırıldı.",
     "deleteFlightsSuccessMany": "{{count}} uçuş listeden kaldırıldı.",
     "clearAllSuccess": "Tüm uçuşlar listeden kaldırıldı.",
-    "deleteSelectedConfirm": "{{count}} uçuşu silmek istiyor musun?",
+    "deleteSelectedConfirm": "{{count}} uçuşu silmek istiyor musunuz?",
     "flightDeleteFailedDetail": "Uçuş silinemedi.\nRPC: {{rpc}}\nREL: {{rel}}\nLEG: {{leg}}",
     "flightsDeleteFailedDetail": "Uçuşlar silinemedi.\nRPC: {{rpc}}\nREL: {{rel}}\nLEG: {{leg}}",
-    "selectAllVisible": "Tümünü seç",
+    "selectAllVisible": "Tümünü seçin",
     "cancelSelectionCount": "İptal ({{count}})",
     "removeSelected": "Kaldır",
     "removeSelectedCount": "Kaldır ({{count}})",
@@ -289,7 +293,7 @@
     "deleteSelectedTitleLine2": "sil",
     "parenCount": "({{count}})",
     "deleteSelectedCount": "Seçilenleri sil ({{count}})",
-    "selectFlights": "Uçuşu seç",
+    "selectFlights": "Uçuşu seçin",
     "nextDayTimesA11y": "Saatler ertesi güne aittir",
     "trackFr24A11y": "Canlı takip",
     "trackAircraftFr24A11y": "{{reg}} uçağını Flightradar24'te aç",
@@ -298,7 +302,31 @@
     "assignFlightsA11y": "Nöbetten uçuş görevi ekle",
     "assignFlightsConfirmTitle": "Görev tebliği",
     "assignFlightsConfirmMessage": "Nöbetten atanan uçuşları ekleyin. Kaydedince nöbet silinir.",
-    "assignFlightsContinue": "Devam"
+    "assignFlightsContinue": "Devam",
+    "legendFlight": "Uçuş",
+    "legendOff": "Off",
+    "legendStandby": "Nöbet",
+    "legendLayover": "Yatı",
+    "dayHeader": "{{date}} · {{count}} uçuş{{block}}",
+    "dayHeaderBlock": " · Toplam blok {{hours}}s {{mins}}dk",
+    "selectAndShare": "Seç ve Paylaş",
+    "sendToFamilyCount": "Ailene Gönder ({{count}})",
+    "statusStandby": "Nöbet",
+    "statusDelayedMins": "Gecikmeli +{{mins}} dk",
+    "liveTrack": "Canlı Takip",
+    "aircraftRegShort": "Reg {{reg}}",
+    "durationShort": "{{hours}}s {{mins}}dk",
+    "durationMinsOnly": "{{mins}} dk",
+    "departInMins": "Kalkışa {{mins}} dk",
+    "departInHours": "Kalkışa {{hours}}s {{mins}}dk",
+    "status": {
+      "scheduled": "Planlı",
+      "onTime": "Zamanında",
+      "delayed": "Gecikmeli",
+      "cancelled": "İptal",
+      "inFlight": "Uçuşta",
+      "completed": "Tamamlandı"
+    }
   },
   "addFlight": {
     "title": "Uçuş Ekle",
@@ -443,9 +471,9 @@
     "noPlanSelected": "Seçili plan yok",
     "slotLabel": "Slot",
     "approvedLabel": "onaylı",
-    "selectOrChangePlan": "Paket seç / değiştir",
+    "selectOrChangePlan": "Paket seçin / değiştirin",
     "planRequiredToInvite": "Davet göndermek için önce aktif/deneme abonelik gerekli.",
-    "planLimitReached": "Aile limiti dolu. Ek üye satın alarak limiti artırabilirsiniz.",
+    "planLimitReached": "Takipçi limiti dolu. Daha fazla kapasite için üst pakete geçin.",
     "emptyFamilyPlaceholder": "Bu alana bir aile üyesi eklenebilir.",
     "pushChecking": "Bildirimler kontrol ediliyor…",
     "pushEnabled": "Bildirimler etkin",
@@ -468,7 +496,7 @@
   },
   "paywall": {
     "title": "Plan gerekli",
-    "familyBlockedMessage": "Davetiniz onaylı olsa bile, bağlı olduğunuz ekip üyesinin aboneliği aktif değilse roster açılmaz.",
+    "familyBlockedMessage": "Bağlantınız onaylı olsa bile, takip ettiğiniz ekip üyesinin aboneliği aktif değilse uçuş programı açılmaz.",
     "plan": "Plan",
     "status": "Durum",
     "refreshInvitePlan": "Davet/Plan yenile",
@@ -476,18 +504,18 @@
   },
   "plans": {
     "title": "Abonelik",
-    "subtitle": "Kaç aile üyesi bağlayacaksan ona göre paketi seç. İstersen sonra yükseltebilirsin.",
-    "subtitleTiers": "Kaç aile üyesi bağlayacaksan ona göre paketi seç. İstersen sonra yükseltebilirsin.",
+    "subtitle": "Uçuş programınızı kaç takipçiyle paylaşacağınıza göre paketi seçin. İsterseniz sonra yükseltebilirsiniz.",
+    "subtitleTiers": "Uçuş programınızı kaç takipçiyle paylaşacağınıza göre paketi seçin. İsterseniz sonra yükseltebilirsiniz.",
     "currentPlan": "Paketiniz",
     "status": "Durum",
     "trialEnds": "Deneme bitiş",
-    "connectedFamily": "Bağlı aile",
-    "seatsHeroHint": "onaylı aile üyesi / paket kapasitesi",
+    "connectedFollowers": "Bağlı takipçiler",
+    "seatsHeroHint": "onaylı takipçi / paket kapasitesi",
     "choosePackage": "Paketler",
-    "listPriceNote": "Liste fiyatı. Satın alırken App Store’daki tutar geçerlidir.",
-    "familyMembersShort": "aile üyesi",
-    "familyMemberSingular": "aile üyesi",
-    "youLabel": "Sen",
+    "listPriceNote": "Liste fiyatı. Satın alırken App Store'daki tutar geçerlidir.",
+    "followersShort": "takipçi",
+    "followerSingular": "takipçi",
+    "youLabel": "Siz",
     "perMonth": "/ay",
     "perYear": "/yıl",
     "duoTrialBanner": "14 gün ücretsiz",
@@ -498,38 +526,59 @@
     "planSavedTitle": "Abonelik güncellendi",
     "planSavedMessage": "Paketiniz kaydedildi.",
     "selected": "Seçili",
-    "selectPlan": "Seç",
-    "selectPlanWithTrial": "14 gün ücretsiz dene",
+    "selectPlan": "Seçin",
+    "selectPlanWithTrial": "14 gün ücretsiz deneyin",
     "promoTrialHint": "İlk abonelikte bir kez: 14 gün ücretsiz.",
     "noSubscription": "Henüz paket yok",
     "basePlanShort": "Çift Paketi",
     "currentTierBadge": "Aktif paketiniz",
-    "familySeats": "Sen + {{count}} aile üyesi",
-    "familyCapacity": "Sen + {{count}} aile üyesi",
+    "familySeats": "Siz + {{count}} takipçi",
+    "familyCapacity": "Siz + {{count}} takipçi",
     "storeIosOnly": "Satın alma şu an yalnızca iOS’ta.",
     "statusTrialing": "Deneme",
     "statusActive": "Aktif",
     "statusPastDue": "Ödeme gecikmiş",
     "statusCanceled": "İptal edildi",
     "tier": {
-      "duo": { "title": "Çift Paketi", "subtitle": "Sen + 1 aile üyesi" },
-      "trio": { "title": "Küçük Aile Paketi", "subtitle": "Sen + 2 aile üyesi" },
-      "family": { "title": "Aile Paketi", "subtitle": "Sen + 3 aile üyesi" },
-      "family_plus": { "title": "Büyük Aile Paketi", "subtitle": "Sen + 4 aile üyesi" },
-      "extended": { "title": "Geniş Aile Paketi", "subtitle": "Sen + 5 aile üyesi" },
-      "clan": { "title": "Sülale Paketi", "subtitle": "Sen + 6 aile üyesi" },
-      "circle": { "title": "Geniş Sülale Paketi", "subtitle": "Sen + 7 aile üyesi" }
+      "duo": {
+        "title": "Çift Paketi",
+        "subtitle": "Siz + 1 takipçi"
+      },
+      "trio": {
+        "title": "Küçük Aile Paketi",
+        "subtitle": "Siz + 2 takipçi"
+      },
+      "family": {
+        "title": "Aile Paketi",
+        "subtitle": "Siz + 3 takipçi"
+      },
+      "family_plus": {
+        "title": "Büyük Aile Paketi",
+        "subtitle": "Siz + 4 takipçi"
+      },
+      "extended": {
+        "title": "Geniş Aile Paketi",
+        "subtitle": "Siz + 5 takipçi"
+      },
+      "clan": {
+        "title": "Sülale Paketi",
+        "subtitle": "Siz + 6 takipçi"
+      },
+      "circle": {
+        "title": "Geniş Sülale Paketi",
+        "subtitle": "Siz + 7 takipçi"
+      }
     },
     "restorePurchases": "Satın alımları geri yükle",
     "restoreDoneTitle": "Geri yükleme tamamlandı",
     "restoreDoneMessage": "Satın alımlar kontrol edildi.",
     "restoreErrorTitle": "Geri yükleme başarısız",
     "legalHeading": "Abonelik özeti",
-    "legalSubscriptionTitle": "Paketler Çift’ten Geniş Sülale’ye kadar. Her pakette sen + 1 ile 7 aile üyesi bağlayabilirsin.",
-    "legalSubscriptionLength": "Abonelik aylık yenilenir; yıllık ürün seçersen yıllık yenilenir. İstediğin zaman App Store’dan iptal edebilirsin.",
-    "legalSubscriptionPrice": "Ödemeden önce tutarı App Store onay ekranında görürsün. Daha fazla aile için üst pakete geçebilirsin.",
-    "legalAddonPrice": "Ayrı add-on yoktur; aile kapasitesi seçtiğin pakete dahildir.",
-    "autoRenewDisclaimer": "Ücret Apple ID hesabına yansır. Dönem bitmeden en az 24 saat önce iptal etmezsen abonelik yenilenir. Yönetmek için: Ayarlar → Apple Kimliği → Abonelikler."
+    "legalSubscriptionTitle": "Her paket, uçuş programınızı görebilecek takipçi sayısını belirler. Takipçilerinizin aile veya ekip hesabı olabilir. Bir takipçi birden fazla ekip üyesini takip edebilir; takip edilen her ekip üyesi kendi abonelik kapasitesini yönetir.",
+    "legalSubscriptionLength": "Abonelik aylık yenilenir; yıllık ürün seçerseniz yıllık yenilenir. İstediğiniz zaman App Store’dan iptal edebilirsiniz.",
+    "legalSubscriptionPrice": "Ödemeden önce tutarı App Store onay ekranında görürsünüz. Daha fazla takipçi için üst pakete geçebilirsiniz.",
+    "legalAddonPrice": "Ayrı add-on yoktur; takipçi kapasitesi seçtiğiniz pakete dahildir.",
+    "autoRenewDisclaimer": "Ücret Apple ID hesabınıza yansır. Dönem bitmeden en az 24 saat önce iptal etmezseniz abonelik yenilenir. Yönetmek için: Ayarlar → Apple Kimliği → Abonelikler."
   },
   "nav": {
     "roster": "Uçuş Programı",
@@ -543,6 +592,11 @@
     "invitations": "Davetler",
     "plans": "Abonelik",
     "lastUpdatedAt": "Güncellendi {{when}}",
-    "lastUpdatedPending": "Henüz senkron yok"
+    "lastUpdatedPending": "Henüz senkron yok",
+    "flightsTab": "Uçuşlar",
+    "lastUpdatedJustNow": "Az önce güncellendi",
+    "lastUpdatedMinutesAgo": "{{count}} dk önce güncellendi",
+    "lastUpdatedHoursAgo": "{{count}} sa önce güncellendi",
+    "lastUpdatedDaysAgo": "{{count}} gün önce güncellendi"
   }
 }

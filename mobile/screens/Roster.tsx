@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useLayoutEffect, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useLayoutEffect, useRef, useEffect, useMemo, startTransition } from 'react';
 import {
   View,
   Text,
@@ -21,7 +21,6 @@ import {
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Swipeable, RectButton } from 'react-native-gesture-handler';
 import { useNavigation, useFocusEffect, useRoute } from '@react-navigation/native';
 import { useSession } from '../contexts/SessionContext';
@@ -51,7 +50,7 @@ import { regionCodeForIanaTimeZone } from '../lib/flightDisplayTime';
 import { fetchFlightByNumber, fr24UrlForAircraftRegistration, getFr24DeepLink } from '../lib/flightApi';
 import { pollFlightForRoster } from '../lib/flightStatusPoll';
 import { notifyFamilyTodayFlights } from '../lib/notifyFamily';
-import { rosterOccupationLabelEn, rosterOccupationLabelTr, isOffDayOccupationCode, isAnnualLeaveOccupationCode, isGroundDutyOccupationCode, isOfficeDutyOccupationCode, isStandbyOccupationCode, isTrainingOccupationCode } from '../lib/pdfRosterImport';
+import { rosterOccupationLabelEn, rosterOccupationLabelTr, isOffDayOccupationCode, isAnnualLeaveOccupationCode, isUnpaidLeaveOccupationCode, isGroundDutyOccupationCode, isOfficeDutyOccupationCode, isStandbyOccupationCode, isTrainingOccupationCode } from '../lib/pdfRosterImport';
 import {
   indigoDutyBlockTitleEn,
   indigoDutyBlockTitleTr,
@@ -69,16 +68,16 @@ import {
 } from '../lib/flightApiRefreshPhase';
 import { RosterListTasksModal } from '../components/RosterListTasksModal';
 import FlightOperationOverlay from '../components/FlightOperationOverlay';
-import { formatCityAndCode, formatDivertDestination, getAirportDisplay, getAirportTimezone } from '../constants/airports';
+import { getAirportDisplay, getAirportTimezone } from '../constants/airports';
 import { colors, useThemeMode } from '../theme/colors';
 import {
   rosterCardStyleTokens,
   rosterCardInk,
-  rosterCardChrome,
-  type RosterCardVisualKind,
 } from '../theme/rosterCardVisual';
+import { calendarTokens, radius } from '../theme/tokens';
+import { RosterFlightCard } from '../components/roster/RosterFlightCard';
 import { useFontScaleMultiplier } from '../theme/fontScale';
-import { fetchMySubscriptionAccess, type SubscriptionAccess } from '../lib/subscriptionAccess';
+import { fetchMySubscriptionAccess, fetchCrewRosterAccess, type SubscriptionAccess } from '../lib/subscriptionAccess';
 import { isSimulatorOccupationCode } from '../lib/pdfRosterImport';
 import { setRosterLastSyncedAt } from '../lib/rosterSyncMeta';
 
@@ -110,7 +109,10 @@ function calendarDayKindForEntry(f: {
   const blockCode = (f.flight_number || '').trim().toUpperCase();
   const occCode = (f.duty_occupation_code || '').trim().toUpperCase();
   if (isLayoverPlaceholder(f) || blockCode === LAYOVER_PLACEHOLDER_FN) return 'layover';
-  const isSim = f.roster_entry_kind === 'sim' || isSimulatorOccupationCode(blockCode);
+  const isSim =
+    f.roster_entry_kind === 'sim' ||
+    isSimulatorOccupationCode(blockCode) ||
+    isSimulatorOccupationCode(occCode);
   if (isSim) return 'duty_off';
   // Yer dersi / ofis: görev — takvimde kırmızı (uçuş günü).
   if (isGroundDutyOccupationCode(blockCode) || isGroundDutyOccupationCode(occCode)) {
@@ -247,25 +249,6 @@ function layoverDatesFromWindows(windows: readonly LayoverWindow[]): Set<string>
     }
   }
   return dates;
-}
-
-function makeLayoverPlaceholder(w: LayoverWindow, ymd: string, city: string | null): Flight {
-  return {
-    id: `layover:${w.key}:${ymd}`,
-    flight_number: LAYOVER_PLACEHOLDER_FN,
-    origin_airport: w.station,
-    destination_airport: w.station,
-    origin_city: city,
-    destination_city: city,
-    flight_date: ymd,
-    scheduled_departure: `${ymd}T12:00:00.000Z`,
-    scheduled_arrival: `${ymd}T12:00:00.000Z`,
-    actual_departure: null,
-    actual_arrival: null,
-    is_delayed: false,
-    roster_entry_kind: 'duty_off',
-    duty_rest_end: `${w.endYmd}T23:59:00.000Z`,
-  };
 }
 
 const CALENDAR_COL_H = 32;
@@ -691,6 +674,7 @@ type Flight = {
   estimated_arrival?: string | null;
   /** flight | duty_off | sim — duty_off satırında scheduled_* = PDF görev penceresi (kalkış/iniş değil) */
   roster_entry_kind?: string | null;
+  duty_occupation_code?: string | null;
   duty_rest_end?: string | null;
   /** FR24 — liste progress bar (kalkış→0%, ETA→100%, iniş zamanı→100%). */
   fr24_progress_dep_utc?: string | null;
@@ -832,15 +816,30 @@ function resolveRosterTodayYmd(crewUtcView: boolean, familyRosterTz: string | nu
 export default function Roster({
   showAdminFr24Debug = false,
   exemptLandedAutoPurge = false,
-}: { showAdminFr24Debug?: boolean; exemptLandedAutoPurge?: boolean } = {}) {
+  /** Crew↔crew takip: aile üyesinin gördüğü salt okunur roster UI. */
+  peerView = null,
+}: {
+  showAdminFr24Debug?: boolean;
+  exemptLandedAutoPurge?: boolean;
+  peerView?: { peerCrewId: string; peerName: string } | null;
+} = {}) {
   const { t, i18n } = useTranslation();
   const { profile, crewProfile, refreshProfile } = useSession();
   const themeMode = useThemeMode();
   const isDark = themeMode === 'dark';
   const fontScale = useFontScaleMultiplier();
+  /** Defer StyleSheet rebuild so font chip presses stay responsive. */
+  const [listFontScale, setListFontScale] = useState(fontScale);
+  useEffect(() => {
+    if (listFontScale === fontScale) return;
+    const handle = InteractionManager.runAfterInteractions(() => {
+      startTransition(() => setListFontScale(fontScale));
+    });
+    return () => handle.cancel();
+  }, [fontScale, listFontScale]);
   const styles = useMemo(
-    () => createRosterStyles((n) => Math.round(n * fontScale), themeMode),
-    [fontScale, themeMode],
+    () => getCachedRosterStyles(listFontScale, themeMode),
+    [listFontScale, themeMode],
   );
   const cardInk = useMemo(() => rosterCardInk(themeMode), [themeMode]);
   const [flights, setFlights] = useState<Flight[]>([]);
@@ -863,7 +862,9 @@ export default function Roster({
   const [nowTick, setNowTick] = useState(0);
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
-  const isCrew = profile?.role === 'crew';
+  const isPeerViewer = Boolean(peerView?.peerCrewId);
+  /** Kendi düzenlenebilir roster; peer sekmesinde aile-modu UI kullanılır. */
+  const isCrew = profile?.role === 'crew' && !isPeerViewer;
   const flightsRef = useRef<Flight[]>([]);
   flightsRef.current = flights;
 
@@ -954,11 +955,13 @@ export default function Roster({
     if (crewTimeDisplayPrevRef.current !== v) {
       crewTimeDisplayPrevRef.current = v;
       const today = resolveRosterTodayYmd(v === 'utc', familyRosterTz);
-      setSelectedDate(today);
-      setCalendarMonth(today.slice(0, 7));
-      pendingRosterAnchorRef.current = today;
-      programmaticListScrollRef.current = true;
-      setRosterAnchorNonce((n) => n + 1);
+      startTransition(() => {
+        setSelectedDate(today);
+        setCalendarMonth(today.slice(0, 7));
+        pendingRosterAnchorRef.current = today;
+        programmaticListScrollRef.current = true;
+        setRosterAnchorNonce((n) => n + 1);
+      });
     }
   }, [isCrew, rosterListPrefs.time_display, familyRosterTz]);
 
@@ -977,10 +980,10 @@ export default function Roster({
   }, [flights, rosterListPrefs, todayStr, nowTick]);
 
   const reloadFamilyRosterPrefs = useCallback(() => {
-    if (profile?.id && profile.role === 'family') {
+    if (profile?.id && (profile.role === 'family' || isPeerViewer)) {
       void loadFamilyRosterListShow(profile.id).then(setFamilyRosterListPrefs);
     }
-  }, [profile?.id, profile?.role]);
+  }, [profile?.id, profile?.role, isPeerViewer]);
 
   useFocusEffect(
     useCallback(() => {
@@ -1138,30 +1141,18 @@ export default function Roster({
     [displayFlights, selectedDate, listGroupDate]
   );
 
-  /** Layover pencereleri — list sort / grouping / takvimden önce hesaplanmalı. */
+  /** Layover pencereleri — yalnızca üst takvimde birleşik gün boyaması için. */
   const layoverWindows = useMemo(
     () => computeLayoverWindows(flights, crewProfile?.home_base_iata ?? null),
     [flights, crewProfile?.home_base_iata],
   );
   const layoverDateSet = useMemo(() => layoverDatesFromWindows(layoverWindows), [layoverWindows]);
-  const layoverKeyByFlightId = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const w of layoverWindows) {
-      map.set(w.inboundId, w.key);
-      map.set(w.outboundId, w.key);
-      let cur = addUtcDaysToYmd(w.startYmd, 1);
-      while (cur < w.endYmd) {
-        map.set(`layover:${w.key}:${cur}`, w.key);
-        cur = addUtcDaysToYmd(cur, 1);
-      }
-    }
-    return map;
-  }, [layoverWindows]);
 
   /**
    * Önce roster günü (`flight_date`), sonra aynı gün içinde kalkış saati.
    * Sadece UTC kalkışa göre global sıralama yapılırsa farklı günler iç içe geçer;
    * gün ayırıcı aynı tarih için iki kez üretilir → `day-2026-04-04` duplicate key hatası.
+   * Layover ara günlerdeki duty_off (FOF vb.) listede gösterilmez — yatı yalnız takvimde.
    */
   const allFlightsSorted = React.useMemo(() => {
     const interiorLayoverDays = new Set<string>();
@@ -1172,29 +1163,12 @@ export default function Roster({
         cur = addUtcDaysToYmd(cur, 1);
       }
     }
-    const withoutInteriorOff = displayFlights.filter((f) => {
-      if (isLayoverPlaceholder(f)) return true;
+    const copy = displayFlights.filter((f) => {
+      if (isLayoverPlaceholder(f)) return false;
       const kind = (f.roster_entry_kind ?? 'flight').toLowerCase();
-      if (kind !== 'duty_off') return true;
-      return !interiorLayoverDays.has(listGroupDate(f));
+      if (kind === 'duty_off' && interiorLayoverDays.has(listGroupDate(f))) return false;
+      return true;
     });
-    const datesWithRealFlight = new Set(
-      withoutInteriorOff
-        .filter((f) => (f.roster_entry_kind ?? 'flight') === 'flight')
-        .map((f) => listGroupDate(f)),
-    );
-    const placeholders: Flight[] = [];
-    for (const w of layoverWindows) {
-      const city = getAirportDisplay(w.station)?.city?.trim() || null;
-      let cur = addUtcDaysToYmd(w.startYmd, 1);
-      while (cur < w.endYmd) {
-        if (!datesWithRealFlight.has(cur)) {
-          placeholders.push(makeLayoverPlaceholder(w, cur, city));
-        }
-        cur = addUtcDaysToYmd(cur, 1);
-      }
-    }
-    const copy = [...withoutInteriorOff, ...placeholders];
     copy.sort((a, b) => {
       const ga = listGroupDate(a);
       const gb = listGroupDate(b);
@@ -1204,9 +1178,6 @@ export default function Roster({
     return copy;
   }, [displayFlights, sortByDepartureAsc, listGroupDate, layoverWindows]);
   const sameDutyFlightGroup = useCallback((a: Flight, b: Flight): boolean => {
-    const aLay = layoverKeyByFlightId.get(a.id);
-    const bLay = layoverKeyByFlightId.get(b.id);
-    if (aLay && bLay && aLay === bLay) return true;
     const aKind = (a.roster_entry_kind ?? 'flight') as string;
     const bKind = (b.roster_entry_kind ?? 'flight') as string;
     // Aynı uçuş görevi: aynı duty bitişi.
@@ -1218,9 +1189,6 @@ export default function Roster({
     }
     // Aynı non-flight görev bloğu: aynı kod + aynı duty bitişi.
     if (aKind === 'duty_off' && bKind === 'duty_off') {
-      if (isLayoverPlaceholder(a) && isLayoverPlaceholder(b)) {
-        return (a.duty_rest_end ?? '') === (b.duty_rest_end ?? '') && (a.origin_airport ?? '') === (b.origin_airport ?? '');
-      }
       const da = (a.duty_rest_end ?? '').trim();
       const db = (b.duty_rest_end ?? '').trim();
       const ca = (a.flight_number ?? '').trim().toUpperCase();
@@ -1228,62 +1196,81 @@ export default function Roster({
       return da.length > 0 && da === db && ca.length > 0 && ca === cb;
     }
     return false;
-  }, [listGroupDate, layoverKeyByFlightId]);
+  }, [listGroupDate]);
 
   /**
-   * Tarih ayırıcı satırı yok; boşlukla gruplama:
+   * Sticky-ish day headers + flight rows.
    * - `tight`: aynı duty_rest_end içindeki ardışık uçuşlar
    * - `normal`: diğer tüm geçişler
    */
-  type ListEntry = {
-    type: 'flight';
-    flight: Flight;
-    dayIndex: number;
-    dayGroupIndex: number;
-    isFirstInDay: boolean;
-    isLastInDay: boolean;
-    gapBefore: 'none' | 'tight' | 'normal';
-  };
+  type ListEntry =
+    | {
+        type: 'dayHeader';
+        dateYmd: string;
+        flightCount: number;
+        blockMinutes: number;
+      }
+    | {
+        type: 'flight';
+        flight: Flight;
+        dayIndex: number;
+        dayGroupIndex: number;
+        isFirstInDay: boolean;
+        isLastInDay: boolean;
+        gapBefore: 'none' | 'tight' | 'normal';
+      };
   const listData = React.useMemo((): ListEntry[] => {
-    const out: ListEntry[] = [];
-    let prevDate: string | null = null;
-    let dayGroupIndex = -1;
-    let dayIndex = 0;
-    let prevFlight: Flight | null = null;
+    const byDate = new Map<string, Flight[]>();
     for (const f of allFlightsSorted) {
       const g = listGroupDate(f);
-      const sameLayoverGroup =
-        prevFlight != null &&
-        !!layoverKeyByFlightId.get(prevFlight.id) &&
-        layoverKeyByFlightId.get(prevFlight.id) === layoverKeyByFlightId.get(f.id);
-      if (g !== prevDate && !sameLayoverGroup) {
-        prevDate = g;
-        dayGroupIndex += 1;
-        dayIndex = 0;
-      } else if (g !== prevDate) {
-        prevDate = g;
+      if (!byDate.has(g)) byDate.set(g, []);
+      byDate.get(g)!.push(f);
+    }
+    const rebuilt: ListEntry[] = [];
+    let gIdx = -1;
+    for (const [ymd, flightsInDay] of byDate) {
+      gIdx += 1;
+      let blockMinutes = 0;
+      let flightOnlyCount = 0;
+      for (const f of flightsInDay) {
+        const kind = (f.roster_entry_kind ?? 'flight').toLowerCase();
+        const isFlightRow = kind === 'flight' || kind === '';
+        if (isFlightRow) flightOnlyCount += 1;
+        if (!isFlightRow) continue;
+        const a = parseFlightTimeAsUtc(f.scheduled_departure)?.getTime() ?? 0;
+        const b = parseFlightTimeAsUtc(f.scheduled_arrival)?.getTime() ?? 0;
+        if (a > 0 && b > 0) {
+          let end = b;
+          if (end <= a) end += 24 * 60 * 60 * 1000;
+          blockMinutes += Math.round((end - a) / 60000);
+        }
       }
-      dayIndex += 1;
-      const gapBefore: 'none' | 'tight' | 'normal' =
-        prevFlight == null ? 'none' : sameDutyFlightGroup(prevFlight, f) ? 'tight' : 'normal';
-      out.push({
-        type: 'flight',
-        flight: f,
-        dayIndex,
-        dayGroupIndex,
-        isFirstInDay: dayIndex === 1,
-        isLastInDay: false,
-        gapBefore,
+      rebuilt.push({
+        type: 'dayHeader',
+        dateYmd: ymd,
+        flightCount: flightOnlyCount || flightsInDay.length,
+        blockMinutes,
       });
-      prevFlight = f;
+      let dIdx = 0;
+      let prevF: Flight | null = null;
+      for (const f of flightsInDay) {
+        dIdx += 1;
+        const gapBefore: 'none' | 'tight' | 'normal' =
+          prevF == null ? 'none' : sameDutyFlightGroup(prevF, f) ? 'tight' : 'normal';
+        rebuilt.push({
+          type: 'flight',
+          flight: f,
+          dayIndex: dIdx,
+          dayGroupIndex: gIdx,
+          isFirstInDay: dIdx === 1,
+          isLastInDay: dIdx === flightsInDay.length,
+          gapBefore,
+        });
+        prevF = f;
+      }
     }
-    for (let i = 0; i < out.length; i += 1) {
-      const cur = out[i];
-      const next = out[i + 1];
-      if (!next || next.dayGroupIndex !== cur.dayGroupIndex) cur.isLastInDay = true;
-    }
-    return out;
-  }, [allFlightsSorted, listGroupDate, sameDutyFlightGroup, layoverKeyByFlightId]);
+    return rebuilt;
+  }, [allFlightsSorted, listGroupDate, sameDutyFlightGroup]);
   const flightsSorted = React.useMemo(() => {
     const copy = [...flightsForSelectedDay];
     copy.sort(sortByDepartureAsc);
@@ -1625,49 +1612,88 @@ export default function Roster({
 
   const refreshFamilyListFromDb = useCallback(async () => {
     if (isCrew || !profile?.id) return;
-    setSubscriptionAccessLoading(true);
-    const access = await fetchMySubscriptionAccess().catch(() => null);
-    setSubscriptionAccess(access);
-    setSubscriptionAccessLoading(false);
-    if (!access?.has_access) {
-      setFlights([]);
-      return;
-    }
-    const { data: conns } = await supabase
-      .from('family_connections')
-      .select('crew_id')
-      .eq('family_id', profile.id)
-      .eq('status', 'approved');
-    const allCrewIds = (conns ?? []).map((c: { crew_id: string }) => c.crew_id);
-    console.log('[FamilyRoster] approved crew connections:', allCrewIds.length, 'crewIds:', allCrewIds.slice(0, 3));
 
-    // Names for multi-crew picker
-    if (allCrewIds.length > 0) {
-      const { data: nameRows } = await supabase.rpc('get_family_connections_with_names');
-      const opts: Array<{ id: string; name: string }> = [];
-      for (const row of nameRows ?? []) {
-        const r = row as { crew_id?: string; other_name?: string | null; status?: string };
-        if (r.status !== 'approved' || !r.crew_id) continue;
-        if (!allCrewIds.includes(r.crew_id)) continue;
-        opts.push({ id: r.crew_id, name: (r.other_name || t('family.crewMember')).trim() });
+    let allCrewIds: string[] = [];
+    if (peerView?.peerCrewId) {
+      setSubscriptionAccessLoading(true);
+      const peerAccess = await fetchCrewRosterAccess(peerView.peerCrewId).catch(() => null);
+      setSubscriptionAccessLoading(false);
+      setSubscriptionAccess({
+        role: 'crew',
+        crew_id: peerView.peerCrewId,
+        plan_code: null,
+        plan_title: peerAccess?.plan_title ?? 'crew_peer',
+        subscription_status: (peerAccess?.subscription_status as SubscriptionAccess['subscription_status']) ?? null,
+        trial_ends_at: null,
+        current_period_ends_at: null,
+        base_family_members: null,
+        extra_family_slots: 0,
+        max_extra_family_members: 0,
+        extra_family_member_price_usd: null,
+        max_family_members: null,
+        used_family_approved: 0,
+        used_family_pending: 0,
+        available_family_slots: 0,
+        can_invite_more: false,
+        has_access: !!peerAccess?.has_access,
+      });
+      if (!peerAccess?.has_access) {
+        setFlights([]);
+        return;
       }
-      // Deduplicate by crew id
-      const seen = new Set<string>();
-      const unique = opts.filter((o) => (seen.has(o.id) ? false : (seen.add(o.id), true)));
-      setFamilyCrewOptions(unique);
-      if (familyCrewFilterIdRef.current !== 'all' && !unique.some((o) => o.id === familyCrewFilterIdRef.current)) {
+      allCrewIds = [peerView.peerCrewId];
+      setFamilyCrewOptions([{ id: peerView.peerCrewId, name: peerView.peerName }]);
+      familyCrewFilterIdRef.current = peerView.peerCrewId;
+      setFamilyCrewFilterId(peerView.peerCrewId);
+      console.log('[PeerRoster] loading peer crew:', peerView.peerCrewId, peerView.peerName);
+    } else {
+      setSubscriptionAccessLoading(true);
+      const access = await fetchMySubscriptionAccess().catch(() => null);
+      setSubscriptionAccess(access);
+      setSubscriptionAccessLoading(false);
+      if (!access?.has_access) {
+        setFlights([]);
+        return;
+      }
+      const { data: conns } = await supabase
+        .from('family_connections')
+        .select('crew_id')
+        .eq('family_id', profile.id)
+        .eq('status', 'approved');
+      allCrewIds = (conns ?? []).map((c: { crew_id: string }) => c.crew_id);
+      console.log('[FamilyRoster] approved crew connections:', allCrewIds.length, 'crewIds:', allCrewIds.slice(0, 3));
+
+      // Names for multi-crew picker
+      if (allCrewIds.length > 0) {
+        const { data: nameRows } = await supabase.rpc('get_family_connections_with_names');
+        const opts: Array<{ id: string; name: string }> = [];
+        for (const row of nameRows ?? []) {
+          const r = row as { crew_id?: string; other_name?: string | null; status?: string };
+          if (r.status !== 'approved' || !r.crew_id) continue;
+          if (!allCrewIds.includes(r.crew_id)) continue;
+          opts.push({ id: r.crew_id, name: (r.other_name || t('family.crewMember')).trim() });
+        }
+        // Deduplicate by crew id
+        const seen = new Set<string>();
+        const unique = opts.filter((o) => (seen.has(o.id) ? false : (seen.add(o.id), true)));
+        setFamilyCrewOptions(unique);
+        if (familyCrewFilterIdRef.current !== 'all' && !unique.some((o) => o.id === familyCrewFilterIdRef.current)) {
+          familyCrewFilterIdRef.current = 'all';
+          setFamilyCrewFilterId('all');
+        }
+      } else {
+        setFamilyCrewOptions([]);
         familyCrewFilterIdRef.current = 'all';
         setFamilyCrewFilterId('all');
       }
-    } else {
-      setFamilyCrewOptions([]);
-      familyCrewFilterIdRef.current = 'all';
-      setFamilyCrewFilterId('all');
     }
 
     const filterId = familyCrewFilterIdRef.current;
-    const crewIds =
-      filterId !== 'all' && allCrewIds.includes(filterId) ? [filterId] : allCrewIds;
+    const crewIds = peerView?.peerCrewId
+      ? [peerView.peerCrewId]
+      : filterId !== 'all' && allCrewIds.includes(filterId)
+        ? [filterId]
+        : allCrewIds;
     if (crewIds.length === 0) {
       if (flightsRef.current.length === 0) setFlights([]);
       return;
@@ -1786,7 +1812,7 @@ export default function Roster({
     console.log('[FamilyRoster] flights fetched', (data ?? []).length, 'after landed filter', kept.length);
     if (kept.length > 0 || flightsRef.current.length === 0) setFlights(kept);
     setRosterLastSyncedAt();
-  }, [isCrew, profile?.id, normalizeFutureLandedInDb, exemptLandedAutoPurge]);
+  }, [isCrew, profile?.id, normalizeFutureLandedInDb, exemptLandedAutoPurge, peerView?.peerCrewId, peerView?.peerName, t]);
 
   /** Family: API’den güncelle (öncelik). Crew uçarken offline; family tek başına bilgi alır. */
   const refreshFamilyListFromApi = useCallback(async (silent = false, listOverride?: Flight[]) => {
@@ -1996,7 +2022,11 @@ export default function Roster({
     const adminHeaderBadgeMaxW = Math.min(300, Dimensions.get('window').width - 128);
 
     navigation.setOptions({
-      title: showAdminFr24Debug ? '' : t('nav.roster'),
+      title: showAdminFr24Debug
+        ? ''
+        : peerView?.peerName
+          ? peerView.peerName
+          : t('nav.roster'),
       ...(showAdminFr24Debug
         ? {
             headerTitleAlign: 'center' as const,
@@ -2077,6 +2107,7 @@ export default function Roster({
     showAdminFr24Debug,
     rosterHeaderTitleStyle,
     fontScale,
+    peerView?.peerName,
   ]);
 
   useFocusEffect(
@@ -2089,6 +2120,7 @@ export default function Roster({
       setCalendarMonth(anchor.slice(0, 7));
       pendingRosterAnchorRef.current = anchor;
       programmaticListScrollRef.current = true;
+      lastCalendarWeekIdxRef.current = -1;
       setRosterAnchorNonce((n) => n + 1);
     }, [route?.params?.addedFlightDate]),
   );
@@ -2867,9 +2899,13 @@ export default function Roster({
   const indexForRosterDate = useCallback(
     (dateStr: string) => {
       if (listData.length === 0) return -1;
-      const exact = listData.findIndex((e) => listGroupDate(e.flight) === dateStr);
+      const exact = listData.findIndex(
+        (e) => e.type === 'flight' && listGroupDate(e.flight) === dateStr,
+      );
       if (exact >= 0) return exact;
-      const next = listData.findIndex((e) => listGroupDate(e.flight) >= dateStr);
+      const next = listData.findIndex(
+        (e) => e.type === 'flight' && listGroupDate(e.flight) >= dateStr,
+      );
       if (next >= 0) return next;
       return listData.length - 1;
     },
@@ -2899,8 +2935,8 @@ export default function Roster({
   const onViewableItemsChanged = useCallback(
     (info: { viewableItems: Array<{ item: ListEntry; key: string; index: number | null; isViewable: boolean }> }) => {
       if (programmaticListScrollRef.current || pendingRosterAnchorRef.current) return;
-      const first = info.viewableItems[0]?.item;
-      const date = first ? listGroupDate(first.flight) : null;
+      const first = info.viewableItems.find((v) => v.item?.type === 'flight')?.item;
+      const date = first && first.type === 'flight' ? listGroupDate(first.flight) : null;
       if (!date) return;
       setSelectedDate(date);
       if (!calendarExpandedRef.current) {
@@ -2917,21 +2953,48 @@ export default function Roster({
   React.useEffect(() => {
     const target = pendingRosterAnchorRef.current;
     if (!target || loading) return;
-    if (listData.length === 0) {
-      programmaticListScrollRef.current = false;
-      return;
-    }
+    setSelectedDate(target);
+    setCalendarMonth(target.slice(0, 7));
+
+    const syncCalendarToTarget = () => {
+      const weekIdx = calendarWeeks.findIndex((w) => w.some((c) => c.ymd === target));
+      if (weekIdx < 0) return;
+      lastCalendarWeekIdxRef.current = -1;
+      calendarProgrammaticRef.current = true;
+      try {
+        calendarWeekListRef.current?.scrollToOffset({
+          offset: weekIdx * CALENDAR_COL_H,
+          animated: false,
+        });
+      } catch {
+        /* layout not ready */
+      }
+      lastCalendarWeekIdxRef.current = weekIdx;
+      setTimeout(() => {
+        calendarProgrammaticRef.current = false;
+      }, 80);
+    };
+
     const handle = InteractionManager.runAfterInteractions(() => {
-      setSelectedDate(target);
-      setCalendarMonth(target.slice(0, 7));
-      scrollListToDate(target, false);
+      if (listData.length > 0) {
+        scrollListToDate(target, false);
+      } else {
+        programmaticListScrollRef.current = false;
+      }
+      // Takvim haftasını da aynı güne kilitle (liste scroll’undan bağımsız).
+      syncCalendarToTarget();
+      // İlk layout sonrası tekrar dene (FlatList henüz mount olmamış olabilir).
+      setTimeout(() => {
+        if (listData.length > 0) scrollListToDate(target, false);
+        syncCalendarToTarget();
+      }, 120);
       pendingRosterAnchorRef.current = null;
       if (route?.params?.addedFlightDate) {
         try { navigation.setParams({ addedFlightDate: undefined }); } catch {}
       }
     });
     return () => handle.cancel();
-  }, [listData, loading, scrollListToDate, navigation, route?.params?.addedFlightDate, rosterAnchorNonce]);
+  }, [listData, loading, scrollListToDate, navigation, route?.params?.addedFlightDate, rosterAnchorNonce, calendarWeeks]);
 
   /** Nöbet → görev tebliği: ilgili günleri kalıcı kırmızı (uçuş) işaretle. */
   React.useEffect(() => {
@@ -2960,12 +3023,9 @@ export default function Roster({
 
   const onDateRollerChipPress = useCallback((dateStr: string) => {
     setSelectedDate(dateStr);
-    if (!calendarExpandedRef.current) {
-      const monday = mondayYmdOf(dateStr);
-      setCalendarMonth(
-        monday ? dominantMonthFromWeeks([weekCellsFromMonday(monday)], dateStr.slice(0, 7)) : dateStr.slice(0, 7),
-      );
-    }
+    const ym = dateStr.slice(0, 7);
+    calendarMonthRef.current = ym;
+    setCalendarMonth(ym);
     scrollListToDate(dateStr);
   }, [scrollListToDate]);
 
@@ -3079,11 +3139,11 @@ export default function Roster({
   const calendarMonthLabel = useMemo(
     () =>
       monthLabelFromYm(
-        calendarExpanded ? calendarMonth : collapsedDominantYm || calendarMonth,
+        calendarExpanded ? selectedDate.slice(0, 7) : collapsedDominantYm || calendarMonth,
         calendarLocale,
         'long',
       ),
-    [calendarExpanded, calendarMonth, collapsedDominantYm, calendarLocale],
+    [calendarExpanded, selectedDate, calendarMonth, collapsedDominantYm, calendarLocale],
   );
 
   const applyVisibleWeeksMonth = useCallback((firstWeekIdx: number) => {
@@ -3128,8 +3188,8 @@ export default function Roster({
 
   useEffect(() => {
     if (calendarExpanded) return;
-    scrollCalendarToWeekOf(selectedDate, true);
-  }, [selectedDate, calendarExpanded, scrollCalendarToWeekOf]);
+    scrollCalendarToWeekOf(selectedDate, rosterAnchorNonce > 0 ? false : true);
+  }, [selectedDate, calendarExpanded, scrollCalendarToWeekOf, rosterAnchorNonce]);
 
   useEffect(() => {
     const justOpened = calendarExpanded && !calendarWasExpandedRef.current;
@@ -3140,33 +3200,58 @@ export default function Roster({
 
   const getCalendarDayStyle = useCallback(
     (ymd: string) => {
+      const cal = calendarTokens(themeMode);
       const kind = dayKindByDate.get(ymd) ?? 'empty';
-      if (kind === 'empty') {
+      const isSelected = ymd === selectedDate;
+      const isToday = ymd === rosterTodayYmd;
+
+      if (isSelected) {
         return {
-          backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#FFFFFF',
-          borderColor: isDark ? 'rgba(255,255,255,0.14)' : '#E5E7EB',
-          borderWidth: StyleSheet.hairlineWidth,
-          textColor: cardInk.muted,
+          backgroundColor: colors.primary,
+          borderColor: colors.primary,
+          borderWidth: 0,
+          textColor: colors.onPrimary,
+          showFlightDot: false,
         };
       }
-      if (kind === 'layover' || kind === 'flight') {
+
+      if (kind === 'layover') {
         return {
-          backgroundColor: isDark ? '#3A2226' : '#FFEBEE',
-          borderColor: isDark ? '#E57373' : '#EF9A9A',
-          borderWidth: 1,
-          textColor: cardInk.primary,
+          backgroundColor: cal.layoverBg,
+          borderColor: isToday ? colors.primary : cal.layoverBg,
+          borderWidth: isToday ? 2 : 0,
+          textColor: cal.layoverText,
+          showFlightDot: false,
         };
       }
-      const visual: RosterCardVisualKind = kind === 'standby' ? 'standby' : 'duty_off';
-      const chrome = rosterCardChrome(visual, themeMode);
+      if (kind === 'standby') {
+        return {
+          backgroundColor: cal.standbyBg,
+          borderColor: isToday ? colors.primary : cal.standbyBg,
+          borderWidth: isToday ? 2 : 0,
+          textColor: cal.standbyText,
+          showFlightDot: false,
+        };
+      }
+      if (kind === 'duty_off') {
+        return {
+          backgroundColor: cal.dutyOffBg,
+          borderColor: isToday ? colors.primary : cal.dutyOffBg,
+          borderWidth: isToday ? 2 : 0,
+          textColor: cal.dutyOffText,
+          showFlightDot: false,
+        };
+      }
+      // flight or empty: white/transparent + optional flight dot
       return {
-        backgroundColor: chrome.backgroundColor,
-        borderColor: chrome.borderColor,
-        borderWidth: Math.max(chrome.borderWidth, 1),
+        backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : colors.surface,
+        borderColor: isToday ? colors.primary : cal.emptyBorder,
+        borderWidth: isToday ? 2 : StyleSheet.hairlineWidth,
         textColor: cardInk.primary,
+        showFlightDot: kind === 'flight',
       };
     },
-    [dayKindByDate, isDark, themeMode, cardInk.primary, cardInk.muted]
+    [dayKindByDate, isDark, themeMode, cardInk.primary, selectedDate, rosterTodayYmd]
   );
 
   const renderCalendarWeek = (week: CalendarDayCell[], extraKey: string) => (
@@ -3175,7 +3260,10 @@ export default function Roster({
         const inRange = calendarRangeSet.has(cell.ymd);
         const kind = dayKindByDate.get(cell.ymd) ?? 'empty';
         const dayStyle = getCalendarDayStyle(cell.ymd);
+        const isToday = cell.ymd === rosterTodayYmd;
         const dimOutOfRange = !inRange && kind === 'empty';
+        const focusYm = selectedDate.slice(0, 7);
+        const dimOtherMonth = calendarExpanded && cell.ymd.slice(0, 7) !== focusYm;
         const blockKind = isCalendarBlockKind(kind) ? kind : null;
         const prevYmd = colIdx > 0 ? week[colIdx - 1]?.ymd : null;
         const nextYmd = colIdx < 6 ? week[colIdx + 1]?.ymd : null;
@@ -3188,10 +3276,15 @@ export default function Roster({
         nextDate.setUTCDate(nextDate.getUTCDate() + 1);
         const kindBefore = dayKindByDate.get(prevDate.toISOString().slice(0, 10)) ?? 'empty';
         const kindAfter = dayKindByDate.get(nextDate.toISOString().slice(0, 10)) ?? 'empty';
+        // Layover/off blokları bugün de dahil komşu günlerle birleşir (28→29 yatı).
         const connectLeft = Boolean(blockKind && prevKind === blockKind);
         const connectRight = Boolean(blockKind && nextKind === blockKind);
-        const keepLeftSquare = Boolean(blockKind && (connectLeft || (colIdx === 0 && kindBefore === blockKind)));
-        const keepRightSquare = Boolean(blockKind && (connectRight || (colIdx === 6 && kindAfter === blockKind)));
+        const keepLeftSquare = Boolean(
+          blockKind && (connectLeft || (colIdx === 0 && kindBefore === blockKind)),
+        );
+        const keepRightSquare = Boolean(
+          blockKind && (connectRight || (colIdx === 6 && kindAfter === blockKind)),
+        );
         return (
           <View key={cell.ymd} style={styles.calendarCol}>
             <TouchableOpacity
@@ -3207,11 +3300,13 @@ export default function Roster({
                   borderBottomRightRadius: keepRightSquare ? 0 : CALENDAR_DAY_RADIUS,
                 },
                 dimOutOfRange && styles.calendarCellOutOfRange,
+                dimOtherMonth && styles.calendarCellOtherMonth,
               ]}
               disabled={!inRange && kind === 'empty'}
               onPress={() => onDateRollerChipPress(cell.ymd)}
               accessibilityLabel={
-                kind === 'layover'
+                (isToday ? `${t('roster.today')}, ` : '') +
+                (kind === 'layover'
                   ? t('roster.dayLayover')
                   : kind === 'flight'
                     ? t('roster.dayHasFlights')
@@ -3219,10 +3314,16 @@ export default function Roster({
                       ? t('roster.dayStandby')
                       : kind === 'duty_off'
                         ? t('roster.dayOffDuty')
-                        : t('roster.dayEmpty')
+                        : t('roster.dayEmpty'))
               }
             >
-              <Text style={{ color: dayStyle.textColor, fontWeight: '700', fontSize: cell.day === 1 ? 11 : 12 }}>
+              <Text
+                style={{
+                  color: dayStyle.textColor,
+                  fontWeight: isToday || cell.ymd === selectedDate ? '800' : '700',
+                  fontSize: cell.day === 1 ? 11 : 12,
+                }}
+              >
                 {cell.day}
               </Text>
               {cell.day === 1 ? (
@@ -3240,6 +3341,19 @@ export default function Roster({
                   {monthAbbrevFromYmd(cell.ymd, calendarLocale)}
                 </Text>
               ) : null}
+              {dayStyle.showFlightDot ? (
+                <View
+                  style={{
+                    width: 4,
+                    height: 4,
+                    borderRadius: 2,
+                    marginTop: 2,
+                    backgroundColor: calendarTokens(themeMode).flightDot,
+                  }}
+                />
+              ) : (
+                <View style={{ height: 4, marginTop: 2 }} />
+              )}
             </TouchableOpacity>
           </View>
         );
@@ -3340,7 +3454,7 @@ export default function Roster({
               offset: CALENDAR_COL_H * index,
               index,
             })}
-            extraData={`${layoverDateSet.size}|${dayKindByDate.size}|${calendarExpanded}`}
+            extraData={`${layoverDateSet.size}|${dayKindByDate.size}|${calendarExpanded}|${calendarMonth}|${rosterTodayYmd}|${selectedDate}`}
             scrollEventThrottle={16}
             onScroll={(e) => {
               const y = e.nativeEvent.contentOffset.y;
@@ -3359,10 +3473,31 @@ export default function Roster({
                 week.find((c) => calendarRangeSet.has(c.ymd))?.ymd ?? week[0]?.ymd;
               if (!pick) return;
               setSelectedDate(pick);
+              const ym = pick.slice(0, 7);
+              calendarMonthRef.current = ym;
+              setCalendarMonth(ym);
               scrollListToDate(pick);
             }}
             renderItem={({ item: week, index }) => renderCalendarWeek(week, `w-${index}`)}
           />
+          <View style={styles.calendarLegendRow}>
+            <View style={styles.calendarLegendItem}>
+              <View style={[styles.calendarLegendDot, { backgroundColor: calendarTokens(themeMode).flightDot }]} />
+              <Text style={[styles.calendarLegendText, { color: colors.textMuted }]}>{t('roster.legendFlight')}</Text>
+            </View>
+            <View style={styles.calendarLegendItem}>
+              <View style={[styles.calendarLegendSwatch, { backgroundColor: calendarTokens(themeMode).dutyOffBg }]} />
+              <Text style={[styles.calendarLegendText, { color: colors.textMuted }]}>{t('roster.legendOff')}</Text>
+            </View>
+            <View style={styles.calendarLegendItem}>
+              <View style={[styles.calendarLegendSwatch, { backgroundColor: calendarTokens(themeMode).standbyBg }]} />
+              <Text style={[styles.calendarLegendText, { color: colors.textMuted }]}>{t('roster.legendStandby')}</Text>
+            </View>
+            <View style={styles.calendarLegendItem}>
+              <View style={[styles.calendarLegendSwatch, { backgroundColor: calendarTokens(themeMode).layoverBg }]} />
+              <Text style={[styles.calendarLegendText, { color: colors.textMuted }]}>{t('roster.legendLayover')}</Text>
+            </View>
+          </View>
         </View>
         <View
           style={[
@@ -3424,11 +3559,18 @@ export default function Roster({
           <FlatList
             ref={listRef}
             data={listData}
-            extraData={themeMode}
-            keyExtractor={(item, index) => `${item.flight.id}-${index}`}
+            extraData={`${themeMode}|${listFontScale}|${crewUtcView ? 'u' : 'l'}|${selectedDate}`}
+            keyExtractor={(item, index) =>
+              item.type === 'dayHeader' ? `day-${item.dateYmd}` : `${item.flight.id}-${index}`
+            }
             contentContainerStyle={styles.list}
             style={styles.listFlex}
             scrollIndicatorInsets={{ right: 0 }}
+            initialNumToRender={6}
+            maxToRenderPerBatch={4}
+            windowSize={7}
+            updateCellsBatchingPeriod={50}
+            removeClippedSubviews={Platform.OS === 'android'}
             onViewableItemsChanged={onViewableItemsChanged}
             viewabilityConfig={viewabilityConfig}
             onScrollToIndexFailed={({ index }) => {
@@ -3445,8 +3587,26 @@ export default function Roster({
               />
             }
             renderItem={({ item: entry }) => {
+            if (entry.type === 'dayHeader') {
+              const hours = Math.floor(entry.blockMinutes / 60);
+              const mins = entry.blockMinutes % 60;
+              const blockLabel =
+                entry.blockMinutes > 0
+                  ? t('roster.dayHeaderBlock', { hours, mins })
+                  : '';
+              return (
+                <View style={styles.dayHeaderRow}>
+                  <Text style={[styles.dayHeaderText, { color: colors.text }]}>
+                    {t('roster.dayHeader', {
+                      date: formatRosterDayLabel(entry.dateYmd),
+                      count: entry.flightCount,
+                      block: blockLabel,
+                    })}
+                  </Text>
+                </View>
+              );
+            }
             const item = entry.flight;
-            const flightIndex = entry.dayIndex;
             const runUpdateAndClose = () => {
               setUpdatingFlightIds((prev) => ({ ...prev, [item.id]: true }));
               const done = () => {
@@ -3497,25 +3657,22 @@ export default function Roster({
                 );
             const status = getFlightStatus(item);
             const displayStatus = status;
-            const statusBox = statusConfig[displayStatus];
-            const depCity = formatCityAndCode(item.origin_airport, item.origin_city);
-            const arrCity = formatCityAndCode(item.destination_airport, item.destination_city);
             const blockCode = (item.flight_number || '').trim().toUpperCase();
-            const isLayoverBlock = isLayoverPlaceholder(item);
-            const isSimBlock = !isLayoverBlock && (item.roster_entry_kind === 'sim' || isSimulatorOccupationCode(blockCode));
-            const isOffDayDutyCode = !isLayoverBlock && isOffDayOccupationCode(blockCode);
+            const isSimBlock =
+              item.roster_entry_kind === 'sim' ||
+              isSimulatorOccupationCode(blockCode) ||
+              isSimulatorOccupationCode(item.duty_occupation_code);
+            const isOffDayDutyCode = isOffDayOccupationCode(blockCode);
             const isAnnualLeaveCode = isAnnualLeaveOccupationCode(blockCode);
-            const isGroundDutyCode = !isLayoverBlock && isGroundDutyOccupationCode(blockCode);
+            const isUnpaidLeaveCode = isUnpaidLeaveOccupationCode(blockCode);
+            const isGroundDutyCode = isGroundDutyOccupationCode(blockCode);
             const isOfficeDutyCode = isOfficeDutyOccupationCode(blockCode);
-            /** Yer dersi/ofis: gri görev kutusu (uçuş chrome); yeşil off değil. */
             const isDutyOffBlock =
-              !isLayoverBlock &&
               !isSimBlock &&
               !isGroundDutyCode &&
               (item.roster_entry_kind === 'duty_off' || isOffDayDutyCode);
             const isGroundDutyBlock = !isSimBlock && isGroundDutyCode;
-            const isNonFlightBlock = isDutyOffBlock || isSimBlock || isGroundDutyBlock || isLayoverBlock;
-            const nonFlightStatus = isNonFlightBlock ? getNonFlightBlockStatus(item) : null;
+            const isNonFlightBlock = isDutyOffBlock || isSimBlock || isGroundDutyBlock;
             const isStandbyDutyCode = isStandbyOccupationCode(blockCode);
             const isReserveDutyCode =
               blockCode === 'RSV' || blockCode === 'RZV' || blockCode === 'RZVM';
@@ -3529,9 +3686,7 @@ export default function Roster({
             const indigoDutyTr = indigoDutyBlockTitleTr(blockCode);
             const indigoDutyEn = indigoDutyBlockTitleEn(blockCode);
             const blockLabel =
-              isLayoverBlock
-                ? t('roster.dayLayover')
-                : indigoLabels && isDutyOffBlock && indigoDutyTr && indigoDutyEn
+              indigoLabels && isDutyOffBlock && indigoDutyTr && indigoDutyEn
                 ? (isTr ? indigoDutyTr : indigoDutyEn)
                 : isReserveDutyCode
                   ? (isTr ? 'Rezerve' : 'Reserve')
@@ -3541,6 +3696,8 @@ export default function Roster({
                     ? (isTr ? 'Görev' : 'Duty')
                     : isAnnualLeaveCode
                     ? (isTr ? 'Yıllık İzin' : 'Annual Leave')
+                    : isUnpaidLeaveCode
+                      ? (isTr ? 'Ücretsiz İzin' : 'Unpaid Leave')
                     : blockCode.includes('YERDR')
                       ? (isTr ? 'Yer Dersi' : 'Ground Training')
                       : isOfficeDutyCode
@@ -3551,12 +3708,7 @@ export default function Roster({
                               ? rosterOccupationLabelTr(item.flight_number)
                               : rosterOccupationLabelEn(item.flight_number)) ?? item.flight_number;
             const blockTitle =
-              isLayoverBlock
-                ? (() => {
-                    const city = formatCityAndCode(item.origin_airport, item.origin_city);
-                    return city && city !== '—' ? city : blockLabel;
-                  })()
-                : isDutyOffBlock
+              isDutyOffBlock
                 ? blockLabel
                 : blockCode
                   ? `${blockLabel} (${blockCode})`
@@ -3567,386 +3719,154 @@ export default function Roster({
                 : null;
             const isEnRoute = displayStatus === 'en_route' || displayStatus === 'departed';
             const showNextDayHint = nextDayHintById[item.id] === true;
-            const statusLabelText =
-              (displayStatus === 'en_route' || displayStatus === 'departed' || displayStatus === 'landed' || displayStatus === 'taxi_out' || displayStatus === 'scheduled' || displayStatus === 'diverted' || displayStatus === 'cancelled') ? null
-                  : statusBox.label;
-            const statusWithCenterIcon =
-              displayStatus === 'en_route' || displayStatus === 'departed' || displayStatus === 'landed'
-              || displayStatus === 'taxi_out' || displayStatus === 'scheduled' || displayStatus === 'diverted' || displayStatus === 'cancelled';
-            const statusIsError = displayStatus === 'cancelled';
-            const statusCenterIcon =
-              displayStatus === 'landed' ? '✅'
-              : (displayStatus === 'en_route' || displayStatus === 'departed') ? '⏰'
-              : null;
             const aircraftRegDisplay = !isNonFlightBlock
               ? formatAircraftRegistration(aircraftRegById[item.id] ?? item.aircraft_registration)
               : null;
-            const aircraftRegBelowStatus = aircraftRegDisplay ? (
-              <Pressable
-                onPress={() => openFlightradar24ByRegistration(aircraftRegDisplay)}
-                hitSlop={{ top: 6, bottom: 6, left: 8, right: 8 }}
-                accessibilityRole="link"
-                accessibilityLabel={t('roster.trackAircraftFr24A11y', { reg: aircraftRegDisplay })}
-                style={styles.aircraftRegBelowStatusWrap}
-              >
-                <Text style={[styles.aircraftRegText, { color: cardInk.onAccent }]}>
-                  ({aircraftRegDisplay})
-                </Text>
-              </Pressable>
-            ) : null;
             const delayMins = getDelayMinutes(item);
-            const calendarDelayColor = getDelayCalendarColor(delayMins);
             const isSelected = !!selectedFlightIds[item.id];
+
+            const displayDepIso =
+              delayMins != null && item.estimated_departure
+                ? item.estimated_departure
+                : item.scheduled_departure;
+            const displayArrIso =
+              delayMins != null && item.estimated_arrival
+                ? item.estimated_arrival
+                : item.scheduled_arrival;
+            const formatCardTime = (iso: string | null | undefined, airport: string | null | undefined, end: boolean) => {
+              if (!iso) return '—';
+              if (crewUtcView) return formatTimeUTC(iso);
+              if (isCrew) {
+                return end
+                  ? formatTimeCrewAtDest(iso, airport)
+                  : formatTimeCrewAtOrigin(iso, airport);
+              }
+              return formatTimeFamilyLocal(iso);
+            };
+            const depTime = formatCardTime(displayDepIso, item.origin_airport, false);
+            const arrTime = formatCardTime(displayArrIso, item.destination_airport, true);
+            const depStruck =
+              delayMins != null && item.estimated_departure && item.scheduled_departure
+                ? formatCardTime(item.scheduled_departure, item.origin_airport, false)
+                : null;
+            const arrStruck =
+              delayMins != null && item.estimated_arrival && item.scheduled_arrival
+                ? formatCardTime(item.scheduled_arrival, item.destination_airport, true)
+                : null;
+            const depMs = parseUtcMs(item.scheduled_departure);
+            const arrMs = parseUtcMs(item.scheduled_arrival);
+            let durationMins = 0;
+            if (depMs > 0 && arrMs > 0) {
+              let end = arrMs;
+              if (end <= depMs) end += 24 * 60 * 60 * 1000;
+              durationMins = Math.round((end - depMs) / 60000);
+            }
+            const durH = Math.floor(durationMins / 60);
+            const durM = durationMins % 60;
+            const durationLabel =
+              durationMins > 0
+                ? durH > 0
+                  ? t('roster.durationShort', { hours: durH, mins: durM })
+                  : t('roster.durationMinsOnly', { mins: durM })
+                : ' ';
+            const plusOneDay =
+              showNextDayHint ||
+              (depMs > 0 &&
+                arrMs > 0 &&
+                (() => {
+                  const d0 = new Date(depMs);
+                  const d1 = new Date(arrMs <= depMs ? arrMs + 86400000 : arrMs);
+                  return (
+                    d0.getUTCFullYear() !== d1.getUTCFullYear() ||
+                    d0.getUTCMonth() !== d1.getUTCMonth() ||
+                    d0.getUTCDate() !== d1.getUTCDate()
+                  );
+                })());
+            const progress = isEnRoute ? getFlightProgress(item) : null;
+            const msToDep = (() => {
+              const est = parseUtcMs(item.estimated_departure ?? item.scheduled_departure);
+              return est > 0 ? est - nowMs : null;
+            })();
+            const showLiveTrack =
+              !isNonFlightBlock &&
+              (isEnRoute || (msToDep != null && msToDep > 0 && msToDep <= 2 * 60 * 60 * 1000));
+            let footerHint: string | null = indigoTrainingLine;
+            if (!footerHint && !isNonFlightBlock && msToDep != null && msToDep > 0 && !isEnRoute) {
+              const minsLeft = Math.round(msToDep / 60000);
+              if (minsLeft < 60) footerHint = t('roster.departInMins', { mins: minsLeft });
+              else {
+                const h = Math.floor(minsLeft / 60);
+                const m = minsLeft % 60;
+                footerHint = t('roster.departInHours', { hours: h, mins: m });
+              }
+            }
+
+            const onCardPress = () => {
+              if (isCrew && selectionMode) {
+                toggleSelectFlight(item.id);
+                return;
+              }
+              if (isCrew) {
+                if (showAdminFr24Debug && !isNonFlightBlock) {
+                  navigation.navigate('AdminFlightApiDebug', { flightId: item.id });
+                } else {
+                  navigation.navigate('EditFlight', { flightId: item.id });
+                }
+              } else if (!isNonFlightBlock) {
+                navigation.navigate('EditFlight', { flightId: item.id, readOnly: true });
+              }
+            };
+
+            const cardModel = {
+              flightNumber: item.flight_number,
+              originIata: (item.origin_airport || '—').toUpperCase().slice(0, 3),
+              destIata: (item.destination_airport || '—').toUpperCase().slice(0, 3),
+              originCity: isNonFlightBlock ? t('roster.dutyPeriodStart').replace(':', '') : undefined,
+              destCity: isNonFlightBlock ? t('roster.dutyPeriodEnd').replace(':', '') : undefined,
+              depTime,
+              arrTime,
+              depTimeScheduledStruck: depStruck,
+              arrTimeScheduledStruck: arrStruck,
+              durationLabel,
+              plusOneDay: !!plusOneDay,
+              delayMins,
+              rosterEntryKind: item.roster_entry_kind,
+              flightStatus: item.flight_status,
+              isStandbyDutyCode: isStandbyDutyCode || isReserveDutyCode,
+              isNonFlightBlock,
+              blockTitle: isSimBlock
+                ? `${t('roster.simulatorBlockType')} ${blockTitle}`.trim()
+                : isNonFlightBlock
+                  ? blockTitle
+                  : undefined,
+              progress,
+              showLiveTrack,
+              footerHint,
+              footerActionLabel: isStandbyBlock && isCrew ? t('roster.assignFlights') : null,
+              aircraftReg: aircraftRegDisplay,
+              selectionMode,
+              selected: isSelected,
+            };
+
             const cardInner = (
-              <View style={styles.cardRow}>
-                <TouchableOpacity
-                  activeOpacity={0.7}
-                  onPress={() => {
-                    if (isLayoverBlock) return;
-                    if (isCrew && selectionMode) {
-                      toggleSelectFlight(item.id);
-                      return;
-                    }
-                    if (isCrew) {
-                      if (showAdminFr24Debug && !isNonFlightBlock) {
-                        navigation.navigate('AdminFlightApiDebug', { flightId: item.id });
-                      } else {
-                        navigation.navigate('EditFlight', { flightId: item.id });
-                      }
-                    } else if (!isNonFlightBlock) {
-                      navigation.navigate('EditFlight', { flightId: item.id, readOnly: true });
-                    }
-                  }}
-                  onLongPress={() => {
-                    if (isLayoverBlock) return;
-                    if (isCrew) enterSelectionModeWith(item.id);
-                  }}
-                  style={styles.cardMain}
-                >
-                  <View style={styles.cardMainWrap}>
-                    {!isNonFlightBlock &&
-                      (() => {
-                        const phase = computeApiRefreshPhase(flightPhaseComputeArgs(item, nowMs));
-                        return phase ? (
-                          <View
-                            style={[styles.phaseDot, { backgroundColor: apiRefreshPhaseDotColor(phase, isDark) }]}
-                            accessibilityLabel={t(`roster.phase.${phase}`)}
-                          />
-                        ) : null;
-                      })()}
-                    <View style={!isNonFlightBlock ? styles.cardMainBodyWithPhaseDot : undefined}>
-                      <View style={styles.cardMainTop}>
-                        <View
-                          style={[
-                            styles.dateRowNumber,
-                            !selectionMode && isNonFlightBlock && styles.dateRowNumberNonFlight,
-                            selectionMode && styles.dateRowNumberSelection,
-                            selectionMode && isSelected && styles.dateRowNumberSelectionActive,
-                          ]}
-                        >
-                          <Text
-                            style={[
-                              styles.dateRowNumberText,
-                              !selectionMode && isNonFlightBlock && styles.dateRowNumberTextNonFlight,
-                            ]}
-                          >
-                            {selectionMode
-                              ? (isSelected ? '✓' : '')
-                              : isDutyOffBlock
-                                ? ''
-                                : isSimBlock
-                                  ? ''
-                                  : flightIndex}
-                          </Text>
-                        </View>
-                        <Text style={[styles.date, { color: cardInk.secondary }]}>
-                          {formatRosterDayLabel(listGroupDate(item))}
-                        </Text>
-                      </View>
-                      {!isCrew && <View />}
-                      {isNonFlightBlock ? (
-                        <Text style={[styles.route, { color: cardInk.primary }]}>
-                          <>
-                            <Text style={styles.routeLabel}>
-                              {isLayoverBlock
-                                ? `${t('roster.dayLayover')}: `
-                                : isSimBlock
-                                  ? t('roster.simulatorBlockType')
-                                  : t('roster.offDutyType')}{' '}
-                            </Text>
-                            <Text style={[styles.flightNumber, { color: cardInk.primary }]}>{blockTitle}</Text>
-                          </>
-                        </Text>
-                      ) : (
-                        <View>
-                          <Text style={[styles.route, { color: cardInk.primary }]}>
-                            <Text style={styles.routeLabel}>{t('roster.flightNo')} </Text>
-                            <Text style={[styles.flightNumber, { color: cardInk.primary }]}>{item.flight_number}</Text>
-                            {delayMins != null ? (
-                              <Text style={[styles.delayText, { color: cardInk.error }]}> ({formatDelayCompact(delayMins)})</Text>
-                            ) : null}
-                          </Text>
-                          {indigoTrainingLine ? (
-                            <Text
-                              style={[styles.indigoRosterDetailLine, { color: cardInk.muted }]}
-                              numberOfLines={3}
-                            >
-                              {indigoTrainingLine}
-                            </Text>
-                          ) : null}
-                          {item.diverted_to && displayStatus !== 'cancelled' && displayStatus !== 'landed' ? (
-                            <Text style={[styles.divertSubline, { color: cardInk.error }]}>
-                              {t('roster.divertExtra', { place: formatDivertDestination(item.diverted_to) })}
-                            </Text>
-                          ) : null}
-                        </View>
-                      )}
-                    </View>
-                    <View style={styles.cardMainBottom}>
-                      {isNonFlightBlock ? (
-                        <>
-                          <Text style={[styles.depArrLine, { color: cardInk.primary }]} numberOfLines={1} ellipsizeMode="tail">
-                            <Text style={styles.depArrPrefix}>{t('roster.dutyPeriodStart')} </Text>
-                            <Text style={[styles.depArrTimes, { color: cardInk.muted }]}>
-                              {crewUtcView ? (
-                                <>{formatTimeUTC(item.scheduled_departure)} (Z)</>
-                              ) : (
-                                <>
-                                  {formatTimeRosterPdfLocal(item.scheduled_departure)} ({rosterPdfLocalTzTag}) /{' '}
-                                  {formatTimeUTC(item.scheduled_departure)} (Z)
-                                </>
-                              )}
-                            </Text>
-                          </Text>
-                          <Text style={[styles.depArrLine, { color: cardInk.primary }]} numberOfLines={1} ellipsizeMode="tail">
-                            <Text style={styles.depArrPrefix}>{t('roster.dutyPeriodEnd')} </Text>
-                            <Text style={[styles.depArrTimes, { color: cardInk.muted }]}>
-                              {crewUtcView ? (
-                                <>{formatTimeUTC(item.scheduled_arrival)} (Z)</>
-                              ) : (
-                                <>
-                                  {formatTimeRosterPdfLocal(item.scheduled_arrival)} ({rosterPdfLocalTzTag}) /{' '}
-                                  {formatTimeUTC(item.scheduled_arrival)} (Z)
-                                </>
-                              )}
-                            </Text>
-                          </Text>
-                        </>
-                      ) : (
-                        <>
-                          {/* Roster kartı: STD/STA gösterim; çubuk başlangıç ETD (yoksa ATD), bitiş ETA. */}
-                          <Text
-                            style={[styles.depArrLine, { color: cardInk.primary }]}
-                            numberOfLines={1}
-                            ellipsizeMode="tail"
-                          >
-                            <Text style={styles.depArrPrefix}>{t('roster.dep')} </Text>
-                            {depCity}
-                            <Text style={[styles.depArrTimes, { color: cardInk.muted }]}>
-                              {' '}
-                              –{' '}
-                              {crewUtcView ? (
-                                <>{formatTimeUTC(item.scheduled_departure)} (Z)</>
-                              ) : isCrew ? (
-                                <>
-                                  {`${formatTimeCrewAtOrigin(item.scheduled_departure, item.origin_airport)} (${crewStationTag(item.origin_airport)})`}{' '}
-                                  / {formatTimeUTC(item.scheduled_departure)} (Z)
-                                </>
-                              ) : (
-                                <>
-                                  {formatTimeFamilyLocal(item.scheduled_departure)} ({familyRegionTag}) /{' '}
-                                  {formatTimeUTC(item.scheduled_departure)} (Z)
-                                </>
-                              )}
-                            </Text>
-                          </Text>
-                          <Text
-                            style={[styles.depArrLine, { color: cardInk.primary }]}
-                            numberOfLines={1}
-                            ellipsizeMode="tail"
-                          >
-                            <Text style={styles.depArrPrefix}>{t('roster.arr')} </Text>
-                            {arrCity}
-                            <Text style={[styles.depArrTimes, { color: cardInk.muted }]}>
-                              {' '}
-                              –{' '}
-                              {crewUtcView ? (
-                                <>{formatTimeUTC(item.scheduled_arrival)} (Z)</>
-                              ) : isCrew ? (
-                                <>
-                                  {`${formatTimeCrewAtDest(item.scheduled_arrival, item.destination_airport)} (${crewStationTag(item.destination_airport)})`}{' '}
-                                  / {formatTimeUTC(item.scheduled_arrival)} (Z)
-                                </>
-                              ) : (
-                                <>
-                                  {formatTimeFamilyLocal(item.scheduled_arrival)} ({familyRegionTag}) /{' '}
-                                  {formatTimeUTC(item.scheduled_arrival)} (Z)
-                                </>
-                              )}
-                            </Text>
-                          </Text>
-                          {(() => {
-                            const p = getFlightProgress(item);
-                            if (p == null) return null;
-                            const leftPct = `${Math.round(p * 1000) / 10}%`;
-                            const pctText = formatProgressPercent(p);
-                            return (
-                              <View style={styles.progressWrap}>
-                                <View style={styles.progressBar}>
-                                  <View style={[styles.progressFill, { width: leftPct }]}>
-                                    <LinearGradient
-                                      colors={
-                                        themeMode === 'dark'
-                                          ? ['#3D5468', '#2C5070', '#1E3648']
-                                          : ['#93C5FD', '#3B82F6', '#1D4ED8']
-                                      }
-                                      start={{ x: 0, y: 0 }}
-                                      end={{ x: 1, y: 0 }}
-                                      style={StyleSheet.absoluteFill}
-                                    />
-                                  </View>
-                                  <View style={[styles.planeWrap, { left: leftPct }]}>
-                                    <Ionicons name="airplane" size={24} color={colors.secondary} />
-                                  </View>
-                                </View>
-                                <Text style={[styles.progressPct, { color: cardInk.primary }]}>{pctText}</Text>
-                              </View>
-                            );
-                          })()}
-                          {showNextDayHint && (
-                            <Text style={[styles.nextDayHint, { color: cardInk.muted }]} accessibilityLabel={t('roster.nextDayTimesA11y')}>
-                              <Text style={styles.nextDayHintText}>{t('roster.nextDay')}</Text>
-                            </Text>
-                          )}
-                        </>
-                      )}
-                    </View>
-                  </View>
-                </TouchableOpacity>
-                <View style={[styles.sideDivider, { backgroundColor: colors.border }]} />
-                <TouchableOpacity
-                  style={styles.statusBox}
-                  activeOpacity={isNonFlightBlock ? 1 : 0.8}
-                  disabled={isNonFlightBlock}
-                  onPress={
-                    isNonFlightBlock
-                      ? undefined
-                      : () => openFlightradar24(item.flight_number, item.flight_date, fr24IdByFlightId[item.id])
-                  }
-                  accessibilityLabel={
-                    isSimBlock
-                      ? t('roster.simulatorBlockA11y')
-                      : isDutyOffBlock
-                        ? t('roster.offDutyBlockA11y')
-                        : t('roster.trackFr24A11y')
-                  }
-                >
-                  <View style={styles.statusBoxInner}>
-                    <View style={styles.statusContentCenter}>
-                      {isNonFlightBlock ? (
-                        <>
-                          <View style={styles.statusTopCluster}>
-                            <Text style={[styles.statusLabel, styles.statusLabelScheduled, { color: cardInk.primary }]}>
-                              {nonFlightStatusLabel(nonFlightStatus ?? 'planned')}
-                            </Text>
-                          </View>
-                          <View style={styles.statusIconArea}>
-                            <View style={styles.statusClockCenter}>
-                              <Ionicons
-                                name={
-                                  nonFlightStatus === 'ongoing'
-                                    ? 'time-outline'
-                                    : nonFlightStatus === 'finished'
-                                      ? 'checkmark-circle-outline'
-                                      : 'calendar-outline'
-                                }
-                                size={32}
-                                color={nonFlightStatus === 'finished' ? cardInk.success : cardInk.primary}
-                              />
-                            </View>
-                          </View>
-                        </>
-                      ) : statusWithCenterIcon ? (
-                        <>
-                          <View style={styles.statusTopCluster}>
-                            <Text
-                              style={[
-                                styles.statusLabel,
-                                displayStatus === 'scheduled' && styles.statusLabelScheduled,
-                                { color: statusIsError ? cardInk.error : displayStatus === 'landed' ? cardInk.success : cardInk.primary },
-                              ]}
-                            >
-                              {statusBox.label}
-                              {displayStatus === 'landed' && item.diverted_to ? (
-                                <Text style={{ color: cardInk.error }}>
-                                  {' ('}
-                                  {formatDivertDestination(item.diverted_to)}
-                                  {')'}
-                                </Text>
-                              ) : null}
-                            </Text>
-                            {aircraftRegBelowStatus}
-                          </View>
-                          <View style={styles.statusIconArea}>
-                            <View style={styles.statusClockCenter}>
-                              {displayStatus === 'taxi_out' ? (
-                                <Ionicons name="radio-outline" size={32} color={cardInk.primary} />
-                              ) : displayStatus === 'scheduled' ? (
-                                <Ionicons name="calendar-outline" size={32} color={calendarDelayColor ?? cardInk.primary} />
-                              ) : displayStatus === 'cancelled' ? (
-                                <Ionicons name="close-circle-outline" size={32} color={cardInk.error} />
-                              ) : (
-                                <Text style={styles.statusClockIcon}>{statusCenterIcon}</Text>
-                              )}
-                            </View>
-                          </View>
-                        </>
-                      ) : (
-                        <View style={styles.statusTopCluster}>
-                          <Text style={[styles.statusLabel, { color: cardInk.primary }]}>
-                            {statusLabelText}
-                          </Text>
-                          {aircraftRegBelowStatus}
-                        </View>
-                      )}
-                    </View>
-                    {!isNonFlightBlock ? (
-                      <View style={styles.trackInStatusRow}>
-                        <Ionicons name="location-outline" size={12} color={cardInk.onAccent} />
-                        <Text style={[styles.trackInStatusText, { color: cardInk.onAccent }]}>{t('roster.trackOnFr24')}</Text>
-                      </View>
-                    ) : isStandbyBlock && isCrew ? (
-                      <Pressable
-                        style={styles.trackInStatusRow}
-                        onPress={() => openAssignFlightsFromStandby(item)}
-                        hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
-                        accessibilityRole="button"
-                        accessibilityLabel={t('roster.assignFlightsA11y')}
-                      >
-                        <Text style={[styles.assignFlightsLinkText, { color: cardInk.error }]}>
-                          {t('roster.assignFlights')}
-                        </Text>
-                      </Pressable>
-                    ) : null}
-                  </View>
-                </TouchableOpacity>
-              </View>
+              <RosterFlightCard
+                model={cardModel}
+                themeMode={themeMode}
+                fontScale={listFontScale}
+                onPress={onCardPress}
+                onLongPress={isCrew ? () => enterSelectionModeWith(item.id) : undefined}
+                onLiveTrack={
+                  showLiveTrack
+                    ? () => openFlightradar24(item.flight_number, item.flight_date, fr24IdByFlightId[item.id])
+                    : undefined
+                }
+                onFooterAction={
+                  isStandbyBlock && isCrew ? () => openAssignFlightsFromStandby(item) : undefined
+                }
+              />
             );
-            const cardContent = selectionMode || isLayoverBlock
-              ? (
-                <View
-                  style={[
-                    styles.card,
-                    isDutyOffBlock && !isStandbyDutyCode && styles.cardOffDuty,
-                    isDutyOffBlock && isStandbyDutyCode && styles.cardStandby,
-                    (displayStatus === 'en_route' || displayStatus === 'departed') && styles.cardInFlight,
-                    displayStatus === 'landed' && styles.cardLanded,
-                    isSelected && [styles.cardSelected, { borderColor: colors.primary }],
-                  ]}
-                >
-                  {cardInner}
-                </View>
-              )
+            const cardContent = selectionMode
+              ? cardInner
               : (
                 <Swipeable
                   ref={(r) => { swipeableRefs.current[item.id] = r; }}
@@ -3958,13 +3878,6 @@ export default function Roster({
                   overshootRight={false}
                 >
                   <View
-                    style={[
-                      styles.card,
-                      isDutyOffBlock && !isStandbyDutyCode && styles.cardOffDuty,
-                      isDutyOffBlock && isStandbyDutyCode && styles.cardStandby,
-                      (displayStatus === 'en_route' || displayStatus === 'departed') && styles.cardInFlight,
-                      displayStatus === 'landed' && styles.cardLanded,
-                    ]}
                     onLayout={(e) => {
                       const h = Math.round(e.nativeEvent.layout.height);
                       if (h <= 0) return;
@@ -4022,30 +3935,32 @@ export default function Roster({
         <View style={styles.rosterActionsRow}>
           {selectionMode ? (
             <>
-              <TouchableOpacity style={styles.rosterActionButton} onPress={selectAllVisible}>
-              <View style={styles.rosterActionButtonContent}>
-                  <Ionicons name="checkmark-done-outline" size={15} color={colors.onPrimary} />
-                  <Text style={styles.rosterActionButtonText}>{t('roster.selectAllVisible')}</Text>
-                </View>
-              </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.rosterActionButton, styles.rosterActionButtonCenter]}
+                style={[styles.rosterActionButtonOutline, { borderColor: colors.border }]}
                 onPress={exitSelectionMode}
               >
                 <View style={styles.rosterActionButtonContent}>
-                  <Ionicons name="close-circle-outline" size={15} color={colors.onPrimary} />
-                  <Text style={styles.rosterActionButtonText}>{t('roster.cancelSelectionCount', { count: selectedCount })}</Text>
+                  <Ionicons name="close-circle-outline" size={16} color={colors.text} />
+                  <Text style={[styles.rosterActionButtonTextDark, { color: colors.text }]}>
+                    {t('roster.cancelSelectionCount', { count: selectedCount })}
+                  </Text>
                 </View>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.rosterActionButton, styles.rosterActionButtonDanger]}
-                onPress={deleteSelectedFlights}
-                accessibilityLabel={t('roster.removeSelectedCount', { count: selectedCount })}
+                style={[styles.rosterActionButton, sendingToFamily && styles.sendToFamilyButtonDisabled]}
+                onPress={handleSendFlightsToFamily}
+                disabled={sendingToFamily || selectedCount === 0}
               >
-                <View style={styles.rosterActionButtonContent}>
-                  <Ionicons name="trash-outline" size={15} color={colors.white} />
-                  <Text style={styles.rosterActionButtonText}>{t('roster.removeSelected')}</Text>
-                </View>
+                {sendingToFamily ? (
+                  <ActivityIndicator size="small" color={colors.onPrimary} />
+                ) : (
+                  <View style={styles.rosterActionButtonContent}>
+                    <Ionicons name="paper-plane-outline" size={16} color={colors.onPrimary} />
+                    <Text style={styles.rosterActionButtonText}>
+                      {t('roster.sendToFamilyCount', { count: selectedCount })}
+                    </Text>
+                  </View>
+                )}
               </TouchableOpacity>
             </>
           ) : (
@@ -4056,55 +3971,20 @@ export default function Roster({
                 accessibilityLabel={t('roster.addFlight')}
               >
                 <View style={styles.rosterActionButtonContent}>
-                  <Ionicons name="add-circle-outline" size={14} color={colors.onPrimary} />
-                  <Text
-                    style={styles.rosterActionButtonText}
-                    numberOfLines={1}
-                    adjustsFontSizeToFit
-                    minimumFontScale={0.75}
-                  >
-                    {t('roster.addFlight')}
-                  </Text>
+                  <Ionicons name="add" size={18} color={colors.onPrimary} />
+                  <Text style={styles.rosterActionButtonText}>{t('roster.addFlight')}</Text>
                 </View>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.rosterActionButton, styles.rosterActionButtonCenter]}
+                style={[styles.rosterActionButtonOutline, { borderColor: colors.primary }]}
                 onPress={() => setSelectionMode(true)}
               >
                 <View style={styles.rosterActionButtonContent}>
-                  <Ionicons name="checkbox-outline" size={14} color={colors.onPrimary} />
-                  <Text
-                    style={styles.rosterActionButtonText}
-                    numberOfLines={1}
-                    adjustsFontSizeToFit
-                    minimumFontScale={0.78}
-                  >
-                    {t('roster.selectFlights')}
+                  <Ionicons name="checkbox-outline" size={16} color={colors.primary} />
+                  <Text style={[styles.rosterActionButtonTextDark, { color: colors.primary }]}>
+                    {t('roster.selectAndShare')}
                   </Text>
                 </View>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.rosterActionButton, sendingToFamily && styles.sendToFamilyButtonDisabled]}
-                onPress={handleSendFlightsToFamily}
-                disabled={sendingToFamily}
-              >
-                {sendingToFamily ? (
-                  <View style={styles.rosterActionButtonContent}>
-                    <ActivityIndicator size="small" color={colors.onPrimary} />
-                  </View>
-                ) : (
-                  <View style={styles.rosterActionButtonContent}>
-                    <Ionicons name="paper-plane-outline" size={14} color={colors.onPrimary} />
-                    <Text
-                      style={styles.rosterActionButtonText}
-                      numberOfLines={1}
-                      adjustsFontSizeToFit
-                      minimumFontScale={0.78}
-                    >
-                      {t('roster.sendToFamily')}
-                    </Text>
-                  </View>
-                )}
               </TouchableOpacity>
             </>
           )}
@@ -4206,6 +4086,9 @@ function createRosterStyles(fs: (n: number) => number, themeMode: 'light' | 'dar
   calendarCellOutOfRange: {
     opacity: 0.32,
   },
+  calendarCellOtherMonth: {
+    opacity: 0.35,
+  },
   calendarRosterDivider: {
     height: 2,
     marginHorizontal: 8,
@@ -4241,17 +4124,28 @@ function createRosterStyles(fs: (n: number) => number, themeMode: 'light' | 'dar
   rosterContentWrap: { flex: 1 },
   rosterActionsRow: {
     flexDirection: 'row',
-    gap: 6,
-    paddingTop: 4,
-    paddingBottom: 2,
+    gap: 8,
+    paddingTop: 8,
+    paddingBottom: 4,
   },
   rosterActionButton: {
     flex: 1,
-    height: 40,
+    minHeight: 44,
     backgroundColor: colors.primary,
     paddingVertical: 0,
-    paddingHorizontal: 6,
-    borderRadius: 8,
+    paddingHorizontal: 10,
+    borderRadius: radius.button,
+    alignItems: 'stretch',
+    justifyContent: 'center',
+  },
+  rosterActionButtonOutline: {
+    flex: 1,
+    minHeight: 44,
+    backgroundColor: colors.surface,
+    paddingVertical: 0,
+    paddingHorizontal: 10,
+    borderRadius: radius.button,
+    borderWidth: 1.5,
     alignItems: 'stretch',
     justifyContent: 'center',
   },
@@ -4259,16 +4153,42 @@ function createRosterStyles(fs: (n: number) => number, themeMode: 'light' | 'dar
   rosterActionButtonDanger: {
     backgroundColor: colors.error,
     borderWidth: 1,
-    borderColor: '#7A0000',
+    borderColor: colors.error,
   },
   rosterActionButtonContent: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 2,
+    gap: 6,
     paddingHorizontal: 2,
   },
+  rosterActionButtonTextDark: {
+    color: colors.text,
+    fontWeight: '700',
+    fontSize: fs(13),
+  },
+  dayHeaderRow: {
+    paddingTop: 12,
+    paddingBottom: 6,
+    paddingHorizontal: 2,
+  },
+  dayHeaderText: {
+    fontSize: fs(13),
+    fontWeight: '700',
+  },
+  calendarLegendRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    paddingHorizontal: 4,
+    paddingTop: 6,
+    paddingBottom: 4,
+  },
+  calendarLegendItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  calendarLegendDot: { width: 5, height: 5, borderRadius: 2.5 },
+  calendarLegendSwatch: { width: 10, height: 10, borderRadius: 3 },
+  calendarLegendText: { fontSize: fs(10), fontWeight: '500' },
   rosterActionButtonLabelCol: {
     flexShrink: 1,
     flexDirection: 'column',
@@ -4591,4 +4511,20 @@ function createRosterStyles(fs: (n: number) => number, themeMode: 'light' | 'dar
   swipeDeleteText: { color: colors.white, fontWeight: '700', fontSize: fs(14) },
   empty: { textAlign: 'center', marginTop: 48, fontSize: fs(16) },
 });
+}
+
+const rosterStylesCache = new Map<string, ReturnType<typeof createRosterStyles>>();
+
+function getCachedRosterStyles(fontScale: number, themeMode: 'light' | 'dark') {
+  const key = `${fontScale}|${themeMode}`;
+  const hit = rosterStylesCache.get(key);
+  if (hit) return hit;
+  const created = createRosterStyles((n) => Math.round(n * fontScale), themeMode);
+  rosterStylesCache.set(key, created);
+  // Keep at most a few presets × themes
+  if (rosterStylesCache.size > 8) {
+    const first = rosterStylesCache.keys().next().value;
+    if (first) rosterStylesCache.delete(first);
+  }
+  return created;
 }

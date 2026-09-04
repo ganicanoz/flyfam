@@ -22,6 +22,13 @@
     "copyErrorDone": "Error details copied to clipboard. You can paste them in support or chat.",
     "copyErrorFailed": "Could not copy to clipboard."
   },
+  "forceUpdate": {
+    "title": "Update required",
+    "body": "Please use the latest FlyFam version for new features. Older versions will be discontinued soon. iOS: update via TestFlight or the App Store. Android: update via Play Store closed testing; if you are not on the tester list, email flyfamapp@gmail.com to request an invite.",
+    "openStoreIos": "Open App Store / TestFlight",
+    "openStoreAndroid": "Open Play Store",
+    "requestInvite": "Request closed testing invite (email)"
+  },
   "welcome": {
     "title": "FlyFam",
     "subtitle": "Stay connected with your crew member's flights",
@@ -162,7 +169,7 @@
     "manageSubscription": "Manage subscription"
   },
   "legal": {
-    "privacyTitle": "KVKK / Privacy Notice",
+    "privacyTitle": "Privacy Policy and KVKK Notice",
     "termsTitle": "Terms of Use and Disclaimer"
   },
   "consent": {
@@ -234,7 +241,7 @@
     "allRosterRowsHidden": "Nothing to show. Open list task settings (header or Profile) to enable duty types, or add roster items.",
     "dep": "Dep:",
     "arr": "Arr:",
-      "trackOnFr24": "Live Tracking",
+    "trackOnFr24": "Live Tracking",
     "nextDay": "Tomorrow's Flight",
     "divertedTo": "Diverted ({{place}})",
     "divertExtra": "Diverted: {{place}}",
@@ -295,7 +302,31 @@
     "assignFlightsA11y": "Add flights assigned from standby",
     "assignFlightsConfirmTitle": "Assign flights",
     "assignFlightsConfirmMessage": "Add flights assigned from this standby. Saving removes the standby.",
-    "assignFlightsContinue": "Continue"
+    "assignFlightsContinue": "Continue",
+    "legendFlight": "Flight",
+    "legendOff": "Off",
+    "legendStandby": "Standby",
+    "legendLayover": "Layover",
+    "dayHeader": "{{date}} · {{count}} flight(s){{block}}",
+    "dayHeaderBlock": " · Total block {{hours}}h {{mins}}m",
+    "selectAndShare": "Select & Share",
+    "sendToFamilyCount": "Send to Family ({{count}})",
+    "statusStandby": "Standby",
+    "statusDelayedMins": "Delayed +{{mins}} min",
+    "liveTrack": "Live Track",
+    "aircraftRegShort": "Reg {{reg}}",
+    "durationShort": "{{hours}}h {{mins}}m",
+    "durationMinsOnly": "{{mins}}m",
+    "departInMins": "Departs in {{mins}} min",
+    "departInHours": "Departs in {{hours}}h {{mins}}m",
+    "status": {
+      "scheduled": "Scheduled",
+      "onTime": "On time",
+      "delayed": "Delayed",
+      "cancelled": "Cancelled",
+      "inFlight": "In flight",
+      "completed": "Completed"
+    }
   },
   "addFlight": {
     "title": "Add Flight",
@@ -442,7 +473,7 @@
     "approvedLabel": "approved",
     "selectOrChangePlan": "Select / change package",
     "planRequiredToInvite": "You need an active/trial subscription before sending invitations.",
-    "planLimitReached": "Family limit reached. Increase capacity by buying extra members.",
+    "planLimitReached": "Follower limit reached. Upgrade your plan for more capacity.",
     "emptyFamilyPlaceholder": "A family member can be added here.",
     "pushChecking": "Checking notifications…",
     "pushEnabled": "Notifications enabled",
@@ -465,7 +496,7 @@
   },
   "paywall": {
     "title": "Plan required",
-    "familyBlockedMessage": "Even if your invitation is approved, roster access stays blocked until your linked crew member has an active subscription.",
+    "familyBlockedMessage": "Even if your connection is approved, roster access stays blocked until the crew member whose roster you follow has an active subscription.",
     "plan": "Plan",
     "status": "Status",
     "refreshInvitePlan": "Refresh invitation/plan",
@@ -473,17 +504,17 @@
   },
   "plans": {
     "title": "Subscription",
-    "subtitle": "Choose a package for how many family members you need. You can upgrade later.",
-    "subtitleTiers": "Choose a package for how many family members you need. You can upgrade later.",
+    "subtitle": "Choose a package for how many followers can view your roster. You can upgrade later.",
+    "subtitleTiers": "Choose a package for how many followers can view your roster. You can upgrade later.",
     "currentPlan": "Your plan",
     "status": "Status",
     "trialEnds": "Trial ends",
-    "connectedFamily": "Connected family",
-    "seatsHeroHint": "approved family / plan capacity",
+    "connectedFollowers": "Connected followers",
+    "seatsHeroHint": "approved followers / plan capacity",
     "choosePackage": "Packages",
     "listPriceNote": "List price. The App Store amount at checkout is final.",
-    "familyMembersShort": "family members",
-    "familyMemberSingular": "family member",
+    "followersShort": "followers",
+    "followerSingular": "follower",
     "youLabel": "You",
     "perMonth": "/mo",
     "perYear": "/yr",
@@ -501,31 +532,52 @@
     "noSubscription": "No plan yet",
     "basePlanShort": "Couple",
     "currentTierBadge": "Your active plan",
-    "familySeats": "You + {{count}} family members",
-    "familyCapacity": "You + {{count}} family members",
+    "familySeats": "You + {{count}} followers",
+    "familyCapacity": "You + {{count}} followers",
     "storeIosOnly": "Purchases are available on iOS only for now.",
     "statusTrialing": "Trial",
     "statusActive": "Active",
     "statusPastDue": "Past due",
     "statusCanceled": "Canceled",
     "tier": {
-      "duo": { "title": "Couple", "subtitle": "You + 1 family member" },
-      "trio": { "title": "Trio", "subtitle": "You + 2 family members" },
-      "family": { "title": "Family", "subtitle": "You + 3 family members" },
-      "family_plus": { "title": "Family Plus", "subtitle": "You + 4 family members" },
-      "extended": { "title": "Extended Family", "subtitle": "You + 5 family members" },
-      "clan": { "title": "Clan", "subtitle": "You + 6 family members" },
-      "circle": { "title": "Circle", "subtitle": "You + 7 family members" }
+      "duo": {
+        "title": "Couple",
+        "subtitle": "You + 1 follower"
+      },
+      "trio": {
+        "title": "Trio",
+        "subtitle": "You + 2 followers"
+      },
+      "family": {
+        "title": "Family",
+        "subtitle": "You + 3 followers"
+      },
+      "family_plus": {
+        "title": "Family Plus",
+        "subtitle": "You + 4 followers"
+      },
+      "extended": {
+        "title": "Extended Family",
+        "subtitle": "You + 5 followers"
+      },
+      "clan": {
+        "title": "Clan",
+        "subtitle": "You + 6 followers"
+      },
+      "circle": {
+        "title": "Circle",
+        "subtitle": "You + 7 followers"
+      }
     },
     "restorePurchases": "Restore purchases",
     "restoreDoneTitle": "Restore completed",
     "restoreDoneMessage": "Purchases were checked.",
     "restoreErrorTitle": "Restore failed",
     "legalHeading": "Subscription summary",
-    "legalSubscriptionTitle": "Packages range from Couple to Circle. Each plan lets you connect yourself plus 1 to 7 family members.",
+    "legalSubscriptionTitle": "Each plan determines how many followers can view a crew member's roster. Followers may have family or crew accounts. A follower can follow multiple crew members; each crew member manages their own subscription capacity.",
     "legalSubscriptionLength": "Subscriptions renew monthly, or yearly if you choose a yearly product. Cancel anytime in App Store settings.",
     "legalSubscriptionPrice": "You’ll see the charge on the App Store confirmation screen before paying. Need more seats? Upgrade to a larger package.",
-    "legalAddonPrice": "There is no separate add-on; family capacity is included in the package you choose.",
+    "legalAddonPrice": "There is no separate add-on; follower capacity is included in the package you choose.",
     "autoRenewDisclaimer": "Payment is charged to your Apple ID. Your subscription renews unless you cancel at least 24 hours before the period ends. Manage it in Settings → Apple ID → Subscriptions."
   },
   "nav": {
@@ -540,6 +592,11 @@
     "invitations": "Invitations",
     "plans": "Subscription",
     "lastUpdatedAt": "Updated {{when}}",
-    "lastUpdatedPending": "Not synced yet"
+    "lastUpdatedPending": "Not synced yet",
+    "flightsTab": "Flights",
+    "lastUpdatedJustNow": "Updated just now",
+    "lastUpdatedMinutesAgo": "Updated {{count}} min ago",
+    "lastUpdatedHoursAgo": "Updated {{count}}h ago",
+    "lastUpdatedDaysAgo": "Updated {{count}}d ago"
   }
 }
