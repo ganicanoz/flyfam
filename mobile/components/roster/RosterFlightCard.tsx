@@ -2,7 +2,6 @@ import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Pressable } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useTranslation } from 'react-i18next';
-import { LinearGradient } from 'expo-linear-gradient';
 import { colors, type ThemeMode } from '../../theme/colors';
 import {
   resolveFlightStatusToken,
@@ -11,7 +10,16 @@ import {
   rosterCardInk,
   rosterStatusBadge,
 } from '../../theme/rosterCardVisual';
-import { radius, shadow, typography } from '../../theme/tokens';
+import {
+  cardAccent,
+  radius,
+  rosterListSpacing,
+  rosterMarks,
+  shadow,
+  typography,
+} from '../../theme/tokens';
+
+export type RosterCompactKind = 'standby' | 'off' | 'layover';
 
 export type RosterFlightCardModel = {
   flightNumber: string;
@@ -19,12 +27,8 @@ export type RosterFlightCardModel = {
   destIata: string;
   originCity?: string;
   destCity?: string;
-  /** Display times (already formatted). */
   depTime: string;
   arrTime: string;
-  /** When delayed: original scheduled (struck) + estimated. */
-  depTimeScheduledStruck?: string | null;
-  arrTimeScheduledStruck?: string | null;
   durationLabel: string;
   plusOneDay?: boolean;
   delayMins?: number | null;
@@ -32,14 +36,19 @@ export type RosterFlightCardModel = {
   flightStatus?: string | null;
   isStandbyDutyCode?: boolean;
   isNonFlightBlock?: boolean;
+  compactKind?: RosterCompactKind | null;
   blockTitle?: string;
+  layoverStationLabel?: string | null;
+  hotelHint?: string | null;
   progress?: number | null;
   showLiveTrack?: boolean;
+  /** Opsiyonel alt satır (reg vb.) — geri sayım yok. */
   footerHint?: string | null;
-  footerActionLabel?: string | null;
+  showAssignAction?: boolean;
   aircraftReg?: string | null;
   selectionMode?: boolean;
   selected?: boolean;
+  isPast?: boolean;
 };
 
 type Props = {
@@ -52,10 +61,6 @@ type Props = {
   onFooterAction?: () => void;
 };
 
-function formatDelayCompact(mins: number): string {
-  return `+${Math.round(mins)} dk`;
-}
-
 export function RosterFlightCard({
   model,
   themeMode,
@@ -67,35 +72,162 @@ export function RosterFlightCard({
 }: Props) {
   const { t } = useTranslation();
   const ink = rosterCardInk(themeMode);
+  const marks = rosterMarks(themeMode);
   const visual = resolveRosterCardVisualKind({
     rosterEntryKind: model.rosterEntryKind,
     flightStatus: model.flightStatus,
     isStandbyDutyCode: model.isStandbyDutyCode,
   });
   const chrome = rosterCardChrome(visual, themeMode);
+  const delayMins = model.delayMins != null && model.delayMins > 0 ? Math.round(model.delayMins) : null;
   const statusToken = resolveFlightStatusToken({
     rosterEntryKind: model.rosterEntryKind,
     flightStatus: model.flightStatus,
     isStandbyDutyCode: model.isStandbyDutyCode,
-    delayMins: model.delayMins,
+    delayMins,
   });
-  const badge = rosterStatusBadge(statusToken, themeMode);
+
+  const compactKind: RosterCompactKind | null =
+    model.compactKind ??
+    (model.isNonFlightBlock
+      ? model.isStandbyDutyCode
+        ? 'standby'
+        : 'off'
+      : null);
+
+  const isStandby = compactKind === 'standby';
+  const isOffCompact = compactKind === 'off';
+  const isLayover = compactKind === 'layover';
+  const inFlight = visual === 'in_flight';
+
+  const badge = rosterStatusBadge(
+    model.isPast || visual === 'landed'
+      ? 'completed'
+      : statusToken === 'onTime'
+        ? 'scheduled'
+        : statusToken,
+    themeMode,
+  );
 
   const statusLabel = useMemo(() => {
-    if (model.isNonFlightBlock) {
-      if (model.isStandbyDutyCode) return t('roster.statusStandby');
-      if ((model.rosterEntryKind || '').toLowerCase() === 'sim') return t('roster.simulatorBlockType');
-      return t('roster.offDutyType');
+    if (model.isPast || visual === 'landed') return t('roster.status.completed');
+    if (visual === 'in_flight') return t('roster.status.inFlight');
+    if (statusToken === 'cancelled') return t('roster.status.cancelled');
+    if (statusToken === 'delayed' && delayMins != null) {
+      return t('roster.statusDelayedMins', { mins: delayMins });
     }
-    if (statusToken === 'delayed' && model.delayMins != null) {
-      return t('roster.statusDelayedMins', { mins: Math.round(model.delayMins) });
-    }
-    return t(`roster.status.${statusToken}`);
-  }, [model, statusToken, t]);
+    if (statusToken === 'delayed') return t('roster.status.delayed');
+    return t('roster.statusScheduled');
+  }, [model.isPast, visual, statusToken, delayMins, t]);
 
   const fs = (n: number) => Math.round(n * fontScale);
-  const inFlight = visual === 'in_flight';
   const progress = model.progress;
+  const accent = isLayover
+    ? cardAccent('layover', themeMode)
+    : isOffCompact
+      ? cardAccent('duty_off', themeMode)
+      : isStandby
+        ? cardAccent('standby', themeMode)
+        : chrome.accentColor;
+
+  const selectionOrChevron = (
+    <>
+      {model.selectionMode ? (
+        <View
+          style={[
+            styles.check,
+            model.selected && { backgroundColor: colors.primary, borderColor: colors.primary },
+          ]}
+        >
+          {model.selected ? <Ionicons name="checkmark" size={12} color={colors.onPrimary} /> : null}
+        </View>
+      ) : (
+        <Ionicons name="chevron-forward" size={16} color={ink.muted} />
+      )}
+    </>
+  );
+
+  // —— Kompakt: nöbet / off / yatı ——
+  if (isStandby || isOffCompact || isLayover) {
+    const kindBadge = isStandby
+      ? { bg: marks.standbyBadgeBg, text: marks.standbyBadgeText }
+      : isLayover
+        ? { bg: marks.layoverBadgeBg, text: marks.layoverBadgeText }
+        : { bg: marks.offBadgeBg, text: marks.offBadgeText };
+    const kindLabel = isStandby
+      ? t('roster.statusStandby')
+      : isLayover
+        ? t('roster.legendLayover')
+        : t('roster.offBadge');
+    const detailLine = isStandby
+      ? `${model.depTime} – ${model.arrTime}${model.durationLabel.trim() ? ` · ${model.durationLabel}` : ''}`
+      : isLayover
+        ? model.layoverStationLabel || model.blockTitle || t('roster.legendLayover')
+        : t('roster.restDay');
+
+    return (
+      <TouchableOpacity
+        activeOpacity={0.88}
+        onPress={onPress}
+        onLongPress={onLongPress}
+        delayLongPress={350}
+        style={[
+          styles.compactCard,
+          shadow.card,
+          {
+            backgroundColor: colors.surface,
+            borderColor: colors.border,
+            opacity: model.isPast ? 0.72 : 1,
+          },
+          model.selectionMode && model.selected && { borderColor: colors.primary, borderWidth: 2 },
+        ]}
+      >
+        <View style={[styles.accent, { backgroundColor: accent }]} />
+        <View style={styles.compactBody}>
+          <View style={styles.standbyTop}>
+            <View style={[styles.kindBadge, { backgroundColor: kindBadge.bg }]}>
+              <Text style={[styles.kindBadgeText, { color: kindBadge.text, fontSize: fs(12) }]}>
+                {kindLabel}
+              </Text>
+            </View>
+            <Text
+              style={[
+                styles.standbyTimes,
+                typography.tabularNums,
+                { color: ink.primary, fontSize: fs(15) },
+              ]}
+              numberOfLines={1}
+            >
+              {detailLine}
+            </Text>
+            {selectionOrChevron}
+          </View>
+          {isLayover && model.hotelHint ? (
+            <Text style={[styles.hotelHint, { color: ink.muted, fontSize: fs(12) }]} numberOfLines={1}>
+              {model.hotelHint}
+            </Text>
+          ) : null}
+          {isStandby && model.showAssignAction && onFooterAction ? (
+            <Pressable
+              onPress={onFooterAction}
+              hitSlop={6}
+              style={[styles.assignPill, { backgroundColor: marks.standbyBadgeBg }]}
+            >
+              <Text style={[styles.assignPillText, { color: marks.standbyBadgeText, fontSize: fs(12) }]}>
+                {t('roster.assignFlights')}
+              </Text>
+              <Ionicons name="chevron-forward" size={14} color={marks.standbyBadgeText} />
+            </Pressable>
+          ) : null}
+        </View>
+      </TouchableOpacity>
+    );
+  }
+
+  // —— Uçuş kartı ——
+  const footerLeft =
+    model.aircraftReg ? t('roster.aircraftRegShort', { reg: model.aircraftReg }) : model.footerHint;
+  const showFooter = !!(footerLeft || (model.showLiveTrack && onLiveTrack));
 
   return (
     <TouchableOpacity
@@ -107,25 +239,21 @@ export function RosterFlightCard({
         styles.card,
         shadow.card,
         {
-          backgroundColor: chrome.backgroundColor,
-          borderColor: chrome.borderColor,
-          borderWidth: chrome.borderWidth,
+          backgroundColor: colors.surface,
+          borderColor: colors.border,
+          opacity: model.isPast ? 0.72 : 1,
         },
         model.selectionMode && model.selected && { borderColor: colors.primary, borderWidth: 2 },
       ]}
     >
-      <View style={[styles.accent, { backgroundColor: chrome.accentColor }]} />
+      <View style={[styles.accent, { backgroundColor: accent }]} />
       <View style={styles.body}>
         <View style={styles.topRow}>
           <Text
-            style={[
-              styles.flightNo,
-              typography.tabularNums,
-              { color: ink.primary, fontSize: fs(17) },
-            ]}
+            style={[styles.flightNo, typography.tabularNums, { color: ink.primary, fontSize: fs(16) }]}
             numberOfLines={1}
           >
-            {model.isNonFlightBlock ? model.blockTitle || model.flightNumber : model.flightNumber}
+            {model.flightNumber}
           </Text>
           <View style={[styles.badge, { backgroundColor: badge.backgroundColor }]}>
             <Text style={[styles.badgeText, { color: badge.color, fontSize: fs(12) }]} numberOfLines={1}>
@@ -146,111 +274,122 @@ export function RosterFlightCard({
           )}
         </View>
 
-        <View style={styles.routeRow}>
+        <View style={[styles.routeRow, !showFooter && !inFlight && { marginBottom: 0 }]}>
           <View style={styles.timeCol}>
-            {model.depTimeScheduledStruck ? (
-              <Text style={[styles.struck, { color: ink.muted, fontSize: fs(13) }]}>
-                {model.depTimeScheduledStruck}
-              </Text>
-            ) : null}
-            <Text style={[styles.bigTime, typography.tabularNums, { color: ink.primary, fontSize: fs(28) }]}>
+            <Text style={[styles.bigTime, typography.tabularNums, { color: ink.primary, fontSize: fs(26) }]}>
               {model.depTime}
             </Text>
-            <Text style={[styles.iata, { color: ink.secondary, fontSize: fs(13) }]}>
-              {model.isNonFlightBlock ? model.originCity || ' ' : model.originIata}
-            </Text>
+            <Text style={[styles.iata, { color: ink.secondary, fontSize: fs(13) }]}>{model.originIata}</Text>
+            {model.originCity ? (
+              <Text style={[styles.city, { color: ink.muted, fontSize: fs(11) }]} numberOfLines={1}>
+                {model.originCity}
+              </Text>
+            ) : null}
           </View>
           <View style={styles.midCol}>
-            <Text style={[styles.dur, { color: ink.muted, fontSize: fs(12) }]}>{model.durationLabel}</Text>
+            <Text style={[styles.dur, typography.tabularNums, { color: ink.muted, fontSize: fs(11) }]}>
+              {model.durationLabel}
+            </Text>
             <View style={styles.routeLine}>
-              <View style={[styles.dot, { backgroundColor: colors.border }]} />
               <View style={[styles.line, { backgroundColor: colors.border }]} />
-              <Ionicons
-                name={model.isNonFlightBlock ? 'time-outline' : 'airplane'}
-                size={16}
-                color={colors.primary}
-              />
+              <Ionicons name="airplane" size={14} color={ink.muted} style={styles.planeIcon} />
               <View style={[styles.line, { backgroundColor: colors.border }]} />
-              <View style={[styles.dot, { backgroundColor: colors.border }]} />
             </View>
           </View>
           <View style={[styles.timeCol, styles.timeColRight]}>
-            {model.arrTimeScheduledStruck ? (
-              <Text style={[styles.struck, { color: ink.muted, fontSize: fs(13) }]}>
-                {model.arrTimeScheduledStruck}
-              </Text>
-            ) : null}
             <View style={styles.arrTimeRow}>
-              <Text style={[styles.bigTime, typography.tabularNums, { color: ink.primary, fontSize: fs(28) }]}>
+              <Text style={[styles.bigTime, typography.tabularNums, { color: ink.primary, fontSize: fs(26) }]}>
                 {model.arrTime}
               </Text>
               {model.plusOneDay ? (
-                <Text style={[styles.plusOne, { color: colors.primary, fontSize: fs(11) }]}>+1</Text>
+                <Text style={[styles.plusOne, { color: ink.secondary, fontSize: fs(11) }]}>+1</Text>
               ) : null}
             </View>
-            <Text style={[styles.iata, { color: ink.secondary, fontSize: fs(13) }]}>
-              {model.isNonFlightBlock ? model.destCity || ' ' : model.destIata}
-            </Text>
+            <Text style={[styles.iata, { color: ink.secondary, fontSize: fs(13) }]}>{model.destIata}</Text>
+            {model.destCity ? (
+              <Text style={[styles.city, { color: ink.muted, fontSize: fs(11) }]} numberOfLines={1}>
+                {model.destCity}
+              </Text>
+            ) : null}
           </View>
         </View>
 
         {inFlight && progress != null ? (
           <View style={styles.progressWrap}>
             <View style={[styles.progressBar, { backgroundColor: colors.border }]}>
-              <View style={[styles.progressFill, { width: `${Math.round(progress * 1000) / 10}%` }]}>
-                <LinearGradient
-                  colors={themeMode === 'dark' ? ['#3D5468', '#4D7FFF'] : ['#93C5FD', '#1A5CF5']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={StyleSheet.absoluteFill}
-                />
-              </View>
+              <View
+                style={[
+                  styles.progressFill,
+                  {
+                    width: `${Math.round(Math.min(1, Math.max(0, progress)) * 1000) / 10}%`,
+                    backgroundColor: colors.primary,
+                  },
+                ]}
+              />
             </View>
-            <Text style={[styles.progressPct, typography.tabularNums, { color: ink.primary, fontSize: fs(12) }]}>
-              {`${Math.round(progress * 100)}%`}
+            <Text style={[styles.progressPct, typography.tabularNums, { color: ink.muted, fontSize: fs(11) }]}>
+              %{Math.round(Math.min(1, Math.max(0, progress)) * 100)}
             </Text>
           </View>
         ) : null}
 
-        <View style={styles.footerRow}>
-          {model.footerActionLabel && onFooterAction ? (
-            <Pressable onPress={onFooterAction} hitSlop={8} style={styles.liveBtn}>
-              <Text style={[styles.liveText, { color: colors.error, fontSize: fs(12) }]}>
-                {model.footerActionLabel}
-              </Text>
-            </Pressable>
-          ) : (
+        {showFooter ? (
+          <View style={styles.footerRow}>
             <Text style={[styles.footerHint, { color: ink.muted, fontSize: fs(12) }]} numberOfLines={1}>
-              {model.footerHint ||
-                (model.aircraftReg ? t('roster.aircraftRegShort', { reg: model.aircraftReg }) : ' ')}
+              {footerLeft || ' '}
             </Text>
-          )}
-          {model.showLiveTrack && onLiveTrack ? (
-            <Pressable onPress={onLiveTrack} hitSlop={8} style={styles.liveBtn}>
-              <Ionicons name="navigate-outline" size={14} color={colors.primary} />
-              <Text style={[styles.liveText, { color: colors.primary, fontSize: fs(12) }]}>
-                {t('roster.liveTrack')}
-              </Text>
-            </Pressable>
-          ) : null}
-        </View>
+            {model.showLiveTrack && onLiveTrack ? (
+              <Pressable onPress={onLiveTrack} hitSlop={8} style={styles.liveBtn}>
+                <Ionicons name="location-outline" size={14} color={ink.secondary} />
+                <Text style={[styles.liveText, { color: ink.secondary, fontSize: fs(12) }]}>
+                  {t('roster.liveTrack')}
+                </Text>
+              </Pressable>
+            ) : null}
+          </View>
+        ) : null}
       </View>
     </TouchableOpacity>
   );
 }
 
+const pad = rosterListSpacing.cardPadding;
+
 const styles = StyleSheet.create({
   card: {
     borderRadius: radius.card,
+    borderWidth: StyleSheet.hairlineWidth,
     overflow: 'hidden',
     flexDirection: 'row',
-    marginBottom: 10,
   },
   accent: { width: 4 },
-  body: { flex: 1, paddingHorizontal: 14, paddingVertical: 12 },
+  body: { flex: 1, paddingHorizontal: pad, paddingVertical: pad },
+  compactCard: {
+    borderRadius: radius.card,
+    borderWidth: StyleSheet.hairlineWidth,
+    overflow: 'hidden',
+    flexDirection: 'row',
+  },
+  compactBody: { flex: 1, paddingHorizontal: pad, paddingVertical: 10, gap: 8 },
+  standbyTop: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  standbyTimes: { flex: 1, fontWeight: '700' },
+  kindBadge: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
+  kindBadgeText: { fontWeight: '700' },
+  hotelHint: { fontWeight: '500', paddingLeft: 2 },
+  assignPill: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    minHeight: 36,
+  },
+  assignPillText: { fontWeight: '700' },
   topRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
-  flightNo: { fontWeight: '700', flexShrink: 1 },
-  badge: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3, maxWidth: '48%' },
+  flightNo: { fontWeight: '800', flexShrink: 1 },
+  badge: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
   badgeText: { fontWeight: '600' },
   check: {
     width: 22,
@@ -265,22 +404,22 @@ const styles = StyleSheet.create({
   routeRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
   timeCol: { flex: 1.1 },
   timeColRight: { alignItems: 'flex-end' },
-  bigTime: { fontWeight: '700', letterSpacing: -0.5 },
-  iata: { fontWeight: '600', marginTop: 2 },
-  struck: { textDecorationLine: 'line-through', marginBottom: 2 },
+  bigTime: { fontWeight: '700', letterSpacing: -0.4 },
+  iata: { fontWeight: '700', marginTop: 2 },
+  city: { fontWeight: '500', marginTop: 1 },
   midCol: { flex: 1.2, alignItems: 'center', paddingHorizontal: 4 },
   dur: { fontWeight: '500', marginBottom: 4 },
   routeLine: { flexDirection: 'row', alignItems: 'center', width: '100%' },
   line: { flex: 1, height: StyleSheet.hairlineWidth },
-  dot: { width: 5, height: 5, borderRadius: 3 },
+  planeIcon: { marginHorizontal: 2 },
   arrTimeRow: { flexDirection: 'row', alignItems: 'flex-start' },
   plusOne: { fontWeight: '700', marginLeft: 2, marginTop: 2 },
   progressWrap: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
   progressBar: { flex: 1, height: 4, borderRadius: 999, overflow: 'hidden' },
-  progressFill: { height: 4, borderRadius: 999, overflow: 'hidden' },
-  progressPct: { fontWeight: '700', minWidth: 36, textAlign: 'right' },
+  progressFill: { height: 4, borderRadius: 999 },
+  progressPct: { fontWeight: '600', minWidth: 28 },
   footerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   footerHint: { flex: 1, fontWeight: '500' },
-  liveBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, minHeight: 44, paddingHorizontal: 4 },
+  liveBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, minHeight: 44, paddingHorizontal: 2 },
   liveText: { fontWeight: '600' },
 });

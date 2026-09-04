@@ -75,7 +75,7 @@ import {
   rosterCardStyleTokens,
   rosterCardInk,
 } from '../theme/rosterCardVisual';
-import { calendarMarkSize, calendarTokens, radius, rosterMarks } from '../theme/tokens';
+import { calendarMarkSize, calendarTokens, radius, rosterListSpacing, rosterMarks } from '../theme/tokens';
 import { RosterFlightCard } from '../components/roster/RosterFlightCard';
 import { useFontScaleMultiplier } from '../theme/fontScale';
 import { fetchMySubscriptionAccess, fetchCrewRosterAccess, type SubscriptionAccess } from '../lib/subscriptionAccess';
@@ -2274,11 +2274,33 @@ export default function Roster({
   const formatDate = formatFlightDateTr;
   const formatRosterDayLabel = useCallback(
     (dateYmd: string) => {
-      if (crewUtcView) return formatUtcCalendarDateLabel(dateYmd);
-      if (familyRosterTz) return formatFlightDateYmdInIanaTz(dateYmd, familyRosterTz);
-      return formatDate(dateYmd);
+      const locale = i18n.language === 'tr' ? 'tr-TR' : 'en-US';
+      let weekdayShort: string;
+      let dayMonth: string;
+      if (crewUtcView) {
+        const d = new Date(`${dateYmd}T12:00:00Z`);
+        weekdayShort = d.toLocaleDateString(locale, { weekday: 'short', timeZone: 'UTC' });
+        dayMonth = d.toLocaleDateString(locale, { day: 'numeric', month: 'long', timeZone: 'UTC' });
+      } else if (familyRosterTz) {
+        // TZ-aware label via existing helper, then reshape if needed
+        const full = formatFlightDateYmdInIanaTz(dateYmd, familyRosterTz);
+        // full ≈ "4 Eylül - Cuma" → "Cum, 4 Eylül"
+        const parts = full.split(' - ');
+        if (parts.length === 2) {
+          const wd = parts[1]!.trim();
+          const short = wd.length > 3 ? wd.slice(0, 3) : wd;
+          return `${short}, ${parts[0]!.trim()}`;
+        }
+        return full;
+      } else {
+        const d = new Date(`${dateYmd}T12:00:00Z`);
+        weekdayShort = d.toLocaleDateString(locale, { weekday: 'short', timeZone: 'UTC' });
+        dayMonth = d.toLocaleDateString(locale, { day: 'numeric', month: 'long', timeZone: 'UTC' });
+      }
+      const short = (weekdayShort || '').replace(/\.$/, '');
+      return `${short}, ${dayMonth}`;
     },
-    [crewUtcView, familyRosterTz]
+    [crewUtcView, familyRosterTz, i18n.language]
   );
   const formatTimeUTC = (iso: string | null) => formatFlightTimeUTC(iso);
   const formatTimeLocal = (iso: string | null) => formatFlightTimeLocal(iso);
@@ -4152,20 +4174,6 @@ export default function Roster({
             const withinTwoHoursToDep =
               msToDep != null && msToDep <= 2 * 60 * 60 * 1000 && msToDep > -6 * 60 * 60 * 1000;
             const showLiveTrack = !isNonFlightBlock && (isEnRoute || !!withinTwoHoursToDep);
-            let footerHint: string | null = null;
-            if (!isNonFlightBlock && !isEnRoute && msToDep != null && msToDep > 0) {
-              const totalMins = Math.round(msToDep / 60000);
-              const days = Math.floor(totalMins / (60 * 24));
-              const hours = Math.floor((totalMins % (60 * 24)) / 60);
-              const mins = totalMins % 60;
-              if (days > 0) {
-                footerHint = t('roster.departInDays', { days, hours });
-              } else if (hours > 0) {
-                footerHint = t('roster.departInHours', { hours, mins });
-              } else {
-                footerHint = t('roster.departInMins', { mins });
-              }
-            }
             const dayYmd = listGroupDate(item);
             const isPast =
               dayYmd < rosterTodayYmd ||
@@ -4233,7 +4241,7 @@ export default function Roster({
                   : null) as 'standby' | 'off' | null,
               progress,
               showLiveTrack,
-              footerHint,
+              footerHint: null,
               showAssignAction: isStandbyBlock && isCrew,
               aircraftReg: aircraftRegDisplay,
               selectionMode,
@@ -4665,9 +4673,9 @@ function createRosterStyles(fs: (n: number) => number, themeMode: 'light' | 'dar
     position: 'absolute',
     right: 18,
     bottom: 18,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: rosterListSpacing.fabSize,
+    height: rosterListSpacing.fabSize,
+    borderRadius: rosterListSpacing.fabSize / 2,
     alignItems: 'center',
     justifyContent: 'center',
     elevation: 6,
@@ -4798,7 +4806,7 @@ function createRosterStyles(fs: (n: number) => number, themeMode: 'light' | 'dar
   sendToFamilyButtonDisabled: { opacity: 0.6 },
   listAndClearContainer: { flex: 1 },
   listFlex: { flex: 1 },
-  list: { paddingBottom: 56 + 16 + 24, paddingRight: 10 },
+  list: { paddingBottom: rosterListSpacing.listBottomPad, paddingRight: 10 },
   clearAllButtonWrap: {
     paddingHorizontal: 0,
     paddingTop: 20,
@@ -4818,9 +4826,9 @@ function createRosterStyles(fs: (n: number) => number, themeMode: 'light' | 'dar
   },
   clearAllButtonContent: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   clearAllButtonText: { color: colors.white, fontWeight: '700', fontSize: fs(16) },
-  itemWrapper: { marginBottom: 6 },
-  itemWrapperTightGroup: { marginTop: 2 },
-  itemWrapperNormalGroup: { marginTop: 10 },
+  itemWrapper: { marginBottom: rosterListSpacing.cardGapSameDay },
+  itemWrapperTightGroup: { marginTop: 0 },
+  itemWrapperNormalGroup: { marginTop: rosterListSpacing.dayGroupGap - rosterListSpacing.cardGapSameDay },
   dayRailRow: {
     flexDirection: 'row',
     alignItems: 'stretch',

@@ -195,3 +195,12 @@ export const calendarMarkSize = {
   barHeight: 4,
   cellBottomGap: 2,
 } as const;
+
+/** Roster list / card spacing (px). */
+export const rosterListSpacing = {
+  cardGapSameDay: 8,
+  dayGroupGap: 18,
+  cardPadding: 14,
+  fabSize: 56,
+  listBottomPad: 56 + 16,
+} as const;
