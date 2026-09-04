@@ -76,14 +76,14 @@ import {
   rosterCardStyleTokens,
   rosterCardInk,
 } from '../theme/rosterCardVisual';
-import { calendarMarkSize, calendarTokens, radius, rosterListSpacing, rosterMarks } from '../theme/tokens';
+import { calendarMarkSize, calendarTokens, radius, rosterListSpacing, rosterMarks, statusChrome } from '../theme/tokens';
 import { RosterFlightCard } from '../components/roster/RosterFlightCard';
 import { useFontScaleMultiplier } from '../theme/fontScale';
 import { fetchMySubscriptionAccess, fetchCrewRosterAccess, type SubscriptionAccess } from '../lib/subscriptionAccess';
 import { isSimulatorOccupationCode } from '../lib/pdfRosterImport';
 import { setRosterLastSyncedAt, getRosterLastSyncedAt, subscribeRosterLastSyncedAt } from '../lib/rosterSyncMeta';
 import { formatRelativeSyncedAt } from '../lib/relativeTime';
-import { demoPeersForUser, peerInitials, type DemoCrewPeer } from '../lib/crewPeerDemo';
+import { demoPeersForUser, peerInitials } from '../lib/crewPeerDemo';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -868,18 +868,22 @@ export default function Roster({
   const [nowTick, setNowTick] = useState(0);
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
-  /** Program içi roster değiştirici (tab bar'da ayrı peer sekmesi yok). */
-  const [internalPeer, setInternalPeer] = useState<{ peerCrewId: string; peerName: string } | null>(null);
-  /** Peer sekmesi: ortak boş günler (yeşil ✓). */
-  const [sharedOffDates, setSharedOffDates] = useState<string[]>([]);
-  const effectivePeerView = peerView ?? internalPeer;
+  /** Program içi roster değiştirici kaldırıldı — peer yalnızca 4. sekme. */
+  const effectivePeerView = peerView ?? null;
   const isPeerViewer = Boolean(effectivePeerView?.peerCrewId);
-  /** Hesap crew; peer rosterına bakarken bile chip satırı için. */
+  /** Ortak boş günler (kendi Program + peer sekmesi). */
+  const [sharedOffDates, setSharedOffDates] = useState<string[]>([]);
+  /** Hesap crew; peer rosterına bakarken bile karşılaştırma için. */
   const isOwnCrewAccount = profile?.role === 'crew';
   const followedPeers = useMemo(
     () => (isOwnCrewAccount ? demoPeersForUser(profile?.id) : []),
     [isOwnCrewAccount, profile?.id],
   );
+  /** Karşılaştırma: peer sekmesinde o kişi; kendi Program’da bağlı ilk peer. */
+  const comparePeerCrewId = useMemo(() => {
+    if (effectivePeerView?.peerCrewId) return effectivePeerView.peerCrewId;
+    return followedPeers[0]?.peerCrewId ?? null;
+  }, [effectivePeerView?.peerCrewId, followedPeers]);
   /** Kendi düzenlenebilir roster; peer görünümünde aile-modu UI (salt okunur). */
   const isCrew = profile?.role === 'crew' && !isPeerViewer;
   const flightsRef = useRef<Flight[]>([]);
@@ -3446,21 +3450,9 @@ export default function Roster({
     [listData],
   );
 
-  const selectOwnRoster = useCallback(() => {
-    setInternalPeer(null);
-    setFlights([]);
-    setLoading(true);
-  }, []);
-
-  const selectPeerRoster = useCallback((peer: DemoCrewPeer) => {
-    setInternalPeer({ peerCrewId: peer.peerCrewId, peerName: peer.name });
-    setFlights([]);
-    setLoading(true);
-  }, []);
-
   useEffect(() => {
     let cancelled = false;
-    if (!isPeerViewer || !crewProfile?.id || !isOwnCrewAccount || !effectivePeerView?.peerCrewId) {
+    if (!crewProfile?.id || !isOwnCrewAccount || !comparePeerCrewId) {
       setSharedOffDates([]);
       return;
     }
@@ -3487,7 +3479,7 @@ export default function Roster({
       try {
         const [mine, peer] = await Promise.all([
           collectOffDates(crewProfile.id),
-          collectOffDates(effectivePeerView.peerCrewId),
+          collectOffDates(comparePeerCrewId),
         ]);
         if (cancelled) return;
         const shared = [...mine].filter((d) => peer.has(d)).sort();
@@ -3499,17 +3491,13 @@ export default function Roster({
     return () => {
       cancelled = true;
     };
-  }, [
-    isPeerViewer,
-    crewProfile?.id,
-    isOwnCrewAccount,
-    effectivePeerView?.peerCrewId,
-    exemptLandedAutoPurge,
-  ]);
+  }, [crewProfile?.id, isOwnCrewAccount, comparePeerCrewId, exemptLandedAutoPurge]);
 
   const headerAvatarLabel = effectivePeerView?.peerName
     ? peerInitials(effectivePeerView.peerName)
     : peerInitials(profile?.full_name || t('roster.myRosterShort'));
+
+  const readOnlyPillChrome = statusChrome('scheduled', themeMode);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -3527,8 +3515,8 @@ export default function Roster({
               {effectivePeerView?.peerName ? effectivePeerView.peerName : t('nav.roster')}
             </Text>
             {isPeerViewer ? (
-              <View style={[styles.readOnlyPill, { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#F1F5F9' }]}>
-                <Text style={[styles.readOnlyPillText, { color: colors.textMuted }]}>{t('roster.readOnly')}</Text>
+              <View style={[styles.readOnlyPill, { backgroundColor: readOnlyPillChrome.bg }]}>
+                <Text style={[styles.readOnlyPillText, { color: readOnlyPillChrome.text }]}>{t('roster.readOnly')}</Text>
               </View>
             ) : null}
           </View>
@@ -3599,7 +3587,7 @@ export default function Roster({
         </View>
       ) : null}
 
-      {isPeerViewer && sharedOffThisMonth.length > 0 ? (
+      {isOwnCrewAccount && comparePeerCrewId && sharedOffThisMonth.length > 0 ? (
         <TouchableOpacity
           style={[
             styles.sharedOffBanner,
@@ -3617,6 +3605,11 @@ export default function Roster({
             onDateRollerChipPress(next);
           }}
           activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel={t('roster.sharedOffDaysMonth', {
+            count: sharedOffThisMonth.length,
+            days: sharedOffThisMonth.map((d) => String(parseInt(d.slice(8, 10), 10))).join(', '),
+          })}
         >
           <Text
             style={[styles.sharedOffBannerText, { color: rosterMarks(themeMode).sharedOffBannerText }]}
@@ -4287,31 +4280,15 @@ function createRosterStyles(fs: (n: number) => number, themeMode: 'light' | 'dar
     fontSize: fs(10),
     fontWeight: '700',
   },
-  peerChipScroll: { marginBottom: 6, maxHeight: 40 },
-  peerChipRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 2 },
-  peerChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 16,
-    borderWidth: 1.5,
-  },
-  peerChipAvatar: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   sharedOffBanner: {
     marginHorizontal: 0,
     marginBottom: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 12,
-    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    minHeight: 44,
+    borderRadius: radius.button,
+    borderWidth: StyleSheet.hairlineWidth,
+    justifyContent: 'center',
   },
   sharedOffBannerText: {
     fontSize: fs(13),
@@ -4325,9 +4302,9 @@ function createRosterStyles(fs: (n: number) => number, themeMode: 'light' | 'dar
   },
   pageHeaderActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   pageIconBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     borderWidth: 1.5,
     alignItems: 'center',
     justifyContent: 'center',

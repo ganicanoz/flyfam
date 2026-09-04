@@ -21,19 +21,17 @@ import {
   Platform,
   Pressable,
   Text,
+  Animated,
 } from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets, initialWindowMetrics } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useTranslation } from 'react-i18next';
 import { SessionProvider, useSession } from './contexts/SessionContext';
 import { AdminRosterProvider, useAdminRoster } from './contexts/AdminRosterContext';
 import { colors, loadStoredThemeMode, useThemeMode } from './theme/colors';
 import { loadStoredFontSizePreset, useFontScaleMultiplier } from './theme/fontScale';
-import {
-  getRosterLastSyncedAt,
-  subscribeRosterLastSyncedAt,
-} from './lib/rosterSyncMeta';
-import { formatRelativeSyncedAt } from './lib/relativeTime';
+import { demoPeersForUser, peerInitials, peerTabShortLabel } from './lib/crewPeerDemo';
 
 import Welcome from './screens/Welcome';
 import SignIn from './screens/SignIn';
@@ -48,7 +46,6 @@ import AdminPanel from './screens/AdminPanel';
 import Family from './screens/Family';
 import PartnerRoster from './screens/PartnerRoster';
 import Profile from './screens/Profile';
-import { demoPeersForUser, peerTabBadgeLabel } from './lib/crewPeerDemo';
 import ConsentHistory from './screens/ConsentHistory';
 import EditProfile from './screens/EditProfile';
 import Connect from './screens/Connect';
@@ -65,17 +62,14 @@ import {
   type AppReleasePolicy,
 } from './lib/appReleasePolicy';
 
-/** Uygulama alt nav — primary.soft pill + etiket. */
-const TAB_BAR_HEIGHT = 56;
-const TAB_ICON_SIZE = 22;
-const ANDROID_NAV_BAR_FALLBACK = 48;
-const META_LINE_H = 16;
-
-function tabBarBottomPad(bottomInset: number): number {
-  if (bottomInset > 0) return bottomInset;
-  if (Platform.OS === 'android') return ANDROID_NAV_BAR_FALLBACK;
-  return 0;
-}
+/** Instagram floating tab ölçüleri. */
+const TAB_BAR_HEIGHT = 62;
+const TAB_ICON_SIZE = 20;
+const TAB_INDICATOR_W = 52;
+const TAB_INDICATOR_H = 48;
+const TAB_INDICATOR_RADIUS = 14;
+const TAB_SIDE_MARGIN = 28;
+const TAB_INNER_PAD_H = 8;
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -102,143 +96,289 @@ const TAB_ICONS: Record<
   { active: React.ComponentProps<typeof Ionicons>['name']; inactive: React.ComponentProps<typeof Ionicons>['name'] }
 > = {
   Roster: { active: 'calendar', inactive: 'calendar-outline' },
-  PeerRoster: { active: 'calendar', inactive: 'calendar-outline' },
   Family: { active: 'people', inactive: 'people-outline' },
   Profile: { active: 'person', inactive: 'person-outline' },
 };
 
-function FlyFamTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
+/** Instagram tarzı floating glass pill + kayan soft indicator. */
+function InstagramGlassTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const { t } = useTranslation();
   const { profile } = useSession();
   const peer = React.useMemo(() => demoPeersForUser(profile?.id)[0] ?? null, [profile?.id]);
-  const peerBadge = React.useMemo(
-    () => (peer ? peerTabBadgeLabel(peer.name) : null),
+  const peerLabel = React.useMemo(
+    () => (peer ? peerTabShortLabel(peer.name) : null),
+    [peer],
+  );
+  const peerAvatar = React.useMemo(
+    () => (peer ? peerInitials(peer.name) : null),
     [peer],
   );
   const insets = useSafeAreaInsets();
+  const mode = useThemeMode();
+  const isDark = mode === 'dark';
   const onTabBarHeightChange = React.useContext(BottomTabBarHeightCallbackContext);
-  const bottomPad = tabBarBottomPad(insets.bottom);
-  const [lastSyncedAt, setLastSyncedAt] = React.useState<number | null>(() => getRosterLastSyncedAt());
-  const [nowTick, setNowTick] = React.useState(() => Date.now());
-
+  const floatBottom = Math.max(insets.bottom > 0 ? 6 : 10, 6);
+  const tabCenters = React.useRef<number[]>(state.routes.map(() => 0));
+  const indicatorX = React.useRef(new Animated.Value(0)).current;
+  const indicatorReady = React.useRef(false);
   React.useEffect(() => {
-    onTabBarHeightChange?.(TAB_BAR_HEIGHT + META_LINE_H + bottomPad);
-  }, [onTabBarHeightChange, bottomPad]);
+    onTabBarHeightChange?.(0);
+  }, [onTabBarHeightChange]);
 
-  React.useEffect(() => subscribeRosterLastSyncedAt(() => setLastSyncedAt(getRosterLastSyncedAt())), []);
-  React.useEffect(() => {
-    const id = setInterval(() => setNowTick(Date.now()), 30_000);
-    return () => clearInterval(id);
-  }, []);
-
-  const metaText = React.useMemo(
-    () => formatRelativeSyncedAt(lastSyncedAt, nowTick, t),
-    [lastSyncedAt, nowTick, t],
+  const animateIndicatorTo = React.useCallback(
+    (index: number, instant = false) => {
+      const x = tabCenters.current[index];
+      if (x == null || Number.isNaN(x)) return;
+      if (instant || !indicatorReady.current) {
+        indicatorX.setValue(x);
+        indicatorReady.current = true;
+        return;
+      }
+      Animated.spring(indicatorX, {
+        toValue: x,
+        useNativeDriver: true,
+        friction: 8,
+        tension: 160,
+        overshootClamping: false,
+      }).start();
+    },
+    [indicatorX],
   );
+
+  React.useEffect(() => {
+    animateIndicatorTo(state.index);
+  }, [state.index, animateIndicatorTo]);
+
 
   return (
     <View
+      pointerEvents="box-none"
       style={[
-        tabStyles.wrap,
+        igTabStyles.dock,
         {
-          paddingBottom: bottomPad,
-          backgroundColor: colors.surface,
-          borderTopColor: colors.border,
+          bottom: floatBottom,
+          left: TAB_SIDE_MARGIN,
+          right: TAB_SIDE_MARGIN,
         },
       ]}
     >
-      <View style={tabStyles.row}>
-        {state.routes.map((route, index) => {
-          const focused = state.index === index;
-          const { options } = descriptors[route.key];
-          const iconSet = TAB_ICONS[route.name] ?? { active: 'ellipse', inactive: 'ellipse-outline' };
-          const label =
-            route.name === 'Roster'
-              ? t('nav.flightsTab')
-              : route.name === 'PeerRoster'
-                ? peerBadge?.shortName || peer?.name || 'Crew'
-                : route.name === 'Family'
-                  ? t('nav.family')
-                  : t('nav.profile');
-          const color = focused ? colors.primary : colors.textMuted;
-
-          const onPress = () => {
-            const event = navigation.emit({
-              type: 'tabPress',
-              target: route.key,
-              canPreventDefault: true,
-            });
-            if (!focused && !event.defaultPrevented) {
-              navigation.navigate(route.name, route.params);
+      <View
+        style={[
+          igTabStyles.pillShadow,
+          {
+            shadowColor: isDark ? '#000' : '#0F172A',
+            marginBottom: 4,
+          },
+        ]}
+      >
+        <View
+          style={[
+            igTabStyles.pill,
+            {
+              height: TAB_BAR_HEIGHT,
+              backgroundColor: isDark ? 'rgba(28, 32, 40, 0.88)' : 'rgba(255, 255, 255, 0.94)',
+              borderColor: isDark ? 'rgba(255,255,255,0.14)' : 'rgba(0,0,0,0.06)',
+            },
+          ]}
+        >
+          <LinearGradient
+            pointerEvents="none"
+            colors={
+              isDark
+                ? ['rgba(255,255,255,0.14)', 'rgba(255,255,255,0.03)', 'rgba(0,0,0,0.22)']
+                : ['rgba(255,255,255,0.92)', 'rgba(255,255,255,0.4)', 'rgba(236,242,250,0.5)']
             }
-          };
+            locations={[0, 0.45, 1]}
+            style={StyleSheet.absoluteFillObject}
+          />
+          <View style={[igTabStyles.row, { paddingHorizontal: TAB_INNER_PAD_H }]}>
+            <Animated.View
+              pointerEvents="none"
+              style={[
+                igTabStyles.indicator,
+                {
+                  width: TAB_INDICATOR_W,
+                  height: TAB_INDICATOR_H,
+                  borderRadius: TAB_INDICATOR_RADIUS,
+                  backgroundColor: isDark ? colors.surfaceAlt : colors.primaryLight,
+                  top: (TAB_BAR_HEIGHT - TAB_INDICATOR_H) / 2,
+                  transform: [{ translateX: indicatorX }],
+                },
+              ]}
+            />
+            {state.routes.map((route, index) => {
+              const focused = state.index === index;
+              const { options } = descriptors[route.key];
+              const iconSet = TAB_ICONS[route.name] ?? { active: 'ellipse', inactive: 'ellipse-outline' };
+              const a11y =
+                options.tabBarAccessibilityLabel ??
+                (route.name === 'Roster'
+                  ? t('nav.rosterTab')
+                  : route.name === 'PeerRoster'
+                    ? peerLabel || peer?.name || t('nav.peerTab')
+                    : route.name === 'Family'
+                      ? t('nav.family')
+                      : t('nav.profile'));
+              const color = focused
+                ? isDark
+                  ? colors.text
+                  : colors.primary
+                : isDark
+                  ? colors.textMuted
+                  : colors.textMuted;
 
-          return (
-            <Pressable
-              key={route.key}
-              accessibilityRole="button"
-              accessibilityState={focused ? { selected: true } : {}}
-              accessibilityLabel={options.tabBarAccessibilityLabel ?? label}
-              onPress={onPress}
-              onLongPress={() => navigation.emit({ type: 'tabLongPress', target: route.key })}
-              style={tabStyles.item}
-            >
-              <View style={[tabStyles.pill, focused && { backgroundColor: colors.primaryLight }]}>
-                <Ionicons
-                  name={focused ? iconSet.active : iconSet.inactive}
-                  size={TAB_ICON_SIZE}
-                  color={color}
-                />
-              </View>
-              <Text style={[tabStyles.label, { color }]} numberOfLines={1}>
-                {label}
-              </Text>
-            </Pressable>
-          );
-        })}
+              const onPress = () => {
+                const event = navigation.emit({
+                  type: 'tabPress',
+                  target: route.key,
+                  canPreventDefault: true,
+                });
+                if (!focused && !event.defaultPrevented) {
+                  navigation.navigate(route.name, route.params);
+                }
+              };
+
+              const isPeerTab = route.name === 'PeerRoster';
+
+              return (
+                <React.Fragment key={route.key}>
+                  {index > 0 ? (
+                    <View
+                      pointerEvents="none"
+                      style={[
+                        igTabStyles.sep,
+                        {
+                          backgroundColor: isDark
+                            ? 'rgba(255,255,255,0.18)'
+                            : 'rgba(15,23,42,0.14)',
+                        },
+                      ]}
+                    />
+                  ) : null}
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityState={focused ? { selected: true } : {}}
+                    accessibilityLabel={a11y}
+                    onPress={onPress}
+                    onLongPress={() => {
+                      navigation.emit({ type: 'tabLongPress', target: route.key });
+                    }}
+                    style={igTabStyles.item}
+                    onLayout={(e) => {
+                      const { x, width } = e.nativeEvent.layout;
+                      tabCenters.current[index] = x + width / 2 - TAB_INDICATOR_W / 2;
+                      if (index === state.index) {
+                        animateIndicatorTo(index, !indicatorReady.current);
+                      }
+                    }}
+                  >
+                    {isPeerTab && peerAvatar ? (
+                      <View
+                        style={[
+                          igTabStyles.peerAvatar,
+                          {
+                            backgroundColor: focused
+                              ? isDark
+                                ? colors.surfaceAlt
+                                : colors.primary
+                              : isDark
+                                ? colors.border
+                                : colors.primaryLight,
+                          },
+                        ]}
+                      >
+                        <Text
+                          style={{
+                            color: focused
+                              ? isDark
+                                ? colors.text
+                                : colors.onPrimary
+                              : color,
+                            fontSize: 11,
+                            fontWeight: '800',
+                          }}
+                        >
+                          {peerAvatar}
+                        </Text>
+                      </View>
+                    ) : (
+                      <Ionicons
+                        name={focused ? iconSet.active : iconSet.inactive}
+                        size={TAB_ICON_SIZE}
+                        color={color}
+                      />
+                    )}
+                    <Text
+                      style={[igTabStyles.label, { color }]}
+                      numberOfLines={1}
+                    >
+                      {a11y}
+                    </Text>
+                  </Pressable>
+                </React.Fragment>
+              );
+            })}
+          </View>
+        </View>
       </View>
-      <Text style={[tabStyles.meta, { color: colors.textMuted }]} numberOfLines={1}>
-        {metaText}
-      </Text>
     </View>
   );
 }
 
-const tabStyles = StyleSheet.create({
-  wrap: {
-    borderTopWidth: StyleSheet.hairlineWidth,
+const igTabStyles = StyleSheet.create({
+  dock: {
+    position: 'absolute',
+    zIndex: 100,
+    elevation: 100,
+  },
+  pillShadow: {
+    borderRadius: 999,
+    shadowOpacity: 0.18,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 14,
+  },
+  pill: {
+    borderRadius: 999,
+    borderWidth: StyleSheet.hairlineWidth * 2,
+    overflow: 'hidden',
+  },
+  indicator: {
+    position: 'absolute',
+    left: 0,
   },
   row: {
-    height: TAB_BAR_HEIGHT,
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 8,
   },
   item: {
     flex: 1,
+    height: '100%',
     minHeight: 44,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 2,
-  },
-  pill: {
-    minWidth: 48,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 12,
+    paddingTop: 4,
   },
   label: {
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  meta: {
-    textAlign: 'center',
     fontSize: 10,
-    fontWeight: '500',
-    height: META_LINE_H,
-    marginBottom: 2,
+    fontWeight: '700',
+    letterSpacing: 0.1,
+    maxWidth: '100%',
+  },
+  peerAvatar: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sep: {
+    width: StyleSheet.hairlineWidth * 2,
+    height: 28,
+    borderRadius: 1,
+    alignSelf: 'center',
   },
 });
 
@@ -246,14 +386,15 @@ function MainTabs() {
   const { t } = useTranslation();
   const { profile } = useSession();
   const hasPeerFollow = demoPeersForUser(profile?.id).length > 0;
-  const peerName = demoPeersForUser(profile?.id)[0]?.name;
+  const peerName = demoPeersForUser(profile?.id)[0]?.name ?? '';
+  const peerTabTitle = peerName ? peerTabShortLabel(peerName) : 'Crew';
   const insets = useSafeAreaInsets();
   const mode = useThemeMode();
-  void mode;
+  const isDark = mode === 'dark';
   const fontScale = useFontScaleMultiplier();
   const headerTitleFont = Math.round(20 * fontScale);
-  const bottomPad = tabBarBottomPad(insets.bottom);
-  const contentBottomPad = TAB_BAR_HEIGHT + META_LINE_H + bottomPad + 8;
+  const floatBottom = Math.max(insets.bottom > 0 ? 6 : 10, 6);
+  const contentBottomPad = TAB_BAR_HEIGHT + 12 + floatBottom + 8;
   const screenOptions = React.useMemo(
     () => ({
       headerStyle: {
@@ -271,11 +412,13 @@ function MainTabs() {
   );
   return (
     <Tab.Navigator
-      tabBar={(props) => <FlyFamTabBar {...props} />}
+      tabBar={(props) => <InstagramGlassTabBar {...props} />}
       safeAreaInsets={{ top: 0, bottom: 0, left: 0, right: 0 }}
       screenOptions={{
         ...screenOptions,
         tabBarShowLabel: false,
+        tabBarActiveTintColor: isDark ? colors.text : colors.primary,
+        tabBarInactiveTintColor: colors.textMuted,
         tabBarStyle: {
           position: 'absolute',
           backgroundColor: 'transparent',
@@ -304,8 +447,8 @@ function MainTabs() {
           component={PeerRosterTabScreen}
           options={{
             headerShown: true,
-            title: peerName || 'Crew',
-            tabBarAccessibilityLabel: peerName || 'Crew follow',
+            title: peerTabTitle,
+            tabBarAccessibilityLabel: peerTabTitle,
           }}
         />
       ) : null}
@@ -313,7 +456,7 @@ function MainTabs() {
         name="Family"
         component={Family}
         options={{
-          headerShown: true,
+          headerShown: false,
           title: t('nav.family'),
           tabBarAccessibilityLabel: t('nav.family'),
         }}
@@ -322,7 +465,7 @@ function MainTabs() {
         name="Profile"
         component={Profile}
         options={{
-          headerShown: true,
+          headerShown: false,
           title: t('nav.profile'),
           tabBarAccessibilityLabel: t('nav.profile'),
         }}
