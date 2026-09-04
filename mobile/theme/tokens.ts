@@ -53,6 +53,7 @@ export type FlightStatusToken =
 
 type StatusChrome = { bg: string; text: string };
 
+/** Planlı / gecikmeli / iptal vb. durum rozetleri. */
 const STATUS_LIGHT: Record<FlightStatusToken, StatusChrome> = {
   scheduled: { bg: '#F1F3F7', text: '#4B5563' },
   onTime: { bg: '#E6F6EC', text: '#1B7F3B' },
@@ -75,27 +76,83 @@ export function statusChrome(token: FlightStatusToken, mode: ThemeMode): StatusC
   return mode === 'dark' ? STATUS_DARK[token] : STATUS_LIGHT[token];
 }
 
-/** Calendar day fills / accents (selected & today handled in UI). */
+/**
+ * Roster calendar marks + compact-card kind badges.
+ * Cells stay white; dots/lines carry meaning (no pastel day fills).
+ */
+export const rosterMarksLight = {
+  /** Katman 1 — uçuş günü tek nokta */
+  flightDot: '#E53935',
+  /** Katman 2 — birleşik çizgiler */
+  layoverLine: '#F48FB1',
+  standbyLine: '#F59E0B',
+  offLine: '#22A55B',
+  /** Kompakt kart rozetleri */
+  offBadgeBg: '#E6F6EC',
+  offBadgeText: '#1B7F3B',
+  standbyBadgeBg: '#FFF1E0',
+  standbyBadgeText: '#B45309',
+  layoverBadgeBg: '#FCE4EC',
+  layoverBadgeText: '#AD1457',
+  /** Ortak boş gün ✓ (karşılaştırma) */
+  sharedOffMark: '#1B7F3B',
+  sharedOffBannerBg: '#E6F6EC',
+  sharedOffBannerBorder: '#B7E4C7',
+  sharedOffBannerText: '#1B7F3B',
+} as const;
+
+export const rosterMarksDark = {
+  flightDot: '#EF5350',
+  layoverLine: '#F8BBD0',
+  standbyLine: '#F0B060',
+  offLine: '#4ADE80',
+  offBadgeBg: '#1A3324',
+  offBadgeText: '#7BC47F',
+  standbyBadgeBg: '#3A2A14',
+  standbyBadgeText: '#F0B060',
+  layoverBadgeBg: '#3A1A2A',
+  layoverBadgeText: '#F9A8D4',
+  sharedOffMark: '#7BC47F',
+  sharedOffBannerBg: '#1A3324',
+  sharedOffBannerBorder: '#2D5A3D',
+  sharedOffBannerText: '#7BC47F',
+} as const;
+
+export function rosterMarks(mode: ThemeMode) {
+  return mode === 'dark' ? rosterMarksDark : rosterMarksLight;
+}
+
+/**
+ * Calendar chrome — white cells; marks come from `rosterMarks`.
+ * Pastel day fills removed; keep border/empty helpers only.
+ */
 export const calendarLight = {
-  flightDot: '#1A5CF5',
-  dutyOffBg: '#E5E7EB',
-  dutyOffText: '#4B5563',
-  standbyBg: '#FFEDD5',
-  standbyText: '#B45309',
-  layoverBg: '#FCE7F3',
-  layoverText: '#BE185D',
+  flightDot: rosterMarksLight.flightDot,
+  layoverLine: rosterMarksLight.layoverLine,
+  standbyLine: rosterMarksLight.standbyLine,
+  offLine: rosterMarksLight.offLine,
+  /** @deprecated pastel fills — do not use for day backgrounds */
+  dutyOffBg: 'transparent',
+  dutyOffText: '#0F1B3D',
+  standbyBg: 'transparent',
+  standbyText: '#0F1B3D',
+  layoverBg: 'transparent',
+  layoverText: '#0F1B3D',
   emptyBg: 'transparent',
   emptyBorder: '#E5E9F0',
 } as const;
 
 export const calendarDark = {
-  flightDot: '#4D7FFF',
-  dutyOffBg: '#2A3344',
-  dutyOffText: '#C5D0E0',
-  standbyBg: '#3A2A14',
-  standbyText: '#F0B060',
-  layoverBg: '#3A1A2A',
-  layoverText: '#F9A8D4',
+  flightDot: rosterMarksDark.flightDot,
+  layoverLine: rosterMarksDark.layoverLine,
+  standbyLine: rosterMarksDark.standbyLine,
+  offLine: rosterMarksDark.offLine,
+  dutyOffBg: 'transparent',
+  dutyOffText: '#F3F6FB',
+  standbyBg: 'transparent',
+  standbyText: '#F3F6FB',
+  layoverBg: 'transparent',
+  layoverText: '#F3F6FB',
   emptyBg: 'transparent',
   emptyBorder: '#243049',
 } as const;
@@ -107,20 +164,20 @@ export function calendarTokens(mode: ThemeMode) {
 /** Left accent on roster cards (surface body stays white/surface). */
 export const cardAccentLight = {
   flight: '#1A5CF5',
-  duty_off: '#94A3B8',
-  standby: '#F59E0B',
+  duty_off: rosterMarksLight.offLine,
+  standby: rosterMarksLight.standbyLine,
   in_flight: '#1D4ED8',
   landed: '#16A34A',
-  layover: '#EC4899',
+  layover: rosterMarksLight.layoverLine,
 } as const;
 
 export const cardAccentDark = {
   flight: '#4D7FFF',
-  duty_off: '#9AA8BC',
-  standby: '#F0B060',
+  duty_off: rosterMarksDark.offLine,
+  standby: rosterMarksDark.standbyLine,
   in_flight: '#6BB3FF',
   landed: '#7BC47F',
-  layover: '#F9A8D4',
+  layover: rosterMarksDark.layoverLine,
 } as const;
 
 export function cardAccent(
@@ -131,3 +188,10 @@ export function cardAccent(
 }
 
 export const touchMin = 44;
+
+/** Calendar mark geometry (px). */
+export const calendarMarkSize = {
+  dot: 6,
+  barHeight: 4,
+  cellBottomGap: 2,
+} as const;
