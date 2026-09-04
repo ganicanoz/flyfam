@@ -504,6 +504,7 @@
     "approvedLabel": "approved",
     "selectOrChangePlan": "Select / change package",
     "planRequiredToInvite": "You need an active/trial subscription before sending invitations.",
+    "goToSubscription": "Go to subscription →",
     "planLimitReached": "Follower limit reached. Upgrade your plan for more capacity.",
     "emptyFamilyPlaceholder": "A family member can be added here.",
     "pushChecking": "Checking notifications…",
@@ -518,7 +519,13 @@
     "emptyMembersTitle": "No family members yet",
     "emptyMembersBody": "Invite family members, share your flight plans, and follow together.",
     "inviteNowCta": "Send an invitation now",
-    "connectedMembersTitle": "Connected family members"
+    "connectedMembersTitle": "Connected family members",
+    "viewerRole": "Viewer",
+    "resendInvite": "Resend",
+    "resendInviteSent": "Invitation resent.",
+    "inviteSentOn": "Sent: {{when}}",
+    "memberActionsTitle": "Member actions",
+    "memberLongPressHint": "Long-press or swipe left to remove"
   },
   "connect": {
     "title": "Invitations",

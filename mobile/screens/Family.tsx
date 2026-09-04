@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -11,17 +11,19 @@ import {
   Platform,
   ScrollView,
   Image,
+  Pressable,
 } from 'react-native';
 import { Swipeable, RectButton } from 'react-native-gesture-handler';
 import { useTranslation } from 'react-i18next';
 import { useFocusEffect } from '@react-navigation/native';
 import { useNavigation } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSession } from '../contexts/SessionContext';
 import { supabase } from '../lib/supabase';
 import { getPushTokenWithReason, registerPushTokenForFamilyUser } from '../lib/pushNotifications';
 import { colors, useThemeMode } from '../theme/colors';
 import { fetchMySubscriptionAccess, type SubscriptionAccess } from '../lib/subscriptionAccess';
-import { demoPeersForUser } from '../lib/crewPeerDemo';
+import { demoPeersForUser, peerInitials } from '../lib/crewPeerDemo';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { radius, shadow } from '../theme/tokens';
@@ -30,9 +32,11 @@ import {
   hydrateRosterLastSharedAt,
   subscribeRosterLastSharedAt,
 } from '../lib/rosterShareMeta';
+import { pushRootScreen } from '../lib/pushRootScreen';
 
 /** Aile üye kartı ile Kaldır butonu aynı yükseklik (padding 16+16 + avatar 40). */
 const FAMILY_MEMBER_ROW_HEIGHT = 72;
+const SWIPE_HINT_KEY = 'flyfam.familySwipeHintSeen.v1';
 
 function formatLastSharedWhen(ms: number, locale: string): string {
   const d = new Date(ms);
@@ -44,6 +48,13 @@ function formatLastSharedWhen(ms: number, locale: string): string {
   const hh = String(d.getHours()).padStart(2, '0');
   const mm = String(d.getMinutes()).padStart(2, '0');
   return `${day} ${month} ${hh}:${mm}`;
+}
+
+function formatInviteSentWhen(iso: string | null, locale: string): string | null {
+  if (!iso) return null;
+  const ms = Date.parse(iso);
+  if (!Number.isFinite(ms)) return null;
+  return formatLastSharedWhen(ms, locale);
 }
 
 type Connection = {
@@ -77,31 +88,56 @@ export default function Family() {
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createFamilyStyles(), [themeMode]);
   const isTr = String(i18n.language || '').toLowerCase().startsWith('tr');
+  const locale = isTr ? 'tr-TR' : 'en-US';
   const [connections, setConnections] = useState<Connection[]>([]);
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(true);
   const [sendLoading, setSendLoading] = useState(false);
+  const [resendLoadingId, setResendLoadingId] = useState<string | null>(null);
   const [pendingInvites, setPendingInvites] = useState<PendingInvite[]>([]);
   const [sentPendingInvites, setSentPendingInvites] = useState<SentPendingInvite[]>([]);
   const [inviteResponding, setInviteResponding] = useState<string | null>(null);
   const [access, setAccess] = useState<SubscriptionAccess | null>(null);
   const [pushStatus, setPushStatus] = useState<'idle' | 'checking' | 'ok' | 'error'>('idle');
   const [pushError, setPushError] = useState<string | null>(null);
+  const [showSwipeHint, setShowSwipeHint] = useState(false);
   const isCrew = profile?.role === 'crew';
   const demoPeers = useMemo(() => demoPeersForUser(profile?.id), [profile?.id]);
   const [lastSharedAtMs, setLastSharedAtMs] = useState<number | null>(() => getRosterLastSharedAt());
+  const emailInputRef = useRef<TextInput>(null);
+  const scrollRef = useRef<ScrollView>(null);
+  const inviteCardY = useRef(0);
 
   useEffect(() => {
     void hydrateRosterLastSharedAt().then(() => setLastSharedAtMs(getRosterLastSharedAt()));
     return subscribeRosterLastSharedAt(() => setLastSharedAtMs(getRosterLastSharedAt()));
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    void AsyncStorage.getItem(SWIPE_HINT_KEY).then((v) => {
+      if (!cancelled) setShowSwipeHint(v !== '1');
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const markSwipeHintSeen = useCallback(() => {
+    setShowSwipeHint(false);
+    void AsyncStorage.setItem(SWIPE_HINT_KEY, '1').catch(() => {});
+  }, []);
+
   const lastSharedLabel = useMemo(() => {
     if (!isCrew) return null;
     if (lastSharedAtMs == null) return t('family.lastSharedNever');
-    const locale = isTr ? 'tr-TR' : 'en-US';
     return t('family.lastSharedLabel', { when: formatLastSharedWhen(lastSharedAtMs, locale) });
-  }, [isCrew, lastSharedAtMs, isTr, t]);
+  }, [isCrew, lastSharedAtMs, locale, t]);
+
+  const focusInviteEmail = useCallback(() => {
+    scrollRef.current?.scrollTo({ y: Math.max(0, inviteCardY.current - 12), animated: true });
+    setTimeout(() => emailInputRef.current?.focus(), 220);
+  }, []);
 
   const loadConnections = useCallback(async () => {
     if (!profile?.id && !crewProfile?.id) {
@@ -245,6 +281,31 @@ export default function Family() {
     Alert.alert(t('family.invitationSent'), t('family.invitationSentMessage', { email: trimmed }));
   };
 
+  const resendSentInvite = async (inv: SentPendingInvite) => {
+    setResendLoadingId(inv.id);
+    const { error: declineErr } = await supabase
+      .from('crew_invitations')
+      .update({ status: 'declined' })
+      .eq('id', inv.id)
+      .eq('status', 'pending');
+    if (declineErr) {
+      setResendLoadingId(null);
+      Alert.alert(t('common.error'), declineErr.message);
+      return;
+    }
+    const { error } = await supabase.rpc('send_crew_invitation', {
+      p_family_email: inv.family_email,
+    });
+    setResendLoadingId(null);
+    if (error) {
+      Alert.alert(t('common.error'), error.message);
+      await loadSentPendingInvites();
+      return;
+    }
+    await loadSentPendingInvites();
+    Alert.alert(t('family.resendInvite'), t('family.resendInviteSent'));
+  };
+
   const cancelSentInvite = (inv: SentPendingInvite) => {
     Alert.alert(
       t('family.cancelInviteConfirmTitle'),
@@ -303,6 +364,18 @@ export default function Family() {
     );
   };
 
+  const openMemberActions = (c: Connection) => {
+    const label = c.other_name ?? (isCrew ? t('family.familyMember') : t('family.crewMember'));
+    Alert.alert(t('family.memberActionsTitle'), label, [
+      {
+        text: isCrew ? t('family.removeMember') : t('family.leaveConnection'),
+        style: 'destructive',
+        onPress: () => removeConnection(c.id, !isCrew),
+      },
+      { text: t('common.cancel'), style: 'cancel' },
+    ]);
+  };
+
   const acceptInvite = async (id: string) => {
     setInviteResponding(id);
     const { error } = await supabase.rpc('accept_crew_invitation', { p_invitation_id: id });
@@ -332,6 +405,8 @@ export default function Family() {
   const usedFollowers = access?.used_family_approved ?? approved.length;
   const maxFollowers = access?.max_family_members ?? 0;
   const emptyFollowerSlots = isCrew ? Math.max(maxFollowers - usedFollowers, 0) : 0;
+  const showPlanRequiredBanner = isCrew && access != null && !access.has_access;
+  const showPlanLimitBanner = isCrew && access?.has_access === true && !access.can_invite_more;
 
   return (
     <KeyboardAvoidingView
@@ -339,7 +414,11 @@ export default function Family() {
       style={[styles.container, { backgroundColor: colors.background }]}
     >
       <ScrollView
-        contentContainerStyle={[styles.scroll, { paddingTop: Math.max(insets.top, 8) + 8 }]}
+        ref={scrollRef}
+        contentContainerStyle={[
+          styles.scroll,
+          { paddingTop: Math.max(insets.top, 8) + 8, paddingBottom: 48 + Math.max(insets.bottom, 8) },
+        ]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
@@ -352,7 +431,12 @@ export default function Family() {
         </View>
 
         {isCrew && (
-          <View style={[styles.card, shadow.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <View
+            style={[styles.card, shadow.card, { backgroundColor: colors.surface, borderColor: colors.border }]}
+            onLayout={(e) => {
+              inviteCardY.current = e.nativeEvent.layout.y;
+            }}
+          >
             <View style={styles.cardHeadRow}>
               <View style={[styles.iconBox, { backgroundColor: colors.primaryLight }]}>
                 <Ionicons name="mail-outline" size={20} color={colors.primary} />
@@ -365,6 +449,7 @@ export default function Family() {
             <View style={[styles.inputWrap, { borderColor: colors.border, backgroundColor: colors.background }]}>
               <Ionicons name="mail-outline" size={18} color={colors.textMuted} style={{ marginRight: 8 }} />
               <TextInput
+                ref={emailInputRef}
                 style={[styles.input, { color: colors.text }]}
                 placeholder={t('family.emailPlaceholder')}
                 placeholderTextColor={colors.textMuted}
@@ -374,6 +459,8 @@ export default function Family() {
                 autoCapitalize="none"
                 autoCorrect={false}
                 editable={!sendLoading}
+                returnKeyType="send"
+                onSubmitEditing={() => void sendInvitation()}
               />
             </View>
             <TouchableOpacity
@@ -390,14 +477,33 @@ export default function Family() {
                 </View>
               )}
             </TouchableOpacity>
-            <View style={[styles.infoBanner, { backgroundColor: colors.primaryLight }]}>
-              <Ionicons name="information-circle" size={18} color={colors.primary} />
-              <Text style={[styles.infoBannerText, { color: colors.textSecondary }]}>
-                {access?.has_access && !access?.can_invite_more
-                  ? t('family.planLimitReached')
-                  : t('family.planRequiredToInvite')}
-              </Text>
-            </View>
+            {showPlanRequiredBanner ? (
+              <View style={[styles.infoBanner, { backgroundColor: colors.primaryLight }]}>
+                <Ionicons name="information-circle" size={18} color={colors.primary} />
+                <View style={{ flex: 1, gap: 6 }}>
+                  <Text style={[styles.infoBannerText, { color: colors.textSecondary }]}>
+                    {t('family.planRequiredToInvite')}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => pushRootScreen(navigation, 'Plans')}
+                    hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+                    style={styles.planLinkHit}
+                  >
+                    <Text style={[styles.planLink, { color: colors.secondary }]}>
+                      {t('family.goToSubscription')}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : null}
+            {showPlanLimitBanner ? (
+              <View style={[styles.infoBanner, { backgroundColor: colors.primaryLight }]}>
+                <Ionicons name="information-circle" size={18} color={colors.primary} />
+                <Text style={[styles.infoBannerText, { color: colors.textSecondary }]}>
+                  {t('family.planLimitReached')}
+                </Text>
+              </View>
+            ) : null}
           </View>
         )}
 
@@ -406,26 +512,46 @@ export default function Family() {
             <Text style={[styles.cardTitle, { color: colors.text, marginBottom: 12 }]}>
               {t('family.pendingInviteesTitle')}
             </Text>
-            {sentPendingInvites.map((inv) => (
-              <View key={inv.id} style={[styles.memberRow, { borderColor: colors.border }]}>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>
-                    {inv.family_email}
-                  </Text>
-                  <Text style={[styles.meta, { color: colors.textMuted }]}>
-                    {t('family.pendingInviteeWaiting')}
-                  </Text>
+            {sentPendingInvites.map((inv) => {
+              const when = formatInviteSentWhen(inv.created_at, locale);
+              return (
+                <View key={inv.id} style={[styles.pendingInviteRow, { borderColor: colors.border }]}>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>
+                      {inv.family_email}
+                    </Text>
+                    <Text style={[styles.meta, { color: colors.textMuted }]}>
+                      {when
+                        ? t('family.inviteSentOn', { when })
+                        : t('family.pendingInviteeWaiting')}
+                    </Text>
+                  </View>
+                  <View style={styles.pendingActions}>
+                    <TouchableOpacity
+                      style={[styles.outlineChip, { borderColor: colors.border, minHeight: 44 }]}
+                      onPress={() => void resendSentInvite(inv)}
+                      disabled={resendLoadingId === inv.id}
+                    >
+                      {resendLoadingId === inv.id ? (
+                        <ActivityIndicator size="small" color={colors.secondary} />
+                      ) : (
+                        <Text style={[styles.outlineChipText, { color: colors.secondary }]}>
+                          {t('family.resendInvite')}
+                        </Text>
+                      )}
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.outlineChip, { borderColor: colors.border, minHeight: 44 }]}
+                      onPress={() => cancelSentInvite(inv)}
+                    >
+                      <Text style={[styles.outlineChipText, { color: colors.textSecondary }]}>
+                        {t('family.cancelInvite')}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
-                <TouchableOpacity
-                  style={[styles.outlineChip, { borderColor: colors.border }]}
-                  onPress={() => cancelSentInvite(inv)}
-                >
-                  <Text style={[styles.outlineChipText, { color: colors.textSecondary }]}>
-                    {t('family.cancelInvite')}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            ))}
+              );
+            })}
           </View>
         )}
 
@@ -447,7 +573,7 @@ export default function Family() {
                 </View>
                 {pushStatus !== 'checking' ? (
                   <TouchableOpacity
-                    style={[styles.outlineChip, { borderColor: colors.primary }]}
+                    style={[styles.outlineChip, { borderColor: colors.primary, minHeight: 44 }]}
                     onPress={checkPushStatus}
                   >
                     <Text style={[styles.outlineChipText, { color: colors.primary }]}>{t('family.refresh')}</Text>
@@ -509,7 +635,10 @@ export default function Family() {
                   {c.other_name ?? t('family.familyMember')}
                 </Text>
                 <TouchableOpacity
-                  style={[styles.outlineChip, { backgroundColor: colors.primary, borderColor: colors.primary }]}
+                  style={[
+                    styles.outlineChip,
+                    { backgroundColor: colors.primary, borderColor: colors.primary, minHeight: 44 },
+                  ]}
                   onPress={() => approveConnection(c.id)}
                 >
                   <Text style={[styles.outlineChipText, { color: colors.onPrimary }]}>{t('family.approve')}</Text>
@@ -527,7 +656,7 @@ export default function Family() {
             {demoPeers.map((p) => (
               <TouchableOpacity
                 key={p.id}
-                style={[styles.memberRow, { borderColor: colors.border }]}
+                style={[styles.memberRow, { borderColor: colors.border, minHeight: 44 }]}
                 activeOpacity={0.85}
                 onPress={() =>
                   navigation.navigate('PartnerRoster', {
@@ -537,15 +666,15 @@ export default function Family() {
                   })
                 }
               >
+                <View style={[styles.avatar, { backgroundColor: colors.primaryLight }]}>
+                  <Text style={[styles.avatarInitial, { color: colors.primary }]}>
+                    {peerInitials(p.name)}
+                  </Text>
+                </View>
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.name, { color: colors.text }]}>{p.name}</Text>
                   <Text style={[styles.meta, { color: colors.textSecondary }]}>
                     {p.airline} · {p.icao}
-                  </Text>
-                </View>
-                <View style={[styles.avatar, { backgroundColor: colors.primaryLight }]}>
-                  <Text style={[styles.avatarInitial, { color: colors.primary }]}>
-                    {p.name.trim().charAt(0).toUpperCase()}
                   </Text>
                 </View>
               </TouchableOpacity>
@@ -558,22 +687,24 @@ export default function Family() {
             <Text style={[styles.cardTitle, { color: colors.text }]}>
               {isCrew ? t('family.connectedMembersTitle') : t('family.yourCrewConnections')}
             </Text>
-            <View style={styles.swipeHint}>
-              <Ionicons name="swap-horizontal-outline" size={14} color={colors.textMuted} />
-              <Text style={[styles.swipeHintText, { color: colors.textMuted }]}>
-                {t('family.swipeToDeleteShort')}
-              </Text>
-            </View>
+            {showSwipeHint && approved.length > 0 ? (
+              <View style={styles.swipeHint}>
+                <Ionicons name="swap-horizontal-outline" size={14} color={colors.textMuted} />
+                <Text style={[styles.swipeHintText, { color: colors.textMuted }]}>
+                  {t('family.swipeToDeleteShort')}
+                </Text>
+              </View>
+            ) : null}
           </View>
 
           {loading ? (
             <ActivityIndicator color={colors.primary} style={{ marginVertical: 24 }} />
           ) : approved.length === 0 ? (
             <View style={styles.emptyState}>
-              <View style={[styles.emptyArt, { backgroundColor: colors.primaryLight }]}>
-                <Ionicons name="people" size={36} color={colors.primary} />
-                <View style={[styles.emptyHeart, { backgroundColor: colors.primary }]}>
-                  <Ionicons name="heart" size={12} color={colors.onPrimary} />
+              <View style={[styles.emptyArt, { backgroundColor: colors.surfaceAlt, borderColor: colors.border }]}>
+                <Ionicons name="people" size={40} color={colors.secondary} />
+                <View style={[styles.emptyHeart, { backgroundColor: colors.secondary }]}>
+                  <Ionicons name="heart" size={12} color={colors.white} />
                 </View>
               </View>
               <Text style={[styles.emptyTitle, { color: colors.text }]}>
@@ -585,15 +716,13 @@ export default function Family() {
                     {t('family.emptyMembersBody')}
                   </Text>
                   <TouchableOpacity
-                    style={[styles.dashedBtn, { borderColor: colors.primary, backgroundColor: colors.primaryLight }]}
-                    onPress={() => {}}
+                    onPress={focusInviteEmail}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    style={styles.textCtaHit}
                   >
-                    <View style={styles.btnRow}>
-                      <Ionicons name="paper-plane-outline" size={16} color={colors.primary} />
-                      <Text style={[styles.dashedBtnText, { color: colors.primary }]}>
-                        {t('family.inviteNowCta')}
-                      </Text>
-                    </View>
+                    <Text style={[styles.textCta, { color: colors.secondary }]}>
+                      {t('family.inviteNowCta')}
+                    </Text>
                   </TouchableOpacity>
                 </>
               ) : null}
@@ -602,30 +731,45 @@ export default function Family() {
             <>
               {approved.map((c) => {
                 const label = c.other_name ?? (isCrew ? t('family.familyMember') : t('family.crewMember'));
+                const initials = peerInitials(label);
                 const cardInner = (
-                  <View style={[styles.memberRowSolid, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                    <Text style={[styles.name, { color: colors.text }]}>{label}</Text>
+                  <Pressable
+                    onLongPress={() => openMemberActions(c)}
+                    delayLongPress={350}
+                    style={[styles.memberRowSolid, { backgroundColor: colors.surface, borderColor: colors.border }]}
+                  >
                     {c.other_avatar_url ? (
                       <Image key={c.other_avatar_url} source={{ uri: c.other_avatar_url }} style={styles.avatar} />
                     ) : (
                       <View style={[styles.avatar, { backgroundColor: colors.primaryLight, borderColor: colors.border }]}>
-                        <Text style={[styles.avatarInitial, { color: colors.primary }]}>
-                          {label.trim().charAt(0).toUpperCase()}
-                        </Text>
+                        <Text style={[styles.avatarInitial, { color: colors.primary }]}>{initials}</Text>
                       </View>
                     )}
-                  </View>
+                    <View style={styles.memberTextCol}>
+                      <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>
+                        {label}
+                      </Text>
+                      <Text style={[styles.meta, { color: colors.textMuted }]}>{t('family.viewerRole')}</Text>
+                    </View>
+                  </Pressable>
                 );
                 return (
                   <View key={c.id} style={styles.swipeRowWrap}>
                     <Swipeable
                       renderRightActions={() => (
-                        <RectButton style={styles.swipeDelete} onPress={() => removeConnection(c.id, !isCrew)}>
+                        <RectButton
+                          style={styles.swipeDelete}
+                          onPress={() => {
+                            markSwipeHintSeen();
+                            removeConnection(c.id, !isCrew);
+                          }}
+                        >
                           <Text style={styles.swipeDeleteText}>
                             {isCrew ? t('family.removeMember') : t('family.leaveConnection')}
                           </Text>
                         </RectButton>
                       )}
+                      onSwipeableOpen={markSwipeHintSeen}
                       overshootRight={false}
                     >
                       {cardInner}
@@ -655,7 +799,7 @@ export default function Family() {
 function createFamilyStyles() {
   return StyleSheet.create({
     container: { flex: 1 },
-    scroll: { paddingHorizontal: 16, paddingBottom: 48 },
+    scroll: { paddingHorizontal: 16 },
     pageHeader: { marginBottom: 16 },
     pageTitle: { fontSize: 28, fontWeight: '800', letterSpacing: -0.3 },
     pageSubtitle: { fontSize: 14, lineHeight: 20, marginTop: 6 },
@@ -706,6 +850,8 @@ function createFamilyStyles() {
       borderRadius: 10,
     },
     infoBannerText: { flex: 1, fontSize: 12, lineHeight: 17 },
+    planLinkHit: { minHeight: 44, justifyContent: 'center' },
+    planLink: { fontSize: 13, fontWeight: '700' },
     sectionHead: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -717,35 +863,36 @@ function createFamilyStyles() {
     swipeHintText: { fontSize: 11, fontWeight: '500' },
     emptyState: { alignItems: 'center', paddingVertical: 20, paddingHorizontal: 8 },
     emptyArt: {
-      width: 88,
-      height: 88,
-      borderRadius: 44,
+      width: 96,
+      height: 96,
+      borderRadius: 48,
       alignItems: 'center',
       justifyContent: 'center',
       marginBottom: 14,
+      borderWidth: StyleSheet.hairlineWidth,
     },
     emptyHeart: {
       position: 'absolute',
-      right: 6,
-      bottom: 6,
-      width: 22,
-      height: 22,
-      borderRadius: 11,
+      right: 8,
+      bottom: 8,
+      width: 24,
+      height: 24,
+      borderRadius: 12,
       alignItems: 'center',
       justifyContent: 'center',
     },
     emptyTitle: { fontSize: 17, fontWeight: '700', textAlign: 'center', marginBottom: 6 },
     emptyBody: { fontSize: 13, lineHeight: 19, textAlign: 'center', marginBottom: 14 },
-    dashedBtn: {
-      borderWidth: 1.5,
-      borderStyle: 'dashed',
-      borderRadius: radius.button,
-      paddingVertical: 12,
-      paddingHorizontal: 16,
-      minHeight: 44,
-      justifyContent: 'center',
+    textCtaHit: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 8 },
+    textCta: { fontWeight: '700', fontSize: 15, textDecorationLine: 'underline' },
+    pendingInviteRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      paddingVertical: 10,
+      borderTopWidth: StyleSheet.hairlineWidth,
     },
-    dashedBtnText: { fontWeight: '700', fontSize: 14 },
+    pendingActions: { gap: 8, alignItems: 'stretch' },
     memberRow: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -756,14 +903,15 @@ function createFamilyStyles() {
     memberRowSolid: {
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'space-between',
+      gap: 12,
       borderWidth: 1,
       borderRadius: 12,
       paddingHorizontal: 14,
       height: FAMILY_MEMBER_ROW_HEIGHT,
     },
-    emptySlot: { borderStyle: 'dashed', opacity: 0.75, marginTop: 8 },
-    name: { fontSize: 16, fontWeight: '600', flex: 1 },
+    memberTextCol: { flex: 1, minWidth: 0 },
+    emptySlot: { borderStyle: 'dashed', opacity: 0.75, marginTop: 8, justifyContent: 'center' },
+    name: { fontSize: 16, fontWeight: '600' },
     meta: { fontSize: 12, marginTop: 2 },
     avatar: {
       width: 40,
@@ -774,12 +922,14 @@ function createFamilyStyles() {
       borderWidth: StyleSheet.hairlineWidth,
       borderColor: colors.border,
     },
-    avatarInitial: { fontSize: 16, fontWeight: '700' },
+    avatarInitial: { fontSize: 13, fontWeight: '800' },
     outlineChip: {
       borderWidth: 1,
       borderRadius: 8,
       paddingHorizontal: 10,
       paddingVertical: 8,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
     outlineChipText: { fontSize: 12, fontWeight: '700' },
     inviteBlock: {

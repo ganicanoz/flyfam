@@ -504,6 +504,7 @@
     "approvedLabel": "onaylı",
     "selectOrChangePlan": "Paket seçin / değiştirin",
     "planRequiredToInvite": "Davet göndermek için önce aktif/deneme abonelik gerekli.",
+    "goToSubscription": "Aboneliğe geç →",
     "planLimitReached": "Takipçi limiti dolu. Daha fazla kapasite için üst pakete geçin.",
     "emptyFamilyPlaceholder": "Bu alana bir aile üyesi eklenebilir.",
     "pushChecking": "Bildirimler kontrol ediliyor…",
@@ -518,7 +519,13 @@
     "emptyMembersTitle": "Henüz aile üyesi yok",
     "emptyMembersBody": "Aile üyelerinizi davet edin, uçuş planlarınızı onlarla paylaşın ve birlikte takip edin.",
     "inviteNowCta": "Hemen davet gönderin",
-    "connectedMembersTitle": "Bağlı aile üyeleri"
+    "connectedMembersTitle": "Bağlı aile üyeleri",
+    "viewerRole": "Görüntüleyici",
+    "resendInvite": "Tekrar gönder",
+    "resendInviteSent": "Davet yeniden gönderildi.",
+    "inviteSentOn": "Gönderildi: {{when}}",
+    "memberActionsTitle": "Üye işlemleri",
+    "memberLongPressHint": "Kaldırmak için uzun basın veya sola kaydırın"
   },
   "connect": {
     "title": "Davetler",
