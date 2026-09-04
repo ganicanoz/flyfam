@@ -167,6 +167,11 @@
     "subscriptionStatus": "Status",
     "subscriptionSlots": "Family usage",
     "manageSubscription": "Manage subscription",
+    "subscriptionTrialDays": "Trial · {{days}} days left",
+    "subscriptionActivePlan": "{{plan}}",
+    "subscriptionInactive": "No active subscription",
+    "editProfileHint": "Tap to edit",
+    "deleteAccountMuted": "Delete profile",
     "crewBaseLabel": "Crew / Base"
   },
   "legal": {

@@ -167,6 +167,11 @@
     "subscriptionStatus": "Durum",
     "subscriptionSlots": "Aile kullanımı",
     "manageSubscription": "Aboneliği yönet",
+    "subscriptionTrialDays": "Deneme · {{days}} gün kaldı",
+    "subscriptionActivePlan": "{{plan}}",
+    "subscriptionInactive": "Aktif abonelik yok",
+    "editProfileHint": "Düzenlemek için dokunun",
+    "deleteAccountMuted": "Profili sil",
     "crewBaseLabel": "Ekip / Üs"
   },
   "legal": {
