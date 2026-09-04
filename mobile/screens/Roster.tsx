@@ -51,6 +51,7 @@ import { regionCodeForIanaTimeZone } from '../lib/flightDisplayTime';
 import { fetchFlightByNumber, fr24UrlForAircraftRegistration, getFr24DeepLink } from '../lib/flightApi';
 import { pollFlightForRoster } from '../lib/flightStatusPoll';
 import { notifyFamilyTodayFlights } from '../lib/notifyFamily';
+import { setRosterLastSharedAt } from '../lib/rosterShareMeta';
 import { rosterOccupationLabelEn, rosterOccupationLabelTr, isOffDayOccupationCode, isAnnualLeaveOccupationCode, isUnpaidLeaveOccupationCode, isGroundDutyOccupationCode, isOfficeDutyOccupationCode, isStandbyOccupationCode, isTrainingOccupationCode } from '../lib/pdfRosterImport';
 import {
   indigoDutyBlockTitleEn,
@@ -903,8 +904,8 @@ export default function Roster({
   const swipeableRefs = useRef<Record<string, Swipeable | null>>({});
   const [updatingFlightIds, setUpdatingFlightIds] = useState<Record<string, boolean>>({});
   const [swipeCardHeights, setSwipeCardHeights] = useState<Record<string, number>>({});
-  const [selectionMode, setSelectionMode] = useState(false);
-  const [selectedFlightIds, setSelectedFlightIds] = useState<Record<string, boolean>>({});
+  const [shareToastMessage, setShareToastMessage] = useState<string | null>(null);
+  const shareToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [lastSyncedAtMs, setLastSyncedAtMs] = useState<number | null>(() => getRosterLastSyncedAt());
   const [syncNowMs, setSyncNowMs] = useState(() => Date.now());
   const todayStr = getLocalDateString();
@@ -2654,141 +2655,6 @@ export default function Roster({
     });
   }, [crewProfile?.id, t]);
 
-  const toggleSelectFlight = useCallback((id: string) => {
-    setSelectedFlightIds((prev) => {
-      const next = { ...prev };
-      if (next[id]) delete next[id];
-      else next[id] = true;
-      return next;
-    });
-  }, []);
-
-  const enterSelectionModeWith = useCallback((id: string) => {
-    setSelectionMode(true);
-    setSelectedFlightIds((prev) => ({ ...prev, [id]: true }));
-  }, []);
-
-  const exitSelectionMode = useCallback(() => {
-    setSelectionMode(false);
-    setSelectedFlightIds({});
-  }, []);
-
-  const selectAllVisible = useCallback(() => {
-    const all: Record<string, boolean> = {};
-    for (const e of listData) {
-      if (e.type === 'flight') all[e.flight.id] = true;
-    }
-    setSelectedFlightIds(all);
-  }, [listData]);
-
-  const clearSelection = useCallback(() => setSelectedFlightIds({}), []);
-
-  const selectByRange = useCallback(
-    (range: 'week' | 'month' | 'all') => {
-      const all: Record<string, boolean> = {};
-      if (range === 'all') {
-        for (const f of displayFlights) all[f.id] = true;
-      } else if (range === 'month') {
-        const ym = selectedDate.slice(0, 7);
-        for (const f of displayFlights) {
-          if (listGroupDate(f).startsWith(ym)) all[f.id] = true;
-        }
-      } else {
-        const monday = mondayYmdOf(selectedDate);
-        if (monday) {
-          const sunday = addUtcDaysToYmd(monday, 6);
-          for (const f of displayFlights) {
-            const d = listGroupDate(f);
-            if (d >= monday && d <= sunday) all[f.id] = true;
-          }
-        }
-      }
-      setSelectedFlightIds(all);
-      setSelectionMode(true);
-    },
-    [displayFlights, selectedDate, listGroupDate],
-  );
-
-  const visibleFlightIds = useMemo(() => {
-    const ids: string[] = [];
-    for (const e of listData) {
-      if (e.type === 'flight') ids.push(e.flight.id);
-    }
-    return ids;
-  }, [listData]);
-
-  const allVisibleSelected =
-    visibleFlightIds.length > 0 && visibleFlightIds.every((id) => !!selectedFlightIds[id]);
-
-  const toggleSelectAllVisible = useCallback(() => {
-    if (allVisibleSelected) clearSelection();
-    else selectAllVisible();
-  }, [allVisibleSelected, clearSelection, selectAllVisible]);
-
-  const openSelectRangeSheet = useCallback(() => {
-    Alert.alert(t('roster.selectRangeTitle'), undefined, [
-      { text: t('roster.selectThisWeek'), onPress: () => selectByRange('week') },
-      { text: t('roster.selectThisMonth'), onPress: () => selectByRange('month') },
-      { text: t('roster.selectAll'), onPress: () => selectByRange('all') },
-      { text: t('common.cancel'), style: 'cancel' },
-    ]);
-  }, [t, selectByRange]);
-
-  const selectedCount = Object.keys(selectedFlightIds).length;
-
-  const selectionPreview = useMemo(() => {
-    const picked = displayFlights.filter((f) => selectedFlightIds[f.id]);
-    if (picked.length === 0) return '';
-    const labels = picked.slice(0, 3).map((f) => {
-      const code = (f.flight_number || '').trim();
-      if (!code) return '—';
-      const kind = (f.roster_entry_kind ?? 'flight').toLowerCase();
-      if (kind === 'duty_off') return code;
-      return code;
-    });
-    const more = picked.length > 3 ? ` +${picked.length - 3}` : '';
-    return `${labels.join(' · ')}${more}`;
-  }, [displayFlights, selectedFlightIds]);
-
-  const deleteSelectedFlights = useCallback(() => {
-    if (!isCrew) return;
-    const ids = Object.keys(selectedFlightIds);
-    if (ids.length === 0) return;
-    const selectionSnapshot = { ...selectedFlightIds };
-    InteractionManager.runAfterInteractions(() => {
-      Alert.alert(
-        t('roster.deleteFlight'),
-        t('roster.deleteSelectedConfirm', { count: ids.length }),
-        [
-          { text: t('common.cancel'), style: 'cancel' },
-          {
-            text: t('common.delete'),
-            style: 'destructive',
-            onPress: async () => {
-              setFlightOpBusyMessage(t('common.flightOpDeletingFlights'));
-              try {
-                const failed: string[] = [];
-                for (const id of ids) {
-                  const err = await removeFlightForCrew(id);
-                  if (err) failed.push(err);
-                }
-                if (failed.length > 0) {
-                  Alert.alert(t('common.error'), failed[0]!);
-                  return;
-                }
-                setFlights((prev) => prev.filter((f) => !selectionSnapshot[f.id]));
-                exitSelectionMode();
-              } finally {
-                setFlightOpBusyMessage(null);
-              }
-            },
-          },
-        ],
-        { cancelable: true }
-      );
-    });
-  }, [isCrew, selectedFlightIds, t, removeFlightForCrew, exitSelectionMode]);
-
   const handleDelete = (item: Flight) => {
     InteractionManager.runAfterInteractions(() => {
       Alert.alert(
@@ -2846,20 +2712,84 @@ export default function Roster({
     if (url) Linking.openURL(url).catch(() => {});
   };
 
-  const handleSendFlightsToFamily = useCallback(async () => {
+  const shareMonthSummary = useMemo(() => {
+    const ym = selectedDate.slice(0, 7);
+    let flights = 0;
+    for (const f of displayFlights) {
+      if (!listGroupDate(f).startsWith(ym)) continue;
+      if (calendarDayKindForEntry(f) === 'flight') flights += 1;
+    }
+    let layovers = 0;
+    for (const d of layoverDateSet) {
+      if (d.startsWith(ym)) layovers += 1;
+    }
+    const locale = i18n.language === 'tr' ? 'tr-TR' : 'en-US';
+    return {
+      month: monthLabelFromYm(ym, locale, 'long'),
+      flights,
+      layovers,
+    };
+  }, [displayFlights, selectedDate, listGroupDate, i18n.language, layoverDateSet]);
+
+  const showShareToast = useCallback((message: string) => {
+    if (shareToastTimerRef.current) clearTimeout(shareToastTimerRef.current);
+    setShareToastMessage(message);
+    shareToastTimerRef.current = setTimeout(() => {
+      setShareToastMessage(null);
+      shareToastTimerRef.current = null;
+    }, 2600);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (shareToastTimerRef.current) clearTimeout(shareToastTimerRef.current);
+    };
+  }, []);
+
+  const performSendRosterToFamily = useCallback(async () => {
     if (!isCrew || !crewProfile?.id) return;
     setSendingToFamily(true);
     const result = await notifyFamilyTodayFlights(crewProfile.id, selectedDate);
     setSendingToFamily(false);
     if (result.ok) {
-      Alert.alert(
-        t('roster.notifySent'),
-        result.sent > 0 ? t('roster.notifySentMessage', { count: result.sent }) : t('roster.notifyNoDevices')
+      setRosterLastSharedAt(Date.now());
+      showShareToast(
+        result.sent > 0 ? t('roster.shareRosterToast') : t('roster.shareRosterNoDevicesToast')
       );
     } else {
       Alert.alert(t('roster.notifyFailed'), result.error || t('roster.notifyFailedMessage'));
     }
-  }, [isCrew, crewProfile?.id, selectedDate, t]);
+  }, [isCrew, crewProfile?.id, selectedDate, t, showShareToast]);
+
+  const confirmSendRosterToFamily = useCallback(() => {
+    if (!isCrew || !crewProfile?.id || sendingToFamily) return;
+    Alert.alert(
+      t('roster.shareRosterConfirmTitle'),
+      t('roster.shareRosterConfirmSummary', {
+        month: shareMonthSummary.month,
+        flights: shareMonthSummary.flights,
+        layovers: shareMonthSummary.layovers,
+      }),
+      [
+        { text: t('roster.shareRosterConfirmCancel'), style: 'cancel' },
+        {
+          text: t('roster.shareRosterConfirmShare'),
+          onPress: () => {
+            void performSendRosterToFamily();
+          },
+        },
+      ]
+    );
+  }, [
+    isCrew,
+    crewProfile?.id,
+    sendingToFamily,
+    t,
+    shareMonthSummary.month,
+    shareMonthSummary.flights,
+    shareMonthSummary.layovers,
+    performSendRosterToFamily,
+  ]);
 
   const handleClearAllFlights = useCallback(() => {
     if (!isCrew || !crewProfile?.id) return;
@@ -3524,8 +3454,6 @@ export default function Roster({
 
   const selectPeerRoster = useCallback((peer: DemoCrewPeer) => {
     setInternalPeer({ peerCrewId: peer.peerCrewId, peerName: peer.name });
-    setSelectionMode(false);
-    setSelectedFlightIds({});
     setFlights([]);
     setLoading(true);
   }, []);
@@ -3589,25 +3517,7 @@ export default function Roster({
         visible={flightOpBusyMessage != null}
         message={flightOpBusyMessage ?? ''}
       />
-      {!showAdminFr24Debug && isCrew && selectionMode ? (
-        <View style={[styles.pageHeader, styles.selectionModeHeader, { paddingTop: Math.max(insets.top, 8) }]}>
-          <TouchableOpacity onPress={exitSelectionMode} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-            <Text style={[styles.selectionHeaderAction, { color: colors.text }]}>{t('common.cancel')}</Text>
-          </TouchableOpacity>
-          <Text style={[styles.selectionHeaderCount, { color: colors.text }]} numberOfLines={1}>
-            {t('roster.selectedCountLabel', { count: selectedCount })}
-          </Text>
-          <TouchableOpacity
-            onPress={toggleSelectAllVisible}
-            onLongPress={openSelectRangeSheet}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <Text style={[styles.selectionHeaderAction, { color: colors.primary }]} numberOfLines={1}>
-              {allVisibleSelected ? t('roster.clearSelection') : t('roster.selectAllVisible')}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      ) : !showAdminFr24Debug ? (
+      {!showAdminFr24Debug ? (
         <View style={[styles.pageHeader, { paddingTop: Math.max(insets.top, 8) }]}>
           <View style={styles.pageTitleRow}>
             <View style={[styles.rosterAvatar, { backgroundColor: colors.primaryLight }]}>
@@ -3635,16 +3545,17 @@ export default function Roster({
             ) : null}
             {isCrew ? (
               <TouchableOpacity
-                onPress={() => (selectionMode ? exitSelectionMode() : setSelectionMode(true))}
-                style={[styles.pageIconBtn, { borderColor: selectionMode ? colors.primary : colors.border }]}
+                onPress={confirmSendRosterToFamily}
+                disabled={sendingToFamily}
+                style={[styles.pageIconBtn, { borderColor: colors.border }]}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                accessibilityLabel={t('roster.selectAndShare')}
+                accessibilityLabel={t('roster.sendToFamily')}
               >
-                <Ionicons
-                  name={selectionMode ? 'close' : 'share-outline'}
-                  size={18}
-                  color={selectionMode ? colors.primary : colors.text}
-                />
+                {sendingToFamily ? (
+                  <ActivityIndicator size="small" color={colors.primary} />
+                ) : (
+                  <Ionicons name="paper-plane-outline" size={18} color={colors.text} />
+                )}
               </TouchableOpacity>
             ) : null}
             {isCrew ? (
@@ -3980,8 +3891,6 @@ export default function Roster({
                       isNonFlightBlock: true,
                       layoverStationLabel: stationLabel,
                       hotelHint: null,
-                      selectionMode: false,
-                      selected: false,
                       isPast: entry.dateYmd < rosterTodayYmd,
                     }}
                     themeMode={themeMode}
@@ -4109,8 +4018,6 @@ export default function Roster({
               ? formatAircraftRegistration(aircraftRegById[item.id] ?? item.aircraft_registration)
               : null;
             const delayMins = getDelayMinutes(item);
-            const isSelected = !!selectedFlightIds[item.id];
-
             const displayDepIso =
               delayMins != null && item.estimated_departure
                 ? item.estimated_departure
@@ -4191,10 +4098,6 @@ export default function Roster({
               : cityFor(item.destination_airport, item.destination_city);
 
             const onCardPress = () => {
-              if (isCrew && selectionMode) {
-                toggleSelectFlight(item.id);
-                return;
-              }
               if (isCrew) {
                 if (showAdminFr24Debug && !isNonFlightBlock) {
                   navigation.navigate('AdminFlightApiDebug', { flightId: item.id });
@@ -4244,8 +4147,6 @@ export default function Roster({
               footerHint: null,
               showAssignAction: isStandbyBlock && isCrew,
               aircraftReg: aircraftRegDisplay,
-              selectionMode,
-              selected: isSelected,
               isPast,
             };
 
@@ -4255,7 +4156,6 @@ export default function Roster({
                 themeMode={themeMode}
                 fontScale={listFontScale}
                 onPress={onCardPress}
-                onLongPress={isCrew ? () => enterSelectionModeWith(item.id) : undefined}
                 onLiveTrack={
                   showLiveTrack
                     ? () => openFlightradar24(item.flight_number, item.flight_date, fr24IdByFlightId[item.id])
@@ -4266,9 +4166,7 @@ export default function Roster({
                 }
               />
             );
-            const cardContent = selectionMode
-              ? cardInner
-              : (
+            const cardContent = (
                 <Swipeable
                   ref={(r) => { swipeableRefs.current[item.id] = r; }}
                   renderLeftActions={renderLeftActions}
@@ -4309,33 +4207,22 @@ export default function Roster({
         )}
       </View>
 
-      {isCrew && selectionMode ? (
-        <View style={[styles.selectionSheet, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          {selectionPreview ? (
-            <Text style={[styles.selectionPreview, { color: colors.textMuted }]} numberOfLines={1}>
-              {t('roster.sharePreviewLabel')}: {selectionPreview}
-            </Text>
-          ) : null}
-          <TouchableOpacity
-            style={[styles.selectionBarSendFull, sendingToFamily && styles.sendToFamilyButtonDisabled]}
-            onPress={handleSendFlightsToFamily}
-            disabled={sendingToFamily || selectedCount === 0}
-          >
-            {sendingToFamily ? (
-              <ActivityIndicator size="small" color={colors.onPrimary} />
-            ) : (
-              <>
-                <Ionicons name="paper-plane" size={16} color={colors.onPrimary} />
-                <Text style={styles.selectionBarSendText} numberOfLines={1}>
-                  {t('roster.sendToFamilyCount', { count: selectedCount })}
-                </Text>
-              </>
-            )}
-          </TouchableOpacity>
+      {shareToastMessage ? (
+        <View
+          pointerEvents="none"
+          style={[
+            styles.shareToast,
+            {
+              backgroundColor: colors.text,
+              bottom: Math.max(insets.bottom, 12) + rosterListSpacing.fabSize + 28,
+            },
+          ]}
+        >
+          <Text style={[styles.shareToastText, { color: colors.background }]}>{shareToastMessage}</Text>
         </View>
       ) : null}
 
-      {isCrew && !selectionMode ? (
+      {isCrew ? (
         <TouchableOpacity
           style={[styles.fab, { backgroundColor: colors.primary }]}
           onPress={() => navigation.navigate('AddFlight')}
@@ -4589,85 +4476,25 @@ function createRosterStyles(fs: (n: number) => number, themeMode: 'light' | 'dar
     paddingTop: 8,
     paddingBottom: 4,
   },
-  selectionModeHeader: {
-    justifyContent: 'space-between',
-    gap: 8,
-  },
-  selectionHeaderAction: {
-    fontSize: fs(15),
-    fontWeight: '700',
-    maxWidth: 110,
-    flexShrink: 1,
-  },
-  selectionHeaderCount: {
-    flex: 1,
-    textAlign: 'center',
-    fontSize: fs(15),
-    fontWeight: '800',
-  },
-  selectionSheet: {
-    marginHorizontal: 0,
-    marginBottom: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    gap: 10,
-  },
-  selectionPreview: {
-    fontSize: fs(12),
-    fontWeight: '500',
-  },
-  selectionBarSendFull: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: colors.primary,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderRadius: radius.button,
-    minHeight: 48,
-  },
   dayHeaderEmpty: {
     marginTop: 4,
     fontSize: fs(12),
     fontWeight: '500',
   },
-  selectionBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginHorizontal: 12,
-    marginBottom: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderRadius: 12,
-    borderWidth: StyleSheet.hairlineWidth,
-  },
-  selectionBarBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  selectionBarText: {
-    fontSize: fs(13),
-    fontWeight: '600',
-    flexShrink: 1,
-  },
-  selectionBarSend: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: colors.primary,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+  shareToast: {
+    position: 'absolute',
+    left: 24,
+    right: 24,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
     borderRadius: radius.button,
+    alignItems: 'center',
+    zIndex: 20,
   },
-  selectionBarSendText: {
-    color: onPrimary,
-    fontWeight: '700',
-    fontSize: fs(12),
+  shareToastText: {
+    fontSize: fs(14),
+    fontWeight: '600',
+    textAlign: 'center',
   },
   fab: {
     position: 'absolute',
@@ -4803,7 +4630,6 @@ function createRosterStyles(fs: (n: number) => number, themeMode: 'light' | 'dar
   rosterActionButtonDangerText: {
     color: colors.white,
   },
-  sendToFamilyButtonDisabled: { opacity: 0.6 },
   listAndClearContainer: { flex: 1 },
   listFlex: { flex: 1 },
   list: { paddingBottom: rosterListSpacing.listBottomPad, paddingRight: 10 },
