@@ -28,43 +28,40 @@ type ThemeColors = {
 
 const STORAGE_KEY = 'flyfam_theme_mode';
 
-/** Açık tema — repodaki orijinal paletle aynı (cf5dbfb); koyu moda yalnızca `darkColors`. */
+/** Açık tema — design tokens (Figma / tokens.ts). */
 const lightColors: ThemeColors = {
-  /** Saf beyaz — floating tab altında gri “şerit” görünmesin. */
-  background: '#FFFFFF',
+  background: '#F4F6FA',
   surface: '#FFFFFF',
-  surfaceAlt: '#F1F6FF',
-  primary: '#5AA6FF',
-  primaryLight: '#EEF6FF',
-  // Eski dosyada yoktu; tip için gerekli, rozet/ikon vurgusu accent ile aynı lacivert.
-  secondary: '#1D4FA3',
-  accent: '#1D4FA3',
-  text: '#0B1220',
-  textSecondary: '#22324C',
-  textMuted: '#6B7A90',
-  border: '#E1EAF5',
-  success: '#2E7D32',
-  error: '#C62828',
+  surfaceAlt: '#E8F0FE',
+  primary: '#1A5CF5',
+  primaryLight: '#E8F0FE',
+  secondary: '#0F1B3D',
+  accent: '#1A5CF5',
+  text: '#0F1B3D',
+  textSecondary: '#4B5563',
+  textMuted: '#6B7280',
+  border: '#E5E9F0',
+  success: '#1B7F3B',
+  error: '#B42318',
   white: '#FFFFFF',
   onPrimary: '#FFFFFF',
 };
 
 /**
- * Koyu tema — opak zemin, yüksek kontrast metin, link/CTA için parlak primary.
- * (Eski yarı saydam background + soluk #356899 primary okunaksızdı.)
+ * Koyu tema — design tokens.
  */
 const darkColors: ThemeColors = {
-  background: '#0B0D11',
-  surface: '#151A22',
-  surfaceAlt: '#1C2330',
-  primary: '#6BB3FF',
+  background: '#0B1220',
+  surface: '#141C2E',
+  surfaceAlt: '#1A2740',
+  primary: '#4D7FFF',
   primaryLight: '#1A2740',
-  secondary: '#9EC5FF',
-  accent: '#9EC5FF',
-  text: '#F2F6FC',
-  textSecondary: '#C8D4E6',
+  secondary: '#F3F6FB',
+  accent: '#4D7FFF',
+  text: '#F3F6FB',
+  textSecondary: '#C5D0E0',
   textMuted: '#9AA8BC',
-  border: '#2E3748',
+  border: '#243049',
   success: '#7BC47F',
   error: '#F07171',
   white: '#FFFFFF',

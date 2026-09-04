@@ -1,43 +1,13 @@
 /**
- * Roster kart görünümü — crew ve family aynı (Roster.tsx + aile yedek listeleri).
+ * Roster kart görünümü — surface gövde + sol accent + status badge token’ları.
  */
 import { StyleSheet } from 'react-native';
 import { colors, getThemeMode, type ThemeMode } from './colors';
-
-const LIGHT = {
-  flightBg: '#EEEEF0',
-  flightBorder: '#C8C8CC',
-  offDutyBg: '#E8F5E9',
-  offDutyBorder: '#A5D6A7',
-  standbyBg: '#FFF3E0',
-  standbyBorder: '#FFCC80',
-  inFlightBg: '#E3F2FD',
-  inFlightBorder: '#5AA6FF',
-  landedBg: '#E8F5E9',
-} as const;
-
-/** Dark: hafif açık yüzeyler — arka plandan ayrışır, metin açık kalır. */
-const DARK = {
-  flightBg: '#252C38',
-  flightBorder: '#3F4D62',
-  offDutyBg: '#1E3026',
-  offDutyBorder: '#4F7A5C',
-  standbyBg: '#352A1C',
-  standbyBorder: '#C48A44',
-  inFlightBg: '#1C3048',
-  inFlightBorder: '#6BB3FF',
-  landedBg: '#1E3026',
-} as const;
-
-export const ROSTER_CARD_FLIGHT_BG = LIGHT.flightBg;
-export const ROSTER_CARD_FLIGHT_BORDER = LIGHT.flightBorder;
-export const ROSTER_CARD_OFF_DUTY_BG = LIGHT.offDutyBg;
-export const ROSTER_CARD_OFF_DUTY_BORDER = LIGHT.offDutyBorder;
-export const ROSTER_CARD_STANDBY_BG = LIGHT.standbyBg;
-export const ROSTER_CARD_STANDBY_BORDER = LIGHT.standbyBorder;
-export const ROSTER_CARD_IN_FLIGHT_BG = LIGHT.inFlightBg;
-export const ROSTER_CARD_IN_FLIGHT_BORDER = LIGHT.inFlightBorder;
-export const ROSTER_CARD_LANDED_BG = LIGHT.landedBg;
+import {
+  cardAccent,
+  statusChrome,
+  type FlightStatusToken,
+} from './tokens';
 
 export type RosterCardVisualKind = 'flight' | 'duty_off' | 'standby' | 'in_flight' | 'landed';
 
@@ -56,24 +26,38 @@ export function resolveRosterCardVisualKind(args: {
   return 'flight';
 }
 
-function palette(mode?: ThemeMode) {
-  return (mode ?? getThemeMode()) === 'dark' ? DARK : LIGHT;
+/** Map flight_status / visual → semantic badge token. */
+export function resolveFlightStatusToken(args: {
+  rosterEntryKind?: string | null;
+  flightStatus?: string | null;
+  isStandbyDutyCode?: boolean;
+  delayMins?: number | null;
+}): FlightStatusToken {
+  const visual = resolveRosterCardVisualKind(args);
+  if (visual === 'duty_off') return 'completed';
+  if (visual === 'standby') return 'scheduled';
+  if (visual === 'landed') return 'completed';
+  if (visual === 'in_flight') return 'inFlight';
+  if (args.delayMins != null && args.delayMins > 0) return 'delayed';
+  const status = String(args.flightStatus ?? '').toLowerCase();
+  if (status === 'cancelled') return 'cancelled';
+  if (status === 'scheduled') return 'scheduled';
+  return 'onTime';
 }
 
-/** Kart içi metin — StyleSheet’e gömülmesin; her render’da tema ile. */
 export function rosterCardInk(mode?: ThemeMode) {
   const dark = (mode ?? getThemeMode()) === 'dark';
   return {
-    primary: dark ? '#F4F7FC' : '#0B1220',
-    secondary: dark ? '#C5D0E0' : '#22324C',
-    muted: dark ? '#9AADBF' : '#6B7A90',
+    primary: dark ? '#F3F6FB' : '#0F1B3D',
+    secondary: dark ? '#C5D0E0' : '#4B5563',
+    muted: dark ? '#9AA8BC' : '#6B7280',
     onAccent: colors.primary,
     error: colors.error,
     success: colors.success,
   };
 }
 
-/** FlatList / basit aile kartları için chrome (background + border). */
+/** FlatList / aile kartları: surface + border + left accent color. */
 export function rosterCardChrome(
   visual: RosterCardVisualKind,
   mode?: ThemeMode,
@@ -81,55 +65,63 @@ export function rosterCardChrome(
   backgroundColor: string;
   borderColor: string;
   borderWidth: number;
+  accentColor: string;
 } {
-  const p = palette(mode);
-  switch (visual) {
-    case 'duty_off':
-      return {
-        backgroundColor: p.offDutyBg,
-        borderColor: p.offDutyBorder,
-        borderWidth: StyleSheet.hairlineWidth,
-      };
-    case 'standby':
-      return {
-        backgroundColor: p.standbyBg,
-        borderColor: p.standbyBorder,
-        borderWidth: StyleSheet.hairlineWidth,
-      };
-    case 'in_flight':
-      return {
-        backgroundColor: p.inFlightBg,
-        borderColor: p.inFlightBorder,
-        borderWidth: 2,
-      };
-    case 'landed':
-      return {
-        backgroundColor: p.landedBg,
-        borderColor: colors.success,
-        borderWidth: 2,
-      };
-    case 'flight':
-    default:
-      return {
-        backgroundColor: p.flightBg,
-        borderColor: p.flightBorder,
-        borderWidth: StyleSheet.hairlineWidth,
-      };
-  }
-}
-
-/** Roster StyleSheet kart token’ları (tema ile). */
-export function rosterCardStyleTokens(mode?: ThemeMode) {
-  const p = palette(mode);
+  const m = mode ?? getThemeMode();
+  const accentKey =
+    visual === 'duty_off'
+      ? 'duty_off'
+      : visual === 'standby'
+        ? 'standby'
+        : visual === 'in_flight'
+          ? 'in_flight'
+          : visual === 'landed'
+            ? 'landed'
+            : 'flight';
   return {
-    flightBg: p.flightBg,
-    flightBorder: p.flightBorder,
-    offDutyBg: p.offDutyBg,
-    offDutyBorder: p.offDutyBorder,
-    standbyBg: p.standbyBg,
-    standbyBorder: p.standbyBorder,
-    inFlightBg: p.inFlightBg,
-    inFlightBorder: p.inFlightBorder,
-    landedBg: p.landedBg,
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderWidth: StyleSheet.hairlineWidth,
+    accentColor: cardAccent(accentKey, m),
   };
 }
+
+export function rosterStatusBadge(
+  token: FlightStatusToken,
+  mode?: ThemeMode,
+): { backgroundColor: string; color: string } {
+  const chrome = statusChrome(token, mode ?? getThemeMode());
+  return { backgroundColor: chrome.bg, color: chrome.text };
+}
+
+/** StyleSheet kart token’ları (tema ile) — gövde surface; accent ayrı. */
+export function rosterCardStyleTokens(mode?: ThemeMode) {
+  const m = mode ?? getThemeMode();
+  return {
+    flightBg: colors.surface,
+    flightBorder: colors.border,
+    offDutyBg: colors.surface,
+    offDutyBorder: colors.border,
+    standbyBg: colors.surface,
+    standbyBorder: colors.border,
+    inFlightBg: colors.surface,
+    inFlightBorder: colors.border,
+    landedBg: colors.surface,
+    accentFlight: cardAccent('flight', m),
+    accentDutyOff: cardAccent('duty_off', m),
+    accentStandby: cardAccent('standby', m),
+    accentInFlight: cardAccent('in_flight', m),
+    accentLanded: cardAccent('landed', m),
+  };
+}
+
+/** @deprecated — kept for import compatibility; prefer surface + accent. */
+export const ROSTER_CARD_FLIGHT_BG = '#FFFFFF';
+export const ROSTER_CARD_FLIGHT_BORDER = '#E5E9F0';
+export const ROSTER_CARD_OFF_DUTY_BG = '#FFFFFF';
+export const ROSTER_CARD_OFF_DUTY_BORDER = '#E5E9F0';
+export const ROSTER_CARD_STANDBY_BG = '#FFFFFF';
+export const ROSTER_CARD_STANDBY_BORDER = '#E5E9F0';
+export const ROSTER_CARD_IN_FLIGHT_BG = '#FFFFFF';
+export const ROSTER_CARD_IN_FLIGHT_BORDER = '#E5E9F0';
+export const ROSTER_CARD_LANDED_BG = '#FFFFFF';
