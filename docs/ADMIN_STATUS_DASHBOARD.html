@@ -2373,7 +2373,7 @@
           let hint = '';
           if (location.protocol === 'file:') {
             hint =
-              ' Paneli file:// ile açıyorsun — terminalde: cd docs && python3 -m http.server 8765 sonra http://localhost:8765/ADMIN_STATUS_DASHBOARD.html?ui=31';
+              ' Paneli file:// ile açıyorsun — terminalde: cd docs && python3 -m http.server 8765 sonra http://localhost:8765/ADMIN_STATUS_DASHBOARD.html?ui=32';
           } else {
             hint = ' Supabase URL ve anon key kontrol et; VPN/eklenti engeli olabilir.';
           }
@@ -4039,16 +4039,18 @@
       const seen = new Set();
       let duplicates = 0;
       let overnight = 0;
+      let missingDetails = 0;
       for (const r of flights) {
         const key = [r.flight_number, r.origin_iata, r.destination_iata, r.dep_schedule_utc_iso, r.arr_schedule_utc_iso].join('|');
         if (seen.has(key)) duplicates += 1;
         seen.add(key);
         if (r.dep_schedule_utc_iso && r.arr_schedule_utc_iso &&
             String(r.dep_schedule_utc_iso).slice(0, 10) !== String(r.arr_schedule_utc_iso).slice(0, 10)) overnight += 1;
+        if (!r.origin_iata || !r.destination_iata || !r.dep_schedule_utc_iso || !r.arr_schedule_utc_iso) missingDetails += 1;
       }
       els.pdfSunexpressAudit.textContent =
-        overnight + ' gece bacağı · ' + duplicates + ' mükerrer · ' +
-        (duplicates === 0 ? 'OK' : 'Kontrol gerekli');
+        overnight + ' gece bacağı · ' + duplicates + ' mükerrer · ' + missingDetails + ' detaysız · ' +
+        (duplicates === 0 && missingDetails === 0 ? 'OK' : 'Kontrol gerekli');
     }
 
     async function runPdfRosterParse() {

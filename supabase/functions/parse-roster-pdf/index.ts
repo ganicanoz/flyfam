@@ -293,6 +293,56 @@ function extractSunExpressLegs(rawText: string): Map<string, SunExpressLeg[]> {
     }
   }
 
+  // XQ232 gibi bazı bacaklar Release'ten sonra değil, Report'tan hemen önce
+  // yalnız kod olarak kalır. Detayı henüz bulunmayan bu kodu, ikinci metin
+  // katmanındaki ve başka uçuşça kullanılmamış rota/saat çiftiyle tamamla.
+  const rawLines = rawText.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  const reportOrphans: string[] = [];
+  for (let i = 0; i < rawLines.length; i += 1) {
+    const codeMatch = /^(XQ\d{2,4}|DH)$/i.exec(rawLines[i] ?? '');
+    if (!codeMatch) continue;
+    const code = codeMatch[1]!.toUpperCase();
+    if (out.has(code) || reportOrphans.includes(code)) continue;
+    for (let j = i + 1; j <= Math.min(i + 4, rawLines.length - 1); j += 1) {
+      const next = rawLines[j] ?? '';
+      if (next.toUpperCase() === code) continue;
+      if (/Report/i.test(next)) reportOrphans.push(code);
+      break;
+    }
+  }
+
+  const knownLegs = new Set<string>();
+  for (const legs of out.values()) {
+    for (const leg of legs) knownLegs.add(`${leg.origin}|${leg.destination}|${leg.stdUtc}|${leg.staUtc}`);
+  }
+  for (const code of reportOrphans) {
+    let selected: { origin: string; destination: string; dep: string; arr: string } | null = null;
+    for (const arrPiece of arrPieces) {
+      const arrKey = `${arrPiece.origin}|${arrPiece.destination}|${arrPiece.arr}`;
+      if (usedArr.has(arrKey) || arrPiece.origin === arrPiece.destination) continue;
+      const depPiece = depPieces.find((candidate) => {
+        const depKey = `${candidate.origin}|${candidate.destination}|${candidate.dep}`;
+        if (usedDep.has(depKey)) return false;
+        if (candidate.origin !== arrPiece.origin || candidate.destination !== arrPiece.destination) return false;
+        const dep = hhmmToMin(candidate.dep);
+        const arr = hhmmToMin(arrPiece.arr);
+        if (dep == null || arr == null) return false;
+        const duration = arr < dep ? arr + 24 * 60 - dep : arr - dep;
+        if (duration <= 0 || duration >= 12 * 60) return false;
+        return !knownLegs.has(`${candidate.origin}|${candidate.destination}|${candidate.dep}|${arrPiece.arr}`);
+      });
+      if (depPiece) {
+        selected = { ...depPiece, arr: arrPiece.arr };
+        break;
+      }
+    }
+    if (!selected) continue;
+    usedDep.add(`${selected.origin}|${selected.destination}|${selected.dep}`);
+    usedArr.add(`${selected.origin}|${selected.destination}|${selected.arr}`);
+    push({ code, origin: selected.origin, destination: selected.destination, stdUtc: selected.dep, staUtc: selected.arr });
+    knownLegs.add(`${selected.origin}|${selected.destination}|${selected.dep}|${selected.arr}`);
+  }
+
   return out;
 }
 
