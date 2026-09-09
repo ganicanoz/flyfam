@@ -93,7 +93,6 @@ export function categorizeRosterListRow(f: FlightLike): RosterListRowCategory {
     fn === 'FREE' ||
     fn === 'OFF' ||
     fn === 'OFFB' ||
-    fn === 'TOF' ||
     fn === 'DOFF' ||
     fn === 'RQST' ||
     fn === 'VAC' ||

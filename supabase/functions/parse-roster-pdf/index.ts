@@ -303,6 +303,7 @@ async function parseSunExpressWithLayout(buf: Uint8Array, rawText: string): Prom
   const doc = await getDocument({ data: buf, disableWorker: true }).promise;
   const flightsByLayout: Array<{ date: string; code: string }> = [];
   const dutiesByLayout = new Map<string, { code: string | null; report: string | null; release: string | null }>();
+  const dutyCellWords = new Map<string, Array<{ text: string; x: number; top: number }>>();
 
   for (let pageNo = 1; pageNo <= doc.numPages; pageNo += 1) {
     const page = await doc.getPage(pageNo);
@@ -426,6 +427,9 @@ async function parseSunExpressWithLayout(buf: Uint8Array, rawText: string): Prom
       const colIdx = colBounds.findIndex((b) => w.x > b.lo && w.x <= b.hi);
       const dateIso = rowIdx >= 0 && colIdx >= 0 ? dayByRowCol.get(`${rowIdx}:${colIdx}`) : null;
       if (!dateIso) continue;
+      const cellWords = dutyCellWords.get(dateIso) ?? [];
+      cellWords.push(w);
+      dutyCellWords.set(dateIso, cellWords);
       const previous = dutiesByLayout.get(dateIso) ?? { code: null, report: null, release: null };
       const compactToken = w.text.replace(/\s+/g, '').toUpperCase();
       const codeMatch = compactToken.match(/(?:^|[^A-Z])(OFFB?|AVAC|RSV\d*|SB[A-Z0-9]*|TOF|COMP-DR)(?:$|[^A-Z])/);
@@ -437,6 +441,34 @@ async function parseSunExpressWithLayout(buf: Uint8Array, rawText: string): Prom
         code: codeMatch?.[1]?.toUpperCase() ?? previous.code,
         report: explicitReport?.padStart(5, '0') ?? previous.report,
         release: explicitRelease?.padStart(5, '0') ?? previous.release,
+      });
+    }
+  }
+
+  // TOF/RSV/SB gibi saatlik görevlerde Report/Release yazmayabilir; saatler kodun
+  // bulunduğu satırdadır (örn. "TOF AYT 01:00 ~ 11:00 AYT"). Yalnız o satırın
+  // ilk iki saatini görev başlangıç/bitişi olarak al.
+  for (const [date, words] of dutyCellWords) {
+    const duty = dutiesByLayout.get(date);
+    if (!duty?.code || (duty.report && duty.release)) continue;
+    const rows: Array<Array<{ text: string; x: number; top: number }>> = [];
+    for (const word of [...words].sort((a, b) => a.top - b.top || a.x - b.x)) {
+      const row = rows.find((candidate) => Math.abs((candidate[0]?.top ?? word.top) - word.top) <= 3);
+      if (row) row.push(word);
+      else rows.push([word]);
+    }
+    const codePattern = new RegExp(`\\b${duty.code.replace(/-/g, '\\-')}\\b`, 'i');
+    const dutyRow = rows.find((row) => codePattern.test(row.map((w) => w.text).join(' ')));
+    if (!dutyRow) continue;
+    const rowText = dutyRow.sort((a, b) => a.x - b.x).map((w) => w.text).join(' ');
+    const times = [...rowText.matchAll(/\b([01]?\d|2[0-3]):([0-5]\d)\b/g)].map(
+      (m) => `${String(m[1]).padStart(2, '0')}:${m[2]}`,
+    );
+    if (times.length >= 2) {
+      dutiesByLayout.set(date, {
+        ...duty,
+        report: duty.report ?? times[0]!,
+        release: duty.release ?? times[1]!,
       });
     }
   }
@@ -513,7 +545,7 @@ async function parseSunExpressWithLayout(buf: Uint8Array, rawText: string): Prom
 
   const flightDates = new Set(out.map((r) => r.flight_date));
   for (const [date, duty] of dutiesByLayout) {
-    if (!duty.code || flightDates.has(date)) continue;
+    if (!duty.code || (flightDates.has(date) && duty.code.toUpperCase() !== 'TOF')) continue;
     const normalizedCode = /^OFFB?$/i.test(duty.code) ? duty.code.toUpperCase() : duty.code;
     out.push({
       flight_number: normalizedCode,

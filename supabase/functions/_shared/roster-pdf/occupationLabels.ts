@@ -334,7 +334,7 @@ export function rosterOccupationLabelTr(code: string | null | undefined): string
   if (u.startsWith('STBY')) return ROSTER_OCCUPATION_TR.STBY;
   if (u === 'SBY') return ROSTER_OCCUPATION_TR.SBY;
   if (/^RSV\d*$/.test(u)) return 'Rezerv';
-  if (u === 'TOF') return 'Boş Gün';
+  if (u === 'TOF') return 'Serbest Zaman';
   if (u === 'FSF' || u === 'FOF' || u === 'MSF') return 'Boş Gün';
   if (u === 'UPV') return 'Ücretsiz İzin';
   if (u === 'VAV' || u === 'VAC' || u === 'AVAC' || u === 'III') return 'Yıllık İzin';
@@ -354,7 +354,7 @@ export function rosterOccupationLabelEn(code: string | null | undefined): string
   if (u.startsWith('STBY')) return ROSTER_OCCUPATION_EN.STBY;
   if (u === 'SBY') return ROSTER_OCCUPATION_EN.SBY;
   if (/^RSV\d*$/.test(u)) return 'Reserve';
-  if (u === 'TOF') return 'Off day';
+  if (u === 'TOF') return 'Time Off';
   if (u === 'MSF') return 'Off Day';
   if (u === 'UPV') return 'Unpaid Leave';
   if (u === 'VAV' || u === 'VAC' || u === 'AVAC' || u === 'III') return 'Annual Leave';
@@ -420,7 +420,6 @@ export function isOffDayOccupationCode(code: string | null | undefined): boolean
     u === 'FREE' ||
     u === 'OFF' ||
     u === 'OFFB' ||
-    u === 'TOF' ||
     u === 'DOFF' ||
     u === 'RQST' ||
     u === 'RSF' ||

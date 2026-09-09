@@ -213,6 +213,19 @@ function parseNonFlightDutyCode(line: string): string | null {
   return null;
 }
 
+function parseTimedDutyLine(line: string): { code: string; start: string; end: string } | null {
+  // pdf-parse ters akış: "~ END STATIONSTATION START TOF/RSV2/SB2"
+  const m = /~\s*(\d{1,2}:\d{2})\s*[A-Z]{3}\s*[A-Z]{3}\s*(\d{1,2}:\d{2})\s*(TOF|RSV\d*|SB[A-Z0-9]*)\b/i.exec(
+    line.replace(/\s+/g, ' '),
+  );
+  if (!m) return null;
+  return {
+    code: m[3]!.toUpperCase(),
+    start: padHhmm(m[2])!,
+    end: padHhmm(m[1])!,
+  };
+}
+
 function clockBefore(label: 'Report' | 'Release', line: string): string | null {
   const m = new RegExp(`(\\d{1,2}:\\d{2})\\s*${label}`, 'i').exec(line);
   return padHhmm(m?.[1] ?? null);
@@ -459,6 +472,16 @@ export function parseFlightsFromPdfText_SunExpress(text: string): PdfFlightRow[]
     !!b && (b.flights.length > 0 || !!b.dutyCode || b.off || !!b.report || !!b.release);
 
   for (const line of lines) {
+    const timedDuty = parseTimedDutyLine(line);
+    if (timedDuty) {
+      current = startNewDay();
+      if (!current) break;
+      current.dutyCode = timedDuty.code;
+      current.report = timedDuty.start;
+      current.release = timedDuty.end;
+      current = null;
+      continue;
+    }
     // Birleşik ReportOFF: tek OFF günü (ekstra gün açma)
     if (/ReportOFF/i.test(line) || (/Report/i.test(line) && /OFF/i.test(line) && !/Release/i.test(line) && !parseFlightLine(line))) {
       if (/ReportOFF/i.test(line) || /^[\d:]+\s*Report\s*OFF$/i.test(line.replace(/\s+/g, ' ').trim())) {
