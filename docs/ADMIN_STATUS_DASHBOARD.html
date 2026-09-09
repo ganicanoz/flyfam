@@ -4303,7 +4303,7 @@
     });
     wireSortableHead(els.usersHead, (key) => {
       const st = { key: usersSortKey, dir: usersSortDir };
-      toggleSortKey(st, key, new Set(['full_name', 'email', 'role', 'subscription', 'platform', 'version', 'airline']));
+      toggleSortKey(st, key, new Set(['custom_id', 'full_name', 'id', 'email', 'role', 'subscription', 'slots', 'platform', 'version', 'airline', 'connections', 'last_sign_in_at']));
       usersSortKey = st.key;
       usersSortDir = st.dir;
       renderUsers(lastUsers);
