@@ -235,26 +235,62 @@ function extractSunExpressLegs(rawText: string): Map<string, SunExpressLeg[]> {
     codes.push((m[2] ?? '').toUpperCase());
     orphanByArrival.set(arr, codes);
   }
-  const routePieces = new Map<string, { dep?: string; arr?: string }>();
+  const depPieces: Array<{ origin: string; destination: string; dep: string }> = [];
+  const arrPieces: Array<{ origin: string; destination: string; arr: string }> = [];
   for (const line of rawText.split(/\r?\n/)) {
     const dep = /^\s*([A-Z]{3})\s+(\d{1,2}:\d{2})\s*~\s*([A-Z]{3})\s*$/i.exec(line);
     if (dep) {
-      const key = `${dep[1]!.toUpperCase()}|${dep[3]!.toUpperCase()}`;
-      routePieces.set(key, { ...(routePieces.get(key) ?? {}), dep: dep[2]!.padStart(5, '0') });
+      depPieces.push({
+        origin: dep[1]!.toUpperCase(),
+        destination: dep[3]!.toUpperCase(),
+        dep: dep[2]!.padStart(5, '0'),
+      });
     }
     const arr = /^\s*([A-Z]{3})\s*~\s*(\d{1,2}:\d{2})\s*([A-Z]{3})\s*$/i.exec(line);
     if (arr) {
-      const key = `${arr[1]!.toUpperCase()}|${arr[3]!.toUpperCase()}`;
-      routePieces.set(key, { ...(routePieces.get(key) ?? {}), arr: arr[2]!.padStart(5, '0') });
+      arrPieces.push({
+        origin: arr[1]!.toUpperCase(),
+        destination: arr[3]!.toUpperCase(),
+        arr: arr[2]!.padStart(5, '0'),
+      });
     }
   }
-  for (const [route, times] of routePieces) {
-    if (!times.dep || !times.arr) continue;
-    const codes = orphanByArrival.get(times.arr) ?? [];
-    const code = codes.shift();
-    if (!code) continue;
-    const [origin, destination] = route.split('|');
-    push({ code, origin: origin!, destination: destination!, stdUtc: times.dep, staUtc: times.arr });
+  const usedDep = new Set<string>();
+  const usedArr = new Set<string>();
+  for (const [arrHint, codes] of orphanByArrival) {
+    for (const code of codes) {
+      const arrHit = arrPieces.find(
+        (p) => p.arr === arrHint && !usedArr.has(`${p.origin}|${p.destination}|${p.arr}`),
+      );
+      if (!arrHit) continue;
+      const candidates = depPieces.filter(
+        (p) =>
+          p.origin === arrHit.origin &&
+          p.destination === arrHit.destination &&
+          !usedDep.has(`${p.origin}|${p.destination}|${p.dep}`),
+      );
+      const overnightSpan = (dep: string, arr: string) => {
+        const d = hhmmToMin(dep);
+        const a = hhmmToMin(arr);
+        if (d == null || a == null) return 9999;
+        return a < d ? a + 24 * 60 - d : a - d;
+      };
+      const depHit =
+        candidates
+          .filter((p) => overnightSpan(p.dep, arrHit.arr) < 12 * 60)
+          .sort((a, b) => overnightSpan(a.dep, arrHit.arr) - overnightSpan(b.dep, arrHit.arr))[0] ??
+        candidates[0];
+      if (!depHit) continue;
+      usedArr.add(`${arrHit.origin}|${arrHit.destination}|${arrHit.arr}`);
+      usedDep.add(`${depHit.origin}|${depHit.destination}|${depHit.dep}`);
+      push({
+        code,
+        origin: depHit.origin,
+        destination: depHit.destination,
+        stdUtc: depHit.dep,
+        staUtc: arrHit.arr,
+      });
+    }
   }
 
   return out;
@@ -407,13 +443,37 @@ async function parseSunExpressWithLayout(buf: Uint8Array, rawText: string): Prom
 
   if (flightsByLayout.length === 0) return null;
 
+  // SunExpress takviminde gece görevinin devam bacakları görsel olarak ertesi gün
+  // hücresine taşabilir. Örn. 15 Eyl Report 19:35 ile başlayan XQ232/XQ233,
+  // 16 Eyl hücresindeki Release 05:10 ile kapanır. Ertesi hücrede Report yoksa,
+  // ancak Release varsa ve önceki gün Report + uçuş içeriyorsa tüm devam bacaklarını
+  // görevin başladığı güne bağla.
+  const layoutFlightDates = new Set(flightsByLayout.map((f) => f.date));
+  const normalizedFlightsByLayout = flightsByLayout.map((item) => {
+    const duty = dutiesByLayout.get(item.date);
+    const previousDate = addDaysIso(item.date, -1);
+    const previousDuty = dutiesByLayout.get(previousDate);
+    const isOvernightContinuation =
+      !duty?.report &&
+      !!duty?.release &&
+      !!previousDuty?.report &&
+      layoutFlightDates.has(previousDate);
+    if (!isOvernightContinuation) return { ...item, scheduleDate: item.date };
+    dutiesByLayout.set(previousDate, {
+      code: previousDuty?.code ?? null,
+      report: previousDuty?.report ?? null,
+      release: duty?.release ?? previousDuty?.release ?? null,
+    });
+    return { ...item, date: previousDate, scheduleDate: item.date };
+  });
+
   // Detaylar (dep/dest/std/sta) ham metinden regex ile çıkarılır (date bağımsız).
   const detailByCode = extractSunExpressLegs(rawText);
   const usedByCode = new Map<string, number>();
 
   const out: PdfFlightRow[] = [];
   const dedupe = new Set<string>();
-  for (const item of flightsByLayout) {
+  for (const item of normalizedFlightsByLayout) {
     const code = item.code;
     const list = detailByCode.get(code) ?? [];
     const idx = usedByCode.get(code) ?? 0;
@@ -428,13 +488,14 @@ async function parseSunExpressWithLayout(buf: Uint8Array, rawText: string): Prom
     });
     const depMin = normalized.stdUtc ? hhmmToMin(normalized.stdUtc) : null;
     const arrMin = normalized.staUtc ? hhmmToMin(normalized.staUtc) : null;
-    const arrDate = depMin != null && arrMin != null && arrMin < depMin ? addDaysIso(item.date, 1) : item.date;
+    const scheduleDate = item.scheduleDate;
+    const arrDate = depMin != null && arrMin != null && arrMin < depMin ? addDaysIso(scheduleDate, 1) : scheduleDate;
     const row: PdfFlightRow = {
       flight_number: code,
       flight_date: item.date,
       dep_time_local: normalized.stdUtc ?? null,
       arr_time_local: normalized.staUtc ?? null,
-      dep_schedule_utc_iso: normalized.stdUtc ? `${item.date}T${normalized.stdUtc}:00.000Z` : null,
+      dep_schedule_utc_iso: normalized.stdUtc ? `${scheduleDate}T${normalized.stdUtc}:00.000Z` : null,
       arr_schedule_utc_iso: normalized.staUtc ? `${arrDate}T${normalized.staUtc}:00.000Z` : null,
       origin_iata: normalized.origin ?? null,
       destination_iata: normalized.destination ?? null,

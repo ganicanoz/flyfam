@@ -1237,6 +1237,10 @@
             Online ortamda tarayıcı dosya yolunu okuyamaz — PDF’i yükleyin. Yerel CLI:
             <code>cd mobile && npm run pdf:roster -- /path/to.pdf</code>
           </p>
+          <p class="mini" style="margin-top:-4px; padding:8px 10px; border-radius:8px; background:#fff7ed; border:1px solid #fed7aa;">
+            <strong>SunExpress kontrolü:</strong> Gece yarısını aşan bacaklar Report günündeki tek görev altında birleştirilir.
+            UTC kalkış/varış tarihleri korunur; aynı bacağın ertesi gün tekrar yazılması ayrıca denetlenir.
+          </p>
           <div class="users-toolbar" style="margin-bottom:12px; align-items:end; flex-wrap:wrap; gap:10px;">
             <div>
               <label class="mini">Havayolu (crew ICAO filtresi)</label>
@@ -1294,6 +1298,10 @@
               <h3>Layout / kaynak</h3>
               <div class="mini" id="pdfDetectMeta" style="margin-top:6px; font-size:13px; font-weight:600;">—</div>
             </div>
+            <div class="card">
+              <h3>SunExpress gece kontrolü</h3>
+              <div class="mini" id="pdfSunexpressAudit" style="margin-top:6px; font-size:13px; font-weight:600;">SXS seçildiğinde çalışır</div>
+            </div>
           </div>
           <div class="users-table-wrap" style="margin-bottom:12px;">
             <table class="users-table" id="pdfRosterTable">
@@ -1305,12 +1313,14 @@
                   <th>Tür</th>
                   <th>DEP</th>
                   <th>ARR</th>
-                  <th>Saat (dep→arr)</th>
-                  <th>Duty / not</th>
+                  <th>PDF saati</th>
+                  <th>UTC plan</th>
+                  <th>Görev penceresi</th>
+                  <th>Kontrol / not</th>
                 </tr>
               </thead>
               <tbody id="pdfRosterBody">
-                <tr><td colspan="8" class="mini">Henüz parse yok.</td></tr>
+                <tr><td colspan="10" class="mini">Henüz parse yok.</td></tr>
               </tbody>
             </table>
           </div>
@@ -1447,6 +1457,7 @@
       pdfCountRaw: document.getElementById('pdfCountRaw'),
       pdfCountSkipped: document.getElementById('pdfCountSkipped'),
       pdfDetectMeta: document.getElementById('pdfDetectMeta'),
+      pdfSunexpressAudit: document.getElementById('pdfSunexpressAudit'),
       pdfRosterBody: document.getElementById('pdfRosterBody'),
       pdfRawText: document.getElementById('pdfRawText'),
       pdfRawJson: document.getElementById('pdfRawJson'),
@@ -2360,7 +2371,7 @@
           let hint = '';
           if (location.protocol === 'file:') {
             hint =
-              ' Paneli file:// ile açıyorsun — terminalde: cd docs && python3 -m http.server 8765 sonra http://localhost:8765/ADMIN_STATUS_DASHBOARD.html?ui=28';
+              ' Paneli file:// ile açıyorsun — terminalde: cd docs && python3 -m http.server 8765 sonra http://localhost:8765/ADMIN_STATUS_DASHBOARD.html?ui=29';
           } else {
             hint = ' Supabase URL ve anon key kontrol et; VPN/eklenti engeli olabilir.';
           }
@@ -3948,8 +3959,9 @@
       if (els.pdfCountRaw) els.pdfCountRaw.textContent = '-';
       if (els.pdfCountSkipped) els.pdfCountSkipped.textContent = '-';
       if (els.pdfDetectMeta) els.pdfDetectMeta.textContent = '—';
+      if (els.pdfSunexpressAudit) els.pdfSunexpressAudit.textContent = 'SXS seçildiğinde çalışır';
       if (els.pdfRosterBody) {
-        els.pdfRosterBody.innerHTML = '<tr><td colspan="8" class="mini">Henüz parse yok.</td></tr>';
+        els.pdfRosterBody.innerHTML = '<tr><td colspan="10" class="mini">Henüz parse yok.</td></tr>';
       }
       if (els.pdfRawText) els.pdfRawText.textContent = '';
       if (els.pdfRawJson) els.pdfRawJson.textContent = '';
@@ -3960,7 +3972,7 @@
       const list = Array.isArray(rows) ? rows : [];
       if (!els.pdfRosterBody) return;
       if (list.length === 0) {
-        els.pdfRosterBody.innerHTML = '<tr><td colspan="8" class="mini">Satır yok.</td></tr>';
+        els.pdfRosterBody.innerHTML = '<tr><td colspan="10" class="mini">Satır yok.</td></tr>';
         return;
       }
       els.pdfRosterBody.innerHTML = list
@@ -3969,8 +3981,12 @@
           const dep = r.origin_iata || '—';
           const arr = r.destination_iata || '—';
           const times = [r.dep_time_local || '—', r.arr_time_local || '—'].join(' → ');
+          const utcTimes = [r.dep_schedule_utc_iso || '—', r.arr_schedule_utc_iso || '—'].join(' → ');
+          const dutyWindow = [r.duty_start_time_local || '—', r.duty_end_time_local || '—'].join(' → ');
+          const overnight = r.dep_schedule_utc_iso && r.arr_schedule_utc_iso &&
+            String(r.dep_schedule_utc_iso).slice(0, 10) !== String(r.arr_schedule_utc_iso).slice(0, 10);
           const note =
-            [r.duty_occupation_code, r.duty_occupation_label_tr, r.duty_end_time_local]
+            [overnight ? 'Gece +1 gün' : null, r.duty_occupation_code, r.duty_occupation_label_tr]
               .filter(Boolean)
               .join(' · ') || '—';
           return (
@@ -3997,12 +4013,40 @@
             escapeHtml(times) +
             '</td>' +
             '<td class="mini">' +
+            escapeHtml(utcTimes) +
+            '</td>' +
+            '<td>' +
+            escapeHtml(dutyWindow) +
+            '</td>' +
+            '<td class="mini">' +
             escapeHtml(note) +
             '</td>' +
             '</tr>'
           );
         })
         .join('');
+    }
+
+    function renderSunexpressAudit(rows, selectedIcao, detectedLayout) {
+      if (!els.pdfSunexpressAudit) return;
+      if (selectedIcao !== 'SXS' && detectedLayout !== 'sunexpress') {
+        els.pdfSunexpressAudit.textContent = 'SXS seçildiğinde çalışır';
+        return;
+      }
+      const flights = (Array.isArray(rows) ? rows : []).filter((r) => /^(XQ\d{2,4}|DH)$/i.test(r.flight_number || ''));
+      const seen = new Set();
+      let duplicates = 0;
+      let overnight = 0;
+      for (const r of flights) {
+        const key = [r.flight_number, r.origin_iata, r.destination_iata, r.dep_schedule_utc_iso, r.arr_schedule_utc_iso].join('|');
+        if (seen.has(key)) duplicates += 1;
+        seen.add(key);
+        if (r.dep_schedule_utc_iso && r.arr_schedule_utc_iso &&
+            String(r.dep_schedule_utc_iso).slice(0, 10) !== String(r.arr_schedule_utc_iso).slice(0, 10)) overnight += 1;
+      }
+      els.pdfSunexpressAudit.textContent =
+        overnight + ' gece bacağı · ' + duplicates + ' mükerrer · ' +
+        (duplicates === 0 ? 'OK' : 'Kontrol gerekli');
     }
 
     async function runPdfRosterParse() {
@@ -4052,6 +4096,7 @@
             (json.parser_debug_error ? ' · err: ' + json.parser_debug_error : '');
         }
         renderPdfSimFlights(filtered);
+        renderSunexpressAudit(filtered, icao, json.detected_layout);
         const text = typeof json.text === 'string' ? json.text : '';
         if (els.pdfRawText) {
           els.pdfRawText.textContent =
@@ -4279,4 +4324,3 @@
   </script>
 </body>
 </html>
-
