@@ -183,17 +183,33 @@ async function countFamilyUsage(
   adminClient: ReturnType<typeof createClient>,
   crewId: string,
 ): Promise<{ approved: number; pending: number }> {
-  const { count: approved } = await adminClient
-    .from('family_connections')
-    .select('id', { count: 'exact', head: true })
-    .eq('crew_id', crewId)
-    .eq('status', 'approved');
-  const { count: pending } = await adminClient
-    .from('family_connections')
-    .select('id', { count: 'exact', head: true })
-    .eq('crew_id', crewId)
-    .eq('status', 'pending');
-  return { approved: approved ?? 0, pending: pending ?? 0 };
+  const [{ count: familyApproved }, { count: familyPending }, { count: peerApproved }, { count: peerPending }] =
+    await Promise.all([
+      adminClient
+        .from('family_connections')
+        .select('id', { count: 'exact', head: true })
+        .eq('crew_id', crewId)
+        .eq('status', 'approved'),
+      adminClient
+        .from('family_connections')
+        .select('id', { count: 'exact', head: true })
+        .eq('crew_id', crewId)
+        .eq('status', 'pending'),
+      adminClient
+        .from('crew_peer_links')
+        .select('id', { count: 'exact', head: true })
+        .eq('peer_crew_id', crewId)
+        .eq('status', 'approved'),
+      adminClient
+        .from('crew_peer_links')
+        .select('id', { count: 'exact', head: true })
+        .eq('peer_crew_id', crewId)
+        .eq('status', 'pending'),
+    ]);
+  return {
+    approved: (familyApproved ?? 0) + (peerApproved ?? 0),
+    pending: (familyPending ?? 0) + (peerPending ?? 0),
+  };
 }
 
 async function syncCrewEntitlement(
@@ -1457,6 +1473,93 @@ Deno.serve(async (req) => {
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
+    if (action === 'broadcast_push_notification') {
+      const titleRaw = typeof body?.title === 'string' ? body.title.trim() : '';
+      const bodyRaw = typeof body?.body === 'string' ? body.body.trim() : '';
+      const title = titleRaw || 'FlyFam';
+      const url = typeof body?.url === 'string' ? body.url.trim() : '';
+      if (!bodyRaw) {
+        return new Response(JSON.stringify({ error: 'body is required' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      if (title.length > 100 || bodyRaw.length > 500) {
+        return new Response(JSON.stringify({ error: 'title max 100 / body max 500 chars' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      const { data: tokenRows, error: tokErr } = await adminClient
+        .from('device_tokens')
+        .select('user_id, token')
+        .limit(10000);
+      if (tokErr) {
+        return new Response(JSON.stringify({ error: tokErr.message || 'Token lookup failed' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      const tokensByUser = new Map<string, string[]>();
+      for (const row of tokenRows ?? []) {
+        const uid = String((row as { user_id: string }).user_id || '').trim();
+        const tok = String((row as { token: string }).token || '').trim();
+        if (!uid || !tok) continue;
+        if (!tokensByUser.has(uid)) tokensByUser.set(uid, []);
+        tokensByUser.get(uid)!.push(tok);
+      }
+      const allTokens = Array.from(new Set([...tokensByUser.values()].flat()));
+      if (allTokens.length === 0) {
+        return new Response(
+          JSON.stringify({
+            ok: true,
+            action,
+            sent: 0,
+            token_count: 0,
+            users_with_tokens: 0,
+            no_tokens: true,
+          }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        );
+      }
+      const dataPayload = url ? { url } : null;
+      const pushResult = await sendExpoPush(allTokens, title, bodyRaw, dataPayload);
+      const activityRows = [...tokensByUser.keys()].map((uid) => ({
+        user_id: uid,
+        event_type: 'admin_push',
+        meta: {
+          title,
+          body: bodyRaw,
+          url: url || null,
+          source: 'admin_broadcast',
+          sent: pushResult.sent,
+        },
+      }));
+      if (activityRows.length) {
+        // Chunk inserts to avoid payload limits
+        for (let i = 0; i < activityRows.length; i += 200) {
+          await adminClient.from('user_activity_events').insert(activityRows.slice(i, i + 200));
+        }
+      }
+      console.log('[admin-dashboard] broadcast_push_notification', {
+        requester: requesterEmail,
+        users_with_tokens: tokensByUser.size,
+        token_count: allTokens.length,
+        sent: pushResult.sent,
+        errors: pushResult.errors,
+      });
+      return new Response(
+        JSON.stringify({
+          ok: true,
+          action,
+          users_with_tokens: tokensByUser.size,
+          token_count: allTokens.length,
+          sent: pushResult.sent,
+          expo_errors: pushResult.errors,
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
     if (action === 'get_user_subscription') {
       const userId = typeof body?.user_id === 'string' ? body.user_id.trim() : '';
       if (!userId) {
@@ -1625,11 +1728,11 @@ Deno.serve(async (req) => {
 
       const baseFamily = plan?.max_family_members ?? 1;
       const totalSlots = baseFamily + nextExtra;
-      const usedTotal = ctx.usage.approved + ctx.usage.pending;
+      const usedTotal = ctx.usage.approved;
       if (totalSlots < usedTotal) {
         return new Response(
           JSON.stringify({
-            error: `Cannot reduce capacity below current family usage (${ctx.usage.approved} approved + ${ctx.usage.pending} pending)`,
+            error: `Cannot reduce capacity below current follower usage (${ctx.usage.approved} approved followers)`,
           }),
           {
             status: 400,
@@ -2166,7 +2269,7 @@ Deno.serve(async (req) => {
   ] = await Promise.all([
     adminClient
       .from('profiles')
-      .select('id, role, full_name, phone, locale, timezone_iana, created_at, updated_at')
+      .select('id, role, full_name, phone, locale, timezone_iana, custom_id, created_at, updated_at')
       .order('updated_at', { ascending: false })
       .limit(1000),
     fetchDashboardFlights(),
@@ -2295,6 +2398,7 @@ Deno.serve(async (req) => {
     phone?: string | null;
     locale?: string | null;
     timezone_iana?: string | null;
+    custom_id?: string | null;
   }) => {
     const authU = authById.get(p.id);
     const crew = crewByUserId.get(p.id);
@@ -2304,6 +2408,7 @@ Deno.serve(async (req) => {
     return {
       id: p.id,
       id_short: shortId(p.id),
+      custom_id: p.custom_id ?? null,
       full_name: p.full_name ?? null,
       phone: p.phone ?? null,
       locale: p.locale ?? null,

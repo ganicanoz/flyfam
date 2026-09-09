@@ -9,7 +9,7 @@
   <meta http-equiv="Expires" content="0" />
   <script>
     (function () {
-      var UI = '35';
+      var UI = '36';
       var p = new URLSearchParams(location.search);
       if (p.get('ui') !== UI) {
         p.set('ui', UI);
@@ -319,6 +319,29 @@
     .btnPrimary:hover { background: #1d4ed8; border-color: #1e40af; }
     .btnDanger { background: #fef2f2; border-color: #fecaca; color: #b91c1c; }
     .btnDanger:hover { border-color: #ef4444; }
+    .btnDangerProfile {
+      background: #7f1d1d;
+      border: 1px solid #450a0a;
+      color: #ffffff;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      font-size: 13px;
+      padding: 10px 14px;
+      min-height: 44px;
+    }
+    .btnDangerProfile:hover {
+      background: #991b1b;
+      border-color: #7f1d1d;
+      color: #ffffff;
+    }
+    .u-custom-id {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 13px;
+      font-weight: 800;
+      color: #0f172a;
+      letter-spacing: 0.04em;
+    }
     .btnSmall { padding: 4px 7px; font-size: 12px; }
     table { width: 100%; border-collapse: collapse; font-size: 13px; }
     th, td {
@@ -1024,8 +1047,8 @@
           <h3 style="margin:0 0 8px;">User details</h3>
           <div class="users-toolbar">
             <div style="flex:1.4; min-width:220px;">
-              <label class="mini">İsim / email / ID ara</label>
-              <input id="userSearchInput" type="search" placeholder="Örn. Akif, oben@…, 65ce1b…" autocomplete="off" />
+              <label class="mini">İsim / Custom ID / email / Auth ID ara</label>
+              <input id="userSearchInput" type="search" placeholder="Örn. Akif, 00012, oben@…" autocomplete="off" />
             </div>
             <div>
               <label class="mini">App role filter</label>
@@ -1057,8 +1080,9 @@
               <thead>
                 <tr id="usersHead">
                   <th>#</th>
+                  <th class="sortable" data-sort="custom_id">Custom ID <span class="sort-ind"></span></th>
                   <th class="sortable" data-sort="full_name">Full name <span class="sort-ind"></span></th>
-                  <th class="sortable" data-sort="id">User ID <span class="sort-ind"></span></th>
+                  <th class="sortable" data-sort="id">Auth ID <span class="sort-ind"></span></th>
                   <th class="sortable" data-sort="email">Email <span class="sort-ind"></span></th>
                   <th class="sortable" data-sort="role">Role <span class="sort-ind"></span></th>
                   <th class="sortable" data-sort="subscription">Abonelik <span class="sort-ind"></span></th>
@@ -2013,7 +2037,8 @@
       return (
         '<div class="drawer-section">' +
           '<h4>Kullanıcı verilerini düzenle</h4>' +
-          '<p class="mini" style="margin:0 0 8px;">ID: <code>' + escapeHtml(uid) + '</code></p>' +
+          '<p class="mini" style="margin:0 0 8px;">Custom ID: <strong class="u-custom-id">' + escapeHtml(u.custom_id || '—') + '</strong></p>' +
+          '<p class="mini" style="margin:0 0 8px;">Auth ID: <code>' + escapeHtml(uid) + '</code></p>' +
           '<div class="drawer-field"><label>İsim (full name)</label>' +
             '<input data-role="full-name" data-user-id="' + uid + '" value="' + escapeAttr(u.full_name || '') + '" autocomplete="name" /></div>' +
           '<div class="drawer-field"><label>Email</label>' +
@@ -2057,7 +2082,7 @@
           '<div class="drawer-actions">' +
             '<button type="button" class="btnPrimary btnSmall" data-action="save-user-profile" data-user-id="' + uid + '">Tümünü kaydet</button>' +
             '<button type="button" class="btnSmall" data-action="change-user-password" data-user-id="' + uid + '">Sadece şifre</button>' +
-            '<button type="button" class="btnDanger btnSmall" data-action="delete-user" data-user-id="' + uid + '" data-user-email="' + escapeAttr(u.email || '-') + '">Sil</button>' +
+            '<button type="button" class="btnDangerProfile" data-action="delete-user" data-user-id="' + uid + '" data-user-email="' + escapeAttr(u.email || '-') + '">PROFİL SİL</button>' +
           '</div>' +
         '</div>'
       );
@@ -2404,7 +2429,7 @@
           let hint = '';
           if (location.protocol === 'file:') {
             hint =
-              ' Paneli file:// ile açıyorsun — terminalde: cd docs && python3 -m http.server 8765 sonra http://localhost:8765/ADMIN_STATUS_DASHBOARD.html?ui=35';
+              ' Paneli file:// ile açıyorsun — terminalde: cd docs && python3 -m http.server 8765 sonra http://localhost:8765/ADMIN_STATUS_DASHBOARD.html?ui=36';
           } else {
             hint = ' Supabase URL ve anon key kontrol et; VPN/eklenti engeli olabilir.';
           }
@@ -2596,6 +2621,7 @@
       const isCrew = appRole === 'crew';
       const sub = u.subscription;
       if (key === 'full_name') return String(u.full_name || '').toLowerCase();
+      if (key === 'custom_id') return String(u.custom_id || '');
       if (key === 'id') return String(u.id || '').toLowerCase();
       if (key === 'email') return String(u.email || '').toLowerCase();
       if (key === 'role') return appRole.toLowerCase();
@@ -2657,6 +2683,7 @@
         if (searchQ) {
           const hay = [
             u.full_name,
+            u.custom_id,
             u.email,
             u.id,
             u.company_name,
@@ -2701,6 +2728,7 @@
         const emailText = escapeHtml(u.email || '-');
         const uid = String(u.id || '');
         const uidShort = uid ? uid.slice(0, 8) + '…' : '—';
+        const customId = String(u.custom_id || '').trim() || '—';
         const sub = u.subscription;
         let subHtml = '<span class="sub-badge none">—</span>';
         let slotHtml = '—';
@@ -2727,6 +2755,7 @@
         return (
           '<tr class="user-row-main" data-user-row-id="' + uid + '">' +
             '<td>' + (idx + 1) + '</td>' +
+            '<td><span class="u-custom-id">' + escapeHtml(customId) + '</span></td>' +
             '<td><a href="#" class="u-name-link" data-action="open-user-details" data-user-id="' + uid + '" onclick="return false;">' + nameText + '</a></td>' +
             '<td><div class="u-id" title="' + escapeAttr(uid) + '">' + escapeHtml(uidShort) + '</div>' +
               (uid
@@ -3682,13 +3711,13 @@
       }
       if (action === 'delete-user') {
         const email = btn.getAttribute('data-user-email') || '-';
-        const ok = window.confirm('Delete this user and related data? (' + email + ')');
+        const ok = window.confirm('PROFİL SİL\n\nBu kullanıcı ve ilişkili veriler kalıcı olarak silinecek.\n(' + email + ')');
         if (!ok) return;
-        setStatus('Deleting user...', 'warn');
+        setStatus('Profil siliniyor...', 'warn');
         await callAdminAction('delete_user', { user_id: userId });
         closeDrawer();
         await loadDashboard();
-        setStatus('User deleted', 'ok');
+        setStatus('Profil silindi', 'ok');
         return;
       }
       if (action === 'send-push-notification') {
