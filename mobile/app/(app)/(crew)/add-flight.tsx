@@ -98,7 +98,7 @@ export default function AddFlight() {
     return null;
   }
 
-  /** HH:MM: havalimanı varsa yerel→UTC; yoksa Zulu. Cihaz TZ setHours kullanılmaz. */
+  /** HH:MM: havalimanı varsa yerel→UTC; yoksa (Z). Cihaz TZ setHours kullanılmaz. */
   const buildDateTime = (dateStr: string, timeStr: string, airportCode?: string) => {
     if (!timeStr) return null;
     const fromAirport = airportLocalHhmmToUtcIso(dateStr, timeStr.trim(), airportCode || null);
@@ -258,7 +258,9 @@ export default function AddFlight() {
       if (!uri) return;
       setLoadingMessage(t('common.flightOpReadingPdf'));
       setLoading(true);
-      const { flights, rawText, source, edgeFailureHint } = await parseRosterPdfFromDevice(uri);
+      const { flights, rawText, source, edgeFailureHint } = await parseRosterPdfFromDevice(uri, {
+        crewAirlineIcao: crewProfile.airline_icao,
+      });
       let normalizedFlights = flights;
       let normalizedRawText = rawText ?? null;
       const canDeviceExtract = isAvailable() && (crewProfile.airline_icao ?? '').toUpperCase() !== 'SXS';
@@ -440,22 +442,46 @@ export default function AddFlight() {
             </View>
 
             <View style={styles.col}>
-              <Text style={[styles.label, styles.labelCompact]}>Departure time (optional)</Text>
+              <Text style={[styles.label, styles.labelCompact]}>Departure (airport local)</Text>
               <TimeRollerField
                 value={depTime}
                 onChange={setDepTime}
                 allowClear
                 placeholder="--:--"
+                subtitle={
+                  depTime && origin.trim()
+                    ? (() => {
+                        const iso = buildDateTime(date, depTime, origin.trim());
+                        if (!iso) return null;
+                        const d = new Date(iso);
+                        const zh = String(d.getUTCHours()).padStart(2, '0');
+                        const zm = String(d.getUTCMinutes()).padStart(2, '0');
+                        return `(Z) ${zh}:${zm}`;
+                      })()
+                    : null
+                }
               />
             </View>
 
             <View style={styles.col}>
-              <Text style={[styles.label, styles.labelCompact]}>Arrival time (optional)</Text>
+              <Text style={[styles.label, styles.labelCompact]}>Arrival (airport local)</Text>
               <TimeRollerField
                 value={arrTime}
                 onChange={setArrTime}
                 allowClear
                 placeholder="--:--"
+                subtitle={
+                  arrTime && destination.trim()
+                    ? (() => {
+                        const iso = buildDateTime(date, arrTime, destination.trim());
+                        if (!iso) return null;
+                        const d = new Date(iso);
+                        const zh = String(d.getUTCHours()).padStart(2, '0');
+                        const zm = String(d.getUTCMinutes()).padStart(2, '0');
+                        return `(Z) ${zh}:${zm}`;
+                      })()
+                    : null
+                }
               />
             </View>
           </View>

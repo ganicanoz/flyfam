@@ -1,13 +1,13 @@
 /**
- * SunExpress roster (schedule PDF) parser — MVP.
+ * SunExpress roster (schedule PDF) — metin fallback (Edge layout yoksa / CLI).
  *
- * Hedef:
- * - XQ uçuşları + DH bacakları
- * - OFF günleri (duty_off)
- * - Transit/Hotel/MEDGR vb. satırları atla
+ * Kurallar (Edge `parseSunExpressWithLayout` ile aynı niyet):
+ * - Her XQ satırı bir uçuştur; tüm XQ yakalanmalı (Transit/Report/Release yok sayılır).
+ * - `~` gece bacağını böler: kalkış günü + ertesi gün varış → tek uçuş (kalkış tarihi).
+ * - OFF / RSV / TOF duty satırları ayrıca tutulur.
  *
- * Not: PDF metni satır kırılımı bozuk olabildiği için bazı bacaklar atlanabilir.
- * pdf-parse hücreyi sık sık `~ STA DEST ORIG STD CODE` sırasıyla verir.
+ * pdf-parse hücreyi sık sık `~ STA DEST ORIG STD CODE` sırasıyla verir; eksik XQ’lar
+ * compact metinden (p1/p2/p3) harvest ile tamamlanır.
  */
 
 import type { PdfFlightRow } from '../../types.ts';
@@ -366,6 +366,146 @@ function extractOrphanLegs(text: string): OrphanLeg[] {
   return out;
 }
 
+/** Compact metinden tüm tam XQ/DH bacakları (Transit satırları zaten bu kalıplara girmez). */
+function extractCompleteXqLegsFromText(text: string): OrphanLeg[] {
+  const out: OrphanLeg[] = [];
+  const seen = new Set<string>();
+  const push = (leg: OrphanLeg) => {
+    if (!isFlightCode(leg.code)) return;
+    const key = `${leg.code}|${leg.origin}|${leg.destination}|${leg.dep}|${leg.arr}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    out.push(leg);
+  };
+  const compact = text.replace(/\s+/g, ' ');
+
+  const p1 = /\b(XQ\d{2,4}|DH)\s*([A-Z]{3})\s*(\d{1,2}:\d{2})\s*~\s*(\d{1,2}:\d{2})\s*([A-Z]{3})\b/gi;
+  for (const m of compact.matchAll(p1)) {
+    push({
+      code: (m[1] ?? '').toUpperCase(),
+      origin: (m[2] ?? '').toUpperCase(),
+      dep: padHhmm(m[3])!,
+      arr: padHhmm(m[4])!,
+      destination: (m[5] ?? '').toUpperCase(),
+    });
+  }
+  // Ters sıkışık: ~ STA DESTORIG STD CODE
+  const p2 = /~\s*(\d{1,2}:\d{2})\s*([A-Z]{6})\s*(\d{1,2}:\d{2})\s*(XQ\d{2,4}|DH)\b/gi;
+  for (const m of compact.matchAll(p2)) {
+    const route = (m[2] ?? '').toUpperCase();
+    push({
+      code: (m[4] ?? '').toUpperCase(),
+      origin: route.slice(3, 6),
+      dep: padHhmm(m[3])!,
+      arr: padHhmm(m[1])!,
+      destination: route.slice(0, 3),
+    });
+  }
+  const p3 = /~\s*(\d{1,2}:\d{2})\s*([A-Z]{3})\s*([A-Z]{3})\s*(\d{1,2}:\d{2})\s*(XQ\d{2,4}|DH)\b/gi;
+  for (const m of compact.matchAll(p3)) {
+    push({
+      code: (m[5] ?? '').toUpperCase(),
+      origin: (m[3] ?? '').toUpperCase(),
+      dep: padHhmm(m[4])!,
+      arr: padHhmm(m[1])!,
+      destination: (m[2] ?? '').toUpperCase(),
+    });
+  }
+  return out;
+}
+
+/** Gün bloğunda kaçan XQ’ları metin harvest + orphan ile tamamla. */
+function mergeHarvestedXqLegs(rows: PdfFlightRow[], text: string): PdfFlightRow[] {
+  const harvested = extractCompleteXqLegsFromText(text);
+  if (harvested.length === 0) return rows;
+  const flightKey = (r: {
+    code?: string;
+    flight_number?: string;
+    origin?: string | null;
+    origin_iata?: string | null;
+    destination?: string | null;
+    destination_iata?: string | null;
+    dep?: string | null;
+    dep_time_local?: string | null;
+    arr?: string | null;
+    arr_time_local?: string | null;
+  }) =>
+    `${(r.code || r.flight_number || '').toUpperCase()}|${(r.origin || r.origin_iata || '').toUpperCase()}|${(r.destination || r.destination_iata || '').toUpperCase()}|${padHhmm(r.dep || r.dep_time_local) || ''}|${padHhmm(r.arr || r.arr_time_local) || ''}`;
+
+  const existing = new Set(
+    rows.filter((r) => isFlightCode(r.flight_number)).map((r) => flightKey(r)),
+  );
+  const out = [...rows];
+
+  for (const leg of harvested) {
+    const key = flightKey(leg);
+    if (existing.has(key)) continue;
+
+    let date =
+      out.find(
+        (r) =>
+          isFlightCode(r.flight_number) &&
+          (r.flight_number || '').toUpperCase() === leg.code &&
+          padHhmm(r.dep_time_local) === leg.dep,
+      )?.flight_date ?? null;
+
+    if (!date) {
+      date =
+        out.find(
+          (r) =>
+            isFlightCode(r.flight_number) &&
+            padHhmm(r.duty_end_time_local) === leg.arr,
+        )?.flight_date ?? null;
+    }
+
+    if (!date) {
+      const num = Number(/^XQ(\d{2,4})$/i.exec(leg.code)?.[1] ?? '');
+      if (Number.isFinite(num) && num > 0) {
+        const partner = out.find((r) => {
+          const m = /^XQ(\d{2,4})$/i.exec(r.flight_number || '');
+          if (!m) return false;
+          const n = Number(m[1]);
+          return n === num - 1 || n === num + 1;
+        });
+        date = partner?.flight_date ?? null;
+        if (
+          date &&
+          partner?.dep_time_local &&
+          overnightSpanMin(leg.dep, leg.arr) < 12 * 60 &&
+          (hhmmToMin(partner.dep_time_local) ?? 99) < 6 * 60 &&
+          (hhmmToMin(leg.dep) ?? 0) >= 12 * 60
+        ) {
+          date = addDays(date, -1);
+        }
+      }
+    }
+
+    if (!date) {
+      // Aynı rota/saat başka uçuşta yoksa ay içi ilk uçuş gününe yaslanmak yerine atla;
+      // yanlış tarih üretme. Orphan pass zaten tarih bulabilenleri ekler.
+      continue;
+    }
+
+    const { depIso, arrIso } = utcPair(date, leg.dep, leg.arr);
+    const sample = out.find((r) => r.flight_date === date && isFlightCode(r.flight_number));
+    out.push({
+      flight_number: leg.code,
+      flight_date: date,
+      dep_time_local: leg.dep,
+      arr_time_local: leg.arr,
+      origin_iata: leg.origin,
+      destination_iata: leg.destination,
+      duty_start_time_local: sample?.duty_start_time_local ?? null,
+      duty_end_time_local: sample?.duty_end_time_local ?? leg.arr,
+      duty_clock_basis: 'utc',
+      dep_schedule_utc_iso: depIso,
+      arr_schedule_utc_iso: arrIso,
+    });
+    existing.add(key);
+  }
+  return out;
+}
+
 function mergeOrphanLegs(rows: PdfFlightRow[], orphans: OrphanLeg[]): PdfFlightRow[] {
   if (orphans.length === 0) return rows;
   const existing = new Set(rows.filter((r) => isFlightCode(r.flight_number)).map((r) => r.flight_number.toUpperCase()));
@@ -472,6 +612,9 @@ export function parseFlightsFromPdfText_SunExpress(text: string): PdfFlightRow[]
     !!b && (b.flights.length > 0 || !!b.dutyCode || b.off || !!b.report || !!b.release);
 
   for (const line of lines) {
+    // Transit / Hotel satırları uçuş günü açmaz ve XQ üretmez.
+    if (/\bTRANSIT\b/i.test(line) || /^Hotel\b/i.test(line)) continue;
+
     const timedDuty = parseTimedDutyLine(line);
     if (timedDuty) {
       current = startNewDay();
@@ -619,6 +762,7 @@ export function parseFlightsFromPdfText_SunExpress(text: string): PdfFlightRow[]
   }
 
   out = mergeOrphanLegs(out, extractOrphanLegs(text));
+  out = mergeHarvestedXqLegs(out, text);
 
   if (monthInfo && out.length > 0) {
     // Hedef ayda satırı olmayan günleri OFF ile doldur.

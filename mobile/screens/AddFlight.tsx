@@ -9,9 +9,13 @@ import {
   Alert,
   ActivityIndicator,
   Linking,
+  Platform,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useNavigation, useRoute, RouteProp, useFocusEffect } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useSession } from '../contexts/SessionContext';
 import { supabase } from '../lib/supabase';
 import { FlightInfo, fetchFlightByNumber, airportLocalHhmmToUtcIso } from '../lib/flightApi';
@@ -20,11 +24,11 @@ import {
   formatLocalCalendarWeekdayLong,
   getLocalDateString,
   getLocalDateStringTomorrow,
-  formatFlightTimeLocal,
-  formatFlightTimeUTC,
+  flightTimeToUtcHHMM,
 } from '../lib/dateUtils';
-import { getAirportDisplay } from '../constants/airports';
+import { getAirportDisplay, getAirportTimezone } from '../constants/airports';
 import { colors, useThemeMode } from '../theme/colors';
+import { radius, shadow } from '../theme/tokens';
 import * as DocumentPicker from 'expo-document-picker';
 import { cacheDirectory as fsCacheDirectory, copyAsync } from 'expo-file-system/legacy';
 import { extractText, isAvailable } from 'expo-pdf-text-extract';
@@ -39,6 +43,11 @@ import { buildPdfImportReport, showPdfImportAlert } from '../lib/pdfImportAlert'
 import { notifyFamilyStandbyAssigned } from '../lib/notifyFamily';
 import FlightOperationOverlay from '../components/FlightOperationOverlay';
 import KeyboardSafeScroll, { scrollInputIntoView } from '../components/KeyboardSafeScroll';
+import { ScreenPageHeader } from '../components/ScreenPageHeader';
+import { FormCard } from '../components/FormCard';
+import { PrimaryButton } from '../components/PrimaryButton';
+import TimeRollerField from '../components/TimeRollerField';
+import DateRollerField from '../components/DateRollerField';
 
 // Date format DD.MM.YYYY for UI; internal/API use YYYY-MM-DD
 function toDisplayDate(isoDate: string): string {
@@ -98,6 +107,82 @@ function fullFlightNumberIata(airlineIcao: string | null, numberInput: string): 
   return airline.iata + num;
 }
 
+function hhmmToMinutes(hhmm: string | null | undefined): number | null {
+  if (!hhmm) return null;
+  const m = hhmm.trim().match(/^(\d{1,2}):(\d{2})$/);
+  if (!m) return null;
+  return Number(m[1]) * 60 + Number(m[2]);
+}
+
+/** UTC ISO → havalimanı yerel HH:MM (TimeRoller / önizleme). */
+function utcToAirportLocalHHmm(isoUtc: string | null | undefined, airportCode: string): string | null {
+  if (!isoUtc) return null;
+  const tz = getAirportTimezone(airportCode);
+  if (!tz) return null;
+  const d = new Date(isoUtc);
+  if (!Number.isFinite(d.getTime())) return null;
+  try {
+    const parts = new Intl.DateTimeFormat('en-GB', {
+      timeZone: tz,
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+      hourCycle: 'h23',
+    }).formatToParts(d);
+    const h = parts.find((p) => p.type === 'hour')?.value;
+    const m = parts.find((p) => p.type === 'minute')?.value;
+    if (h == null || m == null) return null;
+    return `${h.padStart(2, '0')}:${m.padStart(2, '0')}`;
+  } catch {
+    return null;
+  }
+}
+
+function flightDurationLabel(
+  info: FlightInfo | null,
+  depLocal: string,
+  arrLocal: string,
+  dateIso: string,
+  origin: string | null,
+  destination: string | null,
+  t: (key: string, opts?: Record<string, unknown>) => string,
+): string | null {
+  const depIso =
+    airportLocalHhmmToUtcIso(dateIso, depLocal, origin) ||
+    info?.scheduled_departure_utc ||
+    null;
+  const arrIso =
+    airportLocalHhmmToUtcIso(dateIso, arrLocal, destination) ||
+    info?.scheduled_arrival_utc ||
+    null;
+  if (depIso && arrIso) {
+    const ms = Date.parse(arrIso) - Date.parse(depIso);
+    if (Number.isFinite(ms) && ms > 0) {
+      const mins = Math.round(ms / 60000);
+      const hours = Math.floor(mins / 60);
+      const rem = mins % 60;
+      if (hours > 0) return t('roster.durationShort', { hours, mins: rem });
+      return t('roster.durationMinsOnly', { mins: rem });
+    }
+  }
+  const dep = hhmmToMinutes(depLocal || info?.depTime);
+  const arr = hhmmToMinutes(arrLocal || info?.arrTime);
+  if (dep == null || arr == null) return null;
+  let mins = arr - dep;
+  if (mins < 0) mins += 24 * 60;
+  const hours = Math.floor(mins / 60);
+  const rem = mins % 60;
+  if (hours > 0) return t('roster.durationShort', { hours, mins: rem });
+  return t('roster.durationMinsOnly', { mins: rem });
+}
+
+function formatLocalAndZuluLine(localHHmm: string, zuluHHmm: string | null): string {
+  if (localHHmm && zuluHHmm) return `${localHHmm} · (Z) ${zuluHHmm}`;
+  if (localHHmm) return localHHmm;
+  if (zuluHHmm) return `(Z) ${zuluHHmm}`;
+  return '—';
+}
+
 // Return-flight feature temporarily disabled (keep helper removed to avoid unused code).
 
 type FlightRow = {
@@ -154,6 +239,7 @@ export default function AddFlight() {
         params: {
           prefillFlightNumber?: string;
           sharedPdfUri?: string;
+          openImportPicker?: boolean;
           prefillFlightDate?: string;
           replaceStandbyFlightId?: string;
         };
@@ -161,7 +247,9 @@ export default function AddFlight() {
       'params'
     >
   >();
+  const insets = useSafeAreaInsets();
   const sharedImportStartedRef = useRef<string | null>(null);
+  const openImportStartedRef = useRef(false);
   const standbyDateAppliedRef = useRef(false);
   const standbyPrefillDate =
     typeof route.params?.prefillFlightDate === 'string' &&
@@ -222,7 +310,19 @@ export default function AddFlight() {
     setRows((prev) => (prev.length <= 1 ? prev : prev.filter((r) => r.id !== id)));
   };
 
-  const runRosterImportFromRows = async (flights: PdfFlightRow[], rawText?: string | null) => {
+  /** Move a queued preview row to the end so it becomes the editable form. */
+  const activateRow = (id: string) => {
+    setRows((prev) => {
+      const row = prev.find((r) => r.id === id);
+      if (!row) return prev;
+      return [...prev.filter((r) => r.id !== id), row];
+    });
+  };
+
+  const runRosterImportFromRows = async (
+    flights: PdfFlightRow[],
+    rawText?: string | null,
+  ) => {
     if (!crewProfile?.id) {
       setLoading(false);
       setLoadingMessage('');
@@ -274,7 +374,10 @@ export default function AddFlight() {
             onPress: () =>
               navigation.navigate('Main', {
                 screen: 'Roster',
-                params: { refresh: Date.now(), forceApiRefresh: true },
+                params: {
+                  refresh: Date.now(),
+                  forceApiRefresh: true,
+                },
               }),
           },
         ]);
@@ -349,7 +452,9 @@ export default function AddFlight() {
       }
       setLoadingMessage(t('common.flightOpReadingPdf'));
       setLoading(true);
-      const { flights, rawText, source, edgeFailureHint } = await parseRosterPdfFromDevice(uri);
+      const { flights, rawText, source, edgeFailureHint } = await parseRosterPdfFromDevice(uri, {
+        crewAirlineIcao: crewProfile.airline_icao,
+      });
       let normalizedFlights = flights;
       let normalizedRawText = rawText ?? null;
       // Cihaz PDF çıkarması (simülatörde yok) Edge metninden farklı SIM satırları bulabilir.
@@ -423,6 +528,8 @@ export default function AddFlight() {
       };
 
       if (__DEV__) console.log('[PDF import] normalized pipeline source:', pdfParseSourceDevLabel(source));
+
+      // Doğrudan ekle — mükerrer uçuşlar add_me_to_flight ile tek kayıt kalır; sil/birleştir sheet yok.
       await doRpcImport();
     } catch (e) {
       setLoading(false);
@@ -470,8 +577,22 @@ export default function AddFlight() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional
   }, [route.params?.sharedPdfUri, crewProfile?.id]);
 
+  useEffect(() => {
+    if (!route.params?.openImportPicker || !crewProfile?.id) return;
+    if (openImportStartedRef.current) return;
+    openImportStartedRef.current = true;
+    void handleImportPdf();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot import from roster sheet
+  }, [route.params?.openImportPicker, crewProfile?.id]);
+
   const onChangeFlightNumber = (id: string, text: string) => {
-    updateRow(id, { flightNumberInput: text });
+    let next = text.toUpperCase().replace(/\s/g, '');
+    const iata = airline?.iata?.toUpperCase();
+    // Kullanıcı PC1922 yazarsa profil kodunu soy, sadece numara kalsın.
+    if (iata && next.startsWith(iata) && /^\d/.test(next.slice(iata.length))) {
+      next = next.slice(iata.length);
+    }
+    updateRow(id, { flightNumberInput: next });
   };
 
   const setDateFromInput = (id: string, display: string) => {
@@ -493,12 +614,25 @@ export default function AddFlight() {
       const info = await fetchFlightByNumber(fullNumber, row.dateIso);
       if (info) {
         const toIata = (code: string) => getAirportDisplay(code)?.iata ?? code;
+        const originIata = toIata(info.origin);
+        const destIata = toIata(info.destination);
+        // Önizleme / düzenleme: havalimanı yerel saati. Kayıtta yerel→UTC.
+        const depLocal =
+          utcToAirportLocalHHmm(info.scheduled_departure_utc, originIata) ||
+          (info.depTime ? utcToAirportLocalHHmm(`${row.dateIso}T${info.depTime}:00.000Z`, originIata) : null) ||
+          info.depTime ||
+          '';
+        const arrLocal =
+          utcToAirportLocalHHmm(info.scheduled_arrival_utc, destIata) ||
+          (info.arrTime ? utcToAirportLocalHHmm(`${row.dateIso}T${info.arrTime}:00.000Z`, destIata) : null) ||
+          info.arrTime ||
+          '';
         updateRow(row.id, {
           flightInfo: info,
-          manualOrigin: toIata(info.origin),
-          manualDestination: toIata(info.destination),
-          manualDepTime: info.depTime,
-          manualArrTime: info.arrTime,
+          manualOrigin: originIata,
+          manualDestination: destIata,
+          manualDepTime: depLocal,
+          manualArrTime: arrLocal,
           fetching: false,
           lookupFailed: false,
           lastLookupKey: lookupKey,
@@ -551,33 +685,26 @@ export default function AddFlight() {
 
   /**
    * Planlı kalkış/varış UTC ISO.
-   * 1) API `scheduled_*_utc` (zaten UTC) — tercih
-   * 2) API yoksa ama FlightInfo var: `depTime`/`arrTime` = UTC HH:MM (parseTime(iso))
-   * 3) Saf manuel: havalimanı yerel HH:MM → UTC; havalimanı yoksa Zulu
+   * manuelDep/ArrTime = havalimanı yerel HH:MM (önizlemede düzenlenir).
+   * API scheduled_*_utc yalnızca yerel saat boşsa yedek.
    */
   const resolveScheduledUtcIso = (
     dateStr: string,
     timeHHmm: string,
     airportCode: string | null | undefined,
     apiUtc: string | null | undefined,
-    fromFlightInfo: boolean,
   ): string | null => {
-    if (apiUtc && String(apiUtc).trim()) return String(apiUtc).trim();
-    if (!timeHHmm || !/^\d{1,2}:\d{2}$/.test(timeHHmm.trim())) return null;
-    const hhmm = timeHHmm.trim();
-    if (fromFlightInfo) {
-      // depTime/arrTime API yolunda UTC HH:MM olarak set edilir — yerel sanma.
-      const [h, m] = hhmm.split(':').map(Number);
+    if (timeHHmm && /^\d{1,2}:\d{2}$/.test(timeHHmm.trim())) {
+      const fromAirport = airportLocalHhmmToUtcIso(dateStr, timeHHmm.trim(), airportCode);
+      if (fromAirport) return fromAirport;
+      // Havalimanı tz yoksa (Z) kabul et
+      const [h, m] = timeHHmm.trim().split(':').map(Number);
       const d = new Date(dateStr + 'T00:00:00Z');
       d.setUTCHours(h ?? 0, m ?? 0, 0, 0);
       return d.toISOString();
     }
-    const fromAirport = airportLocalHhmmToUtcIso(dateStr, hhmm, airportCode);
-    if (fromAirport) return fromAirport;
-    const [h, m] = hhmm.split(':').map(Number);
-    const d = new Date(dateStr + 'T00:00:00Z');
-    d.setUTCHours(h ?? 0, m ?? 0, 0, 0);
-    return d.toISOString();
+    if (apiUtc && String(apiUtc).trim()) return String(apiUtc).trim();
+    return null;
   };
 
   const toIata = (code: string | null | undefined) => (code ? (getAirportDisplay(code)?.iata ?? code) : '');
@@ -645,8 +772,8 @@ export default function AddFlight() {
       const destination = (info?.destination || row.manualDestination.trim()) || null;
       const originIata = origin ? toIata(origin) : null;
       const destinationIata = destination ? toIata(destination) : null;
-      const depTime = info?.depTime || row.manualDepTime.trim();
-      const arrTime = info?.arrTime || row.manualArrTime.trim();
+      const depTime = row.manualDepTime.trim();
+      const arrTime = row.manualArrTime.trim();
       const fullNumber = resolveFlightNumber(airline?.iata ?? null, row.flightNumberInput);
       const isDelayed = info?.delayed === true;
       const p: Record<string, unknown> = {
@@ -662,14 +789,12 @@ export default function AddFlight() {
           depTime,
           originIata,
           info?.scheduled_departure_utc,
-          Boolean(info),
         ),
         scheduled_arrival: resolveScheduledUtcIso(
           row.dateIso,
           arrTime,
           destinationIata,
           info?.scheduled_arrival_utc,
-          Boolean(info),
         ),
         actual_departure: info?.actual_departure_utc ?? null,
         actual_arrival: info?.actual_arrival_utc ?? null,
@@ -696,22 +821,20 @@ export default function AddFlight() {
       const destination = (info?.destination || firstRow.manualDestination.trim()) || null;
       const originIata = origin ? toIata(origin) : null;
       const destinationIata = destination ? toIata(destination) : null;
-      const depTime = info?.depTime || firstRow.manualDepTime.trim();
-      const arrTime = info?.arrTime || firstRow.manualArrTime.trim();
+      const depTime = firstRow.manualDepTime.trim();
+      const arrTime = firstRow.manualArrTime.trim();
       const fullNumber = resolveFlightNumber(airline?.iata ?? null, firstRow.flightNumberInput);
       const scheduledDep = resolveScheduledUtcIso(
         firstRow.dateIso,
         depTime,
         originIata,
         info?.scheduled_departure_utc,
-        Boolean(info),
       );
       const scheduledArr = resolveScheduledUtcIso(
         firstRow.dateIso,
         arrTime,
         destinationIata,
         info?.scheduled_arrival_utc,
-        Boolean(info),
       );
       const { data: fid, error } = await supabase.rpc('add_me_to_flight', {
         p_flight_number: fullNumber,
@@ -752,22 +875,20 @@ export default function AddFlight() {
       const destination = (info?.destination || row.manualDestination.trim()) || null;
       const originIata = origin ? toIata(origin) : null;
       const destinationIata = destination ? toIata(destination) : null;
-      const depTime = info?.depTime || row.manualDepTime.trim();
-      const arrTime = info?.arrTime || row.manualArrTime.trim();
+      const depTime = row.manualDepTime.trim();
+      const arrTime = row.manualArrTime.trim();
       const fullNumber = resolveFlightNumber(airline?.iata ?? null, row.flightNumberInput);
       const scheduledDep = resolveScheduledUtcIso(
         row.dateIso,
         depTime,
         originIata,
         info?.scheduled_departure_utc,
-        Boolean(info),
       );
       const scheduledArr = resolveScheduledUtcIso(
         row.dateIso,
         arrTime,
         destinationIata,
         info?.scheduled_arrival_utc,
-        Boolean(info),
       );
       const { data: flightId, error } = await supabase.rpc('add_me_to_flight', {
         p_flight_number: fullNumber,
@@ -868,426 +989,536 @@ export default function AddFlight() {
   };
 
   const canSave = rows.some((row) => resolveFlightNumber(airline?.iata ?? null, row.flightNumberInput) !== null && row.dateIso.length === 10);
-  const rosterPdfImportSupported = isRosterPdfImportSupportedForCrewAirline(crewProfile?.airline_icao);
-  const isIndigoCrew = (crewProfile?.airline_icao ?? '').toUpperCase() === 'IGO';
+  const saveCount = rows.filter(
+    (row) => resolveFlightNumber(airline?.iata ?? null, row.flightNumberInput) !== null && row.dateIso.length === 10,
+  ).length;
+  const hasFetchedFlight = rows.some((row) => !!row.flightInfo);
+  const pageTitle = isStandbyAssignMode ? t('roster.assignFlightsTitle') : t('nav.addFlight');
+  const fieldFill = themeMode === 'dark' ? '#1A2740' : '#F0F1F5';
+  const footerPad = Math.max(insets.bottom, 10);
+
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <FlightOperationOverlay visible={loading} message={loadingMessage || t('common.loading')} />
+      <ScreenPageHeader title={pageTitle} />
       <KeyboardSafeScroll
         scrollRef={scrollRef}
-        style={styles.container}
-        contentContainerStyle={styles.content}
+        style={styles.scroll}
+        contentContainerStyle={[styles.content, { paddingBottom: 120 + footerPad }]}
         bottomOffset={100}
       >
-      {isStandbyAssignMode ? (
-        <Text style={styles.standbyHint}>{t('addFlight.standbyHint')}</Text>
-      ) : (
-        <View style={styles.importPdfBlock}>
-          <TouchableOpacity
-            style={[styles.importButton, !rosterPdfImportSupported && styles.importButtonDisabled]}
-            onPress={handleImportPdf}
-          >
-            <Text style={styles.importButtonText}>{t('addFlight.importFlights')}</Text>
-          </TouchableOpacity>
-          {isIndigoCrew && rosterPdfImportSupported ? (
-            <Text style={styles.importFlightsIndigoHint}>{t('addFlight.importFlightsIndigoHint')}</Text>
-          ) : null}
-        </View>
-      )}
+        {isStandbyAssignMode ? (
+          <Text style={styles.standbyHint}>{t('addFlight.standbyHint')}</Text>
+        ) : null}
 
-      {hasAnyRow && rows.map((row, index) => {
-        const info = row.flightInfo;
-        const origin = (info?.origin || row.manualOrigin.trim()) || null;
-        const destination = (info?.destination || row.manualDestination.trim()) || null;
-        const originIata = origin ? toIata(origin) : null;
-        const destinationIata = destination ? toIata(destination) : null;
-        const depTime = info?.depTime || row.manualDepTime.trim();
-        const arrTime = info?.arrTime || row.manualArrTime.trim();
-        const fullNumber = resolveFlightNumber(airline?.iata ?? null, row.flightNumberInput);
-        const displayNumber = fullNumber ?? (row.flightNumberInput.trim() || '—');
-        const isFetching = row.fetching;
+        {hasAnyRow &&
+          rows.map((row, index) => {
+            const info = row.flightInfo;
+            const origin = (info?.origin || row.manualOrigin.trim()) || null;
+            const destination = (info?.destination || row.manualDestination.trim()) || null;
+            const originIata = origin ? toIata(origin) : null;
+            const destinationIata = destination ? toIata(destination) : null;
+            const depLocal = row.manualDepTime.trim();
+            const arrLocal = row.manualArrTime.trim();
+            const depUtcIso = resolveScheduledUtcIso(
+              row.dateIso,
+              depLocal,
+              originIata,
+              info?.scheduled_departure_utc,
+            );
+            const arrUtcIso = resolveScheduledUtcIso(
+              row.dateIso,
+              arrLocal,
+              destinationIata,
+              info?.scheduled_arrival_utc,
+            );
+            const depZulu = flightTimeToUtcHHMM(depUtcIso);
+            const arrZulu = flightTimeToUtcHHMM(arrUtcIso);
+            const fullNumber = resolveFlightNumber(airline?.iata ?? null, row.flightNumberInput);
+            const displayNumber = fullNumber ?? (row.flightNumberInput.trim() || '—');
+            const isFetching = row.fetching;
+            const canLookup = !!fullNumber && row.dateIso.length === 10;
+            const isTodaySelected = row.dateIso === todayIso();
+            const isTomorrowSelected = row.dateIso === tomorrowIso();
+            const weekday = row.dateIso.length === 10 ? formatLocalCalendarWeekdayLong(row.dateIso) : null;
+            const dateDisplay = row.dateIso
+              ? weekday
+                ? `${toDisplayDate(row.dateIso)} · ${weekday}`
+                : toDisplayDate(row.dateIso)
+              : t('addFlight.datePlaceholder');
+            const isCompact = !!info && !isFetching && index < rows.length - 1;
+            const durationText = flightDurationLabel(
+              info,
+              depLocal,
+              arrLocal,
+              row.dateIso,
+              originIata,
+              destinationIata,
+              t,
+            );
+            const timeSummary =
+              depLocal || arrLocal || depZulu || arrZulu
+                ? `${formatLocalAndZuluLine(depLocal, depZulu)} → ${formatLocalAndZuluLine(arrLocal, arrZulu)}`
+                : null;
 
-        return (
-          <View key={row.id} style={styles.block}>
-            {rows.length > 1 && (
-              <View style={styles.blockHeader}>
-                <View style={styles.blockTitle} />
-                <TouchableOpacity
-                  style={styles.blockRemove}
-                  onPress={() => removeRow(row.id)}
-                  accessibilityLabel={t('common.delete')}
-                >
-                  <Text style={styles.blockRemoveText}>×</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-
-            <View style={styles.flightAndDateBlock}>
-              <View style={styles.flightAndDateLabelsRow}>
-                <View style={styles.flightCol}>
-                  <Text style={[styles.label, styles.labelCompact]}>{t('addFlight.flightNumber')}</Text>
-                </View>
-                <View style={styles.dateCol}>
-                  <Text style={[styles.label, styles.labelCompact]}>{t('addFlight.dateLabel')}</Text>
-                </View>
-              </View>
-              <View style={styles.flightAndDateInputsRow}>
-                <View style={styles.flightCol}>
-                  <View style={styles.flightNumberRow}>
-                    {airline && !isFullFlightNumber(row.flightNumberInput) && (
-                      <View style={styles.flightNumberPrefix}>
-                        <Text style={styles.flightNumberPrefixText}>{airline.iata}</Text>
-                      </View>
-                    )}
-                    <TextInput
-                      style={[styles.input, airline && !isFullFlightNumber(row.flightNumberInput) && styles.inputWithPrefix]}
-                      placeholder=""
-                      placeholderTextColor={colors.textMuted}
-                      value={row.flightNumberInput}
-                      onChangeText={(text) => onChangeFlightNumber(row.id, text)}
-                      keyboardType="default"
-                      autoCapitalize="characters"
-                      onFocus={onFieldFocus}
-                    />
+            if (isCompact) {
+              return (
+                <View key={row.id} style={[styles.previewCard, shadow.card]}>
+                  <View style={styles.previewBody}>
+                    <Text style={styles.previewLine} numberOfLines={2}>
+                      <Text style={styles.previewNumber}>{displayNumber}</Text>
+                      <Text style={styles.previewSep}> · </Text>
+                      <Text style={styles.previewRoute}>
+                        {originIata || '—'} → {destinationIata || '—'}
+                      </Text>
+                    </Text>
+                    {timeSummary ? (
+                      <Text style={styles.previewMeta} numberOfLines={2}>
+                        {timeSummary}
+                      </Text>
+                    ) : null}
+                    {durationText ? <Text style={styles.previewDate}>{durationText}</Text> : null}
+                    <Text style={styles.previewDate}>{toDisplayDate(row.dateIso)}</Text>
+                  </View>
+                  <View style={styles.previewActions}>
+                    <TouchableOpacity
+                      style={styles.previewIconBtn}
+                      onPress={() => activateRow(row.id)}
+                      accessibilityLabel={t('common.edit')}
+                    >
+                      <Ionicons name="create-outline" size={18} color={colors.primary} />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.previewIconBtn}
+                      onPress={() => removeRow(row.id)}
+                      accessibilityLabel={t('common.delete')}
+                    >
+                      <Ionicons name="trash-outline" size={18} color={colors.error} />
+                    </TouchableOpacity>
                   </View>
                 </View>
-                <View style={styles.dateCol}>
-                  <TextInput
-                    style={styles.inputDate}
-                    placeholder={t('addFlight.datePlaceholder')}
-                    placeholderTextColor={colors.textMuted}
-                    value={row.dateInput}
-                    onChangeText={(text) => setDateFromInput(row.id, text)}
-                    keyboardType="numbers-and-punctuation"
-                    onFocus={onFieldFocus}
-                  />
-                  {(() => {
-                    const w =
-                      row.dateIso.length === 10 ? formatLocalCalendarWeekdayLong(row.dateIso) : null;
-                    return w ? (
-                      <Text style={styles.dateWeekdayHint} numberOfLines={1}>
-                        {w}
-                      </Text>
-                    ) : null;
-                  })()}
-                </View>
-              </View>
-              {fullNumber && (
-                <Text style={styles.derived}>{t('addFlight.savedAs', { number: displayNumber })}</Text>
-              )}
-              <View style={styles.flightAndDateExtraRow}>
-                <View style={styles.flightCol}>
-                  <View style={styles.lookupRow}>
+              );
+            }
+
+            return (
+              <View key={row.id} style={styles.formBlock}>
+                {rows.length > 1 ? (
+                  <View style={styles.blockHeader}>
+                    <Text style={styles.blockHeaderLabel}>
+                      {t('addFlight.flightNumber')} {index + 1}
+                    </Text>
                     <TouchableOpacity
-                      style={[styles.lookupButton, isFetching && styles.lookupButtonDisabled]}
+                      style={styles.blockRemove}
+                      onPress={() => removeRow(row.id)}
+                      accessibilityLabel={t('common.delete')}
+                    >
+                      <Ionicons name="close" size={16} color={colors.error} />
+                    </TouchableOpacity>
+                  </View>
+                ) : null}
+
+                <FormCard>
+                  <View style={styles.cardPad}>
+                    <View style={styles.twoColRow}>
+                      <View style={styles.col}>
+                        <Text style={styles.fieldLabel}>
+                          {airline?.iata ? t('addFlight.flightNumberDigits') : t('addFlight.flightNumber')}
+                        </Text>
+                        {airline?.iata ? (
+                          <View style={[styles.flightNumberRow, { backgroundColor: fieldFill }]}>
+                            <View style={styles.airlinePrefixBadge}>
+                              <Text style={styles.airlinePrefixText}>{airline.iata}</Text>
+                            </View>
+                            <TextInput
+                              style={styles.flightNumberInput}
+                              placeholder={t('addFlight.placeholderNumber')}
+                              placeholderTextColor={colors.textMuted}
+                              value={row.flightNumberInput}
+                              onChangeText={(text) => onChangeFlightNumber(row.id, text)}
+                              keyboardType="number-pad"
+                              autoCapitalize="characters"
+                              autoCorrect={false}
+                              onFocus={onFieldFocus}
+                            />
+                          </View>
+                        ) : (
+                          <TextInput
+                            style={[styles.fieldInput, { backgroundColor: fieldFill }]}
+                            placeholder={t('addFlight.placeholderFull')}
+                            placeholderTextColor={colors.textMuted}
+                            value={row.flightNumberInput}
+                            onChangeText={(text) => onChangeFlightNumber(row.id, text)}
+                            keyboardType="default"
+                            autoCapitalize="characters"
+                            autoCorrect={false}
+                            onFocus={onFieldFocus}
+                          />
+                        )}
+                        {airline?.iata ? (
+                          <Text style={styles.airlinePrefixHint} numberOfLines={2}>
+                            {t('addFlight.airlinePrefixHint', {
+                              code: airline.iata,
+                              airline: airline.name,
+                            })}
+                          </Text>
+                        ) : null}
+                      </View>
+                      <View style={styles.col}>
+                        <Text style={styles.fieldLabel}>{t('addFlight.dateLabel')}</Text>
+                        <DateRollerField
+                          value={row.dateIso}
+                          onChange={(iso) =>
+                            updateRow(row.id, { dateIso: iso, dateInput: toDisplayDate(iso) })
+                          }
+                          displayLabel={dateDisplay}
+                          placeholder={t('addFlight.dateLabel')}
+                          accessibilityLabel={t('addFlight.dateLabel')}
+                        />
+                      </View>
+                    </View>
+
+                    {fullNumber ? (
+                      <Text style={styles.derived}>{t('addFlight.savedAs', { number: displayNumber })}</Text>
+                    ) : airline?.iata ? (
+                      <Text style={styles.derived}>{t('addFlight.enterDigitsOnly')}</Text>
+                    ) : null}
+
+                    <View style={styles.dateQuickRow}>
+                      <TouchableOpacity
+                        style={[
+                          styles.dateQuickBtn,
+                          { backgroundColor: fieldFill },
+                          isTodaySelected && styles.dateQuickBtnSelected,
+                        ]}
+                        onPress={() => {
+                          const iso = todayIso();
+                          updateRow(row.id, { dateIso: iso, dateInput: toDisplayDate(iso) });
+                        }}
+                      >
+                        <Text
+                          style={[
+                            styles.dateQuickBtnText,
+                            isTodaySelected && styles.dateQuickBtnTextSelected,
+                          ]}
+                          numberOfLines={1}
+                        >
+                          {isTodaySelected ? `✓ ${t('addFlight.today')}` : t('addFlight.today')}
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[
+                          styles.dateQuickBtn,
+                          { backgroundColor: fieldFill },
+                          isTomorrowSelected && styles.dateQuickBtnSelected,
+                        ]}
+                        onPress={() => {
+                          const iso = tomorrowIso();
+                          updateRow(row.id, { dateIso: iso, dateInput: toDisplayDate(iso) });
+                        }}
+                      >
+                        <Text
+                          style={[
+                            styles.dateQuickBtnText,
+                            isTomorrowSelected && styles.dateQuickBtnTextSelected,
+                          ]}
+                          numberOfLines={1}
+                        >
+                          {isTomorrowSelected ? `✓ ${t('addFlight.tomorrow')}` : t('addFlight.tomorrow')}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+
+                    <TouchableOpacity
+                      style={[styles.lookupButton, (!canLookup || isFetching) && styles.lookupButtonDisabled]}
                       onPress={() => lookupFlightForRow(row)}
-                      disabled={isFetching}
+                      disabled={!canLookup || isFetching}
                     >
                       {isFetching ? (
-                        <ActivityIndicator size="small" color={colors.primary} />
+                        <ActivityIndicator size="small" color={colors.onPrimary} />
                       ) : (
                         <Text style={styles.lookupButtonText}>{t('addFlight.lookUpFlight')}</Text>
                       )}
                     </TouchableOpacity>
-                    {row.lookupFailed && !isFetching && (
+                    {row.lookupFailed && !isFetching ? (
                       <Text style={styles.lookupErrorText}>{t('addFlight.lookupFailedShort')}</Text>
-                    )}
+                    ) : null}
                   </View>
-                </View>
-                <View style={styles.dateCol}>
-                  <View style={styles.dateQuickRow}>
-                    <TouchableOpacity
-                      style={[styles.dateQuickBtn, styles.dateQuickBtnHalf]}
-                      onPress={() => {
-                        const iso = todayIso();
-                        updateRow(row.id, { dateIso: iso, dateInput: toDisplayDate(iso) });
-                      }}
-                    >
-                      <Text style={styles.dateQuickBtnText} numberOfLines={1}>{t('addFlight.today')}</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.dateQuickBtn, styles.dateQuickBtnHalf]}
-                      onPress={() => {
-                        const iso = tomorrowIso();
-                        updateRow(row.id, { dateIso: iso, dateInput: toDisplayDate(iso) });
-                      }}
-                    >
-                      <Text style={styles.dateQuickBtnText} numberOfLines={1}>{t('addFlight.tomorrow')}</Text>
-                    </TouchableOpacity>
+                </FormCard>
+
+                {info && !isFetching ? (
+                  <View style={[styles.previewEditCard, shadow.card]}>
+                    <View style={styles.previewEditHeader}>
+                      <View style={{ flex: 1, minWidth: 0 }}>
+                        <Text style={styles.previewLine} numberOfLines={2}>
+                          <Text style={styles.previewNumber}>{displayNumber}</Text>
+                          <Text style={styles.previewSep}> · </Text>
+                          <Text style={styles.previewRoute}>
+                            {originIata || '—'} → {destinationIata || '—'}
+                          </Text>
+                        </Text>
+                        {durationText ? (
+                          <Text style={styles.previewDate}>{durationText}</Text>
+                        ) : null}
+                      </View>
+                      <TouchableOpacity
+                        style={styles.previewIconBtn}
+                        onPress={() => removeRow(row.id)}
+                        accessibilityLabel={t('common.delete')}
+                      >
+                        <Ionicons name="trash-outline" size={18} color={colors.error} />
+                      </TouchableOpacity>
+                    </View>
+                    <View style={styles.twoColRow}>
+                      <View style={styles.col}>
+                        <Text style={styles.fieldLabel}>
+                          {t('addFlight.previewDepLocal')}
+                          {originIata ? ` · ${originIata}` : ''}
+                        </Text>
+                        <TimeRollerField
+                          value={depLocal}
+                          onChange={(next) => updateRow(row.id, { manualDepTime: next })}
+                          allowClear
+                          placeholder="--:--"
+                          subtitle={depZulu ? `(Z) ${depZulu}` : null}
+                          onOpen={() => onFieldFocus({})}
+                        />
+                      </View>
+                      <View style={styles.col}>
+                        <Text style={styles.fieldLabel}>
+                          {t('addFlight.previewArrLocal')}
+                          {destinationIata ? ` · ${destinationIata}` : ''}
+                        </Text>
+                        <TimeRollerField
+                          value={arrLocal}
+                          onChange={(next) => updateRow(row.id, { manualArrTime: next })}
+                          allowClear
+                          placeholder="--:--"
+                          subtitle={arrZulu ? `(Z) ${arrZulu}` : null}
+                          onOpen={() => onFieldFocus({})}
+                        />
+                      </View>
+                    </View>
                   </View>
-                </View>
+                ) : null}
               </View>
-            </View>
+            );
+          })}
 
-            {info && !isFetching && (
-              <View style={styles.flightCard}>
-                <Text style={styles.flightCardTitle}>{t('addFlight.flightDetails')}</Text>
-                <Text style={styles.route}>
-                  {(originIata || '—')} → {(destinationIata || '—')}
-                </Text>
-                <Text style={styles.times}>
-                  {info.scheduled_departure_utc || info.scheduled_arrival_utc
-                    ? `${formatFlightTimeUTC(info.scheduled_departure_utc)}Z – ${formatFlightTimeUTC(info.scheduled_arrival_utc)}Z`
-                    : `${depTime || '—'} – ${arrTime || '—'}`}
-                  {info.scheduled_departure_utc || info.scheduled_arrival_utc
-                    ? `  (${formatFlightTimeLocal(info.scheduled_departure_utc)}–${formatFlightTimeLocal(info.scheduled_arrival_utc)} local)`
-                    : ''}
-                </Text>
-                {info?.airline && (
-                  <Text style={styles.airline}>{info.airline}</Text>
-                )}
-                {info?.aircraftRegistration && (
-                  <Text style={styles.aircraft}>{t('addFlight.aircraft', { reg: info.aircraftRegistration })}</Text>
-                )}
-              </View>
-            )}
-
-          </View>
-        );
-      })}
-
-      <TouchableOpacity style={styles.addRowButton} onPress={addRow}>
-        <Text style={styles.addRowButtonText}>+</Text>
-        <Text style={styles.addRowButtonText}>{t('addFlight.addAnotherFlight')}</Text>
-      </TouchableOpacity>
+        {hasFetchedFlight ? (
+          <TouchableOpacity style={styles.addRowDashed} onPress={addRow} activeOpacity={0.75}>
+            <Text style={styles.addRowDashedText}>+ {t('addFlight.addAnotherFlight')}</Text>
+          </TouchableOpacity>
+        ) : (
+          <Text style={styles.emptyHint}>{t('addFlight.formEmptyHint')}</Text>
+        )}
       </KeyboardSafeScroll>
 
-        <View style={styles.bottomBar}>
-          <TouchableOpacity
-            style={[styles.button, (loading || !canSave) && styles.buttonDisabled]}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 8 : 0}
+      >
+        <View style={[styles.bottomBar, { paddingBottom: footerPad, backgroundColor: colors.background }]}>
+          <PrimaryButton
+            title={
+              saveCount > 1
+                ? t('addFlight.saveFlightsCount', { count: saveCount })
+                : t('addFlight.saveFlight')
+            }
             onPress={handleSave}
-            disabled={loading || !canSave}
-          >
-            {loading ? (
-              <ActivityIndicator color={colors.onPrimary} />
-            ) : (
-              <Text style={styles.buttonText}>{t('addFlight.saveFlight')}</Text>
-            )}
-          </TouchableOpacity>
+            loading={loading}
+            disabled={!canSave}
+          />
         </View>
+      </KeyboardAvoidingView>
     </View>
   );
 }
 
 function createAddFlightStyles() {
   return StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  content: { padding: 24, paddingBottom: 140 },
-  importPdfBlock: { marginBottom: 20 },
-  standbyHint: {
-    color: colors.textSecondary,
-    fontSize: 14,
-    lineHeight: 20,
-    marginBottom: 16,
-  },
-  importButton: {
-    backgroundColor: colors.primary,
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  importButtonDisabled: { opacity: 0.4 },
-  importButtonText: { color: colors.onPrimary, fontSize: 16, fontWeight: '600' },
-  importFlightsIndigoHint: {
-    color: colors.textSecondary,
-    fontSize: 13,
-    lineHeight: 18,
-    marginTop: 10,
-  },
-  airlineBox: {
-    backgroundColor: colors.surfaceAlt,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  airlineBoxLabel: { fontSize: 11, marginBottom: 2 },
-  airlineBoxName: { fontSize: 17, fontWeight: '600' },
-  airlineBoxIcao: { fontSize: 14, marginTop: 4 },
-  hint: { color: colors.textSecondary, fontSize: 13, marginBottom: 20 },
-  label: { color: colors.textSecondary, fontSize: 14, marginBottom: 8, marginTop: 16 },
-  labelCompact: { marginTop: 0 },
-  derived: { color: colors.textMuted, fontSize: 12, marginTop: 4 },
-  dateWeekdayHint: {
-    color: colors.textMuted,
-    fontSize: 11,
-    fontWeight: '600',
-    marginTop: 4,
-  },
-  grid2: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  col: { flexBasis: '48%', flexGrow: 1, minWidth: 160 },
-  colNarrow: { flexBasis: '40%', minWidth: 130 },
-  colWide: { flexBasis: '56%', minWidth: 200 },
-  flightAndDateBlock: { gap: 0 },
-  flightAndDateLabelsRow: {
-    flexDirection: 'row',
-    flexWrap: 'nowrap',
-    alignItems: 'flex-start',
-    gap: 12,
-  },
-  flightAndDateInputsRow: {
-    flexDirection: 'row',
-    flexWrap: 'nowrap',
-    alignItems: 'stretch',
-    gap: 12,
-    marginTop: 4,
-  },
-  flightAndDateExtraRow: {
-    flexDirection: 'row',
-    flexWrap: 'nowrap',
-    alignItems: 'center',
-    gap: 12,
-    marginTop: 8,
-  },
-  flightCol: { flex: 1, minWidth: 0 },
-  dateCol: { flex: 1, minWidth: 0 },
-  dateRow: { gap: 8, marginTop: 4 },
-  dateQuickRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
-  inputDate: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: 16,
-    color: colors.text,
-    fontSize: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-    minWidth: 120,
-    minHeight: 52,
-    flexGrow: 1,
-  },
-  dateQuickBtn: {
-    backgroundColor: colors.surfaceAlt,
-    paddingVertical: 10,
-    paddingHorizontal: 8,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  dateQuickBtnHalf: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  dateQuickBtnText: { color: colors.primary, fontWeight: '700', fontSize: 11 },
-  flightNumberRow: { flexDirection: 'row', alignItems: 'stretch' },
-  flightNumberPrefix: {
-    backgroundColor: colors.surfaceAlt,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRightWidth: 0,
-    borderTopLeftRadius: 12,
-    borderBottomLeftRadius: 12,
-    paddingHorizontal: 16,
-    justifyContent: 'center',
-    minWidth: 52,
-  },
-  flightNumberPrefixText: { color: colors.primary, fontSize: 18, fontWeight: '700' },
-  inputWithPrefix: { borderTopLeftRadius: 0, borderBottomLeftRadius: 0 },
-  input: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: 16,
-    color: colors.text,
-    fontSize: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-    minHeight: 52,
-    flexGrow: 1,
-  },
-  fetchingRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 16 },
-  fetchingText: { color: colors.primary, fontSize: 14 },
-  flightCard: {
-    backgroundColor: colors.surfaceAlt,
-    borderRadius: 12,
-    padding: 20,
-    marginTop: 20,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  flightCardTitle: { color: colors.textSecondary, fontSize: 12, marginBottom: 8 },
-  route: { color: colors.text, fontSize: 18, fontWeight: '700' },
-  times: { color: colors.textSecondary, fontSize: 15, marginTop: 4 },
-  airline: { color: colors.textMuted, fontSize: 13, marginTop: 4 },
-  aircraft: { color: colors.textMuted, fontSize: 12, marginTop: 2 },
-  manualLabel: { color: colors.textSecondary, fontSize: 14, marginTop: 20, marginBottom: 4 },
-  apiHint: { color: colors.textMuted, fontSize: 11, marginTop: 12, marginBottom: 4 },
-  retryButton: { marginTop: 12, padding: 12, alignItems: 'center', borderWidth: 1, borderColor: colors.border, borderRadius: 10 },
-  retryButtonText: { color: colors.primary, fontWeight: '600', fontSize: 14 },
-  block: {
-    marginTop: 16,
-    paddingTop: 16,
-    paddingBottom: 8,
-    borderTopWidth: 2,
-    borderTopColor: colors.surfaceAlt,
-  },
-  blockHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  blockTitle: {
-    flex: 1,
-  },
-  blockRemove: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#B71C1C',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.surface,
-  },
-  blockRemoveText: { fontSize: 16, fontWeight: '700', color: '#B71C1C', lineHeight: 18 },
-  addRowButton: {
-    marginTop: 16,
-    paddingVertical: 12,
-    alignItems: 'center',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.primary,
-    backgroundColor: colors.surface,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  addRowButtonText: {
-    color: colors.primary,
-    fontWeight: '600',
-    fontSize: 14,
-  },
-  lookupRow: {
-    flex: 1,
-    justifyContent: 'center',
-  },
-  lookupButton: {
-    width: '100%',
-    paddingVertical: 10,
-    borderRadius: 12,
-    backgroundColor: colors.surfaceAlt,
-    alignItems: 'center',
-  },
-  lookupButtonDisabled: {
-    opacity: 0.7,
-  },
-  lookupButtonText: {
-    color: colors.primary,
-    fontWeight: '600',
-    fontSize: 13,
-  },
-  lookupErrorText: {
-    color: colors.textMuted,
-    fontSize: 12,
-    marginTop: 4,
-  },
-  bottomBar: {
-    padding: 16,
-    paddingBottom: 24,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    backgroundColor: colors.background,
-  },
-  button: { backgroundColor: colors.primary, padding: 16, borderRadius: 12, alignItems: 'center' },
-  buttonDisabled: { opacity: 0.7 },
-  buttonText: { color: colors.onPrimary, fontSize: 16, fontWeight: '600' },
-});
+    container: { flex: 1 },
+    scroll: { flex: 1 },
+    content: { paddingHorizontal: 16, paddingTop: 4 },
+    standbyHint: {
+      color: colors.textSecondary,
+      fontSize: 14,
+      lineHeight: 20,
+      marginBottom: 12,
+    },
+    formBlock: { marginBottom: 4 },
+    blockHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 6,
+      paddingHorizontal: 2,
+    },
+    blockHeaderLabel: { color: colors.textSecondary, fontWeight: '700', fontSize: 13 },
+    blockRemove: {
+      width: 28,
+      height: 28,
+      borderRadius: 14,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.surface,
+    },
+    cardPad: { paddingHorizontal: 14, paddingVertical: 12, gap: 10 },
+    twoColRow: { flexDirection: 'row', gap: 10 },
+    col: { flex: 1, minWidth: 0 },
+    fieldLabel: {
+      color: colors.textMuted,
+      fontSize: 12,
+      fontWeight: '700',
+      marginBottom: 6,
+    },
+    fieldInput: {
+      borderRadius: 12,
+      paddingHorizontal: 12,
+      paddingVertical: 12,
+      color: colors.text,
+      fontSize: 15,
+      fontWeight: '600',
+      minHeight: 48,
+      borderWidth: 0,
+    },
+    flightNumberRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      borderRadius: 12,
+      minHeight: 48,
+      overflow: 'hidden',
+    },
+    airlinePrefixBadge: {
+      paddingHorizontal: 12,
+      alignSelf: 'stretch',
+      justifyContent: 'center',
+      backgroundColor: colors.primary,
+      minWidth: 48,
+    },
+    airlinePrefixText: {
+      color: colors.onPrimary,
+      fontSize: 15,
+      fontWeight: '800',
+      letterSpacing: 0.5,
+    },
+    flightNumberInput: {
+      flex: 1,
+      paddingHorizontal: 12,
+      paddingVertical: 12,
+      color: colors.text,
+      fontSize: 15,
+      fontWeight: '600',
+      minHeight: 48,
+    },
+    airlinePrefixHint: {
+      marginTop: 6,
+      color: colors.textMuted,
+      fontSize: 11,
+      fontWeight: '500',
+      lineHeight: 15,
+    },
+    dateTrigger: { justifyContent: 'center' },
+    dateTriggerText: { color: colors.text, fontSize: 14, fontWeight: '600' },
+    dateTriggerPlaceholder: { color: colors.textMuted, fontWeight: '500' },
+    dateDone: { alignSelf: 'flex-end', paddingVertical: 6 },
+    dateDoneText: { color: colors.primary, fontWeight: '700', fontSize: 14 },
+    derived: { color: colors.textMuted, fontSize: 12, marginTop: -2 },
+    dateQuickRow: { flexDirection: 'row', gap: 8 },
+    dateQuickBtn: {
+      flex: 1,
+      paddingVertical: 11,
+      borderRadius: 12,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    dateQuickBtnSelected: {
+      backgroundColor: colors.primary,
+    },
+    dateQuickBtnText: { color: colors.textMuted, fontWeight: '700', fontSize: 13 },
+    dateQuickBtnTextSelected: { color: colors.onPrimary },
+    lookupButton: {
+      marginTop: 2,
+      paddingVertical: 13,
+      borderRadius: radius.pill,
+      backgroundColor: colors.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+      minHeight: 48,
+    },
+    lookupButtonDisabled: { opacity: 0.4 },
+    lookupButtonText: { color: colors.onPrimary, fontWeight: '700', fontSize: 15 },
+    lookupErrorText: { color: colors.textMuted, fontSize: 12 },
+    previewCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.surface,
+      borderRadius: radius.card,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.border,
+      overflow: 'hidden',
+      marginBottom: 10,
+      minHeight: 64,
+    },
+    previewEditCard: {
+      backgroundColor: colors.surface,
+      borderRadius: radius.card,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.border,
+      paddingHorizontal: 12,
+      paddingVertical: 12,
+      marginBottom: 10,
+      gap: 10,
+    },
+    previewEditHeader: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 4,
+    },
+    previewBody: { flex: 1, paddingVertical: 12, paddingHorizontal: 12, minWidth: 0 },
+    previewLine: { color: colors.text },
+    previewNumber: { fontWeight: '800', fontSize: 15, color: colors.text },
+    previewRoute: { fontWeight: '700', fontSize: 14, color: colors.text },
+    previewMeta: { fontWeight: '600', fontSize: 13, color: colors.textSecondary, marginTop: 2 },
+    previewSep: { color: colors.textMuted, fontWeight: '600' },
+    previewDate: { marginTop: 4, color: colors.textMuted, fontSize: 12, fontWeight: '600' },
+    previewActions: { flexDirection: 'row', alignItems: 'center', paddingRight: 8, gap: 2 },
+    previewIconBtn: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    addRowDashed: {
+      marginTop: 4,
+      marginBottom: 8,
+      paddingVertical: 14,
+      borderRadius: 14,
+      borderWidth: 1.5,
+      borderStyle: 'dashed',
+      borderColor: colors.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: 'transparent',
+    },
+    addRowDashedText: {
+      color: colors.textMuted,
+      fontWeight: '600',
+      fontSize: 14,
+    },
+    emptyHint: {
+      marginTop: 28,
+      textAlign: 'center',
+      color: colors.textMuted,
+      fontSize: 14,
+      lineHeight: 20,
+      paddingHorizontal: 20,
+    },
+    bottomBar: {
+      paddingHorizontal: 16,
+      paddingTop: 10,
+    },
+  });
 }

@@ -1,9 +1,10 @@
 /**
- * PDF roster (Pegasus — `supabase/functions/_shared/roster-pdf/airlines/pegasus/`).
+ * PDF roster import — Edge `parse-roster-pdf` (pdf-parse + paylaşılan airline parser).
  *
- * Öncelik: Edge `parse-roster-pdf` → sunucu `{ flights }` (pdf-parse + parser) veya yalnız `{ text }`.
- * `supabase.functions.invoke` çoğu zaman oturumu doğru taşır → **önce invoke, sonra fetch**.
- * Edge yoksa: `expo-pdf-text-extract` (metin script’ten farklı olabilir).
+ * Öncelik: Edge sunucu `{ flights }` → yoksa Edge `{ text }` + yerel parse → `expo-pdf-text-extract`.
+ * `crew_airline_icao` Edge’e iletilir (SXS/PGT/… satır filtresi + layout seçimi admin ile aynı).
+ * SunExpress: her XQ bir uçuş; `~` gece bölünmesi; Transit/Report/Release yok sayılır — Edge layout
+ * sonucu metin merge ile ezilmez (SXS’te Edge flights’a güvenilir).
  */
 import { readAsStringAsync } from 'expo-file-system/legacy';
 import { extractText, isAvailable } from 'expo-pdf-text-extract';
@@ -78,8 +79,10 @@ function interpretEdgeBody(json: unknown): EdgeOutcome {
 async function rosterPdfViaEdgeFetch(
   base64: string,
   accessToken: string,
+  crewAirlineIcao?: string | null,
 ): Promise<{ outcome: EdgeOutcome; err?: string }> {
   const url = `${SUPABASE_URL.replace(/\/$/, '')}/functions/v1/parse-roster-pdf`;
+  const icao = (crewAirlineIcao ?? '').trim().toUpperCase();
   try {
     const res = await fetch(url, {
       method: 'POST',
@@ -88,7 +91,10 @@ async function rosterPdfViaEdgeFetch(
         Authorization: `Bearer ${accessToken}`,
         apikey: SUPABASE_ANON_KEY,
       },
-      body: JSON.stringify({ pdf_base64: base64 }),
+      body: JSON.stringify({
+        pdf_base64: base64,
+        ...(icao ? { crew_airline_icao: icao } : {}),
+      }),
     });
     const json = (await res.json().catch(() => null)) as unknown;
     if (!res.ok) {
@@ -120,9 +126,14 @@ async function rosterPdfViaEdgeFetch(
 async function rosterPdfViaEdgeInvoke(
   base64: string,
   accessToken: string,
+  crewAirlineIcao?: string | null,
 ): Promise<{ outcome: EdgeOutcome; err?: string }> {
+  const icao = (crewAirlineIcao ?? '').trim().toUpperCase();
   const { data, error } = await supabase.functions.invoke<EdgeJson>('parse-roster-pdf', {
-    body: { pdf_base64: base64 },
+    body: {
+      pdf_base64: base64,
+      ...(icao ? { crew_airline_icao: icao } : {}),
+    },
     headers: {
       Authorization: `Bearer ${accessToken}`,
     },
@@ -151,7 +162,10 @@ async function rosterPdfViaEdgeInvoke(
  * Önce `invoke`, sonra `fetch`; ikisinde de açık Bearer token.
  * 401 sonrası bir kez `refreshSession` ile tekrar dene (eski token / proje uyumsuzluğu için: çıkış + giriş).
  */
-async function getRosterOutcomeFromEdge(base64: string): Promise<{ outcome: EdgeOutcome; failureHint: string }> {
+async function getRosterOutcomeFromEdge(
+  base64: string,
+  crewAirlineIcao?: string | null,
+): Promise<{ outcome: EdgeOutcome; failureHint: string }> {
   let token = await getAccessTokenForEdgeFunctions();
   if (!token) {
     return { outcome: { ok: false }, failureHint: 'Oturum yok veya access_token alınamadı (giriş yapın).' };
@@ -159,10 +173,10 @@ async function getRosterOutcomeFromEdge(base64: string): Promise<{ outcome: Edge
 
   const tryBoth = async (t: string): Promise<{ outcome: EdgeOutcome; hints: string[] }> => {
     const hints: string[] = [];
-    const inv = await rosterPdfViaEdgeInvoke(base64, t);
+    const inv = await rosterPdfViaEdgeInvoke(base64, t, crewAirlineIcao);
     if (inv.err) hints.push(inv.err);
     if (inv.outcome.ok) return { outcome: inv.outcome, hints };
-    const fe = await rosterPdfViaEdgeFetch(base64, t);
+    const fe = await rosterPdfViaEdgeFetch(base64, t, crewAirlineIcao);
     if (fe.err) hints.push(fe.err);
     if (fe.outcome.ok) return { outcome: fe.outcome, hints };
     return { outcome: { ok: false }, hints };
@@ -198,7 +212,17 @@ async function getRosterOutcomeFromEdge(base64: string): Promise<{ outcome: Edge
   return { outcome: { ok: false }, failureHint };
 }
 
-export async function parseRosterPdfFromDevice(uri: string): Promise<PdfRosterDeviceParseResult> {
+export type ParseRosterPdfFromDeviceOpts = {
+  /** Profil `airline_icao` — Edge filtre + SXS layout kuralları için */
+  crewAirlineIcao?: string | null;
+};
+
+export async function parseRosterPdfFromDevice(
+  uri: string,
+  opts?: ParseRosterPdfFromDeviceOpts,
+): Promise<PdfRosterDeviceParseResult> {
+  const crewAirlineIcao = opts?.crewAirlineIcao ?? null;
+  const icaoNorm = (crewAirlineIcao ?? '').trim().toUpperCase();
   try {
     let base64 = '';
     try {
@@ -209,21 +233,21 @@ export async function parseRosterPdfFromDevice(uri: string): Promise<PdfRosterDe
 
     let edgeFailureHint: string | undefined;
     if (base64.length > 20) {
-      const { outcome: edge, failureHint } = await getRosterOutcomeFromEdge(base64);
+      const { outcome: edge, failureHint } = await getRosterOutcomeFromEdge(base64, crewAirlineIcao);
       if (!edge.ok && failureHint) edgeFailureHint = failureHint;
       if (edge.ok) {
         if ('legacyFlights' in edge) {
           const edgeText = edge.text?.trim() ?? '';
+          // SXS: Edge layout (tüm XQ + ~ overnight) metin fallback merge ile bozulmasın.
           const mergedFlights =
-            edgeText.length > 0
-              ? mergePdfRowsFromTextParse(edge.legacyFlights, edgeText)
-              : edge.legacyFlights;
+            icaoNorm === 'SXS' || edgeText.length === 0
+              ? edge.legacyFlights
+              : mergePdfRowsFromTextParse(edge.legacyFlights, edgeText);
           if (__DEV__) {
             console.log(
               '[PDF] using Edge server-parsed flights:',
               edge.legacyFlights.length,
-              '→ merged:',
-              mergedFlights.length,
+              icaoNorm === 'SXS' ? '(SXS trust Edge)' : `→ merged: ${mergedFlights.length}`,
             );
           }
           return {
