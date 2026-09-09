@@ -6,6 +6,9 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { PdfFlightRow } from '../../supabase/functions/_shared/pdfRosterImport';
 import {
   rowFlightRestEndUtc,
+  rowRosterBlockDutyTimesUtc,
+  dutyClockToUtcIso,
+  detectPegasusPlanTimeBasis,
   rowToScheduleIso,
   restEndOperatingYmd,
   isSimulatorOccupationCode,
@@ -16,31 +19,16 @@ export * from '../../supabase/functions/_shared/pdfRosterImport';
 
 import { trackActivityEvent } from './userActivity';
 import { airportIanaForCode } from '../../supabase/functions/_shared/airportIanaByCode';
+import {
+  filterPdfRowsForCrewAirline,
+  isRosterPdfImportSupportedForCrewAirline,
+  normalizeCrewAirlineIcaoTypo,
+} from '../../supabase/functions/_shared/roster-pdf/crewAirlineFilter';
 
 /**
- * Roster PDF içe aktarma — ürün kilidi.
- *
- * - **PGT (Pegasus):** Yalnızca `PC…` + `DH` uçuşları ve non-flight satırlar (`duty_off`/`sim`) alınır.
- * - **THY:** Yalnızca `TK…` uçuş satırları (`filterPdfRowsForCrewAirline`).
- * - **FHY (Freebird):** `FH…` + `DH` uçuşları ve non-flight satırlar alınır.
- * - **IGO (IndiGo):** `6E…` uçuşları + OFG/SBYP/ASBD non-flight satırları.
- * - **Diğer ICAO:** PDF içe aktarma kapalı — uygulama pop-up gösterir; RPC’ye gelirse satırlar alınmaz.
+ * Roster PDF içe aktarma — ürün kilidi (filtre/ICAO listesi paylaşılan `crewAirlineFilter` modülünde).
+ * Destek: PGT / THY / SXS / FHY / IGO.
  */
-export const ROSTER_PDF_IMPORT_SUPPORTED_AIRLINE_ICAOS = ['PGT', 'THY', 'SXS', 'FHY', 'IGO'] as const;
-
-/** Pegasus resmi ICAO: `PGT`. Profilde sık yazılan yazım hatası `PGS` → import ve filtrede `PGT` sayılır. */
-export function normalizeCrewAirlineIcaoTypo(icao: string | null | undefined): string {
-  if (!icao?.trim()) return '';
-  const u = icao.replace(/\s/g, '').toUpperCase();
-  if (u === 'PGS') return 'PGT';
-  return u;
-}
-
-export function isRosterPdfImportSupportedForCrewAirline(icao: string | null | undefined): boolean {
-  const u = normalizeCrewAirlineIcaoTypo(icao);
-  if (!u) return false;
-  return (ROSTER_PDF_IMPORT_SUPPORTED_AIRLINE_ICAOS as readonly string[]).includes(u);
-}
 
 export type PdfImportRpcResult = {
   ok: number;
@@ -128,65 +116,6 @@ function isRosterFlightCode(code: string): boolean {
     isFhFlightCode(code) ||
     is6eFlightCode(code)
   );
-}
-
-/**
- * Yalnızca `isRosterPdfImportSupportedForCrewAirline` true iken çağrılmalı.
- * **PGT:** `PC…` + `DH` + non-flight satırlar (`duty_off`/`sim`)
- * **THY:** `TK…` uçuşları + THY duty kodları (CFR/IBB/IBE/HSBY/III vb. non-flight satırlar).
- * **FHY:** `FH…` + `DH` + Freebird duty kodları (`VAC/FREE/STBY...`).
- * **IGO:** `6E…` + `DH` + IndiGo duty (`OFG`/`SBYP`/`ASBD` non-flight).
- */
-export function filterPdfRowsForCrewAirline(
-  rows: PdfFlightRow[],
-  crewAirlineIcao: string,
-  _crewAirlineIata: string | null | undefined
-): { kept: PdfFlightRow[]; skippedWrongAirline: number } {
-  const icao = normalizeCrewAirlineIcaoTypo(crewAirlineIcao);
-  const kept: PdfFlightRow[] = [];
-  let skippedWrongAirline = 0;
-  for (const r of rows) {
-    const code = normalizeCode(r.flight_number);
-    if (icao === 'PGT') {
-      if (isPcFlightCode(code) || code === 'DH' || r.roster_entry_kind === 'duty_off' || r.roster_entry_kind === 'sim') {
-        kept.push(r);
-      } else {
-        skippedWrongAirline += 1;
-      }
-      continue;
-    }
-    if (icao === 'THY') {
-      if (isTkFlightCode(code) || r.roster_entry_kind === 'duty_off' || r.roster_entry_kind === 'sim') kept.push(r);
-      else skippedWrongAirline += 1;
-      continue;
-    }
-    if (icao === 'SXS') {
-      if (isXqFlightCode(code) || code === 'DH' || r.roster_entry_kind === 'duty_off' || r.roster_entry_kind === 'sim') {
-        kept.push(r);
-      } else {
-        skippedWrongAirline += 1;
-      }
-      continue;
-    }
-    if (icao === 'FHY') {
-      if (isFhFlightCode(code) || code === 'DH' || r.roster_entry_kind === 'duty_off' || r.roster_entry_kind === 'sim') {
-        kept.push(r);
-      } else {
-        skippedWrongAirline += 1;
-      }
-      continue;
-    }
-    if (icao === 'IGO') {
-      if (is6eFlightCode(code) || code === 'DH' || r.roster_entry_kind === 'duty_off' || r.roster_entry_kind === 'sim') {
-        kept.push(r);
-      } else {
-        skippedWrongAirline += 1;
-      }
-      continue;
-    }
-    skippedWrongAirline += 1;
-  }
-  return { kept, skippedWrongAirline };
 }
 
 function pcNumber(code: string): number | null {
@@ -311,6 +240,8 @@ function coercePdfFlightRowForImport(raw: PdfFlightRow): PdfFlightRow {
 function extractStandbyRowsFromRawText(text: string): PdfFlightRow[] {
   const out: PdfFlightRow[] = [];
   const lines = text.replace(/\r/g, '').split('\n');
+  const planBasis = detectPegasusPlanTimeBasis(text);
+  const dutyClockBasis: 'local' | 'utc' = planBasis === 'Z' ? 'utc' : 'local';
   for (let i = 0; i < lines.length; i += 1) {
     const line = (lines[i] ?? '').replace(/\s/g, '');
     const m =
@@ -345,6 +276,7 @@ function extractStandbyRowsFromRawText(text: string): PdfFlightRow[] {
       duty_occupation_code: code,
       duty_occupation_label_tr: 'Nöbet',
       duty_occupation_label_en: 'Standby',
+      duty_clock_basis: dutyClockBasis,
       duty_start_time_local: start,
       duty_end_date_iso: dutyEndDateIso,
       duty_end_time_local: dutyEndTime,
@@ -416,14 +348,20 @@ function prepareImportRows(
   });
 
   const restDateByIdx = new Map<number, string>();
-  for (const e of pcEntries) {
+  for (let i = 1; i < pcEntries.length; i += 1) {
+    const prev = pcEntries[i - 1]!;
+    const e = pcEntries[i]!;
+    // Aynı DUTY günü: dönüş kalkışı gidişten erkense resting-end işletme günü (dutyTable.ts ile aynı).
+    if (prev.row.flight_date !== e.row.flight_date) continue;
     const dep = depMinutesForPcOvernightHeuristic(e.row);
+    const prevDep = depMinutesForPcOvernightHeuristic(prev.row);
     const restOp = restEndOperatingYmd(e.row.duty_rest_end_date_iso, e.row.duty_rest_end_time_local);
     if (
       restOp &&
       dep != null &&
-      dep < 12 * 60 &&
-      restOp >= e.row.flight_date &&
+      prevDep != null &&
+      dep < prevDep &&
+      restOp > e.row.flight_date &&
       calendarDaysBetweenYmd(e.row.flight_date, restOp) <= 3
     ) {
       restDateByIdx.set(e.idx, restOp);
@@ -712,12 +650,33 @@ export async function importPdfFlightsViaRpc(
         depIso = utcDayBoundaryIso(startDate, '00:00');
         arrIso = utcDayBoundaryIso(endDate, '23:59');
       } else {
-        depIso = localIstanbulToUtcIso(startDate, startTime);
-        arrIso = localIstanbulToUtcIso(endDate, endTime);
+        // Active Plan (Z) → duty_clock_basis=utc; (L)/varsayılan → TR+3 local.
+        const patch: PdfFlightRow = {
+          ...rowForDate,
+          flight_date: startDate ?? rowForDate.flight_date,
+          duty_start_time_local: startTime,
+          duty_end_date_iso: endDate,
+          duty_end_time_local: endTime,
+        };
+        const block = rowRosterBlockDutyTimesUtc(patch);
+        depIso =
+          block.dutyStartIso ??
+          dutyClockToUtcIso(startDate, startTime, rowForDate.duty_clock_basis) ??
+          localIstanbulToUtcIso(startDate, startTime);
+        arrIso =
+          block.dutyEndIso ??
+          dutyClockToUtcIso(endDate, endTime, rowForDate.duty_clock_basis) ??
+          localIstanbulToUtcIso(endDate, endTime);
       }
     }
 
-    const dutyRestEndIso = rowFlightRestEndUtc(rowForDate) ??
+    const dutyRestEndIso =
+      rowFlightRestEndUtc(rowForDate) ??
+      dutyClockToUtcIso(
+        rowForDate.duty_rest_end_date_iso ?? null,
+        rowForDate.duty_rest_end_time_local ?? null,
+        rowForDate.duty_clock_basis,
+      ) ??
       localIstanbulToUtcIso(rowForDate.duty_rest_end_date_iso ?? null, rowForDate.duty_rest_end_time_local ?? null);
     const icaoU = icaoOpt?.trim().toUpperCase() ?? '';
     const indigoNote =

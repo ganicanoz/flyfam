@@ -9,7 +9,7 @@
   <meta http-equiv="Expires" content="0" />
   <script>
     (function () {
-      var UI = '28';
+      var UI = '29';
       var p = new URLSearchParams(location.search);
       if (p.get('ui') !== UI) {
         p.set('ui', UI);
@@ -800,6 +800,7 @@
         <button class="nav-btn" data-view="flightsView">Flights</button>
         <button class="nav-btn" data-view="historyView">History</button>
         <button class="nav-btn" data-view="usageView">Kota</button>
+        <button class="nav-btn" data-view="pdfRosterView">PDF Roster</button>
       </nav>
     </aside>
     <main class="main">
@@ -1226,6 +1227,105 @@
           </tr></thead><tbody id="usageBody"></tbody></table>
         </div>
       </section>
+
+      <section id="pdfRosterView" class="view">
+        <div class="panel">
+          <h3 style="margin:0 0 8px;">PDF Roster Import Simülatörü</h3>
+          <p class="mini" style="margin-top:0;">
+            Uygulamanın kullandığı Edge <code>parse-roster-pdf</code> ile aynı motor (pdf-parse + paylaşılan parser).
+            Havayolu seçimi uygulama gibi satır filtresi uygular; “Zorla parser” ile layout heuristic’ini ezer.
+            Online ortamda tarayıcı dosya yolunu okuyamaz — PDF’i yükleyin. Yerel CLI:
+            <code>cd mobile && npm run pdf:roster -- /path/to.pdf</code>
+          </p>
+          <div class="users-toolbar" style="margin-bottom:12px; align-items:end; flex-wrap:wrap; gap:10px;">
+            <div>
+              <label class="mini">Havayolu (crew ICAO filtresi)</label>
+              <select id="pdfAirlineIcao">
+                <option value="PGT">PGT · Pegasus (PC)</option>
+                <option value="THY">THY · Turkish Airlines (TK)</option>
+                <option value="SXS">SXS · SunExpress (XQ)</option>
+                <option value="FHY">FHY · Freebird (FH)</option>
+                <option value="IGO">IGO · IndiGo (6E)</option>
+                <option value="">Filtre yok (ham parse)</option>
+              </select>
+            </div>
+            <div>
+              <label class="mini">Parser</label>
+              <select id="pdfForceParser">
+                <option value="auto" selected>Otomatik (uygulama gibi)</option>
+                <option value="PGT">Zorla Pegasus</option>
+                <option value="THY">Zorla THY</option>
+                <option value="SXS">Zorla SunExpress</option>
+                <option value="FHY">Zorla Freebird</option>
+                <option value="IGO">Zorla IndiGo</option>
+              </select>
+            </div>
+            <div style="min-width:220px; flex:1;">
+              <label class="mini">PDF dosyası</label>
+              <input id="pdfFileInput" type="file" accept="application/pdf,.pdf" />
+            </div>
+            <div style="min-width:200px; flex:1;">
+              <label class="mini">Dosya yolu / not (yalnızca etiket)</label>
+              <input id="pdfPathNote" type="text" placeholder="/Users/…/roster.pdf" />
+            </div>
+            <div style="align-self:end;">
+              <button type="button" id="btnPdfParse" class="btnPrimary">Parse et</button>
+              <button type="button" id="btnPdfClear">Temizle</button>
+              <span id="pdfParseStatus" class="mini"></span>
+            </div>
+          </div>
+          <div class="kpi-row" style="margin-bottom:12px;">
+            <div class="card">
+              <h3>Filtrelenmiş</h3>
+              <div class="num" id="pdfCountFiltered">-</div>
+              <div class="mini">crew ICAO sonrası</div>
+            </div>
+            <div class="card">
+              <h3>Ham parse</h3>
+              <div class="num" id="pdfCountRaw">-</div>
+              <div class="mini">filtre öncesi</div>
+            </div>
+            <div class="card">
+              <h3>Atlanan (yanlış airline)</h3>
+              <div class="num" id="pdfCountSkipped">-</div>
+              <div class="mini">skipped_wrong_airline</div>
+            </div>
+            <div class="card">
+              <h3>Layout / kaynak</h3>
+              <div class="mini" id="pdfDetectMeta" style="margin-top:6px; font-size:13px; font-weight:600;">—</div>
+            </div>
+          </div>
+          <div class="users-table-wrap" style="margin-bottom:12px;">
+            <table class="users-table" id="pdfRosterTable">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Tarih</th>
+                  <th>Kod</th>
+                  <th>Tür</th>
+                  <th>DEP</th>
+                  <th>ARR</th>
+                  <th>Saat (dep→arr)</th>
+                  <th>Duty / not</th>
+                </tr>
+              </thead>
+              <tbody id="pdfRosterBody">
+                <tr><td colspan="8" class="mini">Henüz parse yok.</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="row" style="gap:12px; align-items:stretch; flex-wrap:wrap;">
+            <div class="panel" style="flex:1; min-width:280px; margin:0;">
+              <h3 style="margin:0 0 6px;">Ham metin (ilk 8k)</h3>
+              <pre id="pdfRawText" class="mini" style="max-height:280px; overflow:auto; white-space:pre-wrap; background:#f8fafc; padding:8px; border-radius:8px; border:1px solid var(--line); margin:0;"></pre>
+            </div>
+            <div class="panel" style="flex:1; min-width:280px; margin:0;">
+              <h3 style="margin:0 0 6px;">JSON (filtrelenmiş flights)</h3>
+              <pre id="pdfRawJson" class="mini" style="max-height:280px; overflow:auto; white-space:pre-wrap; background:#f8fafc; padding:8px; border-radius:8px; border:1px solid var(--line); margin:0;"></pre>
+            </div>
+          </div>
+        </div>
+      </section>
     </main>
   </div>
 
@@ -1336,6 +1436,20 @@
       btnBulkPhase: document.getElementById('btnBulkPhase'),
       btnBulkStatus: document.getElementById('btnBulkStatus'),
       btnBulkDelete: document.getElementById('btnBulkDelete'),
+      btnPdfParse: document.getElementById('btnPdfParse'),
+      btnPdfClear: document.getElementById('btnPdfClear'),
+      pdfAirlineIcao: document.getElementById('pdfAirlineIcao'),
+      pdfForceParser: document.getElementById('pdfForceParser'),
+      pdfFileInput: document.getElementById('pdfFileInput'),
+      pdfPathNote: document.getElementById('pdfPathNote'),
+      pdfParseStatus: document.getElementById('pdfParseStatus'),
+      pdfCountFiltered: document.getElementById('pdfCountFiltered'),
+      pdfCountRaw: document.getElementById('pdfCountRaw'),
+      pdfCountSkipped: document.getElementById('pdfCountSkipped'),
+      pdfDetectMeta: document.getElementById('pdfDetectMeta'),
+      pdfRosterBody: document.getElementById('pdfRosterBody'),
+      pdfRawText: document.getElementById('pdfRawText'),
+      pdfRawJson: document.getElementById('pdfRawJson'),
     };
 
     const SESSION_KEY = 'flyfam_admin_dashboard_session_v2';
@@ -3816,6 +3930,163 @@
         setStatus(String(err?.message || err), 'bad');
       }
     });
+    function fileToBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const s = String(reader.result || '');
+          const i = s.indexOf('base64,');
+          resolve(i >= 0 ? s.slice(i + 7) : s);
+        };
+        reader.onerror = () => reject(reader.error || new Error('Dosya okunamadı'));
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function clearPdfSimResults() {
+      if (els.pdfCountFiltered) els.pdfCountFiltered.textContent = '-';
+      if (els.pdfCountRaw) els.pdfCountRaw.textContent = '-';
+      if (els.pdfCountSkipped) els.pdfCountSkipped.textContent = '-';
+      if (els.pdfDetectMeta) els.pdfDetectMeta.textContent = '—';
+      if (els.pdfRosterBody) {
+        els.pdfRosterBody.innerHTML = '<tr><td colspan="8" class="mini">Henüz parse yok.</td></tr>';
+      }
+      if (els.pdfRawText) els.pdfRawText.textContent = '';
+      if (els.pdfRawJson) els.pdfRawJson.textContent = '';
+      if (els.pdfParseStatus) els.pdfParseStatus.textContent = '';
+    }
+
+    function renderPdfSimFlights(rows) {
+      const list = Array.isArray(rows) ? rows : [];
+      if (!els.pdfRosterBody) return;
+      if (list.length === 0) {
+        els.pdfRosterBody.innerHTML = '<tr><td colspan="8" class="mini">Satır yok.</td></tr>';
+        return;
+      }
+      els.pdfRosterBody.innerHTML = list
+        .map((r, idx) => {
+          const kind = r.roster_entry_kind || 'flight';
+          const dep = r.origin_iata || '—';
+          const arr = r.destination_iata || '—';
+          const times = [r.dep_time_local || '—', r.arr_time_local || '—'].join(' → ');
+          const note =
+            [r.duty_occupation_code, r.duty_occupation_label_tr, r.duty_end_time_local]
+              .filter(Boolean)
+              .join(' · ') || '—';
+          return (
+            '<tr>' +
+            '<td>' +
+            (idx + 1) +
+            '</td>' +
+            '<td>' +
+            escapeHtml(r.flight_date) +
+            '</td>' +
+            '<td><strong>' +
+            escapeHtml(r.flight_number) +
+            '</strong></td>' +
+            '<td>' +
+            escapeHtml(kind) +
+            '</td>' +
+            '<td>' +
+            escapeHtml(dep) +
+            '</td>' +
+            '<td>' +
+            escapeHtml(arr) +
+            '</td>' +
+            '<td>' +
+            escapeHtml(times) +
+            '</td>' +
+            '<td class="mini">' +
+            escapeHtml(note) +
+            '</td>' +
+            '</tr>'
+          );
+        })
+        .join('');
+    }
+
+    async function runPdfRosterParse() {
+      const file = els.pdfFileInput?.files?.[0];
+      if (!file) {
+        setStatus('PDF dosyası seçin', 'bad');
+        if (els.pdfParseStatus) els.pdfParseStatus.textContent = 'Dosya gerekli';
+        return;
+      }
+      if (!accessToken) {
+        setStatus('Önce panel girişi yapın', 'bad');
+        return;
+      }
+      const icao = (els.pdfAirlineIcao?.value || '').trim();
+      const force = (els.pdfForceParser?.value || 'auto').trim();
+      const pathNote = (els.pdfPathNote?.value || '').trim() || file.name;
+      if (els.pdfParseStatus) els.pdfParseStatus.textContent = 'Parse ediliyor…';
+      setStatus('PDF parse…', 'warn');
+      try {
+        const b64 = await fileToBase64(file);
+        const res = await safeFetch(adminUrl() + '/functions/v1/parse-roster-pdf', {
+          method: 'POST',
+          headers: {
+            apikey: adminAnonKey(),
+            Authorization: 'Bearer ' + accessToken,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            pdf_base64: b64,
+            crew_airline_icao: icao || undefined,
+            force_parser: force,
+          }),
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error(json?.error || ('HTTP ' + res.status));
+        }
+        const filtered = Array.isArray(json.flights) ? json.flights : [];
+        const raw = Array.isArray(json.flights_raw) ? json.flights_raw : filtered;
+        const skipped = Number(json.skipped_wrong_airline || json.counts?.skipped_wrong_airline || 0);
+        if (els.pdfCountFiltered) els.pdfCountFiltered.textContent = String(filtered.length);
+        if (els.pdfCountRaw) els.pdfCountRaw.textContent = String(raw.length);
+        if (els.pdfCountSkipped) els.pdfCountSkipped.textContent = String(skipped);
+        if (els.pdfDetectMeta) {
+          els.pdfDetectMeta.textContent =
+            (json.detected_layout || '?') + ' · ' + (json.parser_debug_source || '?') +
+            (json.parser_debug_error ? ' · err: ' + json.parser_debug_error : '');
+        }
+        renderPdfSimFlights(filtered);
+        const text = typeof json.text === 'string' ? json.text : '';
+        if (els.pdfRawText) {
+          els.pdfRawText.textContent =
+            'file: ' + pathNote + '\nchars: ' + text.length + '\n\n' + text.slice(0, 8000);
+        }
+        if (els.pdfRawJson) {
+          els.pdfRawJson.textContent = JSON.stringify(filtered, null, 2);
+        }
+        if (els.pdfParseStatus) {
+          els.pdfParseStatus.textContent =
+            filtered.length + ' satır · ' + pathNote;
+        }
+        setStatus('PDF parse tamam (' + filtered.length + ' satır)', 'ok');
+      } catch (err) {
+        const msg = String(err?.message || err);
+        if (els.pdfParseStatus) els.pdfParseStatus.textContent = msg;
+        setStatus(msg, 'bad');
+      }
+    }
+
+    els.btnPdfParse?.addEventListener('click', () => {
+      runPdfRosterParse().catch((err) => setStatus(String(err?.message || err), 'bad'));
+    });
+    els.btnPdfClear?.addEventListener('click', () => {
+      if (els.pdfFileInput) els.pdfFileInput.value = '';
+      if (els.pdfPathNote) els.pdfPathNote.value = '';
+      clearPdfSimResults();
+    });
+    els.pdfFileInput?.addEventListener('change', () => {
+      const f = els.pdfFileInput?.files?.[0];
+      if (f && els.pdfPathNote && !els.pdfPathNote.value.trim()) {
+        els.pdfPathNote.value = f.name;
+      }
+    });
+
     function switchView(viewId) {
       els.views.forEach((v) => v.classList.toggle('active', v.id === viewId));
       els.navButtons.forEach((b) => b.classList.toggle('active', b.dataset.view === viewId));

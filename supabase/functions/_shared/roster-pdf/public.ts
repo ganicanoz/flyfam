@@ -9,6 +9,7 @@ export { isLikelyFlightNumber, extractTimesOnLine, extractRouteOnLine } from './
 
 export {
   trLocalDateTimeToUtcIso,
+  dutyClockToUtcIso,
   ROSTER_FALLBACK_TIMEZONE,
   addCalendarDays,
   restEndOperatingYmd,
@@ -22,6 +23,7 @@ export {
   rosterOccupationLabelEn,
   isOffDayOccupationCode,
   isAnnualLeaveOccupationCode,
+  isUnpaidLeaveOccupationCode,
   isGroundDutyOccupationCode,
   isOfficeDutyOccupationCode,
   isStandbyOccupationCode,
@@ -37,9 +39,18 @@ export {
   looksLikeFreebirdRosterPdf,
   looksLikeIndigoCrewSchedulePdf,
   looksLikeThyCrewRosterPdf,
+  detectPegasusPlanTimeBasis,
 } from './normalize.ts';
 
 export { parseFlightsFromPdfText } from './parseFlightsFromPdfText.ts';
+export {
+  ROSTER_PDF_IMPORT_SUPPORTED_AIRLINE_ICAOS,
+  normalizeCrewAirlineIcaoTypo,
+  isRosterPdfImportSupportedForCrewAirline,
+  filterPdfRowsForCrewAirline,
+  detectRosterPdfLayout,
+  type DetectedRosterLayout,
+} from './crewAirlineFilter.ts';
 
 export { tryPegasusLineAnchorDate, parseFlightsFromPdfText_Pegasus } from './airlines/pegasus/lineScan.ts';
 export {

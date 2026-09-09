@@ -14,8 +14,28 @@ import {
   looksLikeSunExpressSchedulePdf,
   parseFlightsFromPdfText,
   parseFlightsFromPdfText_SunExpress,
+  parseFlightsFromPdfText_THY,
+  parseFlightsFromPdfText_Freebird,
+  parseFlightsFromPdfText_Indigo,
+  parseFlightsFromPdfText_DutyLocalTable,
+  parseFlightsFromPdfText_Pegasus,
+  filterPdfRowsForCrewAirline,
+  detectRosterPdfLayout,
+  normalizeCrewAirlineIcaoTypo,
   type PdfFlightRow,
 } from '../_shared/pdfRosterImport.ts';
+import { parseDutyFromPdfText_THY } from '../_shared/roster-pdf/airlines/thy/lineScan.ts';
+import {
+  rosterOccupationLabelEn,
+  rosterOccupationLabelTr,
+} from '../_shared/roster-pdf/occupationLabels.ts';
+import {
+  dropSingleLineFlightDateGhosts,
+  mergePdfRow,
+  pdfRowDedupeKey,
+  rosterEntrySortRank,
+} from '../_shared/roster-pdf/merge.ts';
+import { normalizePdfTextForRosterParse } from '../_shared/roster-pdf/normalize.ts';
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -206,6 +226,37 @@ function extractSunExpressLegs(rawText: string): Map<string, SunExpressLeg[]> {
     });
   }
 
+  // Bazı dönüş bacaklarının kodu hücrede ayrı kalır (XQ119 / XQ613 / XQ232).
+  // Route ve saatler PDF'nin ikinci metin katmanında iki ayrı parça halinde bulunur.
+  const orphanByArrival = new Map<string, string[]>();
+  for (const m of rawText.matchAll(/(\d{1,2}:\d{2})\s*Release\s*\n\s*(XQ\d{2,4}|DH)\s*\n/gi)) {
+    const arr = String(m[1] ?? '').padStart(5, '0');
+    const codes = orphanByArrival.get(arr) ?? [];
+    codes.push((m[2] ?? '').toUpperCase());
+    orphanByArrival.set(arr, codes);
+  }
+  const routePieces = new Map<string, { dep?: string; arr?: string }>();
+  for (const line of rawText.split(/\r?\n/)) {
+    const dep = /^\s*([A-Z]{3})\s+(\d{1,2}:\d{2})\s*~\s*([A-Z]{3})\s*$/i.exec(line);
+    if (dep) {
+      const key = `${dep[1]!.toUpperCase()}|${dep[3]!.toUpperCase()}`;
+      routePieces.set(key, { ...(routePieces.get(key) ?? {}), dep: dep[2]!.padStart(5, '0') });
+    }
+    const arr = /^\s*([A-Z]{3})\s*~\s*(\d{1,2}:\d{2})\s*([A-Z]{3})\s*$/i.exec(line);
+    if (arr) {
+      const key = `${arr[1]!.toUpperCase()}|${arr[3]!.toUpperCase()}`;
+      routePieces.set(key, { ...(routePieces.get(key) ?? {}), arr: arr[2]!.padStart(5, '0') });
+    }
+  }
+  for (const [route, times] of routePieces) {
+    if (!times.dep || !times.arr) continue;
+    const codes = orphanByArrival.get(times.arr) ?? [];
+    const code = codes.shift();
+    if (!code) continue;
+    const [origin, destination] = route.split('|');
+    push({ code, origin: origin!, destination: destination!, stdUtc: times.dep, staUtc: times.arr });
+  }
+
   return out;
 }
 
@@ -215,6 +266,7 @@ async function parseSunExpressWithLayout(buf: Uint8Array, rawText: string): Prom
 
   const doc = await getDocument({ data: buf, disableWorker: true }).promise;
   const flightsByLayout: Array<{ date: string; code: string }> = [];
+  const dutiesByLayout = new Map<string, { code: string | null; report: string | null; release: string | null }>();
 
   for (let pageNo = 1; pageNo <= doc.numPages; pageNo += 1) {
     const page = await doc.getPage(pageNo);
@@ -330,6 +382,27 @@ async function parseSunExpressWithLayout(buf: Uint8Array, rawText: string): Prom
       if (!dateIso) continue;
       flightsByLayout.push({ date: dateIso, code: f.text.toUpperCase() });
     }
+
+    // Aynı hücre koordinatlarından OFF/izin/nöbet ve Report/Release saatlerini çıkar.
+    for (const w of items) {
+      let rowIdx = 0;
+      for (let i = 0; i < rowTops.length; i += 1) if (w.top >= rowTops[i]! - 1) rowIdx = i;
+      const colIdx = colBounds.findIndex((b) => w.x > b.lo && w.x <= b.hi);
+      const dateIso = rowIdx >= 0 && colIdx >= 0 ? dayByRowCol.get(`${rowIdx}:${colIdx}`) : null;
+      if (!dateIso) continue;
+      const previous = dutiesByLayout.get(dateIso) ?? { code: null, report: null, release: null };
+      const compactToken = w.text.replace(/\s+/g, '').toUpperCase();
+      const codeMatch = compactToken.match(/(?:^|[^A-Z])(OFFB?|AVAC|RSV\d*|SB[A-Z0-9]*|TOF|COMP-DR)(?:$|[^A-Z])/);
+      const reportMatch = w.text.match(/(?:Report\s*)?(\d{1,2}:\d{2})|(?:\d{1,2}:\d{2})\s*Report/i);
+      const releaseMatch = w.text.match(/(?:Release\s*)?(\d{1,2}:\d{2})|(?:\d{1,2}:\d{2})\s*Release/i);
+      const explicitReport = /Report/i.test(w.text) ? (w.text.match(/\d{1,2}:\d{2}/)?.[0] ?? reportMatch?.[1] ?? null) : null;
+      const explicitRelease = /Release/i.test(w.text) ? (w.text.match(/\d{1,2}:\d{2}/)?.[0] ?? releaseMatch?.[1] ?? null) : null;
+      dutiesByLayout.set(dateIso, {
+        code: codeMatch?.[1]?.toUpperCase() ?? previous.code,
+        report: explicitReport?.padStart(5, '0') ?? previous.report,
+        release: explicitRelease?.padStart(5, '0') ?? previous.release,
+      });
+    }
   }
 
   if (flightsByLayout.length === 0) return null;
@@ -365,12 +438,33 @@ async function parseSunExpressWithLayout(buf: Uint8Array, rawText: string): Prom
       arr_schedule_utc_iso: normalized.staUtc ? `${arrDate}T${normalized.staUtc}:00.000Z` : null,
       origin_iata: normalized.origin ?? null,
       destination_iata: normalized.destination ?? null,
+      duty_start_time_local: dutiesByLayout.get(item.date)?.report ?? null,
+      duty_end_time_local: dutiesByLayout.get(item.date)?.release ?? null,
+      duty_clock_basis: 'utc',
     };
     const k = `${row.flight_date}|${row.flight_number}|${row.origin_iata ?? ''}|${row.destination_iata ?? ''}|${row.dep_time_local ?? ''}|${row.arr_time_local ?? ''}`;
     if (!dedupe.has(k)) {
       dedupe.add(k);
       out.push(row);
     }
+  }
+
+
+  const flightDates = new Set(out.map((r) => r.flight_date));
+  for (const [date, duty] of dutiesByLayout) {
+    if (!duty.code || flightDates.has(date)) continue;
+    const normalizedCode = /^OFFB?$/i.test(duty.code) ? duty.code.toUpperCase() : duty.code;
+    out.push({
+      flight_number: normalizedCode,
+      flight_date: date,
+      roster_entry_kind: 'duty_off',
+      duty_occupation_code: normalizedCode,
+      duty_occupation_label_tr: rosterOccupationLabelTr(normalizedCode) ?? (/^OFF/i.test(normalizedCode) ? 'Boş Gün' : normalizedCode),
+      duty_occupation_label_en: rosterOccupationLabelEn(normalizedCode) ?? (/^OFF/i.test(normalizedCode) ? 'Off day' : normalizedCode),
+      duty_start_time_local: duty.report,
+      duty_end_time_local: duty.release,
+      duty_clock_basis: 'utc',
+    });
   }
 
   // Safety net: layout parser'ın özellikle ay sonu (24-30) kutularında kaçırdığı XQ/DH satırlarını
@@ -811,6 +905,49 @@ async function parseFreebirdWithLayout(buf: Uint8Array): Promise<PdfFlightRow[] 
   return [...dedupe.values()];
 }
 
+function parseForcedAirlineText(text: string, icao: string): PdfFlightRow[] {
+  const raw = (text || '').replace(/\r\n/g, '\n');
+  const normalized = normalizePdfTextForRosterParse(text);
+  const sortRows = (out: PdfFlightRow[]) => {
+    out.sort(
+      (a, b) =>
+        a.flight_date.localeCompare(b.flight_date) ||
+        rosterEntrySortRank(a) - rosterEntrySortRank(b) ||
+        a.flight_number.localeCompare(b.flight_number),
+    );
+    return out;
+  };
+  switch (icao) {
+    case 'IGO':
+      return sortRows(parseFlightsFromPdfText_Indigo(raw));
+    case 'THY': {
+      const map = new Map<string, PdfFlightRow>();
+      for (const f of [...parseFlightsFromPdfText_THY(normalized), ...parseDutyFromPdfText_THY(normalized)]) {
+        const k = pdfRowDedupeKey(f);
+        const prev = map.get(k);
+        map.set(k, prev ? mergePdfRow(prev, f) : { ...f });
+      }
+      return sortRows(dropSingleLineFlightDateGhosts([...map.values()]));
+    }
+    case 'SXS':
+      return sortRows(parseFlightsFromPdfText_SunExpress(normalized));
+    case 'FHY':
+      return sortRows(parseFlightsFromPdfText_Freebird(normalized));
+    case 'PGT': {
+      const dutyRows = parseFlightsFromPdfText_DutyLocalTable(normalized);
+      const map = new Map<string, PdfFlightRow>();
+      for (const f of [...parseFlightsFromPdfText_Pegasus(normalized), ...dutyRows]) {
+        const k = pdfRowDedupeKey(f);
+        const prev = map.get(k);
+        map.set(k, prev ? mergePdfRow(prev, f) : { ...f });
+      }
+      return sortRows(dropSingleLineFlightDateGhosts([...map.values()]));
+    }
+    default:
+      return parseFlightsFromPdfText(text);
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: cors });
@@ -824,7 +961,11 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const body = (await req.json().catch(() => null)) as { pdf_base64?: string } | null;
+    const body = (await req.json().catch(() => null)) as {
+      pdf_base64?: string;
+      crew_airline_icao?: string;
+      force_parser?: string;
+    } | null;
     const b64 = body?.pdf_base64;
     if (!b64 || typeof b64 !== 'string') {
       return new Response(JSON.stringify({ error: 'pdf_base64 string required' }), {
@@ -832,6 +973,15 @@ Deno.serve(async (req) => {
         headers: { ...cors, 'Content-Type': 'application/json' },
       });
     }
+
+    const crewIcao = normalizeCrewAirlineIcaoTypo(body?.crew_airline_icao ?? '');
+    const forceRaw = String(body?.force_parser ?? 'auto').trim().toUpperCase();
+    const forceParser =
+      forceRaw === 'AUTO' || forceRaw === ''
+        ? 'auto'
+        : forceRaw === 'PGS'
+          ? 'PGT'
+          : forceRaw;
 
     const buf = base64ToBuffer(b64);
     if (buf.length < 10) {
@@ -843,47 +993,102 @@ Deno.serve(async (req) => {
 
     const parsed = await pdfParse(buf);
     const text = String((parsed as { text?: string }).text ?? '').replace(/\r\n/g, '\n');
-    let flights = parseFlightsFromPdfText(text);
+    const detectedLayout = detectRosterPdfLayout(text);
+
+    let flights: PdfFlightRow[];
     let parserDebugSource = 'default';
     let parserDebugError: string | null = null;
-    const isIndigoCrewPdf = looksLikeIndigoCrewSchedulePdf(text);
-    if (isIndigoCrewPdf) {
-      parserDebugSource = 'indigo_text_only';
-    } else if (looksLikeSunExpressSchedulePdf(text)) {
-      try {
-        const layoutFlights = await parseSunExpressWithLayout(new Uint8Array(buf), text);
-        if (layoutFlights && layoutFlights.length > 0) {
-          flights = layoutFlights;
-          parserDebugSource = 'sunexpress_layout';
-        } else {
-          parserDebugSource = 'sunexpress_fallback_no_layout_rows';
+
+    if (forceParser !== 'auto') {
+      flights = parseForcedAirlineText(text, forceParser);
+      parserDebugSource = `forced_${forceParser.toLowerCase()}`;
+      // SXS/FHY layout enrichment still helps when forced.
+      if (forceParser === 'SXS') {
+        try {
+          const layoutFlights = await parseSunExpressWithLayout(new Uint8Array(buf), text);
+          if (layoutFlights && layoutFlights.length > 0) {
+            flights = layoutFlights;
+            parserDebugSource = 'forced_sxs_layout';
+          }
+        } catch (e) {
+          parserDebugError = e instanceof Error ? e.message : String(e);
         }
-      } catch (e) {
-        console.warn('[parse-roster-pdf] sunexpress layout parse fallback to text parser:', e);
-        parserDebugSource = 'sunexpress_fallback_exception';
-        parserDebugError = e instanceof Error ? e.message : String(e);
+      } else if (forceParser === 'FHY') {
+        try {
+          const layoutRows = await parseFreebirdWithLayout(new Uint8Array(buf));
+          if (layoutRows && layoutRows.length > 0) {
+            const merged = mergePreferLayoutRows(flights, layoutRows);
+            flights = normalizeFreebirdFlightTimes(mergeFreebirdDutyRows(merged, layoutRows));
+            parserDebugSource = 'forced_fhy_layout_merge';
+          }
+        } catch (e) {
+          parserDebugError = e instanceof Error ? e.message : String(e);
+        }
       }
-    } else if (looksLikeFreebirdRosterPdf(text)) {
-      try {
-        const layoutRows = await parseFreebirdWithLayout(new Uint8Array(buf));
-        if (layoutRows && layoutRows.length > 0) {
-          const merged = mergePreferLayoutRows(flights, layoutRows);
-          flights = normalizeFreebirdFlightTimes(mergeFreebirdDutyRows(merged, layoutRows));
-          parserDebugSource = 'freebird_layout_merge';
-        } else {
-          parserDebugSource = 'freebird_fallback_no_layout_rows';
+    } else {
+      flights = parseFlightsFromPdfText(text);
+      const isIndigoCrewPdf = looksLikeIndigoCrewSchedulePdf(text);
+      if (isIndigoCrewPdf) {
+        parserDebugSource = 'indigo_text_only';
+      } else if (looksLikeSunExpressSchedulePdf(text)) {
+        try {
+          const layoutFlights = await parseSunExpressWithLayout(new Uint8Array(buf), text);
+          if (layoutFlights && layoutFlights.length > 0) {
+            flights = layoutFlights;
+            parserDebugSource = 'sunexpress_layout';
+          } else {
+            parserDebugSource = 'sunexpress_fallback_no_layout_rows';
+          }
+        } catch (e) {
+          console.warn('[parse-roster-pdf] sunexpress layout parse fallback to text parser:', e);
+          parserDebugSource = 'sunexpress_fallback_exception';
+          parserDebugError = e instanceof Error ? e.message : String(e);
         }
-      } catch (e) {
-        console.warn('[parse-roster-pdf] freebird layout parse fallback to text parser:', e);
-        parserDebugSource = 'freebird_fallback_exception';
-        parserDebugError = e instanceof Error ? e.message : String(e);
+      } else if (looksLikeFreebirdRosterPdf(text)) {
+        try {
+          const layoutRows = await parseFreebirdWithLayout(new Uint8Array(buf));
+          if (layoutRows && layoutRows.length > 0) {
+            const merged = mergePreferLayoutRows(flights, layoutRows);
+            flights = normalizeFreebirdFlightTimes(mergeFreebirdDutyRows(merged, layoutRows));
+            parserDebugSource = 'freebird_layout_merge';
+          } else {
+            parserDebugSource = 'freebird_fallback_no_layout_rows';
+          }
+        } catch (e) {
+          console.warn('[parse-roster-pdf] freebird layout parse fallback to text parser:', e);
+          parserDebugSource = 'freebird_fallback_exception';
+          parserDebugError = e instanceof Error ? e.message : String(e);
+        }
       }
     }
 
+    let flightsFiltered = flights;
+    let skippedWrongAirline = 0;
+    if (crewIcao) {
+      const filtered = filterPdfRowsForCrewAirline(flights, crewIcao, null);
+      flightsFiltered = filtered.kept;
+      skippedWrongAirline = filtered.skippedWrongAirline;
+    }
+
     return new Response(
-      JSON.stringify({ text, flights, parser_debug_source: parserDebugSource, parser_debug_error: parserDebugError }),
+      JSON.stringify({
+        text,
+        flights: flightsFiltered,
+        flights_raw: flights,
+        skipped_wrong_airline: skippedWrongAirline,
+        crew_airline_icao: crewIcao || null,
+        force_parser: forceParser,
+        detected_layout: detectedLayout,
+        parser_debug_source: parserDebugSource,
+        parser_debug_error: parserDebugError,
+        counts: {
+          raw: flights.length,
+          filtered: flightsFiltered.length,
+          skipped_wrong_airline: skippedWrongAirline,
+        },
+      }),
       {
-      headers: { ...cors, 'Content-Type': 'application/json' },
+        headers: { ...cors, 'Content-Type': 'application/json' },
       },
     );
   } catch (e) {

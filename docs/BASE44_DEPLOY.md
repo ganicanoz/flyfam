@@ -49,6 +49,12 @@ Logo: keep `docs/Görseller/image.png` in the repo; `./Görseller/image.png` in 
 
 **Admin panel (yeni ekran):** `https://<github-username>.github.io/<repo-name>/ADMIN_STATUS_DASHBOARD.html` — GitHub Pages kaynağı `/docs` iken bu dosya kökte yayınlanır. Destek sitesi (`support/`) üzerindeki **Yönetici** linki aynı adrese yönlendirir.
 
+**PDF Roster Import Simülatörü:** panel menüsünde **PDF Roster**. Uygulama ile aynı Edge `parse-roster-pdf` motorunu kullanır (havayolu filtresi + isteğe bağlı zorla parser). Deploy sonrası Edge’i güncelleyin:
+
+```bash
+supabase functions deploy parse-roster-pdf
+```
+
 ### Cache / `304 Not Modified`
 
 If you change HTML and the browser still shows an old version, append a version query once:
