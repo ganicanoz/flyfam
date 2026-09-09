@@ -9,7 +9,7 @@
   <meta http-equiv="Expires" content="0" />
   <script>
     (function () {
-      var UI = '34';
+      var UI = '35';
       var p = new URLSearchParams(location.search);
       if (p.get('ui') !== UI) {
         p.set('ui', UI);
@@ -467,6 +467,25 @@
     a.u-email-link {
       font-weight: 500;
     }
+    .u-id {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 11px;
+      color: #475569;
+      word-break: break-all;
+      line-height: 1.25;
+      max-width: 140px;
+    }
+    .u-id-copy {
+      border: 0;
+      background: transparent;
+      color: #2563eb;
+      cursor: pointer;
+      font-size: 11px;
+      padding: 0;
+      margin-top: 2px;
+      font-weight: 600;
+    }
+    .u-id-copy:hover { text-decoration: underline; }
     .u-platform { display: flex; flex-direction: column; gap: 2px; }
     .u-version { display: flex; flex-direction: column; gap: 2px; }
     .role-pill {
@@ -1004,6 +1023,10 @@
         <div class="panel">
           <h3 style="margin:0 0 8px;">User details</h3>
           <div class="users-toolbar">
+            <div style="flex:1.4; min-width:220px;">
+              <label class="mini">İsim / email / ID ara</label>
+              <input id="userSearchInput" type="search" placeholder="Örn. Akif, oben@…, 65ce1b…" autocomplete="off" />
+            </div>
             <div>
               <label class="mini">App role filter</label>
               <select id="userTypeFilter">
@@ -1028,12 +1051,14 @@
             </div>
           </div>
           <p id="usersEmailHint" class="mini" style="margin:0 0 10px;display:none;"></p>
+          <p id="usersSearchHint" class="mini" style="margin:-4px 0 10px;"></p>
           <div class="users-table-wrap">
             <table class="users-table" id="usersTable">
               <thead>
                 <tr id="usersHead">
                   <th>#</th>
                   <th class="sortable" data-sort="full_name">Full name <span class="sort-ind"></span></th>
+                  <th class="sortable" data-sort="id">User ID <span class="sort-ind"></span></th>
                   <th class="sortable" data-sort="email">Email <span class="sort-ind"></span></th>
                   <th class="sortable" data-sort="role">Role <span class="sort-ind"></span></th>
                   <th class="sortable" data-sort="subscription">Abonelik <span class="sort-ind"></span></th>
@@ -1391,6 +1416,8 @@
       usersBody: document.getElementById('usersBody'),
       usersHead: document.getElementById('usersHead'),
       usersApiHint: document.getElementById('usersApiHint'),
+      userSearchInput: document.getElementById('userSearchInput'),
+      usersSearchHint: document.getElementById('usersSearchHint'),
       userTypeFilter: document.getElementById('userTypeFilter'),
       airlineFilter: document.getElementById('airlineFilter'),
       emailConfirmFilter: document.getElementById('emailConfirmFilter'),
@@ -2377,7 +2404,7 @@
           let hint = '';
           if (location.protocol === 'file:') {
             hint =
-              ' Paneli file:// ile açıyorsun — terminalde: cd docs && python3 -m http.server 8765 sonra http://localhost:8765/ADMIN_STATUS_DASHBOARD.html?ui=34';
+              ' Paneli file:// ile açıyorsun — terminalde: cd docs && python3 -m http.server 8765 sonra http://localhost:8765/ADMIN_STATUS_DASHBOARD.html?ui=35';
           } else {
             hint = ' Supabase URL ve anon key kontrol et; VPN/eklenti engeli olabilir.';
           }
@@ -2569,6 +2596,7 @@
       const isCrew = appRole === 'crew';
       const sub = u.subscription;
       if (key === 'full_name') return String(u.full_name || '').toLowerCase();
+      if (key === 'id') return String(u.id || '').toLowerCase();
       if (key === 'email') return String(u.email || '').toLowerCase();
       if (key === 'role') return appRole.toLowerCase();
       if (key === 'subscription') {
@@ -2596,6 +2624,11 @@
       const typeFilter = els.userTypeFilter.value || 'all';
       const airlineFilter = els.airlineFilter.value || 'all';
       const emailFilter = (els.emailConfirmFilter && els.emailConfirmFilter.value) || 'all';
+      const searchQ = String((els.userSearchInput && els.userSearchInput.value) || '')
+        .trim()
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '');
       const unconfirmedCount = lastUsers.filter((u) => !u.email_confirmed).length;
       if (els.usersEmailHint) {
         if (unconfirmedCount > 0) {
@@ -2621,8 +2654,34 @@
             if (userAirlineFilterKeys(u).indexOf(airlineFilter) < 0) return false;
           }
         }
+        if (searchQ) {
+          const hay = [
+            u.full_name,
+            u.email,
+            u.id,
+            u.company_name,
+            u.airline_icao,
+            u.family_linked_crew_company,
+          ]
+            .map((x) =>
+              String(x || '')
+                .toLowerCase()
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, ''),
+            )
+            .join(' ');
+          if (!hay.includes(searchQ)) return false;
+        }
         return true;
       });
+      if (els.usersSearchHint) {
+        if (searchQ) {
+          els.usersSearchHint.textContent =
+            filtered.length + ' sonuç · «' + String((els.userSearchInput && els.userSearchInput.value) || '').trim() + '»';
+        } else {
+          els.usersSearchHint.textContent = lastUsers.length + ' kullanıcı listeleniyor';
+        }
+      }
       const sorted = sortByKey(filtered, usersSortKey, usersSortDir, userSortValue, 'last_sign_in_at');
       updateSortableHeaders(els.usersHead, usersSortKey, usersSortDir);
       els.usersBody.innerHTML = sorted.map((u, idx) => {
@@ -2640,6 +2699,8 @@
         const devCount = Number(u.device_count || 0);
         const nameText = escapeHtml(u.full_name || '-');
         const emailText = escapeHtml(u.email || '-');
+        const uid = String(u.id || '');
+        const uidShort = uid ? uid.slice(0, 8) + '…' : '—';
         const sub = u.subscription;
         let subHtml = '<span class="sub-badge none">—</span>';
         let slotHtml = '—';
@@ -2660,14 +2721,19 @@
           : (
             '<span class="email-confirm-inline">' +
               '<span class="pill pill-warn" title="Email onaylanmamış">!</span>' +
-              '<button type="button" class="btnPrimary btnSmall" data-action="confirm-user-email" data-user-id="' + (u.id || '') + '">Doğrula</button>' +
+              '<button type="button" class="btnPrimary btnSmall" data-action="confirm-user-email" data-user-id="' + uid + '">Doğrula</button>' +
             '</span>'
           );
         return (
-          '<tr class="user-row-main" data-user-row-id="' + (u.id || '') + '">' +
+          '<tr class="user-row-main" data-user-row-id="' + uid + '">' +
             '<td>' + (idx + 1) + '</td>' +
-            '<td><a href="#" class="u-name-link" data-action="open-user-details" data-user-id="' + (u.id || '') + '" onclick="return false;">' + nameText + '</a></td>' +
-            '<td><a href="#" class="u-email-link" data-action="open-user-details" data-user-id="' + (u.id || '') + '" onclick="return false;">' + emailText + '</a>' + emailOk + '</td>' +
+            '<td><a href="#" class="u-name-link" data-action="open-user-details" data-user-id="' + uid + '" onclick="return false;">' + nameText + '</a></td>' +
+            '<td><div class="u-id" title="' + escapeAttr(uid) + '">' + escapeHtml(uidShort) + '</div>' +
+              (uid
+                ? '<button type="button" class="u-id-copy" data-action="copy-user-id" data-user-id="' + escapeAttr(uid) + '">kopyala</button>'
+                : '') +
+            '</td>' +
+            '<td><a href="#" class="u-email-link" data-action="open-user-details" data-user-id="' + uid + '" onclick="return false;">' + emailText + '</a>' + emailOk + '</td>' +
             '<td><span class="role-pill ' + roleBadgeCls + '">' + escapeAttr(appRole || '-') + '</span></td>' +
             '<td>' + subHtml + '</td>' +
             '<td>' + slotHtml + '</td>' +
@@ -2676,7 +2742,7 @@
             '<td class="mini">' + escapeAttr(airlineLabel) + '</td>' +
             '<td style="max-width:240px;">' + connCell + '</td>' +
             '<td><span class="u-signin">' + fmtDate(u.last_sign_in_at) + '</span></td>' +
-            '<td><a href="#" class="menu-link" data-action="open-user-roster" data-user-id="' + (u.id || '') + '" onclick="return false;">Roster</a></td>' +
+            '<td><a href="#" class="menu-link" data-action="open-user-roster" data-user-id="' + uid + '" onclick="return false;">Roster</a></td>' +
           '</tr>'
         );
       }).join('');
@@ -3755,6 +3821,28 @@
     els.usersBody.addEventListener('click', async (e) => {
       const target = e.target;
       if (!(target instanceof HTMLElement)) return;
+      const copyIdBtn = target.closest('button[data-action="copy-user-id"]');
+      if (copyIdBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        const uid = copyIdBtn.getAttribute('data-user-id') || '';
+        if (!uid) return;
+        const done = () => {
+          copyIdBtn.textContent = 'kopyalandı';
+          setTimeout(() => {
+            copyIdBtn.textContent = 'kopyala';
+          }, 1200);
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(uid).then(done).catch(() => {
+            setStatus('ID kopyalanamadı', 'bad');
+          });
+        } else {
+          setStatus(uid, 'ok');
+          done();
+        }
+        return;
+      }
       const confirmBtn = target.closest('button[data-action="confirm-user-email"]');
       if (confirmBtn) {
         e.preventDefault();
@@ -4284,6 +4372,10 @@
     els.airlineFilter.addEventListener('change', () => renderUsers(lastUsers));
     if (els.emailConfirmFilter) {
       els.emailConfirmFilter.addEventListener('change', () => renderUsers(lastUsers));
+    }
+    if (els.userSearchInput) {
+      els.userSearchInput.addEventListener('input', () => renderUsers(lastUsers));
+      els.userSearchInput.addEventListener('search', () => renderUsers(lastUsers));
     }
     els.btnFr24Open.addEventListener('click', () => {
       window.open('https://fr24api.flightradar24.com/usage-metrics?period=30d', '_blank', 'noopener,noreferrer');
