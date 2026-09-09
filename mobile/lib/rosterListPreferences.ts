@@ -1,22 +1,17 @@
 /**
- * Profil: uçuş listesinde hangi görev satırlarının gösterileceği.
+ * Profil: roster liste / takvim görünüm tercihleri.
  * Yeni kodlar: ROSTER_TRAINING_FLIGHT_PREFIXES ve categorizeRosterListRow güncellenir.
  */
 
 export type RosterListShowPrefs = {
-  off_days: boolean;
-  training: boolean;
-  simulator: boolean;
-  other: boolean;
+  /** true → yalnızca uçuş görevleri (liste + takvim). */
+  flights_only: boolean;
   /** Crew roster: yerel (istasyon/TR) + Z; `utc` = yalnızca UTC takvim günü ve Z saatleri. */
   time_display: 'local' | 'utc';
 };
 
 export const DEFAULT_ROSTER_LIST_SHOW: RosterListShowPrefs = {
-  off_days: true,
-  training: true,
-  simulator: true,
-  other: true,
+  flights_only: false,
   time_display: 'local',
 };
 
@@ -53,13 +48,23 @@ export function normalizeRosterListShow(raw: unknown): RosterListShowPrefs {
   const td = o.time_display;
   const time_display =
     td === 'utc' || td === 'local' ? td : DEFAULT_ROSTER_LIST_SHOW.time_display;
-  return {
-    off_days: typeof o.off_days === 'boolean' ? o.off_days : DEFAULT_ROSTER_LIST_SHOW.off_days,
-    training: typeof o.training === 'boolean' ? o.training : DEFAULT_ROSTER_LIST_SHOW.training,
-    simulator: typeof o.simulator === 'boolean' ? o.simulator : DEFAULT_ROSTER_LIST_SHOW.simulator,
-    other: typeof o.other === 'boolean' ? o.other : DEFAULT_ROSTER_LIST_SHOW.other,
-    time_display,
-  };
+  let flights_only = DEFAULT_ROSTER_LIST_SHOW.flights_only;
+  if (typeof o.flights_only === 'boolean') {
+    flights_only = o.flights_only;
+  } else if (
+    // Eski çoklu toggle şeması: hepsi kapalıysa “sadece uçuş”a yakın davranış.
+    typeof o.off_days === 'boolean' &&
+    typeof o.training === 'boolean' &&
+    typeof o.simulator === 'boolean' &&
+    typeof o.other === 'boolean' &&
+    !o.off_days &&
+    !o.training &&
+    !o.simulator &&
+    !o.other
+  ) {
+    flights_only = true;
+  }
+  return { flights_only, time_display };
 }
 
 export type RosterListRowCategory = 'flight' | 'off_days' | 'training' | 'simulator' | 'other';
@@ -71,7 +76,7 @@ type FlightLike = {
 
 export function flightNumberLooksLikeTraining(flightNumber: string): boolean {
   const u = flightNumber.replace(/\s/g, '').toUpperCase();
-  if (u.includes('SIM') || u === 'IPT' || /^IPT[A-Z0-9_-]*$/.test(u)) return false;
+  if (u.includes('SIM') || u.includes('IPT')) return false;
   if (u.includes('YERDR')) return true;
   return ROSTER_TRAINING_FLIGHT_PREFIXES.some((p) => u === p || u.startsWith(p));
 }
@@ -79,7 +84,7 @@ export function flightNumberLooksLikeTraining(flightNumber: string): boolean {
 /** Uçuş segmenti her zaman flight; filtre dışı. Off-day kodları (MSF vb.) kind flight yazılmış olsa bile off. */
 export function categorizeRosterListRow(f: FlightLike): RosterListRowCategory {
   const fn = (f.flight_number || '').replace(/\s/g, '').toUpperCase();
-  if (fn.includes('SIM') || fn === 'IPT' || /^IPT[A-Z0-9_-]*$/.test(fn)) return 'simulator';
+  if (fn.includes('SIM') || fn.includes('IPT')) return 'simulator';
   if (flightNumberLooksLikeTraining(f.flight_number)) return 'training';
   if (
     fn === 'FSF' ||
@@ -87,6 +92,8 @@ export function categorizeRosterListRow(f: FlightLike): RosterListRowCategory {
     fn === 'MSF' ||
     fn === 'FREE' ||
     fn === 'OFF' ||
+    fn === 'OFFB' ||
+    fn === 'TOF' ||
     fn === 'DOFF' ||
     fn === 'RQST' ||
     fn === 'VAC' ||
@@ -104,10 +111,6 @@ export function categorizeRosterListRow(f: FlightLike): RosterListRowCategory {
 }
 
 export function rosterListRowVisible(f: FlightLike, prefs: RosterListShowPrefs): boolean {
-  const cat = categorizeRosterListRow(f);
-  if (cat === 'flight') return true;
-  if (cat === 'off_days') return prefs.off_days;
-  if (cat === 'training') return prefs.training;
-  if (cat === 'simulator') return prefs.simulator;
-  return prefs.other;
+  if (!prefs.flights_only) return true;
+  return categorizeRosterListRow(f) === 'flight';
 }

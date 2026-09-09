@@ -18,20 +18,20 @@ export function isStandbyOccupationCode(code: string | null | undefined): boolea
     u === 'SBYP' ||
     u === 'SBY' ||
     u === 'SBX' ||
-    u === 'RSV' ||
+    /^RSV\d*$/.test(u) ||
     u === 'RZV' ||
     u === 'RZVM' ||
     /^SB([1-6X])?$/.test(u)
   );
 }
 
-/** Eğitim / training içeren yer görevleri — takvimde kırmızı, kartta görev. */
+/** Eğitim / training içeren yer görevleri — takvimde kırmızı, kartta görev. Sim/IPT hariç. */
 export function isTrainingOccupationCode(code: string | null | undefined): boolean {
   const u = (code || '').replace(/\s/g, '').toUpperCase();
   if (!u) return false;
+  if (isSimulatorOccupationCode(u)) return false;
   if (u.includes('TRAINING')) return true;
   if (u.includes('YERDR')) return true;
-  if (u.startsWith('SIM8')) return true;
   return (
     u === 'REC' ||
     u === 'TRT' ||
@@ -44,7 +44,6 @@ export function isTrainingOccupationCode(code: string | null | undefined): boole
     u === 'TRA' ||
     u === 'SEM' ||
     u === 'SNV' ||
-    u === 'IPT' ||
     u === 'SDM'
   );
 }
@@ -334,7 +333,10 @@ export function rosterOccupationLabelTr(code: string | null | undefined): string
   if (/^SB([1-6X])?$/.test(u)) return 'Nöbet';
   if (u.startsWith('STBY')) return ROSTER_OCCUPATION_TR.STBY;
   if (u === 'SBY') return ROSTER_OCCUPATION_TR.SBY;
+  if (/^RSV\d*$/.test(u)) return 'Rezerv';
+  if (u === 'TOF') return 'Boş Gün';
   if (u === 'FSF' || u === 'FOF' || u === 'MSF') return 'Boş Gün';
+  if (u === 'UPV') return 'Ücretsiz İzin';
   if (u === 'VAV' || u === 'VAC' || u === 'AVAC' || u === 'III') return 'Yıllık İzin';
   if (u.includes('YERDR')) return 'Yer Dersi';
   if (isTrainingOccupationCode(u)) return 'Görev';
@@ -351,7 +353,10 @@ export function rosterOccupationLabelEn(code: string | null | undefined): string
   if (/^SB([1-6X])?$/.test(u)) return 'Standby';
   if (u.startsWith('STBY')) return ROSTER_OCCUPATION_EN.STBY;
   if (u === 'SBY') return ROSTER_OCCUPATION_EN.SBY;
+  if (/^RSV\d*$/.test(u)) return 'Reserve';
+  if (u === 'TOF') return 'Off day';
   if (u === 'MSF') return 'Off Day';
+  if (u === 'UPV') return 'Unpaid Leave';
   if (u === 'VAV' || u === 'VAC' || u === 'AVAC' || u === 'III') return 'Annual Leave';
   if (u.includes('YERDR')) return 'Ground Training';
   if (isTrainingOccupationCode(u)) return 'Duty';
@@ -398,6 +403,12 @@ export function isAnnualLeaveOccupationCode(code: string | null | undefined): bo
   return u === 'VAV' || u === 'VAC' || u === 'AVAC' || u === 'III';
 }
 
+/** Ücretsiz izin (UPV) — takvimde off; etiket Boş Gün değil. */
+export function isUnpaidLeaveOccupationCode(code: string | null | undefined): boolean {
+  const u = (code || '').replace(/\s/g, '').toUpperCase();
+  return u === 'UPV';
+}
+
 /** Takvim / kart: boş gün (off) occupation kodları — nöbet değil. */
 export function isOffDayOccupationCode(code: string | null | undefined): boolean {
   const u = (code || '').replace(/\s/g, '').toUpperCase();
@@ -408,6 +419,8 @@ export function isOffDayOccupationCode(code: string | null | undefined): boolean
     u === 'FOF' ||
     u === 'FREE' ||
     u === 'OFF' ||
+    u === 'OFFB' ||
+    u === 'TOF' ||
     u === 'DOFF' ||
     u === 'RQST' ||
     u === 'RSF' ||

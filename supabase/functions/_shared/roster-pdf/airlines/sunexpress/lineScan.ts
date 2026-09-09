@@ -424,8 +424,8 @@ export function parseFlightsFromPdfText_SunExpress(text: string): PdfFlightRow[]
   const monthInfo = detectRosterMonthYear(text);
   const gridDays = detectGridSpanDays(text);
   const rawLines = text
-    // TOFOFF tek hücre: ayrı TOF + OFF iki gün üretmesin
-    .replace(/TOFOFF/gi, 'TOF')
+    // pdf-parse yan yana iki hücreyi birleştirir: 28 Eyl TOF + 27 Eyl OFF.
+    .replace(/TOFOFF/gi, 'TOF\nOFF')
     .replace(/\r/g, '\n')
     .split('\n')
     .map((x) => x.trim())

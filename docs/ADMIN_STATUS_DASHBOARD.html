@@ -1240,6 +1240,7 @@
           <p class="mini" style="margin-top:-4px; padding:8px 10px; border-radius:8px; background:#fff7ed; border:1px solid #fed7aa;">
             <strong>SunExpress kontrolü:</strong> Gece yarısını aşan bacaklar Report günündeki tek görev altında birleştirilir.
             UTC kalkış/varış tarihleri korunur; aynı bacağın ertesi gün tekrar yazılması ayrıca denetlenir.
+            RSV2 “Rezerv”, TOF ise “Boş Gün” olarak değerlendirilir.
           </p>
           <div class="users-toolbar" style="margin-bottom:12px; align-items:end; flex-wrap:wrap; gap:10px;">
             <div>
@@ -2371,7 +2372,7 @@
           let hint = '';
           if (location.protocol === 'file:') {
             hint =
-              ' Paneli file:// ile açıyorsun — terminalde: cd docs && python3 -m http.server 8765 sonra http://localhost:8765/ADMIN_STATUS_DASHBOARD.html?ui=29';
+              ' Paneli file:// ile açıyorsun — terminalde: cd docs && python3 -m http.server 8765 sonra http://localhost:8765/ADMIN_STATUS_DASHBOARD.html?ui=30';
           } else {
             hint = ' Supabase URL ve anon key kontrol et; VPN/eklenti engeli olabilir.';
           }
