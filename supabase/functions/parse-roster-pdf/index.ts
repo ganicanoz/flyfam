@@ -180,6 +180,7 @@ function extractSunExpressLegs(rawText: string): Map<string, SunExpressLeg[]> {
   const compact = rawText.replace(/\s+/g, ' ');
 
   const push = (leg: SunExpressLeg) => {
+    if (!/^(XQ\d{2,4}|DH)$/i.test(leg.code)) return;
     const arr = out.get(leg.code) ?? [];
     if (!arr.some((x) => x.origin === leg.origin && x.destination === leg.destination && x.stdUtc === leg.stdUtc && x.staUtc === leg.staUtc)) {
       arr.push(leg);
@@ -539,14 +540,25 @@ async function parseSunExpressWithLayout(buf: Uint8Array, rawText: string): Prom
     }
   }
 
-  // Uçuşları doğrudan takvim hücresindeki görsel satırdan oku. Report/Release,
-  // uçuşun hangi güne ait olduğunu belirlemez. SunExpress gece bacaklarını iki
-  // hücreye böler:
-  //   15 Eyl: XQ232 AYT 20:55 ~ HAJ   (kalkış parçası)
-  //   16 Eyl: XQ232 AYT ~ 00:50 HAJ   (varış parçası)
-  // Bu iki parça tek uçuş olur; 16 Eyl'deki tam XQ233 satırı ise 16 Eyl'de kalır.
-  type LayoutFragment = LayoutFlight & { rowTop: number };
+  // Uçuşlar: her XQ satırı bir uçuş. Transit / Report / Release yok sayılır.
+  // `~` gece bacaklarını iki güne böler:
+  //   15 Eyl: XQ232 AYT 20:55 ~ HAJ
+  //   16 Eyl: XQ232 AYT ~ 00:50 HAJ  → tek uçuş (kalkış günü)
+  // Ters metin katmanı: ~ 05:10 AYTHAJ 01:40XQ233 → HAJ→AYT 01:40-05:10
+  type LayoutFragment = LayoutFlight & { rowTop: number; complete: boolean };
   const fragments: LayoutFragment[] = [];
+  const layoutDatesByCode = new Map<string, string[]>();
+  for (const item of flightsByLayout) {
+    const list = layoutDatesByCode.get(item.code) ?? [];
+    list.push(item.date);
+    layoutDatesByCode.set(item.code, list);
+  }
+
+  const isNoiseLine = (line: string) =>
+    /\bTRANSIT\b/i.test(line) ||
+    (/^\s*\d{1,2}:\d{2}\s*REPORT\b/i.test(line) || /^\s*REPORT\b/i.test(line)) ||
+    (/^\s*\d{1,2}:\d{2}\s*RELEASE\b/i.test(line) || /^\s*RELEASE\b/i.test(line));
+
   for (const [date, words] of dutyCellWords) {
     const visualRows: Array<Array<{ text: string; x: number; top: number }>> = [];
     for (const word of [...words].sort((a, b) => a.top - b.top || a.x - b.x)) {
@@ -557,28 +569,64 @@ async function parseSunExpressWithLayout(buf: Uint8Array, rawText: string): Prom
     for (const visualRow of visualRows) {
       const line = visualRow.sort((a, b) => a.x - b.x).map((w) => w.text).join(' ')
         .replace(/\s+/g, ' ').trim().toUpperCase();
-      // Saatlerden biri isteğe bağlıdır. `~` işaretinin hangi tarafında saat
-      // eksikse o taraf komşu gün hücresinde devam ediyor demektir.
-      // PDF metin katmanı kodu ve meydanı sıklıkla `XQ232AYT`, saati ve
-      // işareti de `20:55~` biçiminde bitiştirir; aralarında boşluk arama.
-      const match = /(XQ\d{2,4}|DH)\s*([A-Z]{3})\s*(?:(\d{1,2}:\d{2})\s*)?~\s*(?:(\d{1,2}:\d{2})\s*)?([A-Z]{3})\b/.exec(line);
-      if (!match) continue;
-      fragments.push({
-        date,
-        code: match[1]!,
-        origin: match[2]!,
-        dep: match[3]?.padStart(5, '0') ?? null,
-        arr: match[4]?.padStart(5, '0') ?? null,
-        destination: match[5]!,
-        rowTop: visualRow[0]?.top ?? 0,
-      });
+      if (!line || isNoiseLine(line)) continue;
+
+      // İleri: XQ232 AYT 20:55 ~ HAJ  |  XQ232 AYT ~ 00:50 HAJ  |  XQ195 VIE 06:35 ~ 09:15 AYT
+      const forward = /(XQ\d{2,4}|DH)\s*([A-Z]{3})\s*(?:(\d{1,2}:\d{2})\s*)?~\s*(?:(\d{1,2}:\d{2})\s*)?([A-Z]{3})\b/.exec(line);
+      if (forward) {
+        const dep = forward[3]?.padStart(5, '0') ?? null;
+        const arr = forward[4]?.padStart(5, '0') ?? null;
+        fragments.push({
+          date,
+          code: forward[1]!,
+          origin: forward[2]!,
+          dep,
+          arr,
+          destination: forward[5]!,
+          rowTop: visualRow[0]?.top ?? 0,
+          complete: !!(dep && arr),
+        });
+        continue;
+      }
+
+      // Ters sıkışık: ~ 05:10 AYTHAJ 01:40XQ233  → ORIG=HAJ DEST=AYT STD=01:40 STA=05:10
+      const reverse6 = /~\s*(\d{1,2}:\d{2})\s*([A-Z]{6})\s*(\d{1,2}:\d{2})\s*(XQ\d{2,4}|DH)\b/.exec(line);
+      if (reverse6) {
+        const route = reverse6[2]!;
+        fragments.push({
+          date,
+          code: reverse6[4]!,
+          origin: route.slice(3, 6),
+          dep: reverse6[3]!.padStart(5, '0'),
+          arr: reverse6[1]!.padStart(5, '0'),
+          destination: route.slice(0, 3),
+          rowTop: visualRow[0]?.top ?? 0,
+          complete: true,
+        });
+        continue;
+      }
+
+      // Ters ayrık: ~ 12:41 ASR AMS 08:58XQ1323
+      const reverseSplit = /~\s*(\d{1,2}:\d{2})\s*([A-Z]{3})\s*([A-Z]{3})\s*(\d{1,2}:\d{2})\s*(XQ\d{2,4}|DH)\b/.exec(line);
+      if (reverseSplit) {
+        fragments.push({
+          date,
+          code: reverseSplit[5]!,
+          origin: reverseSplit[3]!,
+          dep: reverseSplit[4]!.padStart(5, '0'),
+          arr: reverseSplit[1]!.padStart(5, '0'),
+          destination: reverseSplit[2]!,
+          rowTop: visualRow[0]?.top ?? 0,
+          complete: true,
+        });
+      }
     }
   }
 
+  const mergedVisual: LayoutFlight[] = [];
   if (fragments.length > 0) {
     const ordered = fragments.sort((a, b) => a.date.localeCompare(b.date) || a.rowTop - b.rowTop);
     const consumed = new Set<number>();
-    const merged: LayoutFlight[] = [];
     for (let i = 0; i < ordered.length; i += 1) {
       if (consumed.has(i)) continue;
       const current = ordered[i]!;
@@ -596,68 +644,250 @@ async function parseSunExpressWithLayout(buf: Uint8Array, rawText: string): Prom
         if (continuationIndex >= 0) {
           const continuation = ordered[continuationIndex]!;
           consumed.add(continuationIndex);
-          merged.push({ ...current, arr: continuation.arr, arrivalDate: continuation.date });
+          mergedVisual.push({ ...current, arr: continuation.arr, arrivalDate: continuation.date });
           continue;
         }
       }
-      // Eşleşmiş devam satırı ikinci kez yazılmaz. Eşleşmeyen bir devam
-      // parçası da kalkış saati/tarihi bilinmediği için hayali uçuş üretmez.
+      // Eşleşmeyen devam parçası (yalnız STA) hayali uçuş üretmez.
       if (!current.dep && current.arr) continue;
-      merged.push(current);
+      mergedVisual.push(current);
     }
-    flightsByLayout.length = 0;
-    flightsByLayout.push(...merged);
   }
+
+  // Metin katmanından TÜM XQ bacakları (Transit yok). Layout’ta kaçanları buradan tamamla.
+  const detailByCode = extractSunExpressLegs(rawText);
+  const textLegs: LayoutFlight[] = [];
+  for (const [code, legs] of detailByCode) {
+    if (!/^XQ\d{2,4}$/i.test(code) && code !== 'DH') continue;
+    for (const leg of legs) {
+      if (!leg.origin || !leg.destination || !leg.stdUtc || !leg.staUtc) continue;
+      textLegs.push({
+        date: '',
+        code,
+        origin: leg.origin,
+        destination: leg.destination,
+        dep: leg.stdUtc,
+        arr: leg.staUtc,
+      });
+    }
+  }
+
+  // Visual + text birleşimi: her XQ bir kez (kod+rota+saat).
+  const combined: LayoutFlight[] = [];
+  const seenFlight = new Set<string>();
+  const flightKey = (
+    code: string,
+    origin: string | null | undefined,
+    destination: string | null | undefined,
+    dep: string | null | undefined,
+    arr: string | null | undefined,
+  ) => `${code}|${origin ?? ''}|${destination ?? ''}|${dep ?? ''}|${arr ?? ''}`;
+  const pushCombined = (item: LayoutFlight, prefer = false) => {
+    if (!item.date || !item.code) return;
+    if (!/^XQ\d{2,4}$/i.test(item.code) && item.code !== 'DH') return;
+    const normalized = normalizeLegDirectionByDuration({
+      code: item.code,
+      origin: item.origin,
+      destination: item.destination,
+      stdUtc: item.dep,
+      staUtc: item.arr,
+    });
+    if (!normalized.origin || !normalized.destination || !normalized.stdUtc || !normalized.staUtc) return;
+    const key = flightKey(
+      item.code,
+      normalized.origin,
+      normalized.destination,
+      normalized.stdUtc,
+      normalized.staUtc,
+    );
+    if (seenFlight.has(key)) {
+      if (!prefer) return;
+      // Overnight / visual tarihini tercih et: aynı uçuşu güncelle.
+      const idx = combined.findIndex((c) =>
+        flightKey(c.code, c.origin, c.destination, c.dep, c.arr) === key
+      );
+      if (idx >= 0) {
+        combined[idx] = {
+          ...item,
+          origin: normalized.origin,
+          destination: normalized.destination,
+          dep: normalized.stdUtc,
+          arr: normalized.staUtc,
+        };
+      }
+      return;
+    }
+    seenFlight.add(key);
+    combined.push({
+      ...item,
+      origin: normalized.origin,
+      destination: normalized.destination,
+      dep: normalized.stdUtc,
+      arr: normalized.staUtc,
+    });
+  };
+  // Önce visual (overnight doğru tarih), sonra text.
+  for (const item of mergedVisual) pushCombined(item, true);
+  for (const item of textLegs) {
+    if (!item.date) {
+      const hit = mergedVisual.find((v) =>
+        v.code === item.code &&
+        v.origin === item.origin &&
+        v.destination === item.destination &&
+        (!item.dep || !v.dep || v.dep === item.dep) &&
+        (!item.arr || !v.arr || v.arr === item.arr)
+      );
+      if (hit?.date) item.date = hit.date;
+    }
+    if (!item.date) {
+      const leftover = layoutDatesByCode.get(item.code);
+      if (leftover && leftover.length > 0) {
+        item.date = leftover.shift()!;
+        layoutDatesByCode.set(item.code, leftover);
+      }
+    }
+    // Visual’da aynı uçuş varsa text’in layout tarihini ezmesine izin verme.
+    const already = mergedVisual.some((v) =>
+      flightKey(v.code, v.origin, v.destination, v.dep, v.arr) ===
+        flightKey(item.code, item.origin, item.destination, item.dep, item.arr)
+    );
+    if (already) continue;
+    pushCombined(item, false);
+  }
+
+  for (const item of textLegs) {
+    if (item.date) continue;
+    const frag = fragments.find((f) =>
+      f.code === item.code ||
+      (f.origin === item.origin && f.destination === item.destination &&
+        ((f.dep && f.dep === item.dep) || (f.arr && f.arr === item.arr)))
+    );
+    if (frag?.date) {
+      item.date = frag.date;
+      pushCombined(item, false);
+    }
+  }
+
+  if (combined.length === 0 && flightsByLayout.length === 0) return null;
+  flightsByLayout.length = 0;
+  flightsByLayout.push(...(combined.length > 0 ? combined : mergedVisual));
 
   if (flightsByLayout.length === 0) return null;
 
-  // Detaylar (dep/dest/std/sta) ham metinden regex ile çıkarılır (date bağımsız).
-  const detailByCode = extractSunExpressLegs(rawText);
-  const usedByCode = new Map<string, number>();
-
   const out: PdfFlightRow[] = [];
   const dedupe = new Set<string>();
+  const signatureSeen = new Set<string>();
   for (const item of flightsByLayout) {
     const code = item.code;
-    const list = detailByCode.get(code) ?? [];
-    const idx = usedByCode.get(code) ?? 0;
-    const src = list[Math.min(idx, Math.max(0, list.length - 1))];
-    usedByCode.set(code, idx + 1);
     const normalized = normalizeLegDirectionByDuration({
       code,
-      origin: item.origin ?? src?.origin ?? null,
-      destination: item.destination ?? src?.destination ?? null,
-      stdUtc: item.dep ?? src?.stdUtc ?? null,
-      staUtc: item.arr ?? src?.staUtc ?? null,
+      origin: item.origin,
+      destination: item.destination,
+      stdUtc: item.dep,
+      staUtc: item.arr,
     });
-    const depMin = normalized.stdUtc ? hhmmToMin(normalized.stdUtc) : null;
-    const arrMin = normalized.staUtc ? hhmmToMin(normalized.staUtc) : null;
+    if (!normalized.stdUtc || !normalized.staUtc || !normalized.origin || !normalized.destination) {
+      continue;
+    }
+    const sig = flightKey(
+      code,
+      normalized.origin,
+      normalized.destination,
+      normalized.stdUtc,
+      normalized.staUtc,
+    );
+    if (signatureSeen.has(sig)) continue;
+    signatureSeen.add(sig);
+    const depMin = hhmmToMin(normalized.stdUtc);
+    const arrMin = hhmmToMin(normalized.staUtc);
     const scheduleDate = item.date;
     const arrDate = item.arrivalDate ?? (depMin != null && arrMin != null && arrMin < depMin ? addDaysIso(scheduleDate, 1) : scheduleDate);
     const row: PdfFlightRow = {
       flight_number: code,
       flight_date: item.date,
-      dep_time_local: normalized.stdUtc ?? null,
-      arr_time_local: normalized.staUtc ?? null,
-      dep_schedule_utc_iso: normalized.stdUtc ? `${scheduleDate}T${normalized.stdUtc}:00.000Z` : null,
-      arr_schedule_utc_iso: normalized.staUtc ? `${arrDate}T${normalized.staUtc}:00.000Z` : null,
-      origin_iata: normalized.origin ?? null,
-      destination_iata: normalized.destination ?? null,
+      dep_time_local: normalized.stdUtc,
+      arr_time_local: normalized.staUtc,
+      dep_schedule_utc_iso: `${scheduleDate}T${normalized.stdUtc}:00.000Z`,
+      arr_schedule_utc_iso: `${arrDate}T${normalized.staUtc}:00.000Z`,
+      origin_iata: normalized.origin,
+      destination_iata: normalized.destination,
       duty_start_time_local: dutiesByLayout.get(item.date)?.report ?? null,
       duty_end_time_local: dutiesByLayout.get(item.date)?.release ?? null,
       duty_clock_basis: 'utc',
     };
-    const k = `${row.flight_date}|${row.flight_number}|${row.origin_iata ?? ''}|${row.destination_iata ?? ''}|${row.dep_time_local ?? ''}|${row.arr_time_local ?? ''}`;
+    const k = `${row.flight_date}|${row.flight_number}|${row.origin_iata}|${row.destination_iata}|${row.dep_time_local}|${row.arr_time_local}`;
     if (!dedupe.has(k)) {
       dedupe.add(k);
       out.push(row);
     }
   }
 
+  // Text’te kalan XQ (henüz yoksa): gidiş-dönüş eşlemesiyle tarihle.
+  for (const [code, legs] of detailByCode) {
+    if (!/^XQ\d{2,4}$/i.test(code)) continue;
+    for (const leg of legs) {
+      if (!leg.origin || !leg.destination || !leg.stdUtc || !leg.staUtc) continue;
+      const normalized = normalizeLegDirectionByDuration({
+        code,
+        origin: leg.origin,
+        destination: leg.destination,
+        stdUtc: leg.stdUtc,
+        staUtc: leg.staUtc,
+      });
+      const sig = flightKey(
+        code,
+        normalized.origin,
+        normalized.destination,
+        normalized.stdUtc,
+        normalized.staUtc,
+      );
+      if (signatureSeen.has(sig)) continue;
+
+      let date: string | null =
+        (layoutDatesByCode.get(code) ?? []).shift() ??
+        fragments.find((f) => f.code === code)?.date ??
+        null;
+      if (!date) {
+        const outbound = out.find((r) =>
+          r.destination_iata === normalized.origin &&
+          r.origin_iata === normalized.destination
+        );
+        if (outbound?.flight_date && normalized.stdUtc && outbound.arr_time_local) {
+          const outArr = hhmmToMin(outbound.arr_time_local);
+          const retDep = hhmmToMin(normalized.stdUtc);
+          if (outArr != null && retDep != null && retDep >= outArr) date = outbound.flight_date;
+          else if (outArr != null && retDep != null && retDep < outArr) date = addDaysIso(outbound.flight_date, 1);
+          else date = outbound.flight_date;
+        }
+      }
+      if (!date) continue;
+      const depMin = hhmmToMin(normalized.stdUtc!);
+      const arrMin = hhmmToMin(normalized.staUtc!);
+      const arrDate = depMin != null && arrMin != null && arrMin < depMin ? addDaysIso(date, 1) : date;
+      const row: PdfFlightRow = {
+        flight_number: code,
+        flight_date: date,
+        dep_time_local: normalized.stdUtc,
+        arr_time_local: normalized.staUtc,
+        dep_schedule_utc_iso: `${date}T${normalized.stdUtc}:00.000Z`,
+        arr_schedule_utc_iso: `${arrDate}T${normalized.staUtc}:00.000Z`,
+        origin_iata: normalized.origin,
+        destination_iata: normalized.destination,
+        duty_clock_basis: 'utc',
+      };
+      const k = `${row.flight_date}|${row.flight_number}|${row.origin_iata}|${row.destination_iata}|${row.dep_time_local}|${row.arr_time_local}`;
+      if (dedupe.has(k) || signatureSeen.has(sig)) continue;
+      signatureSeen.add(sig);
+      dedupe.add(k);
+      out.push(row);
+    }
+  }
 
   const flightDates = new Set(out.map((r) => r.flight_date));
   for (const [date, duty] of dutiesByLayout) {
     if (!duty.code || (flightDates.has(date) && duty.code.toUpperCase() !== 'TOF')) continue;
+    // Report/Release satırları uçuş değil; görev kodları (OFF/AVAC/SB/RSV/TOF) kalsın.
+    if (/^(REPORT|RELEASE|TRANSIT)$/i.test(duty.code)) continue;
     const normalizedCode = /^OFFB?$/i.test(duty.code) ? duty.code.toUpperCase() : duty.code;
     out.push({
       flight_number: normalizedCode,
@@ -669,46 +899,6 @@ async function parseSunExpressWithLayout(buf: Uint8Array, rawText: string): Prom
       duty_start_time_local: duty.report,
       duty_end_time_local: duty.release,
       duty_clock_basis: 'utc',
-    });
-  }
-
-  // Safety net: layout parser'ın özellikle ay sonu (24-30) kutularında kaçırdığı XQ/DH satırlarını
-  // text parser'dan tamamla (yalnızca hedef ay içinde ve gerçekten eksik olan kod/tarih çiftleri).
-  const fallbackRows = parseFlightsFromPdfText_SunExpress(rawText).filter(
-    (r) => r.flight_number !== 'FOF' && /^(XQ\d{2,4}|DH)$/i.test(r.flight_number || ''),
-  );
-  for (const r of fallbackRows) {
-    const y = Number(r.flight_date.slice(0, 4));
-    const m = Number(r.flight_date.slice(5, 7));
-    const d = Number(r.flight_date.slice(8, 10));
-    if (y !== monthInfo.year || m !== monthInfo.month) continue;
-    if (d < 24) continue;
-    const code = (r.flight_number || '').toUpperCase();
-    const key = `${r.flight_date}|${code}|${r.origin_iata ?? ''}|${r.destination_iata ?? ''}|${r.dep_time_local ?? ''}|${r.arr_time_local ?? ''}`;
-    if (dedupe.has(key)) continue;
-    dedupe.add(key);
-    const normalized = normalizeLegDirectionByDuration({
-      code,
-      origin: r.origin_iata ?? null,
-      destination: r.destination_iata ?? null,
-      stdUtc: r.dep_time_local ?? null,
-      staUtc: r.arr_time_local ?? null,
-    });
-    const dep = normalized.stdUtc ? hhmmToMin(normalized.stdUtc) : null;
-    const arr = normalized.staUtc ? hhmmToMin(normalized.staUtc) : null;
-    const arrDate = dep != null && arr != null && arr < dep ? addDaysIso(r.flight_date, 1) : r.flight_date;
-    out.push({
-      flight_number: code,
-      flight_date: r.flight_date,
-      dep_time_local: normalized.stdUtc ?? null,
-      arr_time_local: normalized.staUtc ?? null,
-      dep_schedule_utc_iso: normalized.stdUtc ? `${r.flight_date}T${normalized.stdUtc}:00.000Z` : null,
-      arr_schedule_utc_iso: (() => {
-        if (!normalized.staUtc) return null;
-        return `${arrDate}T${normalized.staUtc}:00.000Z`;
-      })(),
-      origin_iata: normalized.origin ?? null,
-      destination_iata: normalized.destination ?? null,
     });
   }
 
