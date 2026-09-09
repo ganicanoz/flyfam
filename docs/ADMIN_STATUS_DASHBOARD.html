@@ -1238,8 +1238,10 @@
             <code>cd mobile && npm run pdf:roster -- /path/to.pdf</code>
           </p>
           <p class="mini" style="margin-top:-4px; padding:8px 10px; border-radius:8px; background:#fff7ed; border:1px solid #fed7aa;">
-            <strong>SunExpress kontrolü:</strong> Gece yarısını aşan bacaklar Report günündeki tek görev altında birleştirilir.
-            UTC kalkış/varış tarihleri korunur; aynı bacağın ertesi gün tekrar yazılması ayrıca denetlenir.
+            <strong>SunExpress kontrolü:</strong> Uçuş günleri Report/Release bilgisine göre değil, XQ satırı ve <code>~</code>
+            işaretine göre belirlenir. <code>XQ232 AYT 20:55 ~ HAJ</code> kalkış parçası ile ertesi günkü
+            <code>XQ232 AYT ~ 00:50 HAJ</code> varış parçası tek uçuşta birleştirilir; ertesi günün tam uçuşları o günde kalır.
+            Aynı bacağın ertesi gün tekrar yazılması ayrıca denetlenir.
             RSV2 “Rezerv” olarak değerlendirilir. TOF tam gün izin değildir; PDF’deki başlangıç ve bitiş
             saatleriyle “Serbest Zaman” olarak gösterilir ve aynı gün uçuş varsa iki kayıt birlikte korunur.
           </p>
@@ -2373,7 +2375,7 @@
           let hint = '';
           if (location.protocol === 'file:') {
             hint =
-              ' Paneli file:// ile açıyorsun — terminalde: cd docs && python3 -m http.server 8765 sonra http://localhost:8765/ADMIN_STATUS_DASHBOARD.html?ui=32';
+              ' Paneli file:// ile açıyorsun — terminalde: cd docs && python3 -m http.server 8765 sonra http://localhost:8765/ADMIN_STATUS_DASHBOARD.html?ui=33';
           } else {
             hint = ' Supabase URL ve anon key kontrol et; VPN/eklenti engeli olabilir.';
           }

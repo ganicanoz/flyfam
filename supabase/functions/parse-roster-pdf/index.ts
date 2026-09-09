@@ -351,7 +351,16 @@ async function parseSunExpressWithLayout(buf: Uint8Array, rawText: string): Prom
   if (!monthInfo) return null;
 
   const doc = await getDocument({ data: buf, disableWorker: true }).promise;
-  const flightsByLayout: Array<{ date: string; code: string }> = [];
+  type LayoutFlight = {
+    date: string;
+    code: string;
+    origin: string | null;
+    destination: string | null;
+    dep: string | null;
+    arr: string | null;
+    arrivalDate?: string;
+  };
+  const flightsByLayout: LayoutFlight[] = [];
   const dutiesByLayout = new Map<string, { code: string | null; report: string | null; release: string | null }>();
   const dutyCellWords = new Map<string, Array<{ text: string; x: number; top: number }>>();
 
@@ -467,7 +476,14 @@ async function parseSunExpressWithLayout(buf: Uint8Array, rawText: string): Prom
           return dayToDate.get(`${best.top.toFixed(1)}:${best.x.toFixed(1)}`) ?? null;
         })();
       if (!dateIso) continue;
-      flightsByLayout.push({ date: dateIso, code: f.text.toUpperCase() });
+      flightsByLayout.push({
+        date: dateIso,
+        code: f.text.toUpperCase(),
+        origin: null,
+        destination: null,
+        dep: null,
+        arr: null,
+      });
     }
 
     // Aynı hücre koordinatlarından OFF/izin/nöbet ve Report/Release saatlerini çıkar.
@@ -523,31 +539,77 @@ async function parseSunExpressWithLayout(buf: Uint8Array, rawText: string): Prom
     }
   }
 
-  if (flightsByLayout.length === 0) return null;
+  // Uçuşları doğrudan takvim hücresindeki görsel satırdan oku. Report/Release,
+  // uçuşun hangi güne ait olduğunu belirlemez. SunExpress gece bacaklarını iki
+  // hücreye böler:
+  //   15 Eyl: XQ232 AYT 20:55 ~ HAJ   (kalkış parçası)
+  //   16 Eyl: XQ232 AYT ~ 00:50 HAJ   (varış parçası)
+  // Bu iki parça tek uçuş olur; 16 Eyl'deki tam XQ233 satırı ise 16 Eyl'de kalır.
+  type LayoutFragment = LayoutFlight & { rowTop: number };
+  const fragments: LayoutFragment[] = [];
+  for (const [date, words] of dutyCellWords) {
+    const visualRows: Array<Array<{ text: string; x: number; top: number }>> = [];
+    for (const word of [...words].sort((a, b) => a.top - b.top || a.x - b.x)) {
+      const row = visualRows.find((candidate) => Math.abs((candidate[0]?.top ?? word.top) - word.top) <= 3);
+      if (row) row.push(word);
+      else visualRows.push([word]);
+    }
+    for (const visualRow of visualRows) {
+      const line = visualRow.sort((a, b) => a.x - b.x).map((w) => w.text).join(' ')
+        .replace(/\s+/g, ' ').trim().toUpperCase();
+      // Saatlerden biri isteğe bağlıdır. `~` işaretinin hangi tarafında saat
+      // eksikse o taraf komşu gün hücresinde devam ediyor demektir.
+      // PDF metin katmanı kodu ve meydanı sıklıkla `XQ232AYT`, saati ve
+      // işareti de `20:55~` biçiminde bitiştirir; aralarında boşluk arama.
+      const match = /(XQ\d{2,4}|DH)\s*([A-Z]{3})\s*(?:(\d{1,2}:\d{2})\s*)?~\s*(?:(\d{1,2}:\d{2})\s*)?([A-Z]{3})\b/.exec(line);
+      if (!match) continue;
+      fragments.push({
+        date,
+        code: match[1]!,
+        origin: match[2]!,
+        dep: match[3]?.padStart(5, '0') ?? null,
+        arr: match[4]?.padStart(5, '0') ?? null,
+        destination: match[5]!,
+        rowTop: visualRow[0]?.top ?? 0,
+      });
+    }
+  }
 
-  // SunExpress takviminde gece görevinin devam bacakları görsel olarak ertesi gün
-  // hücresine taşabilir. Örn. 15 Eyl Report 19:35 ile başlayan XQ232/XQ233,
-  // 16 Eyl hücresindeki Release 05:10 ile kapanır. Ertesi hücrede Report yoksa,
-  // ancak Release varsa ve önceki gün Report + uçuş içeriyorsa tüm devam bacaklarını
-  // görevin başladığı güne bağla.
-  const layoutFlightDates = new Set(flightsByLayout.map((f) => f.date));
-  const normalizedFlightsByLayout = flightsByLayout.map((item) => {
-    const duty = dutiesByLayout.get(item.date);
-    const previousDate = addDaysIso(item.date, -1);
-    const previousDuty = dutiesByLayout.get(previousDate);
-    const isOvernightContinuation =
-      !duty?.report &&
-      !!duty?.release &&
-      !!previousDuty?.report &&
-      layoutFlightDates.has(previousDate);
-    if (!isOvernightContinuation) return { ...item, scheduleDate: item.date };
-    dutiesByLayout.set(previousDate, {
-      code: previousDuty?.code ?? null,
-      report: previousDuty?.report ?? null,
-      release: duty?.release ?? previousDuty?.release ?? null,
-    });
-    return { ...item, date: previousDate, scheduleDate: item.date };
-  });
+  if (fragments.length > 0) {
+    const ordered = fragments.sort((a, b) => a.date.localeCompare(b.date) || a.rowTop - b.rowTop);
+    const consumed = new Set<number>();
+    const merged: LayoutFlight[] = [];
+    for (let i = 0; i < ordered.length; i += 1) {
+      if (consumed.has(i)) continue;
+      const current = ordered[i]!;
+      if (current.dep && !current.arr) {
+        const nextDate = addDaysIso(current.date, 1);
+        const continuationIndex = ordered.findIndex((candidate, index) =>
+          index > i &&
+          !consumed.has(index) &&
+          candidate.date === nextDate &&
+          candidate.code === current.code &&
+          candidate.origin === current.origin &&
+          candidate.destination === current.destination &&
+          !candidate.dep && !!candidate.arr
+        );
+        if (continuationIndex >= 0) {
+          const continuation = ordered[continuationIndex]!;
+          consumed.add(continuationIndex);
+          merged.push({ ...current, arr: continuation.arr, arrivalDate: continuation.date });
+          continue;
+        }
+      }
+      // Eşleşmiş devam satırı ikinci kez yazılmaz. Eşleşmeyen bir devam
+      // parçası da kalkış saati/tarihi bilinmediği için hayali uçuş üretmez.
+      if (!current.dep && current.arr) continue;
+      merged.push(current);
+    }
+    flightsByLayout.length = 0;
+    flightsByLayout.push(...merged);
+  }
+
+  if (flightsByLayout.length === 0) return null;
 
   // Detaylar (dep/dest/std/sta) ham metinden regex ile çıkarılır (date bağımsız).
   const detailByCode = extractSunExpressLegs(rawText);
@@ -555,7 +617,7 @@ async function parseSunExpressWithLayout(buf: Uint8Array, rawText: string): Prom
 
   const out: PdfFlightRow[] = [];
   const dedupe = new Set<string>();
-  for (const item of normalizedFlightsByLayout) {
+  for (const item of flightsByLayout) {
     const code = item.code;
     const list = detailByCode.get(code) ?? [];
     const idx = usedByCode.get(code) ?? 0;
@@ -563,15 +625,15 @@ async function parseSunExpressWithLayout(buf: Uint8Array, rawText: string): Prom
     usedByCode.set(code, idx + 1);
     const normalized = normalizeLegDirectionByDuration({
       code,
-      origin: src?.origin ?? null,
-      destination: src?.destination ?? null,
-      stdUtc: src?.stdUtc ?? null,
-      staUtc: src?.staUtc ?? null,
+      origin: item.origin ?? src?.origin ?? null,
+      destination: item.destination ?? src?.destination ?? null,
+      stdUtc: item.dep ?? src?.stdUtc ?? null,
+      staUtc: item.arr ?? src?.staUtc ?? null,
     });
     const depMin = normalized.stdUtc ? hhmmToMin(normalized.stdUtc) : null;
     const arrMin = normalized.staUtc ? hhmmToMin(normalized.staUtc) : null;
-    const scheduleDate = item.scheduleDate;
-    const arrDate = depMin != null && arrMin != null && arrMin < depMin ? addDaysIso(scheduleDate, 1) : scheduleDate;
+    const scheduleDate = item.date;
+    const arrDate = item.arrivalDate ?? (depMin != null && arrMin != null && arrMin < depMin ? addDaysIso(scheduleDate, 1) : scheduleDate);
     const row: PdfFlightRow = {
       flight_number: code,
       flight_date: item.date,
