@@ -8,11 +8,18 @@ export type RosterListShowPrefs = {
   flights_only: boolean;
   /** Crew roster: yerel (istasyon/TR) + Z; `utc` = yalnızca UTC takvim günü ve Z saatleri. */
   time_display: 'local' | 'utc';
+  /** Program ekranında takvim görünümü (XOR liste). */
+  show_calendar: boolean;
+  /** Program ekranında liste görünümü — mevcut collapsible yapı (XOR takvim). */
+  show_list: boolean;
 };
 
 export const DEFAULT_ROSTER_LIST_SHOW: RosterListShowPrefs = {
   flights_only: false,
   time_display: 'local',
+  /** Kapalı → mevcut collapsible takvim + çok günlük liste. */
+  show_calendar: false,
+  show_list: true,
 };
 
 /** PDF/DB’den gelen eğitim benzeri flight_number önekleri (genişletilebilir). SIM/IPT ayrı simulator dalında. */
@@ -64,7 +71,19 @@ export function normalizeRosterListShow(raw: unknown): RosterListShowPrefs {
   ) {
     flights_only = true;
   }
-  return { flights_only, time_display };
+  let show_calendar =
+    typeof o.show_calendar === 'boolean' ? o.show_calendar : DEFAULT_ROSTER_LIST_SHOW.show_calendar;
+  let show_list =
+    typeof o.show_list === 'boolean' ? o.show_list : DEFAULT_ROSTER_LIST_SHOW.show_list;
+  // Tek seçim: takvim XOR liste (eski “ikisi birden” → liste).
+  if (show_calendar && show_list) {
+    show_calendar = false;
+    show_list = true;
+  } else if (!show_calendar && !show_list) {
+    show_calendar = false;
+    show_list = true;
+  }
+  return { flights_only, time_display, show_calendar, show_list };
 }
 
 export type RosterListRowCategory = 'flight' | 'off_days' | 'training' | 'simulator' | 'other';

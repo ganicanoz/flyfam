@@ -30,8 +30,8 @@ import { useTranslation } from 'react-i18next';
 import { SessionProvider, useSession } from './contexts/SessionContext';
 import { AdminRosterProvider, useAdminRoster } from './contexts/AdminRosterContext';
 import { colors, loadStoredThemeMode, useThemeMode } from './theme/colors';
-import { loadStoredFontSizePreset, useFontScaleMultiplier } from './theme/fontScale';
-import { demoPeersForUser, peerInitials, peerTabShortLabel } from './lib/crewPeerDemo';
+import { loadStoredFontSizePreset } from './theme/fontScale';
+import { demoPeersForUser, peerTabShortLabel, hydrateDismissedPeers, subscribeDismissedPeers } from './lib/crewPeerDemo';
 
 import Welcome from './screens/Welcome';
 import SignIn from './screens/SignIn';
@@ -41,6 +41,7 @@ import CompleteProfile from './screens/CompleteProfile';
 import Roster from './screens/Roster';
 import AddFlight from './screens/AddFlight';
 import EditFlight from './screens/EditFlight';
+import EditDuty from './screens/EditDuty';
 import AdminFlightApiDebug from './screens/AdminFlightApiDebug';
 import AdminPanel from './screens/AdminPanel';
 import Family from './screens/Family';
@@ -56,11 +57,16 @@ import TermsDisclaimer from './screens/TermsDisclaimer';
 import { hasRequiredConsents, flushPendingSignupConsents } from './lib/consents';
 import { withStackBackButton } from './lib/stackHeaderOptions';
 import { ForceUpdateModal } from './components/ForceUpdateModal';
+import { BrandSplashOverlay } from './components/BrandSplashOverlay';
 import {
   fetchAppReleasePolicy,
   isUpdateRequired,
   type AppReleasePolicy,
 } from './lib/appReleasePolicy';
+import {
+  hydrateOccupationCatalogFromStorage,
+  refreshOccupationCatalog,
+} from './lib/rosterOccupationCatalog';
 
 /** Instagram floating tab ölçüleri. */
 const TAB_BAR_HEIGHT = 62;
@@ -95,7 +101,8 @@ const TAB_ICONS: Record<
   string,
   { active: React.ComponentProps<typeof Ionicons>['name']; inactive: React.ComponentProps<typeof Ionicons>['name'] }
 > = {
-  Roster: { active: 'calendar', inactive: 'calendar-outline' },
+  Roster: { active: 'list', inactive: 'list-outline' },
+  PeerRoster: { active: 'calendar', inactive: 'calendar-outline' },
   Family: { active: 'people', inactive: 'people-outline' },
   Profile: { active: 'person', inactive: 'person-outline' },
 };
@@ -104,13 +111,11 @@ const TAB_ICONS: Record<
 function InstagramGlassTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const { t } = useTranslation();
   const { profile } = useSession();
-  const peer = React.useMemo(() => demoPeersForUser(profile?.id)[0] ?? null, [profile?.id]);
+  const [peerTick, setPeerTick] = React.useState(0);
+  React.useEffect(() => subscribeDismissedPeers(() => setPeerTick((n) => n + 1)), []);
+  const peer = React.useMemo(() => demoPeersForUser(profile?.id)[0] ?? null, [profile?.id, peerTick]);
   const peerLabel = React.useMemo(
     () => (peer ? peerTabShortLabel(peer.name) : null),
-    [peer],
-  );
-  const peerAvatar = React.useMemo(
-    () => (peer ? peerInitials(peer.name) : null),
     [peer],
   );
   const insets = useSafeAreaInsets();
@@ -118,12 +123,19 @@ function InstagramGlassTabBar({ state, descriptors, navigation }: BottomTabBarPr
   const isDark = mode === 'dark';
   const onTabBarHeightChange = React.useContext(BottomTabBarHeightCallbackContext);
   const floatBottom = Math.max(insets.bottom > 0 ? 6 : 10, 6);
-  const tabCenters = React.useRef<number[]>(state.routes.map(() => 0));
+  const routeCount = state.routes.length;
+  const tabCenters = React.useRef<number[]>(Array.from({ length: routeCount }, () => 0));
   const indicatorX = React.useRef(new Animated.Value(0)).current;
   const indicatorReady = React.useRef(false);
   React.useEffect(() => {
     onTabBarHeightChange?.(0);
   }, [onTabBarHeightChange]);
+
+  // Peer sekmesi eklenince/çıkınca eski merkezler Aile altına kayıyor — yeniden ölç.
+  React.useEffect(() => {
+    tabCenters.current = Array.from({ length: routeCount }, () => 0);
+    indicatorReady.current = false;
+  }, [routeCount]);
 
   const animateIndicatorTo = React.useCallback(
     (index: number, instant = false) => {
@@ -147,7 +159,7 @@ function InstagramGlassTabBar({ state, descriptors, navigation }: BottomTabBarPr
 
   React.useEffect(() => {
     animateIndicatorTo(state.index);
-  }, [state.index, animateIndicatorTo]);
+  }, [state.index, routeCount, animateIndicatorTo]);
 
 
   return (
@@ -210,7 +222,7 @@ function InstagramGlassTabBar({ state, descriptors, navigation }: BottomTabBarPr
               const focused = state.index === index;
               const { options } = descriptors[route.key];
               const iconSet = TAB_ICONS[route.name] ?? { active: 'ellipse', inactive: 'ellipse-outline' };
-              const a11y =
+              const a11yRaw =
                 options.tabBarAccessibilityLabel ??
                 (route.name === 'Roster'
                   ? t('nav.rosterTab')
@@ -219,6 +231,7 @@ function InstagramGlassTabBar({ state, descriptors, navigation }: BottomTabBarPr
                     : route.name === 'Family'
                       ? t('nav.family')
                       : t('nav.profile'));
+              const a11y = typeof a11yRaw === 'string' ? a11yRaw : route.name;
               const color = focused
                 ? isDark
                   ? colors.text
@@ -237,8 +250,6 @@ function InstagramGlassTabBar({ state, descriptors, navigation }: BottomTabBarPr
                   navigation.navigate(route.name, route.params);
                 }
               };
-
-              const isPeerTab = route.name === 'PeerRoster';
 
               return (
                 <React.Fragment key={route.key}>
@@ -272,42 +283,11 @@ function InstagramGlassTabBar({ state, descriptors, navigation }: BottomTabBarPr
                       }
                     }}
                   >
-                    {isPeerTab && peerAvatar ? (
-                      <View
-                        style={[
-                          igTabStyles.peerAvatar,
-                          {
-                            backgroundColor: focused
-                              ? isDark
-                                ? colors.surfaceAlt
-                                : colors.primary
-                              : isDark
-                                ? colors.border
-                                : colors.primaryLight,
-                          },
-                        ]}
-                      >
-                        <Text
-                          style={{
-                            color: focused
-                              ? isDark
-                                ? colors.text
-                                : colors.onPrimary
-                              : color,
-                            fontSize: 11,
-                            fontWeight: '800',
-                          }}
-                        >
-                          {peerAvatar}
-                        </Text>
-                      </View>
-                    ) : (
-                      <Ionicons
-                        name={focused ? iconSet.active : iconSet.inactive}
-                        size={TAB_ICON_SIZE}
-                        color={color}
-                      />
-                    )}
+                    <Ionicons
+                      name={focused ? iconSet.active : iconSet.inactive}
+                      size={TAB_ICON_SIZE}
+                      color={color}
+                    />
                     <Text
                       style={[igTabStyles.label, { color }]}
                       numberOfLines={1}
@@ -385,14 +365,18 @@ const igTabStyles = StyleSheet.create({
 function MainTabs() {
   const { t } = useTranslation();
   const { profile } = useSession();
-  const hasPeerFollow = demoPeersForUser(profile?.id).length > 0;
-  const peerName = demoPeersForUser(profile?.id)[0]?.name ?? '';
+  const [peerTick, setPeerTick] = React.useState(0);
+  React.useEffect(() => {
+    void hydrateDismissedPeers().then(() => setPeerTick((n) => n + 1));
+    return subscribeDismissedPeers(() => setPeerTick((n) => n + 1));
+  }, []);
+  const peers = React.useMemo(() => demoPeersForUser(profile?.id), [profile?.id, peerTick]);
+  const hasPeerFollow = peers.length > 0;
+  const peerName = peers[0]?.name ?? '';
   const peerTabTitle = peerName ? peerTabShortLabel(peerName) : 'Crew';
   const insets = useSafeAreaInsets();
   const mode = useThemeMode();
   const isDark = mode === 'dark';
-  const fontScale = useFontScaleMultiplier();
-  const headerTitleFont = Math.round(20 * fontScale);
   const floatBottom = Math.max(insets.bottom > 0 ? 6 : 10, 6);
   const contentBottomPad = TAB_BAR_HEIGHT + 12 + floatBottom + 8;
   const screenOptions = React.useMemo(
@@ -403,12 +387,12 @@ function MainTabs() {
       },
       headerStatusBarHeight: Math.max(insets.top, 0),
       headerTintColor: colors.onPrimary,
-      headerTitleStyle: { fontWeight: '800' as const, fontSize: headerTitleFont },
+      headerTitleStyle: { fontWeight: '800' as const, fontSize: 20 },
       headerLeftContainerStyle: { paddingLeft: 8 },
       headerRightContainerStyle: { paddingRight: 8 },
       contentStyle: { backgroundColor: 'transparent' },
     }),
-    [insets.top, headerTitleFont],
+    [insets.top],
   );
   return (
     <Tab.Navigator
@@ -481,9 +465,9 @@ function RootNavigator() {
   const [consentCheck, setConsentCheck] = useState<'unknown' | 'required' | 'ok'>('unknown');
   const [releasePolicy, setReleasePolicy] = useState<AppReleasePolicy | null>(null);
   const [forceUpdateChecked, setForceUpdateChecked] = useState(false);
+  const [brandSplashVisible, setBrandSplashVisible] = useState(Platform.OS !== 'web');
   const mode = useThemeMode();
   void mode;
-  const fontScale = useFontScaleMultiplier();
 
   const screenOptions = {
     headerStyle: {
@@ -492,7 +476,7 @@ function RootNavigator() {
     },
     headerStatusBarHeight: Math.max(insets.top, 0),
     headerTintColor: colors.onPrimary,
-    headerTitleStyle: { fontWeight: '800' as const, fontSize: Math.round(20 * fontScale) },
+    headerTitleStyle: { fontWeight: '800' as const, fontSize: 20 },
     headerBackVisible: true,
     gestureEnabled: true,
     headerLeftContainerStyle: { paddingLeft: 8 },
@@ -515,9 +499,11 @@ function RootNavigator() {
     loadAirportDisplayFromSupabase(supabase);
   }, []);
 
+  // Handoff: JS splash mirrors LaunchScreen → hide native splash once overlay is up.
   useEffect(() => {
-    if (!isLoading && Platform.OS !== 'web') void SplashScreen.hideAsync();
-  }, [isLoading]);
+    if (Platform.OS === 'web' || !brandSplashVisible) return;
+    void SplashScreen.hideAsync();
+  }, [brandSplashVisible]);
 
   useEffect(() => {
     if (isLoading || Platform.OS === 'web') {
@@ -527,6 +513,8 @@ function RootNavigator() {
     let cancelled = false;
     (async () => {
       try {
+        await hydrateOccupationCatalogFromStorage();
+        void refreshOccupationCatalog();
         const policy = await fetchAppReleasePolicy();
         if (!cancelled) setReleasePolicy(policy);
       } catch {
@@ -575,26 +563,10 @@ function RootNavigator() {
     body = (
       <Stack.Navigator screenOptions={screenOptions}>
         <Stack.Screen name="Welcome" component={Welcome} options={{ headerShown: false }} />
-        <Stack.Screen
-          name="SignIn"
-          component={SignIn}
-          options={withStackBackButton({ title: t('welcome.signIn'), headerBackTitle: t('common.backToWelcome') })}
-        />
-        <Stack.Screen
-          name="SignUp"
-          component={SignUp}
-          options={withStackBackButton({ title: t('welcome.signUp'), headerBackTitle: t('common.backToWelcome') })}
-        />
-        <Stack.Screen
-          name="PrivacyNotice"
-          component={PrivacyNotice}
-          options={withStackBackButton({ title: t('legal.privacyTitle'), headerBackTitle: t('common.back') })}
-        />
-        <Stack.Screen
-          name="TermsDisclaimer"
-          component={TermsDisclaimer}
-          options={withStackBackButton({ title: t('legal.termsTitle'), headerBackTitle: t('common.back') })}
-        />
+        <Stack.Screen name="SignIn" component={SignIn} options={{ headerShown: false }} />
+        <Stack.Screen name="SignUp" component={SignUp} options={{ headerShown: false }} />
+        <Stack.Screen name="PrivacyNotice" component={PrivacyNotice} options={{ headerShown: false }} />
+        <Stack.Screen name="TermsDisclaimer" component={TermsDisclaimer} options={{ headerShown: false }} />
       </Stack.Navigator>
     );
   } else if (needsPasswordUpdate) {
@@ -608,12 +580,12 @@ function RootNavigator() {
       </Stack.Navigator>
     );
   } else if (session && !profile) {
-    body =
-      Platform.OS === 'web' ? (
-        <View style={styles.loading}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
-      ) : null;
+    // Profil henüz gelmedi / geçici hata — boş ekran bırakma (splash kapandıktan sonra).
+    body = (
+      <View style={styles.loading}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
   } else if (profile?.role === 'crew' && !crewProfile) {
     body = (
       <Stack.Navigator screenOptions={screenOptions}>
@@ -628,16 +600,8 @@ function RootNavigator() {
     body = (
       <Stack.Navigator screenOptions={screenOptions}>
         <Stack.Screen name="Consent" component={Consent} options={{ title: t('consent.title'), headerBackVisible: false }} />
-        <Stack.Screen
-          name="PrivacyNotice"
-          component={PrivacyNotice}
-          options={withStackBackButton({ title: t('legal.privacyTitle'), headerBackTitle: t('common.back') })}
-        />
-        <Stack.Screen
-          name="TermsDisclaimer"
-          component={TermsDisclaimer}
-          options={withStackBackButton({ title: t('legal.termsTitle'), headerBackTitle: t('common.back') })}
-        />
+        <Stack.Screen name="PrivacyNotice" component={PrivacyNotice} options={{ headerShown: false }} />
+        <Stack.Screen name="TermsDisclaimer" component={TermsDisclaimer} options={{ headerShown: false }} />
       </Stack.Navigator>
     );
   } else {
@@ -657,26 +621,17 @@ function RootNavigator() {
           <Stack.Screen
             name="AddFlight"
             component={AddFlight}
-            options={({ route }) =>
-              withStackBackButton({
-                title: (route.params as { replaceStandbyFlightId?: string } | undefined)?.replaceStandbyFlightId
-                  ? t('roster.assignFlightsTitle')
-                  : t('nav.addFlight'),
-                headerBackTitle: t('common.back'),
-              })
-            }
+            options={{ headerShown: false }}
           />
           <Stack.Screen
             name="EditFlight"
             component={EditFlight}
-            options={({ route }) =>
-              withStackBackButton({
-                title: (route.params as { readOnly?: boolean } | undefined)?.readOnly
-                  ? t('editFlight.routePreview')
-                  : t('nav.editFlight'),
-                headerBackTitle: t('common.back'),
-              })
-            }
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="EditDuty"
+            component={EditDuty}
+            options={{ headerShown: false }}
           />
           <Stack.Screen
             name="AdminFlightApiDebug"
@@ -696,7 +651,7 @@ function RootNavigator() {
           <Stack.Screen
             name="EditProfile"
             component={EditProfile}
-            options={withStackBackButton({ title: t('nav.editProfile'), headerBackTitle: t('common.back') })}
+            options={{ headerShown: false }}
           />
           <Stack.Screen
             name="Connect"
@@ -711,18 +666,10 @@ function RootNavigator() {
           <Stack.Screen
             name="Plans"
             component={Plans}
-            options={withStackBackButton({ title: t('nav.plans'), headerBackTitle: t('common.back') })}
+            options={{ headerShown: false }}
           />
-          <Stack.Screen
-            name="PrivacyNotice"
-            component={PrivacyNotice}
-            options={withStackBackButton({ title: t('legal.privacyTitle'), headerBackTitle: t('common.back') })}
-          />
-          <Stack.Screen
-            name="TermsDisclaimer"
-            component={TermsDisclaimer}
-            options={withStackBackButton({ title: t('legal.termsTitle'), headerBackTitle: t('common.back') })}
-          />
+          <Stack.Screen name="PrivacyNotice" component={PrivacyNotice} options={{ headerShown: false }} />
+          <Stack.Screen name="TermsDisclaimer" component={TermsDisclaimer} options={{ headerShown: false }} />
         </Stack.Navigator>
       </AdminRosterProvider>
     );
@@ -734,6 +681,12 @@ function RootNavigator() {
     <>
       {blockUpdate ? null : body}
       <ForceUpdateModal visible={blockUpdate} policy={releasePolicy} />
+      {brandSplashVisible ? (
+        <BrandSplashOverlay
+          busy={isLoading || (!!session && !profile)}
+          onFinished={() => setBrandSplashVisible(false)}
+        />
+      ) : null}
     </>
   );
 }

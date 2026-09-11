@@ -2218,6 +2218,216 @@ Deno.serve(async (req) => {
       );
     }
 
+    if (action === 'list_roster_occupation_codes') {
+      const [{ data: rows, error: rowsErr }, { data: meta, error: metaErr }] = await Promise.all([
+        adminClient
+          .from('roster_occupation_codes')
+          .select(
+            'id, code, airline_icao, category, label_tr, label_en, description_tr, description_en, card_accent, calendar_mark, special_notes, sort_order, active, updated_at',
+          )
+          .order('sort_order', { ascending: true })
+          .order('code', { ascending: true }),
+        adminClient
+          .from('roster_occupation_catalog_meta')
+          .select('published_version, published_at, draft_updated_at')
+          .eq('id', 1)
+          .maybeSingle(),
+      ]);
+      if (rowsErr) {
+        return new Response(JSON.stringify({ error: rowsErr.message }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      if (metaErr) {
+        return new Response(JSON.stringify({ error: metaErr.message }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      return new Response(
+        JSON.stringify({
+          ok: true,
+          action,
+          codes: rows ?? [],
+          meta: meta ?? { published_version: 0, published_at: null, draft_updated_at: null },
+          legend: {
+            card_accent: {
+              flight: '#1A5CF5',
+              standby: '#F59E0B',
+              off: '#22A55B',
+              leave: '#22A55B',
+              training: '#E53935',
+              office: '#64748B',
+              meeting: '#7C3AED',
+              simulator: '#0EA5E9',
+              other: '#94A3B8',
+            },
+            calendar_mark: {
+              flight_dot: 'Kırmızı nokta (görev günü)',
+              standby_bar: 'Amber çubuk (nöbet)',
+              off_bar: 'Yeşil çubuk (off/izin/sim)',
+              none: 'İşaret yok',
+            },
+          },
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
+
+    if (action === 'save_roster_occupation_codes') {
+      const codesRaw = Array.isArray(body?.codes) ? body.codes : null;
+      if (!codesRaw) {
+        return new Response(JSON.stringify({ error: 'codes array is required' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      const allowedCat = new Set([
+        'standby',
+        'off',
+        'leave',
+        'training',
+        'office',
+        'meeting',
+        'simulator',
+        'other',
+        'flight',
+      ]);
+      const allowedAccent = new Set([
+        'flight',
+        'standby',
+        'off',
+        'leave',
+        'training',
+        'office',
+        'meeting',
+        'simulator',
+        'other',
+      ]);
+      const allowedCal = new Set(['flight_dot', 'standby_bar', 'off_bar', 'none']);
+      const normalized: Array<Record<string, unknown>> = [];
+      const seen = new Set<string>();
+      for (const raw of codesRaw as Array<Record<string, unknown>>) {
+        const code = String(raw?.code ?? '')
+          .replace(/\s/g, '')
+          .toUpperCase();
+        if (!code) continue;
+        const airline = String(raw?.airline_icao ?? '')
+          .trim()
+          .toUpperCase();
+        const key = `${code}::${airline}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        const category = String(raw?.category ?? 'other');
+        const card_accent = String(raw?.card_accent ?? 'other');
+        const calendar_mark = String(raw?.calendar_mark ?? 'none');
+        if (!allowedCat.has(category) || !allowedAccent.has(card_accent) || !allowedCal.has(calendar_mark)) {
+          return new Response(
+            JSON.stringify({ error: `Invalid category/accent/calendar for ${code}` }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+          );
+        }
+        const label_tr = String(raw?.label_tr ?? code).trim() || code;
+        const label_en = String(raw?.label_en ?? code).trim() || code;
+        normalized.push({
+          code,
+          airline_icao: airline,
+          category,
+          label_tr,
+          label_en,
+          description_tr: String(raw?.description_tr ?? ''),
+          description_en: String(raw?.description_en ?? ''),
+          card_accent,
+          calendar_mark,
+          special_notes: String(raw?.special_notes ?? ''),
+          sort_order: Number.isFinite(Number(raw?.sort_order)) ? Math.floor(Number(raw.sort_order)) : 0,
+          active: raw?.active === false ? false : true,
+          updated_at: new Date().toISOString(),
+        });
+      }
+
+      // Full replace of draft catalog (deletes removed codes).
+      const { error: delErr } = await adminClient.from('roster_occupation_codes').delete().not('id', 'is', null);
+      if (delErr) {
+        return new Response(JSON.stringify({ error: delErr.message }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      if (normalized.length > 0) {
+        const { error: insErr } = await adminClient.from('roster_occupation_codes').insert(normalized);
+        if (insErr) {
+          return new Response(JSON.stringify({ error: insErr.message }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+      }
+      const { error: metaErr } = await adminClient
+        .from('roster_occupation_catalog_meta')
+        .upsert({ id: 1, draft_updated_at: new Date().toISOString() }, { onConflict: 'id' });
+      if (metaErr) {
+        return new Response(JSON.stringify({ error: metaErr.message }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      return new Response(
+        JSON.stringify({ ok: true, action, saved: normalized.length, draft_only: true }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
+
+    if (action === 'deploy_roster_occupation_codes') {
+      const { data: rows, error: rowsErr } = await adminClient
+        .from('roster_occupation_codes')
+        .select(
+          'code, airline_icao, category, label_tr, label_en, description_tr, description_en, card_accent, calendar_mark, special_notes, sort_order, active',
+        )
+        .eq('active', true)
+        .order('sort_order', { ascending: true })
+        .order('code', { ascending: true });
+      if (rowsErr) {
+        return new Response(JSON.stringify({ error: rowsErr.message }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      const { data: metaPrev } = await adminClient
+        .from('roster_occupation_catalog_meta')
+        .select('published_version')
+        .eq('id', 1)
+        .maybeSingle();
+      const nextVersion = Number(metaPrev?.published_version ?? 0) + 1;
+      const payload = rows ?? [];
+      const { error: pubErr } = await adminClient.from('roster_occupation_catalog_meta').upsert(
+        {
+          id: 1,
+          published_version: nextVersion,
+          published_at: new Date().toISOString(),
+          published_payload: payload,
+          draft_updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'id' },
+      );
+      if (pubErr) {
+        return new Response(JSON.stringify({ error: pubErr.message }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      return new Response(
+        JSON.stringify({
+          ok: true,
+          action,
+          published_version: nextVersion,
+          published_count: payload.length,
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
+
     return new Response(JSON.stringify({ error: 'Unsupported action' }), {
       status: 400,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

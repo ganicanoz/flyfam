@@ -39,7 +39,6 @@ export default function Profile() {
   const { profile, crewProfile, session, signOut } = useSession();
   const { onProfileSecretTap } = useAdminRoster();
   const themeMode = useThemeMode();
-  void themeMode;
   const themePreference = useThemePreference();
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [access, setAccess] = useState<SubscriptionAccess | null>(null);
@@ -238,30 +237,36 @@ export default function Profile() {
         <View style={[styles.card, shadow.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <Text style={[styles.cardTitle, { color: colors.text }]}>{t('profile.appearanceTitle')}</Text>
           <Text style={[styles.cardHint, { color: colors.textMuted }]}>{t('profile.appearanceHint')}</Text>
-          <View style={[styles.themeSeg, { backgroundColor: colors.background, borderColor: colors.border }]}>
-            {themeOptions.map((opt, idx) => {
+          <View
+            style={[
+              styles.themeSeg,
+              { backgroundColor: themeMode === 'dark' ? '#1A2740' : '#F0F1F5' },
+            ]}
+          >
+            {themeOptions.map((opt) => {
               const selected = themePreference === opt.key;
               return (
                 <TouchableOpacity
                   key={opt.key}
                   style={[
                     styles.themeSegItem,
-                    idx > 0 && { borderLeftWidth: StyleSheet.hairlineWidth, borderLeftColor: colors.border },
-                    selected && {
-                      backgroundColor: colors.primaryLight,
-                      borderColor: colors.primary,
-                      borderWidth: 1.5,
-                      borderRadius: 10,
-                      margin: 2,
-                      borderLeftWidth: 1.5,
-                    },
+                    selected && { backgroundColor: colors.primary },
                   ]}
                   onPress={() => void setThemePreference(opt.key)}
                   accessibilityRole="button"
                   accessibilityState={{ selected }}
                 >
-                  <Ionicons name={opt.icon} size={16} color={selected ? colors.primary : colors.textMuted} />
-                  <Text style={[styles.themeSegText, { color: selected ? colors.primary : colors.text }]}>
+                  <Ionicons
+                    name={opt.icon}
+                    size={16}
+                    color={selected ? colors.onPrimary : colors.textMuted}
+                  />
+                  <Text
+                    style={[
+                      styles.themeSegText,
+                      { color: selected ? colors.onPrimary : colors.text },
+                    ]}
+                  >
                     {opt.label}
                   </Text>
                 </TouchableOpacity>
@@ -409,8 +414,8 @@ const styles = StyleSheet.create({
   themeSeg: {
     flexDirection: 'row',
     borderRadius: 12,
-    borderWidth: StyleSheet.hairlineWidth,
-    overflow: 'hidden',
+    padding: 3,
+    gap: 3,
     minHeight: 48,
   },
   themeSegItem: {
@@ -421,7 +426,8 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingVertical: 10,
     paddingHorizontal: 4,
-    minHeight: 44,
+    minHeight: 42,
+    borderRadius: 9,
   },
   themeSegText: { fontSize: 13, fontWeight: '700' },
   linkLabel: { fontSize: 15, fontWeight: '600' },

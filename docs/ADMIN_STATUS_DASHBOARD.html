@@ -843,6 +843,7 @@
         <button class="nav-btn" data-view="historyView">History</button>
         <button class="nav-btn" data-view="usageView">Kota</button>
         <button class="nav-btn" data-view="pdfRosterView">PDF Roster</button>
+        <button class="nav-btn" data-view="occupationCodesView">Görev Kodları</button>
       </nav>
     </aside>
     <main class="main">
@@ -1391,6 +1392,81 @@
           </div>
         </div>
       </section>
+
+      <section id="occupationCodesView" class="view">
+        <div class="panel">
+          <h3 style="margin:0 0 8px;">Görev / Occupation Kodları</h3>
+          <p class="mini" style="margin-top:0;">
+            Roster’dan gelen görev kodları, kart etiketleri (TR/EN), renkler ve havayolu.
+            <strong>Save</strong> taslağı DB’ye yazar; <strong>Deploy</strong> yayınlar — uygulama bir sonraki açılış/yenilemede
+            yeni etiketleri alır (store build gerekmez). Sınıflandırma (nöbet/off/sim heuristic’leri) hâlâ kodda;
+            Deploy öncelikle <em>görünen isimleri</em> günceller.
+          </p>
+          <div class="users-toolbar" style="margin-bottom:10px; flex-wrap:wrap; gap:10px; align-items:end;">
+            <div>
+              <label class="mini">Ara</label>
+              <input id="occSearch" type="search" placeholder="kod, etiket, airline…" style="min-width:180px;" />
+            </div>
+            <div>
+              <label class="mini">Havayolu</label>
+              <select id="occAirlineFilter">
+                <option value="all">Tümü</option>
+                <option value="">Paylaşılan</option>
+                <option value="PGT">PGT</option>
+                <option value="THY">THY</option>
+                <option value="SXS">SXS</option>
+                <option value="FHY">FHY</option>
+                <option value="IGO">IGO</option>
+              </select>
+            </div>
+            <div>
+              <label class="mini">Kategori</label>
+              <select id="occCategoryFilter">
+                <option value="all">Tümü</option>
+                <option value="standby">standby</option>
+                <option value="off">off</option>
+                <option value="leave">leave</option>
+                <option value="training">training</option>
+                <option value="office">office</option>
+                <option value="meeting">meeting</option>
+                <option value="simulator">simulator</option>
+                <option value="other">other</option>
+                <option value="flight">flight</option>
+              </select>
+            </div>
+            <div style="align-self:end; display:flex; gap:8px; flex-wrap:wrap;">
+              <button type="button" id="btnOccReload">Yenile</button>
+              <button type="button" id="btnOccAdd" class="btnPrimary">+ Kod</button>
+              <button type="button" id="btnOccSave">Save</button>
+              <button type="button" id="btnOccDeploy" class="btnPrimary">Deploy</button>
+            </div>
+          </div>
+          <div class="mini" id="occMetaLine" style="margin-bottom:10px;">—</div>
+          <div id="occLegend" class="mini" style="margin-bottom:12px; padding:8px 10px; border-radius:8px; background:#f8fafc; border:1px solid var(--line);"></div>
+          <div class="users-table-wrap">
+            <table class="users-table" id="occTable">
+              <thead>
+                <tr>
+                  <th>Kod</th>
+                  <th>Airline</th>
+                  <th>Kategori</th>
+                  <th>Kart TR</th>
+                  <th>Kart EN</th>
+                  <th>Açıklama</th>
+                  <th>Renk</th>
+                  <th>Takvim</th>
+                  <th>Not</th>
+                  <th>Aktif</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="occBody">
+                <tr><td colspan="11" class="mini">Yüklemek için Giriş + Yenile.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
     </main>
   </div>
 
@@ -1518,6 +1594,16 @@
       pdfRosterBody: document.getElementById('pdfRosterBody'),
       pdfRawText: document.getElementById('pdfRawText'),
       pdfRawJson: document.getElementById('pdfRawJson'),
+      occSearch: document.getElementById('occSearch'),
+      occAirlineFilter: document.getElementById('occAirlineFilter'),
+      occCategoryFilter: document.getElementById('occCategoryFilter'),
+      btnOccReload: document.getElementById('btnOccReload'),
+      btnOccAdd: document.getElementById('btnOccAdd'),
+      btnOccSave: document.getElementById('btnOccSave'),
+      btnOccDeploy: document.getElementById('btnOccDeploy'),
+      occMetaLine: document.getElementById('occMetaLine'),
+      occLegend: document.getElementById('occLegend'),
+      occBody: document.getElementById('occBody'),
     };
 
     const SESSION_KEY = 'flyfam_admin_dashboard_session_v2';
@@ -1527,6 +1613,9 @@
     let lastUsageRows = [];
     let lastHistoryRows = [];
     let lastActivityRecent = [];
+    let occDraftRows = [];
+    let occLegend = null;
+    let occDirty = false;
     let usersSortKey = 'last_sign_in_at';
     let usersSortDir = 'desc';
     let flightsSortKey = 'phase';
@@ -2499,6 +2588,243 @@
         throw new Error('Action failed (' + res.status + ')' + (details ? ': ' + details : ''));
       }
       return json;
+    }
+
+    const OCC_ACCENT_COLORS = {
+      flight: '#1A5CF5',
+      standby: '#F59E0B',
+      off: '#22A55B',
+      leave: '#22A55B',
+      training: '#E53935',
+      office: '#64748B',
+      meeting: '#7C3AED',
+      simulator: '#0EA5E9',
+      other: '#94A3B8',
+    };
+    const OCC_CATEGORIES = ['standby', 'off', 'leave', 'training', 'office', 'meeting', 'simulator', 'other', 'flight'];
+    const OCC_ACCENTS = Object.keys(OCC_ACCENT_COLORS);
+    const OCC_CALS = ['flight_dot', 'standby_bar', 'off_bar', 'none'];
+
+    function occEscape(s) {
+      return String(s ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function occSelectHtml(name, value, options) {
+      return (
+        '<select data-occ="' +
+        name +
+        '" style="min-width:88px;">' +
+        options
+          .map(
+            (o) =>
+              '<option value="' +
+              occEscape(o) +
+              '"' +
+              (String(value) === String(o) ? ' selected' : '') +
+              '>' +
+              occEscape(o || '(shared)') +
+              '</option>',
+          )
+          .join('') +
+        '</select>'
+      );
+    }
+
+    function renderOccupationLegend() {
+      if (!els.occLegend) return;
+      const colors = (occLegend && occLegend.card_accent) || OCC_ACCENT_COLORS;
+      const cal = (occLegend && occLegend.calendar_mark) || {
+        flight_dot: 'Kırmızı nokta',
+        standby_bar: 'Amber çubuk',
+        off_bar: 'Yeşil çubuk',
+        none: 'Yok',
+      };
+      els.occLegend.innerHTML =
+        '<strong>Kart renkleri:</strong> ' +
+        Object.entries(colors)
+          .map(
+            ([k, hex]) =>
+              '<span style="display:inline-flex;align-items:center;gap:4px;margin-right:10px;"><span style="width:10px;height:10px;border-radius:2px;background:' +
+              occEscape(hex) +
+              ';"></span>' +
+              occEscape(k) +
+              '</span>',
+          )
+          .join('') +
+        '<br/><strong>Takvim:</strong> ' +
+        Object.entries(cal)
+          .map(([k, v]) => '<code>' + occEscape(k) + '</code> ' + occEscape(v))
+          .join(' · ');
+    }
+
+    function filteredOccRows() {
+      const q = String(els.occSearch?.value || '')
+        .trim()
+        .toLowerCase();
+      const air = els.occAirlineFilter?.value ?? 'all';
+      const cat = els.occCategoryFilter?.value ?? 'all';
+      return occDraftRows.filter((r) => {
+        if (air !== 'all' && String(r.airline_icao || '') !== air) return false;
+        if (cat !== 'all' && String(r.category || '') !== cat) return false;
+        if (!q) return true;
+        const blob = [
+          r.code,
+          r.airline_icao,
+          r.category,
+          r.label_tr,
+          r.label_en,
+          r.description_tr,
+          r.description_en,
+          r.special_notes,
+        ]
+          .join(' ')
+          .toLowerCase();
+        return blob.includes(q);
+      });
+    }
+
+    function renderOccupationTable() {
+      if (!els.occBody) return;
+      const rows = filteredOccRows();
+      if (!rows.length) {
+        els.occBody.innerHTML = '<tr><td colspan="11" class="mini">Kayıt yok / filtre boş.</td></tr>';
+        return;
+      }
+      els.occBody.innerHTML = rows
+        .map((r) => {
+          const idx = occDraftRows.indexOf(r);
+          const accent = r.card_accent || 'other';
+          const hex = OCC_ACCENT_COLORS[accent] || '#94A3B8';
+          return (
+            '<tr data-occ-idx="' +
+            idx +
+            '">' +
+            '<td><input data-occ="code" value="' +
+            occEscape(r.code) +
+            '" style="width:88px;font-weight:700;" /></td>' +
+            '<td><input data-occ="airline_icao" value="' +
+            occEscape(r.airline_icao || '') +
+            '" placeholder="PGT" style="width:64px;" /></td>' +
+            '<td>' +
+            occSelectHtml('category', r.category || 'other', OCC_CATEGORIES) +
+            '</td>' +
+            '<td><input data-occ="label_tr" value="' +
+            occEscape(r.label_tr) +
+            '" style="min-width:110px;" /></td>' +
+            '<td><input data-occ="label_en" value="' +
+            occEscape(r.label_en) +
+            '" style="min-width:110px;" /></td>' +
+            '<td><input data-occ="description_tr" value="' +
+            occEscape(r.description_tr || r.description_en || '') +
+            '" style="min-width:120px;" title="Açıklama" /></td>' +
+            '<td style="white-space:nowrap;">' +
+            '<span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:' +
+            hex +
+            ';margin-right:4px;vertical-align:middle;"></span>' +
+            occSelectHtml('card_accent', accent, OCC_ACCENTS) +
+            '</td>' +
+            '<td>' +
+            occSelectHtml('calendar_mark', r.calendar_mark || 'none', OCC_CALS) +
+            '</td>' +
+            '<td><input data-occ="special_notes" value="' +
+            occEscape(r.special_notes || '') +
+            '" style="min-width:140px;" /></td>' +
+            '<td><input data-occ="active" type="checkbox"' +
+            (r.active === false ? '' : ' checked') +
+            ' /></td>' +
+            '<td><button type="button" class="btnSmall" data-occ-del="' +
+            idx +
+            '">Sil</button></td>' +
+            '</tr>'
+          );
+        })
+        .join('');
+    }
+
+    function syncOccRowFromDom(tr) {
+      const idx = Number(tr.getAttribute('data-occ-idx'));
+      if (!Number.isFinite(idx) || !occDraftRows[idx]) return;
+      const r = occDraftRows[idx];
+      tr.querySelectorAll('[data-occ]').forEach((el) => {
+        const key = el.getAttribute('data-occ');
+        if (key === 'active') r.active = !!el.checked;
+        else r[key] = el.value;
+      });
+      r.code = String(r.code || '')
+        .replace(/\s/g, '')
+        .toUpperCase();
+      r.airline_icao = String(r.airline_icao || '')
+        .trim()
+        .toUpperCase();
+      occDirty = true;
+    }
+
+    function syncAllOccFromDom() {
+      els.occBody?.querySelectorAll('tr[data-occ-idx]').forEach((tr) => syncOccRowFromDom(tr));
+    }
+
+    async function loadOccupationCodes() {
+      const json = await callAdminAction('list_roster_occupation_codes', {});
+      occDraftRows = Array.isArray(json.codes) ? json.codes.map((r) => ({ ...r })) : [];
+      occLegend = json.legend || null;
+      occDirty = false;
+      const m = json.meta || {};
+      if (els.occMetaLine) {
+        els.occMetaLine.textContent =
+          'Taslak: ' +
+          occDraftRows.length +
+          ' kod · Yayın v' +
+          (m.published_version ?? 0) +
+          (m.published_at ? ' @ ' + m.published_at : '') +
+          (m.draft_updated_at ? ' · draft ' + m.draft_updated_at : '');
+      }
+      renderOccupationLegend();
+      renderOccupationTable();
+    }
+
+    async function saveOccupationCodes() {
+      syncAllOccFromDom();
+      const payload = occDraftRows
+        .map((r, i) => ({
+          code: String(r.code || '')
+            .replace(/\s/g, '')
+            .toUpperCase(),
+          airline_icao: String(r.airline_icao || '')
+            .trim()
+            .toUpperCase(),
+          category: r.category || 'other',
+          label_tr: r.label_tr || r.code,
+          label_en: r.label_en || r.code,
+          description_tr: r.description_tr || '',
+          description_en: r.description_en || r.description_tr || '',
+          card_accent: r.card_accent || 'other',
+          calendar_mark: r.calendar_mark || 'none',
+          special_notes: r.special_notes || '',
+          sort_order: Number.isFinite(Number(r.sort_order)) ? Number(r.sort_order) : i * 10,
+          active: r.active !== false,
+        }))
+        .filter((r) => r.code);
+      const json = await callAdminAction('save_roster_occupation_codes', { codes: payload });
+      occDirty = false;
+      setStatus('Occupation Save OK (' + (json.saved ?? payload.length) + ' — henüz yayınlanmadı)', 'ok');
+      await loadOccupationCodes();
+    }
+
+    async function deployOccupationCodes() {
+      if (occDirty) {
+        const ok = confirm('Kaydedilmemiş değişiklikler var. Önce Save, sonra Deploy yapılsın mı?');
+        if (!ok) return;
+        await saveOccupationCodes();
+      }
+      const json = await callAdminAction('deploy_roster_occupation_codes', {});
+      setStatus(
+        'Occupation Deploy OK · v' + (json.published_version ?? '?') + ' · ' + (json.published_count ?? 0) + ' kod',
+        'ok',
+      );
+      await loadOccupationCodes();
     }
 
     function formatFr24SyncError(json, httpStatus) {
@@ -4256,6 +4582,65 @@
         els.pdfPathNote.value = f.name;
       }
     });
+    els.btnOccReload?.addEventListener('click', () => {
+      void loadOccupationCodes().catch((err) => setStatus(String(err?.message || err), 'bad'));
+    });
+    els.btnOccAdd?.addEventListener('click', () => {
+      syncAllOccFromDom();
+      occDraftRows.unshift({
+        code: 'NEW',
+        airline_icao: 'PGT',
+        category: 'other',
+        label_tr: 'Yeni',
+        label_en: 'New',
+        description_tr: '',
+        description_en: '',
+        card_accent: 'other',
+        calendar_mark: 'none',
+        special_notes: '',
+        sort_order: 0,
+        active: true,
+      });
+      occDirty = true;
+      renderOccupationTable();
+    });
+    els.btnOccSave?.addEventListener('click', () => {
+      void saveOccupationCodes().catch((err) => setStatus(String(err?.message || err), 'bad'));
+    });
+    els.btnOccDeploy?.addEventListener('click', () => {
+      void deployOccupationCodes().catch((err) => setStatus(String(err?.message || err), 'bad'));
+    });
+    els.occSearch?.addEventListener('input', () => {
+      syncAllOccFromDom();
+      renderOccupationTable();
+    });
+    els.occAirlineFilter?.addEventListener('change', () => {
+      syncAllOccFromDom();
+      renderOccupationTable();
+    });
+    els.occCategoryFilter?.addEventListener('change', () => {
+      syncAllOccFromDom();
+      renderOccupationTable();
+    });
+    els.occBody?.addEventListener('change', (ev) => {
+      const t = ev.target;
+      if (!(t instanceof HTMLElement)) return;
+      const tr = t.closest('tr[data-occ-idx]');
+      if (tr) syncOccRowFromDom(tr);
+      if (t.getAttribute('data-occ') === 'card_accent') renderOccupationTable();
+    });
+    els.occBody?.addEventListener('click', (ev) => {
+      const t = ev.target;
+      if (!(t instanceof HTMLElement)) return;
+      const del = t.getAttribute('data-occ-del');
+      if (del == null) return;
+      const idx = Number(del);
+      if (!Number.isFinite(idx)) return;
+      syncAllOccFromDom();
+      occDraftRows.splice(idx, 1);
+      occDirty = true;
+      renderOccupationTable();
+    });
 
     function switchView(viewId) {
       els.views.forEach((v) => v.classList.toggle('active', v.id === viewId));
@@ -4265,6 +4650,9 @@
       }
       if (viewId === 'activityView' && accessToken) {
         loadActivity().catch(() => {});
+      }
+      if (viewId === 'occupationCodesView' && accessToken) {
+        loadOccupationCodes().catch((err) => setStatus(String(err?.message || err), 'bad'));
       }
     }
     function switchFlightsSubview(subviewId) {

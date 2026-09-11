@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   Modal,
   View,
@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   Switch,
-  ActivityIndicator,
   Alert,
   ScrollView,
   Pressable,
@@ -24,9 +23,11 @@ import { colors, useThemeMode } from '../theme/colors';
 import {
   setFontSizePreset,
   useFontSizePreset,
-  useFontScaleMultiplier,
   type FontSizePreset,
 } from '../theme/fontScale';
+import { useSession } from '../contexts/SessionContext';
+import { SegmentControl, SettingsSectionHeader } from './SegmentControl';
+import Ionicons from '@expo/vector-icons/Ionicons';
 
 export type RosterListTasksModalProps = {
   visible: boolean;
@@ -37,7 +38,24 @@ export type RosterListTasksModalProps = {
   prefsSeed: RosterListShowPrefs;
   refreshProfile: () => Promise<void>;
   onAfterSave?: () => void;
+  /** Crew only — opens clear-all flow after sheet closes. */
+  onClearAllFlights?: () => void;
 };
+
+const FONT_PREVIEW_PT: Record<FontSizePreset, number> = {
+  small: 13,
+  medium: 15,
+  large: 17,
+};
+
+function prefsEqual(a: RosterListShowPrefs, b: RosterListShowPrefs): boolean {
+  return (
+    a.flights_only === b.flights_only &&
+    a.time_display === b.time_display &&
+    a.show_calendar === b.show_calendar &&
+    a.show_list === b.show_list
+  );
+}
 
 export function RosterListTasksModal({
   visible,
@@ -46,263 +64,332 @@ export function RosterListTasksModal({
   crewProfileId,
   profileUserId,
   prefsSeed,
-  refreshProfile,
+  refreshProfile: _refreshProfile,
   onAfterSave,
+  onClearAllFlights,
 }: RosterListTasksModalProps) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const { height: winH } = useWindowDimensions();
   const themeMode = useThemeMode();
+  const { patchCrewProfile } = useSession();
   const fontPreset = useFontSizePreset();
-  const fontScale = useFontScaleMultiplier();
-  const fs = (n: number) => Math.round(n * fontScale);
-  const styles = useMemo(
-    () =>
-      StyleSheet.create({
-        overlay: {
-          flex: 1,
-          backgroundColor: 'rgba(0,0,0,0.5)',
-          justifyContent: 'center',
-          alignItems: 'center',
-          paddingHorizontal: 20,
-        },
-        sheet: {
-          width: '100%',
-          maxWidth: 400,
-          backgroundColor: colors.surface,
-          borderRadius: 14,
-          borderWidth: 1,
-          borderColor: colors.border,
-          overflow: 'hidden',
-        },
-        sheetTitle: {
-          fontSize: fs(18),
-          fontWeight: '800',
-          color: colors.text,
-          paddingHorizontal: 18,
-          paddingTop: 18,
-          paddingBottom: 8,
-        },
-        sheetScroll: { maxHeight: 360 },
-        sheetScrollContent: { paddingHorizontal: 18, paddingBottom: 8 },
-        hint: { fontSize: fs(13), lineHeight: fs(18), color: colors.textMuted, marginBottom: 12 },
-        saving: { marginVertical: 8 },
-        fontSection: { marginBottom: 8 },
-        fontSectionTitle: {
-          fontSize: fs(15),
-          fontWeight: '700',
-          color: colors.text,
-          marginBottom: 6,
-        },
-        fontSectionHint: { fontSize: fs(12), color: colors.textMuted, marginBottom: 10, lineHeight: fs(16) },
-        fontChipsRow: { flexDirection: 'row', gap: 8, marginBottom: 14 },
-        fontChip: {
-          flex: 1,
-          paddingVertical: 10,
-          borderRadius: 10,
-          borderWidth: 1,
-          borderColor: colors.border,
-          backgroundColor: colors.surfaceAlt,
-          alignItems: 'center',
-        },
-        fontChipActive: {
-          borderColor: colors.primary,
-          backgroundColor: colors.primaryLight,
-        },
-        fontChipText: { fontSize: fs(14), fontWeight: '700', color: colors.text },
-        fontChipTextActive: { color: colors.primary },
-        prefRow: {
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          paddingVertical: 10,
-          borderBottomWidth: StyleSheet.hairlineWidth,
-          borderBottomColor: colors.border,
-        },
-        prefRowLast: { borderBottomWidth: 0 },
-        prefLabel: { fontSize: fs(15), flex: 1, paddingRight: 12, color: colors.text },
-        doneBtn: {
-          marginHorizontal: 18,
-          marginTop: 4,
-          marginBottom: 16,
-          backgroundColor: colors.primary,
-          paddingVertical: 14,
-          borderRadius: 10,
-          alignItems: 'center',
-        },
-        doneBtnText: { color: colors.white, fontWeight: '700', fontSize: fs(17) },
-      }),
-    [fontScale, themeMode]
-  );
+  const [optimisticFont, setOptimisticFont] = useState<FontSizePreset>(fontPreset);
+  const fieldFill = themeMode === 'dark' ? '#1A2740' : '#F0F1F5';
+  const styles = useMemo(() => createStyles(), [themeMode]);
   const [prefs, setPrefs] = useState<RosterListShowPrefs>(() => normalizeRosterListShow(prefsSeed));
   const [saving, setSaving] = useState(false);
+  const closingRef = useRef(false);
 
   useEffect(() => {
-    if (visible) setPrefs(normalizeRosterListShow(prefsSeed));
-  }, [visible, prefsSeed]);
+    if (visible) {
+      closingRef.current = false;
+      setPrefs(normalizeRosterListShow(prefsSeed));
+      setOptimisticFont(fontPreset);
+    }
+  }, [visible, prefsSeed, fontPreset]);
 
   const persist = useCallback(
     async (next: RosterListShowPrefs) => {
       if (mode === 'crew') {
-        if (!crewProfileId) return;
-        setSaving(true);
+        if (!crewProfileId) return false;
         const { error } = await supabase
           .from('crew_profiles')
           .update({ roster_list_show: next })
           .eq('id', crewProfileId);
-        setSaving(false);
         if (error) {
           Alert.alert(t('common.error'), error.message);
-          setPrefs(normalizeRosterListShow(prefsSeed));
-          return;
+          return false;
         }
-        await refreshProfile();
+        patchCrewProfile({ roster_list_show: next });
         onAfterSave?.();
-        return;
+        return true;
       }
-      if (!profileUserId) return;
-      setSaving(true);
+      if (!profileUserId) return false;
       try {
         await saveFamilyRosterListShow(profileUserId, next);
         onAfterSave?.();
+        return true;
       } catch (e) {
         Alert.alert(t('common.error'), e instanceof Error ? e.message : String(e));
-        setPrefs(normalizeRosterListShow(prefsSeed));
-      } finally {
-        setSaving(false);
+        return false;
       }
     },
-    [mode, crewProfileId, profileUserId, prefsSeed, refreshProfile, onAfterSave, t]
+    [mode, crewProfileId, profileUserId, patchCrewProfile, onAfterSave, t],
   );
 
-  const onToggle = (key: keyof RosterListShowPrefs, value: boolean) => {
-    const next = { ...prefs, [key]: value };
-    setPrefs(next);
-    void persist(next);
+  /** Apply font + prefs when sheet closes — avoids freezing Roster under an open modal. */
+  const handleClose = useCallback(async () => {
+    if (closingRef.current) return;
+    closingRef.current = true;
+    const fontChanged = optimisticFont !== fontPreset;
+    const rosterChanged = !prefsEqual(prefs, normalizeRosterListShow(prefsSeed));
+    if (fontChanged) {
+      void setFontSizePreset(optimisticFont);
+    }
+    if (rosterChanged) {
+      setSaving(true);
+      const ok = await persist(prefs);
+      setSaving(false);
+      if (!ok) {
+        setPrefs(normalizeRosterListShow(prefsSeed));
+        closingRef.current = false;
+        return;
+      }
+    }
+    onClose();
+  }, [optimisticFont, fontPreset, prefs, prefsSeed, persist, onClose]);
+
+  const showInfo = (title: string, body: string) => {
+    Alert.alert(title, body);
   };
 
-  const onSetTimeDisplay = (value: 'local' | 'utc') => {
-    if (prefs.time_display === value) return;
-    const next = { ...prefs, time_display: value };
-    setPrefs(next);
-    void persist(next);
-  };
-
-  const maxH = Math.min(winH * 0.78, 520);
+  const sheetMaxH = Math.min(winH * 0.78, 580);
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={styles.overlay} onPress={onClose}>
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={() => void handleClose()}>
+      <View style={styles.root}>
         <Pressable
-          style={[styles.sheet, { maxHeight: maxH, marginBottom: Math.max(insets.bottom, 16) }]}
-          onPress={(e) => e.stopPropagation()}
+          style={styles.backdrop}
+          onPress={() => void handleClose()}
+          accessibilityRole="button"
+          accessibilityLabel={t('common.cancel')}
+        />
+        <View
+          style={[
+            styles.sheet,
+            {
+              maxHeight: sheetMaxH,
+              paddingBottom: Math.max(insets.bottom, 12) + 4,
+              backgroundColor: colors.surface,
+              borderColor: colors.border,
+            },
+          ]}
         >
-          <Text style={styles.sheetTitle}>{t('profile.rosterListTasksTitle')}</Text>
+          <View style={[styles.handle, { backgroundColor: colors.border }]} />
+
+          <View style={styles.headerRow}>
+            <Text style={styles.sheetTitle} numberOfLines={1}>
+              {t('profile.listSettingsTitle')}
+            </Text>
+            <TouchableOpacity
+              onPress={() => void handleClose()}
+              hitSlop={{ top: 10, bottom: 10, left: 12, right: 4 }}
+              disabled={saving}
+            >
+              <Text style={styles.doneText}>{t('profile.listSettingsDone')}</Text>
+            </TouchableOpacity>
+          </View>
+
           <ScrollView
-            style={styles.sheetScroll}
-            contentContainerStyle={styles.sheetScrollContent}
+            style={styles.scroll}
+            contentContainerStyle={styles.scrollContent}
             keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator
+            showsVerticalScrollIndicator={false}
+            bounces={false}
           >
-            <Text style={styles.hint}>{t('profile.rosterListTasksHint')}</Text>
-            <View style={styles.fontSection}>
-              <Text style={styles.fontSectionTitle}>{t('profile.rosterFontSizeTitle')}</Text>
-              <Text style={styles.fontSectionHint}>{t('profile.rosterFontSizeHint')}</Text>
-              <View style={styles.fontChipsRow}>
-                {(
-                  [
-                    ['small', 'profile.rosterFontSizeSmall'],
-                    ['medium', 'profile.rosterFontSizeMedium'],
-                    ['large', 'profile.rosterFontSizeLarge'],
-                  ] as const
-                ).map(([key, labelKey]) => {
-                  const active = fontPreset === key;
-                  return (
-                    <TouchableOpacity
-                      key={key}
-                      style={[styles.fontChip, active && styles.fontChipActive]}
-                      onPress={() => void setFontSizePreset(key as FontSizePreset)}
-                      activeOpacity={0.85}
-                    >
-                      <Text style={[styles.fontChipText, active && styles.fontChipTextActive]}>
-                        {t(labelKey)}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            </View>
+            <SettingsSectionHeader
+              title={t('profile.rosterFontSizeTitle')}
+              hint={t('profile.rosterFontSizeHint')}
+              onInfoPress={() =>
+                showInfo(t('profile.rosterFontSizeTitle'), t('profile.rosterFontSizeInfo'))
+              }
+            />
+            <SegmentControl<FontSizePreset>
+              trackColor={fieldFill}
+              value={optimisticFont}
+              onChange={setOptimisticFont}
+              options={(
+                [
+                  ['small', 'profile.rosterFontSizeSmall'],
+                  ['medium', 'profile.rosterFontSizeMedium'],
+                  ['large', 'profile.rosterFontSizeLarge'],
+                ] as const
+              ).map(([key, labelKey]) => ({
+                value: key,
+                label: t(labelKey),
+                labelStyle: { fontSize: FONT_PREVIEW_PT[key] },
+              }))}
+              style={styles.segment}
+            />
+
+            <View style={styles.divider} />
+
+            <SettingsSectionHeader
+              title={t('profile.rosterSurfaceTitle')}
+              hint={t('profile.rosterSurfaceHint')}
+              onInfoPress={() =>
+                showInfo(t('profile.rosterSurfaceTitle'), t('profile.rosterSurfaceHint'))
+              }
+            />
+            <SegmentControl<'list' | 'calendar'>
+              trackColor={fieldFill}
+              value={prefs.show_calendar ? 'calendar' : 'list'}
+              onChange={(value) => {
+                const nextCalendar = value === 'calendar';
+                setPrefs((p) => ({
+                  ...p,
+                  show_calendar: nextCalendar,
+                  show_list: !nextCalendar,
+                }));
+              }}
+              options={[
+                { value: 'list', label: t('profile.rosterSurfaceList') },
+                { value: 'calendar', label: t('profile.rosterSurfaceCalendar') },
+              ]}
+              style={styles.segment}
+            />
+
+            <View style={styles.divider} />
+
             {mode === 'crew' ? (
-              <View style={styles.fontSection}>
-                <Text style={styles.fontSectionTitle}>{t('profile.rosterTimeDisplayTitle')}</Text>
-                <Text style={styles.fontSectionHint}>{t('profile.rosterTimeDisplayHint')}</Text>
-                <View style={styles.fontChipsRow}>
-                  {(
-                    [
-                      ['local', 'profile.rosterTimeDisplayLocal'],
-                      ['utc', 'profile.rosterTimeDisplayUtc'],
-                    ] as const
-                  ).map(([key, labelKey]) => {
-                    const active = prefs.time_display === key;
-                    return (
-                      <TouchableOpacity
-                        key={key}
-                        style={[styles.fontChip, active && styles.fontChipActive]}
-                        onPress={() => onSetTimeDisplay(key)}
-                        activeOpacity={0.85}
-                      >
-                        <Text style={[styles.fontChipText, active && styles.fontChipTextActive]}>
-                          {t(labelKey)}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              </View>
+              <>
+                <SettingsSectionHeader
+                  title={t('profile.rosterTimeDisplayTitle')}
+                  hint={t('profile.rosterTimeDisplayHint')}
+                  onInfoPress={() =>
+                    showInfo(t('profile.rosterTimeDisplayTitle'), t('profile.rosterTimeDisplayInfo'))
+                  }
+                />
+                <SegmentControl<'local' | 'utc'>
+                  trackColor={fieldFill}
+                  value={prefs.time_display}
+                  onChange={(value) => {
+                    if (prefs.time_display === value) return;
+                    setPrefs((p) => ({ ...p, time_display: value }));
+                  }}
+                  options={[
+                    { value: 'local', label: t('profile.rosterTimeDisplayLocal') },
+                    { value: 'utc', label: t('profile.rosterTimeDisplayUtc') },
+                  ]}
+                  style={styles.segment}
+                />
+                <View style={styles.divider} />
+              </>
             ) : null}
-            {saving ? <ActivityIndicator style={styles.saving} color={colors.primary} /> : null}
+
+            <SettingsSectionHeader
+              title={t('profile.rosterFlightsOnlyTitle')}
+              hint={t('profile.rosterFlightsOnlyHint')}
+              onInfoPress={() =>
+                showInfo(t('profile.rosterFlightsOnlyTitle'), t('profile.rosterFlightsOnlyInfo'))
+              }
+            />
+
             <View style={styles.prefRow}>
-              <Text style={styles.prefLabel}>{t('profile.rosterShowOffDays')}</Text>
+              <Text style={styles.prefLabel}>{t('profile.rosterFlightsOnlyLabel')}</Text>
               <Switch
-                value={prefs.off_days}
-                onValueChange={(v) => onToggle('off_days', v)}
-                trackColor={{ false: colors.border, true: colors.primary + '80' }}
-                thumbColor={prefs.off_days ? colors.primary : colors.textMuted}
+                value={prefs.flights_only}
+                onValueChange={(v) => setPrefs((p) => ({ ...p, flights_only: v }))}
+                trackColor={{ false: colors.border, true: colors.primary + '99' }}
+                thumbColor={prefs.flights_only ? colors.primary : colors.textMuted}
+                ios_backgroundColor={colors.border}
               />
             </View>
-            <View style={styles.prefRow}>
-              <Text style={styles.prefLabel}>{t('profile.rosterShowTraining')}</Text>
-              <Switch
-                value={prefs.training}
-                onValueChange={(v) => onToggle('training', v)}
-                trackColor={{ false: colors.border, true: colors.primary + '80' }}
-                thumbColor={prefs.training ? colors.primary : colors.textMuted}
-              />
-            </View>
-            <View style={styles.prefRow}>
-              <Text style={styles.prefLabel}>{t('profile.rosterShowSimulator')}</Text>
-              <Switch
-                value={prefs.simulator}
-                onValueChange={(v) => onToggle('simulator', v)}
-                trackColor={{ false: colors.border, true: colors.primary + '80' }}
-                thumbColor={prefs.simulator ? colors.primary : colors.textMuted}
-              />
-            </View>
-            <View style={[styles.prefRow, styles.prefRowLast]}>
-              <Text style={styles.prefLabel}>{t('profile.rosterShowOther')}</Text>
-              <Switch
-                value={prefs.other}
-                onValueChange={(v) => onToggle('other', v)}
-                trackColor={{ false: colors.border, true: colors.primary + '80' }}
-                thumbColor={prefs.other ? colors.primary : colors.textMuted}
-              />
-            </View>
+
+            {mode === 'crew' && onClearAllFlights ? (
+              <>
+                <View style={styles.divider} />
+                <SettingsSectionHeader title={t('roster.dataSectionTitle')} />
+                <TouchableOpacity
+                  style={styles.dangerRow}
+                  onPress={() => {
+                    void (async () => {
+                      await handleClose();
+                      onClearAllFlights();
+                    })();
+                  }}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('roster.clearAllFlights')}
+                >
+                  <Ionicons name="trash-outline" size={18} color={colors.error} />
+                  <Text style={styles.dangerRowText}>{t('roster.clearAllFlights')}</Text>
+                </TouchableOpacity>
+              </>
+            ) : null}
           </ScrollView>
-          <TouchableOpacity style={styles.doneBtn} onPress={onClose} activeOpacity={0.85}>
-            <Text style={styles.doneBtnText}>{t('common.ok')}</Text>
-          </TouchableOpacity>
-        </Pressable>
-      </Pressable>
+        </View>
+      </View>
     </Modal>
   );
+}
+
+function createStyles() {
+  return StyleSheet.create({
+    root: {
+      flex: 1,
+      justifyContent: 'flex-end',
+    },
+    backdrop: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: 'rgba(15,27,61,0.45)',
+    },
+    sheet: {
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderBottomWidth: 0,
+      paddingHorizontal: 16,
+      paddingTop: 10,
+    },
+    handle: {
+      alignSelf: 'center',
+      width: 36,
+      height: 4,
+      borderRadius: 2,
+      marginBottom: 8,
+    },
+    headerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 12,
+      paddingHorizontal: 2,
+      marginBottom: 12,
+    },
+    sheetTitle: {
+      flex: 1,
+      fontSize: 17,
+      fontWeight: '800',
+      color: colors.text,
+    },
+    doneText: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: colors.primary,
+    },
+    scroll: { flexGrow: 0 },
+    scrollContent: { paddingBottom: 8 },
+    segment: { marginBottom: 4 },
+    divider: {
+      height: StyleSheet.hairlineWidth,
+      backgroundColor: colors.border,
+      marginVertical: 14,
+    },
+    prefRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 12,
+      gap: 10,
+    },
+    prefLabel: {
+      flex: 1,
+      fontSize: 15,
+      fontWeight: '600',
+      color: colors.text,
+    },
+    dangerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      paddingVertical: 14,
+      paddingHorizontal: 4,
+    },
+    dangerRowText: {
+      flex: 1,
+      fontSize: 15,
+      fontWeight: '600',
+      color: colors.error,
+    },
+  });
 }
