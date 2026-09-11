@@ -2766,6 +2766,47 @@
       els.occBody?.querySelectorAll('tr[data-occ-idx]').forEach((tr) => syncOccRowFromDom(tr));
     }
 
+    function addOccupationCodeRow() {
+      try {
+        syncAllOccFromDom();
+      } catch (_) {
+        /* ignore sync errors on empty/placeholder table */
+      }
+      if (els.occSearch) els.occSearch.value = '';
+      if (els.occAirlineFilter) els.occAirlineFilter.value = 'all';
+      if (els.occCategoryFilter) els.occCategoryFilter.value = 'all';
+      const n = occDraftRows.filter((r) => /^NEW\d*$/i.test(String(r.code || ''))).length + 1;
+      const code = 'NEW' + n;
+      occDraftRows.unshift({
+        code,
+        airline_icao: '',
+        category: 'other',
+        label_tr: 'Yeni kod',
+        label_en: 'New code',
+        description_tr: '',
+        description_en: '',
+        card_accent: 'other',
+        calendar_mark: 'none',
+        special_notes: '',
+        sort_order: 0,
+        active: true,
+      });
+      occDirty = true;
+      renderOccupationTable();
+      if (els.occMetaLine) {
+        els.occMetaLine.textContent =
+          (els.occMetaLine.textContent || '') + ' · yeni satır eklendi: ' + code + ' (üstte)';
+      }
+      setStatus('Yeni kod satırı eklendi: ' + code + ' — düzenleyip Save / Deploy yap', 'ok');
+      const wrap = document.querySelector('#occupationCodesView .users-table-wrap');
+      if (wrap) wrap.scrollTop = 0;
+      const firstInput = els.occBody?.querySelector('tr[data-occ-idx] input[data-occ="code"]');
+      if (firstInput && typeof firstInput.focus === 'function') {
+        firstInput.focus();
+        if (typeof firstInput.select === 'function') firstInput.select();
+      }
+    }
+
     async function loadOccupationCodes() {
       const json = await callAdminAction('list_roster_occupation_codes', {});
       occDraftRows = Array.isArray(json.codes) ? json.codes.map((r) => ({ ...r })) : [];
@@ -4585,24 +4626,19 @@
     els.btnOccReload?.addEventListener('click', () => {
       void loadOccupationCodes().catch((err) => setStatus(String(err?.message || err), 'bad'));
     });
-    els.btnOccAdd?.addEventListener('click', () => {
-      syncAllOccFromDom();
-      occDraftRows.unshift({
-        code: 'NEW',
-        airline_icao: 'PGT',
-        category: 'other',
-        label_tr: 'Yeni',
-        label_en: 'New',
-        description_tr: '',
-        description_en: '',
-        card_accent: 'other',
-        calendar_mark: 'none',
-        special_notes: '',
-        sort_order: 0,
-        active: true,
-      });
-      occDirty = true;
-      renderOccupationTable();
+    els.btnOccAdd?.addEventListener('click', (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      addOccupationCodeRow();
+    });
+    // Yedek: toolbar delegation (els null / timing sorunlarında da çalışsın)
+    document.getElementById('occupationCodesView')?.addEventListener('click', (ev) => {
+      const t = ev.target;
+      if (!(t instanceof Element)) return;
+      const btn = t.closest('#btnOccAdd');
+      if (!btn) return;
+      ev.preventDefault();
+      addOccupationCodeRow();
     });
     els.btnOccSave?.addEventListener('click', () => {
       void saveOccupationCodes().catch((err) => setStatus(String(err?.message || err), 'bad'));
