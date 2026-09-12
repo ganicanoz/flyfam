@@ -2428,6 +2428,570 @@ Deno.serve(async (req) => {
       );
     }
 
+    // ── Family network map (admin graph + connect / invite tools) ──────────
+    async function loadAuthEmailMap(): Promise<Map<string, string | null>> {
+      const map = new Map<string, string | null>();
+      let page = 1;
+      while (page <= 20) {
+        const { data, error } = await adminClient.auth.admin.listUsers({ page, perPage: 200 });
+        if (error || !data?.users?.length) break;
+        for (const u of data.users) {
+          map.set(u.id, u.email ?? null);
+        }
+        if (data.users.length < 200) break;
+        page += 1;
+      }
+      return map;
+    }
+
+    async function ensureNotificationPrefs(connectionId: string, familyUserId: string) {
+      await adminClient.from('notification_preferences').upsert(
+        { user_id: familyUserId, connection_id: connectionId },
+        { onConflict: 'user_id,connection_id', ignoreDuplicates: true },
+      );
+    }
+
+    if (action === 'list_family_network') {
+      const emailById = await loadAuthEmailMap();
+      const [{ data: profiles, error: pErr }, { data: crewRows, error: cErr }, { data: conns, error: fcErr }, { data: invites, error: invErr }] =
+        await Promise.all([
+          adminClient.from('profiles').select('id, role, full_name').limit(3000),
+          adminClient.from('crew_profiles').select('id, user_id, company_name, airline_icao').limit(2000),
+          adminClient
+            .from('family_connections')
+            .select('id, crew_id, family_id, status, invited_by, created_at, updated_at')
+            .order('created_at', { ascending: false })
+            .limit(5000),
+          adminClient
+            .from('crew_invitations')
+            .select('id, crew_id, family_email, status, created_at')
+            .order('created_at', { ascending: false })
+            .limit(3000),
+        ]);
+      if (pErr || cErr || fcErr || invErr) {
+        return new Response(
+          JSON.stringify({ error: pErr?.message || cErr?.message || fcErr?.message || invErr?.message }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        );
+      }
+
+      const profileById = new Map(
+        (profiles ?? []).map((p: { id: string; role?: string | null; full_name?: string | null }) => [
+          p.id,
+          {
+            id: p.id,
+            role: p.role ?? null,
+            full_name: p.full_name ?? null,
+            email: emailById.get(p.id) ?? null,
+          },
+        ]),
+      );
+      const crewById = new Map(
+        (crewRows ?? []).map((c: { id: string; user_id: string; company_name?: string | null; airline_icao?: string | null }) => [
+          c.id,
+          c,
+        ]),
+      );
+      const crewByUserId = new Map(
+        (crewRows ?? []).map((c: { id: string; user_id: string }) => [c.user_id, c.id]),
+      );
+
+      const emailToUserId = new Map<string, string>();
+      for (const [uid, email] of emailById.entries()) {
+        if (!email) continue;
+        emailToUserId.set(String(email).trim().toLowerCase(), uid);
+      }
+
+      const nodes = (profiles ?? []).map((p: { id: string; role?: string | null; full_name?: string | null }) => {
+        const crewId = crewByUserId.get(p.id) ?? null;
+        const crew = crewId ? crewById.get(crewId) : null;
+        return {
+          id: p.id,
+          role: p.role ?? null,
+          full_name: p.full_name ?? null,
+          email: emailById.get(p.id) ?? null,
+          crew_id: crewId,
+          company_name: crew?.company_name ?? null,
+          airline_icao: crew?.airline_icao ?? null,
+        };
+      });
+
+      const connections = (conns ?? []).map((fc: {
+        id: string;
+        crew_id: string;
+        family_id: string;
+        status: string;
+        invited_by?: string | null;
+        created_at?: string | null;
+        updated_at?: string | null;
+      }) => {
+        const crew = crewById.get(fc.crew_id);
+        const crewUser = crew?.user_id ? profileById.get(crew.user_id) : null;
+        const familyUser = profileById.get(fc.family_id);
+        return {
+          id: fc.id,
+          status: fc.status,
+          crew_id: fc.crew_id,
+          crew_user_id: crew?.user_id ?? null,
+          crew_full_name: crewUser?.full_name ?? null,
+          crew_email: crewUser?.email ?? null,
+          crew_company: crew?.company_name ?? crew?.airline_icao ?? null,
+          family_user_id: fc.family_id,
+          family_full_name: familyUser?.full_name ?? null,
+          family_email: familyUser?.email ?? null,
+          invited_by: fc.invited_by ?? null,
+          created_at: fc.created_at ?? null,
+          updated_at: fc.updated_at ?? null,
+        };
+      });
+
+      const invitations = (invites ?? []).map((inv: {
+        id: string;
+        crew_id: string;
+        family_email: string;
+        status: string;
+        created_at?: string | null;
+      }) => {
+        const crew = crewById.get(inv.crew_id);
+        const crewUser = crew?.user_id ? profileById.get(crew.user_id) : null;
+        const emailNorm = String(inv.family_email || '').trim().toLowerCase();
+        const matchedFamilyUserId = emailToUserId.get(emailNorm) ?? null;
+        const matchedFamily = matchedFamilyUserId ? profileById.get(matchedFamilyUserId) : null;
+        return {
+          id: inv.id,
+          status: inv.status,
+          crew_id: inv.crew_id,
+          crew_user_id: crew?.user_id ?? null,
+          crew_full_name: crewUser?.full_name ?? null,
+          crew_email: crewUser?.email ?? null,
+          family_email: inv.family_email,
+          matched_family_user_id: matchedFamilyUserId,
+          matched_family_full_name: matchedFamily?.full_name ?? null,
+          created_at: inv.created_at ?? null,
+        };
+      });
+
+      const approved = connections.filter((c) => c.status === 'approved').length;
+      const pendingConn = connections.filter((c) => c.status === 'pending').length;
+      const pendingInv = invitations.filter((i) => i.status === 'pending').length;
+
+      return new Response(
+        JSON.stringify({
+          ok: true,
+          action,
+          summary: {
+            nodes: nodes.length,
+            crew_nodes: nodes.filter((n) => n.role === 'crew').length,
+            family_nodes: nodes.filter((n) => n.role === 'family').length,
+            connections: connections.length,
+            approved,
+            pending_connections: pendingConn,
+            invitations: invitations.length,
+            pending_invitations: pendingInv,
+          },
+          nodes,
+          connections,
+          invitations,
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
+
+    if (action === 'admin_connect_users') {
+      const crewUserId = typeof body?.crew_user_id === 'string' ? body.crew_user_id.trim() : '';
+      const familyUserId = typeof body?.family_user_id === 'string' ? body.family_user_id.trim() : '';
+      const statusRaw = typeof body?.status === 'string' ? body.status.trim() : 'approved';
+      const status = statusRaw === 'pending' || statusRaw === 'approved' || statusRaw === 'declined'
+        ? statusRaw
+        : 'approved';
+      const force = body?.force === true;
+      if (!crewUserId || !familyUserId) {
+        return new Response(JSON.stringify({ error: 'crew_user_id and family_user_id are required' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      if (crewUserId === familyUserId) {
+        return new Response(JSON.stringify({ error: 'Cannot connect a user to themselves' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      const [{ data: crewProf }, { data: familyProf }, { data: crewRow }] = await Promise.all([
+        adminClient.from('profiles').select('id, role, full_name').eq('id', crewUserId).maybeSingle(),
+        adminClient.from('profiles').select('id, role, full_name').eq('id', familyUserId).maybeSingle(),
+        adminClient.from('crew_profiles').select('id, user_id').eq('user_id', crewUserId).maybeSingle(),
+      ]);
+      if (!crewProf || !familyProf) {
+        return new Response(JSON.stringify({ error: 'Crew or family user not found' }), {
+          status: 404,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      if (String(crewProf.role ?? '') !== 'crew') {
+        return new Response(JSON.stringify({ error: 'crew_user_id must be a crew profile' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      if (String(familyProf.role ?? '') !== 'family') {
+        return new Response(JSON.stringify({ error: 'family_user_id must be a family profile' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      if (!crewRow?.id) {
+        return new Response(JSON.stringify({ error: 'Crew profile row missing for this user' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      if ((status === 'approved' || status === 'pending') && !force) {
+        const { error: capErr } = await adminClient.rpc('ensure_crew_family_capacity', {
+          p_crew_id: crewRow.id,
+          p_include_pending: status === 'pending',
+        });
+        if (capErr) {
+          return new Response(
+            JSON.stringify({ error: capErr.message, code: 'capacity', hint: 'Pass force:true to bypass slot check' }),
+            { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+          );
+        }
+      }
+      const { data: upserted, error: upErr } = await adminClient
+        .from('family_connections')
+        .upsert(
+          {
+            crew_id: crewRow.id,
+            family_id: familyUserId,
+            status,
+            invited_by: crewUserId,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'crew_id,family_id' },
+        )
+        .select('id, crew_id, family_id, status, created_at, updated_at')
+        .maybeSingle();
+      if (upErr) {
+        return new Response(JSON.stringify({ error: upErr.message }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      if (upserted?.id && status === 'approved') {
+        await ensureNotificationPrefs(upserted.id, familyUserId);
+      }
+      return new Response(
+        JSON.stringify({ ok: true, action, connection: upserted }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
+
+    if (action === 'admin_disconnect_users') {
+      const connectionId = typeof body?.connection_id === 'string' ? body.connection_id.trim() : '';
+      if (!connectionId) {
+        return new Response(JSON.stringify({ error: 'connection_id is required' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      const { data: existing, error: findErr } = await adminClient
+        .from('family_connections')
+        .select('id, crew_id, family_id, status')
+        .eq('id', connectionId)
+        .maybeSingle();
+      if (findErr) {
+        return new Response(JSON.stringify({ error: findErr.message }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      if (!existing) {
+        return new Response(JSON.stringify({ error: 'Connection not found' }), {
+          status: 404,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      const { error: delErr } = await adminClient.from('family_connections').delete().eq('id', connectionId);
+      if (delErr) {
+        return new Response(JSON.stringify({ error: delErr.message }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      return new Response(
+        JSON.stringify({ ok: true, action, deleted: existing }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
+
+    if (action === 'admin_set_connection_status') {
+      const connectionId = typeof body?.connection_id === 'string' ? body.connection_id.trim() : '';
+      const statusRaw = typeof body?.status === 'string' ? body.status.trim() : '';
+      const status = statusRaw === 'pending' || statusRaw === 'approved' || statusRaw === 'declined'
+        ? statusRaw
+        : '';
+      const force = body?.force === true;
+      if (!connectionId || !status) {
+        return new Response(JSON.stringify({ error: 'connection_id and status (pending|approved|declined) are required' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      const { data: existing, error: findErr } = await adminClient
+        .from('family_connections')
+        .select('id, crew_id, family_id, status')
+        .eq('id', connectionId)
+        .maybeSingle();
+      if (findErr) {
+        return new Response(JSON.stringify({ error: findErr.message }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      if (!existing) {
+        return new Response(JSON.stringify({ error: 'Connection not found' }), {
+          status: 404,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      if (status === 'approved' && existing.status !== 'approved' && !force) {
+        const { error: capErr } = await adminClient.rpc('ensure_crew_family_capacity', {
+          p_crew_id: existing.crew_id,
+          p_include_pending: false,
+        });
+        if (capErr) {
+          return new Response(
+            JSON.stringify({ error: capErr.message, code: 'capacity', hint: 'Pass force:true to bypass slot check' }),
+            { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+          );
+        }
+      }
+      const { data: updated, error: upErr } = await adminClient
+        .from('family_connections')
+        .update({ status, updated_at: new Date().toISOString() })
+        .eq('id', connectionId)
+        .select('id, crew_id, family_id, status, updated_at')
+        .maybeSingle();
+      if (upErr) {
+        return new Response(JSON.stringify({ error: upErr.message }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      if (updated?.id && status === 'approved') {
+        await ensureNotificationPrefs(updated.id, String(existing.family_id));
+      }
+      return new Response(
+        JSON.stringify({ ok: true, action, connection: updated }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
+
+    if (action === 'admin_send_invitation') {
+      const crewUserId = typeof body?.crew_user_id === 'string' ? body.crew_user_id.trim() : '';
+      const familyEmailRaw = typeof body?.family_email === 'string' ? body.family_email.trim() : '';
+      const familyEmail = familyEmailRaw.toLowerCase();
+      if (!crewUserId || !familyEmail) {
+        return new Response(JSON.stringify({ error: 'crew_user_id and family_email are required' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      const { data: crewRow } = await adminClient
+        .from('crew_profiles')
+        .select('id, user_id')
+        .eq('user_id', crewUserId)
+        .maybeSingle();
+      if (!crewRow?.id) {
+        return new Response(JSON.stringify({ error: 'Crew profile not found for crew_user_id' }), {
+          status: 404,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      // Decline any previous pending invite for same crew+email, then insert fresh pending.
+      await adminClient
+        .from('crew_invitations')
+        .update({ status: 'declined' })
+        .eq('crew_id', crewRow.id)
+        .eq('family_email', familyEmail)
+        .eq('status', 'pending');
+      const { data: invited, error: invErr } = await adminClient
+        .from('crew_invitations')
+        .insert({ crew_id: crewRow.id, family_email: familyEmail, status: 'pending' })
+        .select('id, crew_id, family_email, status, created_at')
+        .maybeSingle();
+      if (invErr) {
+        return new Response(JSON.stringify({ error: invErr.message }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      return new Response(
+        JSON.stringify({ ok: true, action, invitation: invited }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
+
+    if (action === 'admin_accept_invitation') {
+      const invitationId = typeof body?.invitation_id === 'string' ? body.invitation_id.trim() : '';
+      const familyUserIdOverride =
+        typeof body?.family_user_id === 'string' ? body.family_user_id.trim() : '';
+      const force = body?.force === true;
+      if (!invitationId) {
+        return new Response(JSON.stringify({ error: 'invitation_id is required' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      const { data: inv, error: invErr } = await adminClient
+        .from('crew_invitations')
+        .select('id, crew_id, family_email, status')
+        .eq('id', invitationId)
+        .maybeSingle();
+      if (invErr) {
+        return new Response(JSON.stringify({ error: invErr.message }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      if (!inv) {
+        return new Response(JSON.stringify({ error: 'Invitation not found' }), {
+          status: 404,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      if (inv.status !== 'pending') {
+        return new Response(JSON.stringify({ error: `Invitation is already ${inv.status}` }), {
+          status: 409,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      let familyUserId = familyUserIdOverride;
+      if (!familyUserId) {
+        const emailById = await loadAuthEmailMap();
+        const want = String(inv.family_email || '').trim().toLowerCase();
+        for (const [uid, email] of emailById.entries()) {
+          if (email && email.trim().toLowerCase() === want) {
+            familyUserId = uid;
+            break;
+          }
+        }
+      }
+      if (!familyUserId) {
+        return new Response(
+          JSON.stringify({
+            error: 'No registered family user matches this invitation email. Pass family_user_id to bind a user.',
+          }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        );
+      }
+      const { data: familyProf } = await adminClient
+        .from('profiles')
+        .select('id, role')
+        .eq('id', familyUserId)
+        .maybeSingle();
+      if (!familyProf || String(familyProf.role ?? '') !== 'family') {
+        return new Response(JSON.stringify({ error: 'Target user must have family role' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      if (!force) {
+        const { error: capErr } = await adminClient.rpc('ensure_crew_family_capacity', {
+          p_crew_id: inv.crew_id,
+          p_include_pending: false,
+        });
+        if (capErr) {
+          return new Response(
+            JSON.stringify({ error: capErr.message, code: 'capacity', hint: 'Pass force:true to bypass slot check' }),
+            { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+          );
+        }
+      }
+      const { data: crewMeta } = await adminClient
+        .from('crew_profiles')
+        .select('user_id')
+        .eq('id', inv.crew_id)
+        .maybeSingle();
+      const { data: conn, error: connErr } = await adminClient
+        .from('family_connections')
+        .upsert(
+          {
+            crew_id: inv.crew_id,
+            family_id: familyUserId,
+            status: 'approved',
+            invited_by: crewMeta?.user_id ?? null,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'crew_id,family_id' },
+        )
+        .select('id, crew_id, family_id, status')
+        .maybeSingle();
+      if (connErr) {
+        return new Response(JSON.stringify({ error: connErr.message }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      await adminClient.from('crew_invitations').update({ status: 'accepted' }).eq('id', invitationId);
+      if (conn?.id) await ensureNotificationPrefs(conn.id, familyUserId);
+      return new Response(
+        JSON.stringify({ ok: true, action, invitation_id: invitationId, connection: conn }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
+
+    if (action === 'admin_decline_invitation') {
+      const invitationId = typeof body?.invitation_id === 'string' ? body.invitation_id.trim() : '';
+      if (!invitationId) {
+        return new Response(JSON.stringify({ error: 'invitation_id is required' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      const { data: inv, error: invErr } = await adminClient
+        .from('crew_invitations')
+        .select('id, status')
+        .eq('id', invitationId)
+        .maybeSingle();
+      if (invErr) {
+        return new Response(JSON.stringify({ error: invErr.message }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      if (!inv) {
+        return new Response(JSON.stringify({ error: 'Invitation not found' }), {
+          status: 404,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      if (inv.status !== 'pending') {
+        return new Response(JSON.stringify({ error: `Invitation is already ${inv.status}` }), {
+          status: 409,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      const { data: updated, error: upErr } = await adminClient
+        .from('crew_invitations')
+        .update({ status: 'declined' })
+        .eq('id', invitationId)
+        .select('id, crew_id, family_email, status, created_at')
+        .maybeSingle();
+      if (upErr) {
+        return new Response(JSON.stringify({ error: upErr.message }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      return new Response(
+        JSON.stringify({ ok: true, action, invitation: updated }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
+
     return new Response(JSON.stringify({ error: 'Unsupported action' }), {
       status: 400,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

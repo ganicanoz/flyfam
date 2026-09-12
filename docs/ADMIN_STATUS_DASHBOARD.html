@@ -9,7 +9,7 @@
   <meta http-equiv="Expires" content="0" />
   <script>
     (function () {
-      var UI = '36';
+      var UI = '39';
       var p = new URLSearchParams(location.search);
       if (p.get('ui') !== UI) {
         p.set('ui', UI);
@@ -351,6 +351,47 @@
       vertical-align: top;
     }
     th { color: var(--muted); font-weight: 600; }
+
+    .net-kpi { display:flex; flex-wrap:wrap; gap:10px; margin:0 0 14px; }
+    .net-kpi .card { flex:1; min-width:120px; padding:10px 12px; }
+    .net-kpi .num { font-size:22px; font-weight:700; }
+    .net-layout { display:grid; grid-template-columns: 1.4fr 1fr; gap:12px; }
+    @media (max-width: 980px) { .net-layout { grid-template-columns: 1fr; } }
+    .net-canvas-wrap {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: linear-gradient(180deg, #f8fbff 0%, #eef3fa 100%);
+      min-height: 420px;
+      position: relative;
+      overflow: hidden;
+    }
+    #familyNetSvg { width: 100%; height: 420px; display:block; }
+    .net-node-label { font-size: 11px; fill: #1f2937; font-family: Inter, system-ui, sans-serif; }
+    .net-legend { display:flex; flex-wrap:wrap; gap:10px; margin:8px 0 0; font-size:12px; color:var(--muted); }
+    .net-legend span i {
+      display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:4px; vertical-align:middle;
+    }
+    .net-forms { display:grid; gap:10px; }
+    .net-forms .panel { margin:0; }
+    .net-forms label.mini { display:block; margin-bottom:2px; }
+    .net-forms select, .net-forms input[type="text"], .net-forms input[type="email"] {
+      width: 100%; min-height: 36px;
+    }
+    .net-forms .row { display:grid; grid-template-columns: 1fr 1fr; gap:8px; }
+    @media (max-width: 640px) { .net-forms .row { grid-template-columns: 1fr; } }
+    .net-edge-approved { stroke: #16a34a; }
+    .net-edge-pending { stroke: #d97706; stroke-dasharray: 5 4; }
+    .net-edge-declined { stroke: #94a3b8; stroke-dasharray: 2 3; }
+    .net-edge-invite { stroke: #2563eb; stroke-dasharray: 4 3; opacity: 0.85; }
+    .badge-approved { background:#dcfce7; border-color:#86efac; color:#166534; }
+    .badge-pending { background:#ffedd5; border-color:#fdba74; color:#9a3412; }
+    .badge-declined, .badge-accepted { background:#e2e8f0; border-color:#cbd5e1; color:#475569; }
+    .net-table-wrap { max-height: 360px; overflow:auto; border:1px solid var(--line); border-radius:8px; }
+    .net-table-wrap table { width:100%; border-collapse:collapse; font-size:13px; }
+    .net-table-wrap th, .net-table-wrap td { padding:8px 10px; border-bottom:1px solid var(--line); text-align:left; vertical-align:top; }
+    .net-table-wrap th { position:sticky; top:0; background:#f8fafc; z-index:1; }
+    .net-actions { display:flex; flex-wrap:wrap; gap:4px; }
+
     .badge {
       padding: 2px 6px;
       border-radius: 999px;
@@ -844,6 +885,7 @@
         <button class="nav-btn" data-view="usageView">Kota</button>
         <button class="nav-btn" data-view="pdfRosterView">PDF Roster</button>
         <button class="nav-btn" data-view="occupationCodesView">Görev Kodları</button>
+        <button class="nav-btn" data-view="familyNetworkView">Aile Ağı</button>
       </nav>
     </aside>
     <main class="main">
@@ -1467,6 +1509,138 @@
           </div>
         </div>
       </section>
+
+      <section id="familyNetworkView" class="view">
+        <div class="panel">
+          <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:end; justify-content:space-between; margin-bottom:10px;">
+            <div>
+              <h3 style="margin:0 0 4px;">Aile ağ haritası</h3>
+              <p class="mini" style="margin:0;">Kim kiminle bağlı, bekleyen davetler ve admin bağlantı / davet işlemleri.</p>
+            </div>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+              <input id="familyNetSearch" type="search" placeholder="İsim / e-posta ara" style="min-width:200px;" />
+              <select id="familyNetStatusFilter">
+                <option value="all">Tüm durumlar</option>
+                <option value="approved">approved</option>
+                <option value="pending">pending</option>
+                <option value="declined">declined</option>
+              </select>
+              <button type="button" id="btnFamilyNetReload" class="btnPrimary">Yenile</button>
+            </div>
+          </div>
+          <div class="net-kpi">
+            <div class="card"><div class="mini">Crew</div><div class="num" id="netKpiCrew">-</div></div>
+            <div class="card"><div class="mini">Aile</div><div class="num" id="netKpiFamily">-</div></div>
+            <div class="card"><div class="mini">Onaylı bağ</div><div class="num" id="netKpiApproved">-</div></div>
+            <div class="card"><div class="mini">Bekleyen bağ</div><div class="num" id="netKpiPendingConn">-</div></div>
+            <div class="card"><div class="mini">Bekleyen davet</div><div class="num" id="netKpiPendingInv">-</div></div>
+          </div>
+          <div class="net-layout">
+            <div>
+              <div class="net-canvas-wrap">
+                <svg id="familyNetSvg" viewBox="0 0 900 420" preserveAspectRatio="xMidYMid meet"></svg>
+              </div>
+              <div class="net-legend">
+                <span><i style="background:#2563eb;"></i>Crew</span>
+                <span><i style="background:#7c3aed;"></i>Aile</span>
+                <span><i style="background:#16a34a;"></i>Onaylı</span>
+                <span><i style="background:#d97706;"></i>Bekleyen bağ</span>
+                <span><i style="background:#2563eb;"></i>Bekleyen davet</span>
+              </div>
+              <p id="familyNetMapHint" class="mini" style="margin-top:6px;"></p>
+            </div>
+            <div class="net-forms">
+              <div class="panel">
+                <h4 style="margin:0 0 8px;">Bağlantı kur / kopar</h4>
+                <div class="row">
+                  <div>
+                    <label class="mini">Crew</label>
+                    <select id="netConnectCrew"></select>
+                  </div>
+                  <div>
+                    <label class="mini">Aile</label>
+                    <select id="netConnectFamily"></select>
+                  </div>
+                </div>
+                <div class="row" style="margin-top:8px;">
+                  <div>
+                    <label class="mini">Durum</label>
+                    <select id="netConnectStatus">
+                      <option value="approved">approved</option>
+                      <option value="pending">pending</option>
+                    </select>
+                  </div>
+                  <div style="display:flex; align-items:end; gap:8px;">
+                    <label class="mini" style="display:flex; align-items:center; gap:6px; margin:0;">
+                      <input type="checkbox" id="netConnectForce" /> Slot limitini yok say
+                    </label>
+                  </div>
+                </div>
+                <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;">
+                  <button type="button" id="btnNetConnect" class="btnPrimary">Bağla</button>
+                  <span id="netConnectStatusMsg" class="mini"></span>
+                </div>
+              </div>
+              <div class="panel">
+                <h4 style="margin:0 0 8px;">Davet gönder</h4>
+                <div class="row">
+                  <div>
+                    <label class="mini">Crew</label>
+                    <select id="netInviteCrew"></select>
+                  </div>
+                  <div>
+                    <label class="mini">Aile e-posta</label>
+                    <input id="netInviteEmail" type="email" placeholder="aile@ornek.com" />
+                  </div>
+                </div>
+                <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;">
+                  <button type="button" id="btnNetInvite" class="btnPrimary">Davet gönder</button>
+                  <span id="netInviteStatusMsg" class="mini"></span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <h4 style="margin:18px 0 8px;">Bağlantılar</h4>
+          <div class="net-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Crew</th>
+                  <th>Aile</th>
+                  <th>Durum</th>
+                  <th>Tarih</th>
+                  <th>İşlem</th>
+                </tr>
+              </thead>
+              <tbody id="familyNetConnBody">
+                <tr><td colspan="5" class="mini">Yüklemek için bu sayfayı açın veya Yenile’ye basın.</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h4 style="margin:18px 0 8px;">Davetler</h4>
+          <div class="net-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Crew</th>
+                  <th>E-posta</th>
+                  <th>Eşleşen aile</th>
+                  <th>Durum</th>
+                  <th>Tarih</th>
+                  <th>İşlem</th>
+                </tr>
+              </thead>
+              <tbody id="familyNetInvBody">
+                <tr><td colspan="6" class="mini">Yüklemek için bu sayfayı açın veya Yenile’ye basın.</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p id="familyNetApiHint" class="mini" style="margin-top:10px;"></p>
+        </div>
+      </section>
+
     </main>
   </div>
 
@@ -2518,7 +2692,7 @@
           let hint = '';
           if (location.protocol === 'file:') {
             hint =
-              ' Paneli file:// ile açıyorsun — terminalde: cd docs && python3 -m http.server 8765 sonra http://localhost:8765/ADMIN_STATUS_DASHBOARD.html?ui=36';
+              ' Paneli file:// ile açıyorsun — terminalde: cd docs && python3 -m http.server 8765 sonra http://localhost:8765/ADMIN_STATUS_DASHBOARD.html?ui=39';
           } else {
             hint = ' Supabase URL ve anon key kontrol et; VPN/eklenti engeli olabilir.';
           }
@@ -4678,6 +4852,392 @@
       renderOccupationTable();
     });
 
+
+    let familyNetworkCache = null;
+
+    function netEsc(s) {
+      return String(s ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function netLabel(u) {
+      if (!u) return '—';
+      return String(u.full_name || u.email || u.id || '—').trim();
+    }
+
+    function netStatusBadge(st) {
+      const s = String(st || '');
+      const cls = s === 'approved' || s === 'accepted' ? 'badge-approved'
+        : s === 'pending' ? 'badge-pending'
+        : 'badge-declined';
+      return '<span class="badge ' + cls + '">' + netEsc(s || '—') + '</span>';
+    }
+
+    function fillNetUserSelects(nodes) {
+      const crews = (nodes || []).filter((n) => n.role === 'crew').slice().sort((a, b) => netLabel(a).localeCompare(netLabel(b), 'tr'));
+      const families = (nodes || []).filter((n) => n.role === 'family').slice().sort((a, b) => netLabel(a).localeCompare(netLabel(b), 'tr'));
+      const crewOpts = ['<option value="">Crew seçin…</option>'].concat(
+        crews.map((c) => {
+          const extra = c.company_name || c.airline_icao || '';
+          const lab = netLabel(c) + (c.email ? ' · ' + c.email : '') + (extra ? ' · ' + extra : '');
+          return '<option value="' + netEsc(c.id) + '">' + netEsc(lab) + '</option>';
+        }),
+      ).join('');
+      const famOpts = ['<option value="">Aile seçin…</option>'].concat(
+        families.map((f) => {
+          const lab = netLabel(f) + (f.email ? ' · ' + f.email : '');
+          return '<option value="' + netEsc(f.id) + '">' + netEsc(lab) + '</option>';
+        }),
+      ).join('');
+      const crewSel = document.getElementById('netConnectCrew');
+      const famSel = document.getElementById('netConnectFamily');
+      const invCrew = document.getElementById('netInviteCrew');
+      if (crewSel) crewSel.innerHTML = crewOpts;
+      if (famSel) famSel.innerHTML = famOpts;
+      if (invCrew) invCrew.innerHTML = crewOpts;
+    }
+
+    function filteredNetworkData(data) {
+      const q = String(document.getElementById('familyNetSearch')?.value || '').trim().toLowerCase();
+      const st = String(document.getElementById('familyNetStatusFilter')?.value || 'all');
+      let connections = (data.connections || []).slice();
+      let invitations = (data.invitations || []).slice();
+      if (st !== 'all') {
+        connections = connections.filter((c) => c.status === st);
+        if (st === 'pending') invitations = invitations.filter((i) => i.status === 'pending');
+        else if (st === 'declined') invitations = invitations.filter((i) => i.status === 'declined');
+        else if (st === 'approved') invitations = invitations.filter((i) => i.status === 'accepted');
+      }
+      if (q) {
+        const hit = (s) => String(s || '').toLowerCase().includes(q);
+        connections = connections.filter((c) =>
+          hit(c.crew_full_name) || hit(c.crew_email) || hit(c.family_full_name) || hit(c.family_email) || hit(c.crew_company),
+        );
+        invitations = invitations.filter((i) =>
+          hit(i.crew_full_name) || hit(i.crew_email) || hit(i.family_email) || hit(i.matched_family_full_name),
+        );
+      }
+      return { connections, invitations };
+    }
+
+    function renderFamilyNetworkMap(data) {
+      const svg = document.getElementById('familyNetSvg');
+      const hint = document.getElementById('familyNetMapHint');
+      if (!svg) return;
+      const { connections, invitations } = filteredNetworkData(data);
+      const approved = connections.filter((c) => c.status === 'approved');
+      const pendingConn = connections.filter((c) => c.status === 'pending');
+      const pendingInv = invitations.filter((i) => i.status === 'pending');
+      // Focus map on active relationships
+      const edges = approved.concat(pendingConn).concat(
+        pendingInv.map((i) => ({
+          id: 'inv-' + i.id,
+          status: 'invite',
+          crew_user_id: i.crew_user_id,
+          crew_full_name: i.crew_full_name,
+          crew_email: i.crew_email,
+          family_user_id: i.matched_family_user_id,
+          family_full_name: i.matched_family_full_name || i.family_email,
+          family_email: i.family_email,
+          invite: true,
+        })),
+      );
+      const nodeMap = new Map();
+      for (const e of edges) {
+        if (e.crew_user_id) {
+          nodeMap.set(e.crew_user_id, {
+            id: e.crew_user_id,
+            role: 'crew',
+            full_name: e.crew_full_name,
+            email: e.crew_email,
+          });
+        }
+        const famKey = e.family_user_id || ('email:' + String(e.family_email || e.id));
+        nodeMap.set(famKey, {
+          id: famKey,
+          role: 'family',
+          full_name: e.family_full_name,
+          email: e.family_email,
+          virtual: !e.family_user_id,
+        });
+        e._famKey = famKey;
+      }
+      const crews = [...nodeMap.values()].filter((n) => n.role === 'crew');
+      const fams = [...nodeMap.values()].filter((n) => n.role === 'family');
+      const W = 900, H = 420;
+      const pos = new Map();
+      const crewCount = Math.max(crews.length, 1);
+      crews.forEach((c, i) => {
+        const x = 80 + (crewCount === 1 ? W / 2 - 80 : (i / Math.max(crewCount - 1, 1)) * (W - 160));
+        const y = 70 + (i % 2) * 40;
+        pos.set(c.id, { x, y });
+      });
+      // Place family near their first crew edge
+      const famEdges = new Map();
+      for (const e of edges) {
+        if (!e.crew_user_id || !e._famKey) continue;
+        const arr = famEdges.get(e._famKey) || [];
+        arr.push(e.crew_user_id);
+        famEdges.set(e._famKey, arr);
+      }
+      let orphanIdx = 0;
+      fams.forEach((f) => {
+        const linked = famEdges.get(f.id) || [];
+        const crewPos = linked.map((id) => pos.get(id)).filter(Boolean);
+        if (crewPos.length) {
+          const ax = crewPos.reduce((s, p) => s + p.x, 0) / crewPos.length;
+          const spread = (orphanIdx % 5) - 2;
+          pos.set(f.id, { x: Math.min(W - 60, Math.max(60, ax + spread * 36)), y: 250 + (orphanIdx % 3) * 48 });
+        } else {
+          pos.set(f.id, { x: 80 + (orphanIdx % 8) * 100, y: 300 });
+        }
+        orphanIdx += 1;
+      });
+
+      if (!edges.length) {
+        svg.innerHTML = '<text x="450" y="210" text-anchor="middle" class="net-node-label" style="font-size:14px;fill:#64748b;">Gösterilecek bağlantı/davet yok</text>';
+        if (hint) hint.textContent = 'Filtreleri temizleyin veya yeni bağlantı kurun.';
+        return;
+      }
+
+      const lines = edges.map((e) => {
+        const a = pos.get(e.crew_user_id);
+        const b = pos.get(e._famKey);
+        if (!a || !b) return '';
+        const cls = e.invite ? 'net-edge-invite' : ('net-edge-' + (e.status || 'pending'));
+        return '<line x1="' + a.x + '" y1="' + a.y + '" x2="' + b.x + '" y2="' + b.y + '" class="' + cls + '" stroke-width="2" />';
+      }).join('');
+
+      const circles = [...nodeMap.values()].map((n) => {
+        const p = pos.get(n.id);
+        if (!p) return '';
+        const fill = n.role === 'crew' ? '#2563eb' : '#7c3aed';
+        const r = n.role === 'crew' ? 14 : 10;
+        const label = netLabel(n);
+        const short = label.length > 22 ? label.slice(0, 20) + '…' : label;
+        return (
+          '<g>' +
+          '<circle cx="' + p.x + '" cy="' + p.y + '" r="' + r + '" fill="' + fill + '" opacity="0.92" />' +
+          '<text x="' + p.x + '" y="' + (p.y + r + 14) + '" text-anchor="middle" class="net-node-label">' + netEsc(short) + '</text>' +
+          '</g>'
+        );
+      }).join('');
+
+      svg.innerHTML = lines + circles;
+      if (hint) {
+        hint.textContent =
+          edges.length + ' ilişki · ' + crews.length + ' crew · ' + fams.length + ' aile/davet düğümü görünüyor.';
+      }
+    }
+
+    function renderFamilyNetworkTables(data) {
+      const { connections, invitations } = filteredNetworkData(data);
+      const connBody = document.getElementById('familyNetConnBody');
+      const invBody = document.getElementById('familyNetInvBody');
+      if (connBody) {
+        if (!connections.length) {
+          connBody.innerHTML = '<tr><td colspan="5" class="mini">Bağlantı yok.</td></tr>';
+        } else {
+          connBody.innerHTML = connections.map((c) => {
+            const crew = netEsc(netLabel({ full_name: c.crew_full_name, email: c.crew_email, id: c.crew_user_id }));
+            const fam = netEsc(netLabel({ full_name: c.family_full_name, email: c.family_email, id: c.family_user_id }));
+            const when = c.updated_at || c.created_at || '';
+            const actions = [];
+            if (c.status === 'pending') {
+              actions.push('<button type="button" class="btnSmall btnPrimary" data-net-act="approve-conn" data-id="' + netEsc(c.id) + '">Onayla</button>');
+              actions.push('<button type="button" class="btnSmall" data-net-act="decline-conn" data-id="' + netEsc(c.id) + '">Reddet</button>');
+            } else if (c.status === 'declined') {
+              actions.push('<button type="button" class="btnSmall btnPrimary" data-net-act="approve-conn" data-id="' + netEsc(c.id) + '">Onayla</button>');
+            }
+            actions.push('<button type="button" class="btnSmall btnDanger" data-net-act="disconnect" data-id="' + netEsc(c.id) + '">Kopar</button>');
+            return (
+              '<tr>' +
+              '<td><strong>' + crew + '</strong><div class="mini">' + netEsc(c.crew_email || '') + (c.crew_company ? ' · ' + netEsc(c.crew_company) : '') + '</div></td>' +
+              '<td><strong>' + fam + '</strong><div class="mini">' + netEsc(c.family_email || '') + '</div></td>' +
+              '<td>' + netStatusBadge(c.status) + '</td>' +
+              '<td class="mini">' + netEsc(when ? new Date(when).toLocaleString() : '—') + '</td>' +
+              '<td><div class="net-actions">' + actions.join('') + '</div></td>' +
+              '</tr>'
+            );
+          }).join('');
+        }
+      }
+      if (invBody) {
+        if (!invitations.length) {
+          invBody.innerHTML = '<tr><td colspan="6" class="mini">Davet yok.</td></tr>';
+        } else {
+          invBody.innerHTML = invitations.map((i) => {
+            const crew = netEsc(netLabel({ full_name: i.crew_full_name, email: i.crew_email, id: i.crew_user_id }));
+            const matched = i.matched_family_user_id
+              ? netEsc(netLabel({ full_name: i.matched_family_full_name, id: i.matched_family_user_id }))
+              : '<span class="mini">Kayıtlı kullanıcı yok</span>';
+            const actions = [];
+            if (i.status === 'pending') {
+              if (i.matched_family_user_id) {
+                actions.push('<button type="button" class="btnSmall btnPrimary" data-net-act="accept-inv" data-id="' + netEsc(i.id) + '" data-family-id="' + netEsc(i.matched_family_user_id) + '">Kabul</button>');
+              } else {
+                actions.push('<button type="button" class="btnSmall btnPrimary" data-net-act="accept-inv-pick" data-id="' + netEsc(i.id) + '">Kabul (aile seç)</button>');
+              }
+              actions.push('<button type="button" class="btnSmall btnDanger" data-net-act="decline-inv" data-id="' + netEsc(i.id) + '">Reddet</button>');
+            } else {
+              actions.push('<span class="mini">—</span>');
+            }
+            return (
+              '<tr>' +
+              '<td><strong>' + crew + '</strong><div class="mini">' + netEsc(i.crew_email || '') + '</div></td>' +
+              '<td>' + netEsc(i.family_email || '') + '</td>' +
+              '<td>' + matched + '</td>' +
+              '<td>' + netStatusBadge(i.status) + '</td>' +
+              '<td class="mini">' + netEsc(i.created_at ? new Date(i.created_at).toLocaleString() : '—') + '</td>' +
+              '<td><div class="net-actions">' + actions.join('') + '</div></td>' +
+              '</tr>'
+            );
+          }).join('');
+        }
+      }
+    }
+
+    function renderFamilyNetwork(data) {
+      familyNetworkCache = data;
+      const s = data.summary || {};
+      const setTxt = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+      setTxt('netKpiCrew', s.crew_nodes ?? '—');
+      setTxt('netKpiFamily', s.family_nodes ?? '—');
+      setTxt('netKpiApproved', s.approved ?? '—');
+      setTxt('netKpiPendingConn', s.pending_connections ?? '—');
+      setTxt('netKpiPendingInv', s.pending_invitations ?? '—');
+      fillNetUserSelects(data.nodes || []);
+      renderFamilyNetworkMap(data);
+      renderFamilyNetworkTables(data);
+      const hint = document.getElementById('familyNetApiHint');
+      if (hint) {
+        hint.textContent =
+          'Toplam ' + (s.connections ?? 0) + ' bağlantı, ' + (s.invitations ?? 0) + ' davet yüklendi.';
+      }
+    }
+
+    async function loadFamilyNetwork() {
+      const hint = document.getElementById('familyNetApiHint');
+      if (hint) hint.textContent = 'Aile ağı yükleniyor…';
+      const json = await callAdminAction('list_family_network', {});
+      renderFamilyNetwork(json);
+      return json;
+    }
+
+    async function netActWithForceRetry(action, payload, confirmMsg) {
+      if (confirmMsg && !confirm(confirmMsg)) return null;
+      try {
+        return await callAdminAction(action, payload);
+      } catch (err) {
+        const msg = String(err?.message || err);
+        if (/capacity|Family member limit|slot/i.test(msg)) {
+          if (confirm(msg + '\n\nSlot limitini yok sayarak (force) devam edilsin mi?')) {
+            return await callAdminAction(action, { ...payload, force: true });
+          }
+        }
+        throw err;
+      }
+    }
+
+    document.getElementById('btnFamilyNetReload')?.addEventListener('click', () => {
+      loadFamilyNetwork().catch((err) => setStatus(String(err?.message || err), 'bad'));
+    });
+    document.getElementById('familyNetSearch')?.addEventListener('input', () => {
+      if (familyNetworkCache) {
+        renderFamilyNetworkMap(familyNetworkCache);
+        renderFamilyNetworkTables(familyNetworkCache);
+      }
+    });
+    document.getElementById('familyNetStatusFilter')?.addEventListener('change', () => {
+      if (familyNetworkCache) {
+        renderFamilyNetworkMap(familyNetworkCache);
+        renderFamilyNetworkTables(familyNetworkCache);
+      }
+    });
+    document.getElementById('btnNetConnect')?.addEventListener('click', async () => {
+      const msg = document.getElementById('netConnectStatusMsg');
+      const crew_user_id = document.getElementById('netConnectCrew')?.value || '';
+      const family_user_id = document.getElementById('netConnectFamily')?.value || '';
+      const status = document.getElementById('netConnectStatus')?.value || 'approved';
+      const force = !!document.getElementById('netConnectForce')?.checked;
+      if (!crew_user_id || !family_user_id) {
+        if (msg) msg.textContent = 'Crew ve aile seçin.';
+        return;
+      }
+      try {
+        if (msg) msg.textContent = 'Bağlanıyor…';
+        await netActWithForceRetry('admin_connect_users', { crew_user_id, family_user_id, status, force }, null);
+        if (msg) msg.textContent = 'Bağlandı.';
+        await loadFamilyNetwork();
+        setStatus('Bağlantı kaydedildi', 'ok');
+      } catch (err) {
+        if (msg) msg.textContent = String(err?.message || err);
+        setStatus(String(err?.message || err), 'bad');
+      }
+    });
+    document.getElementById('btnNetInvite')?.addEventListener('click', async () => {
+      const msg = document.getElementById('netInviteStatusMsg');
+      const crew_user_id = document.getElementById('netInviteCrew')?.value || '';
+      const family_email = String(document.getElementById('netInviteEmail')?.value || '').trim();
+      if (!crew_user_id || !family_email) {
+        if (msg) msg.textContent = 'Crew ve e-posta gerekli.';
+        return;
+      }
+      try {
+        if (msg) msg.textContent = 'Gönderiliyor…';
+        await callAdminAction('admin_send_invitation', { crew_user_id, family_email });
+        if (msg) msg.textContent = 'Davet oluşturuldu.';
+        const emailInput = document.getElementById('netInviteEmail');
+        if (emailInput) emailInput.value = '';
+        await loadFamilyNetwork();
+        setStatus('Davet gönderildi', 'ok');
+      } catch (err) {
+        if (msg) msg.textContent = String(err?.message || err);
+        setStatus(String(err?.message || err), 'bad');
+      }
+    });
+    document.getElementById('familyNetworkView')?.addEventListener('click', async (ev) => {
+      const t = ev.target && ev.target.closest ? ev.target.closest('[data-net-act]') : null;
+      if (!t) return;
+      const act = t.getAttribute('data-net-act');
+      const id = t.getAttribute('data-id');
+      if (!act || !id) return;
+      try {
+        if (act === 'disconnect') {
+          if (!confirm('Bu bağlantı koparılsın mı?')) return;
+          await callAdminAction('admin_disconnect_users', { connection_id: id });
+        } else if (act === 'approve-conn') {
+          await netActWithForceRetry('admin_set_connection_status', { connection_id: id, status: 'approved' }, null);
+        } else if (act === 'decline-conn') {
+          await callAdminAction('admin_set_connection_status', { connection_id: id, status: 'declined' });
+        } else if (act === 'accept-inv') {
+          const family_user_id = t.getAttribute('data-family-id') || '';
+          await netActWithForceRetry('admin_accept_invitation', { invitation_id: id, family_user_id }, null);
+        } else if (act === 'accept-inv-pick') {
+          const famSel = document.getElementById('netConnectFamily');
+          const family_user_id = famSel?.value || '';
+          if (!family_user_id) {
+            alert('Önce sağdaki “Aile” listesinden kullanıcı seçin, sonra tekrar Kabul’a basın.');
+            return;
+          }
+          if (!confirm('Davet, seçili aile kullanıcısına bağlanacak. Devam?')) return;
+          await netActWithForceRetry('admin_accept_invitation', { invitation_id: id, family_user_id }, null);
+        } else if (act === 'decline-inv') {
+          if (!confirm('Davet reddedilsin mi?')) return;
+          await callAdminAction('admin_decline_invitation', { invitation_id: id });
+        } else {
+          return;
+        }
+        await loadFamilyNetwork();
+        setStatus('Aile ağı güncellendi', 'ok');
+      } catch (err) {
+        setStatus(String(err?.message || err), 'bad');
+      }
+    });
+
+
     function switchView(viewId) {
       els.views.forEach((v) => v.classList.toggle('active', v.id === viewId));
       els.navButtons.forEach((b) => b.classList.toggle('active', b.dataset.view === viewId));
@@ -4689,6 +5249,9 @@
       }
       if (viewId === 'occupationCodesView' && accessToken) {
         loadOccupationCodes().catch((err) => setStatus(String(err?.message || err), 'bad'));
+      }
+      if (viewId === 'familyNetworkView' && accessToken) {
+        loadFamilyNetwork().catch((err) => setStatus(String(err?.message || err), 'bad'));
       }
     }
     function switchFlightsSubview(subviewId) {
