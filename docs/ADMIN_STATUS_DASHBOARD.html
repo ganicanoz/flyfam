@@ -9,7 +9,7 @@
   <meta http-equiv="Expires" content="0" />
   <script>
     (function () {
-      var UI = '36';
+      var UI = '38';
       var p = new URLSearchParams(location.search);
       if (p.get('ui') !== UI) {
         p.set('ui', UI);
@@ -840,6 +840,7 @@
         <button class="nav-btn" data-view="broadcastView">Broadcast</button>
         <button class="nav-btn" data-view="usersView">Users</button>
         <button class="nav-btn" data-view="flightsView">Flights</button>
+        <button class="nav-btn" data-view="flightControlView">Uçuş Kontrol</button>
         <button class="nav-btn" data-view="historyView">History</button>
         <button class="nav-btn" data-view="usageView">Kota</button>
         <button class="nav-btn" data-view="pdfRosterView">PDF Roster</button>
@@ -1393,6 +1394,47 @@
         </div>
       </section>
 
+      <section id="flightControlView" class="view">
+        <div class="panel">
+          <h3 style="margin:0 0 8px;">Uçuş Kontrol</h3>
+          <p class="mini" style="margin-top:0;">
+            Manuel uçuş ekleme / lookup pratiği. Edge <code>flight-lookup</code> (<code>by_number</code> + <code>debug</code>) —
+            uygulama alanları ve provider ham özetleri yan yana.
+          </p>
+          <div class="users-toolbar" style="margin-bottom:12px; align-items:end; flex-wrap:wrap; gap:10px;">
+            <div style="flex:1.2; min-width:200px;">
+              <label class="mini">Kullanıcı (Custom ID / isim / email)</label>
+              <input id="fcUserQuery" type="search" placeholder="00012 veya Akif…" list="fcUserDatalist" autocomplete="off" />
+              <datalist id="fcUserDatalist"></datalist>
+            </div>
+            <div>
+              <label class="mini">Uçuş no</label>
+              <input id="fcFlightNo" type="text" placeholder="XQ596 / PC1234" style="min-width:120px;" />
+            </div>
+            <div>
+              <label class="mini">Tarih</label>
+              <input id="fcFlightDate" type="date" />
+            </div>
+            <div style="align-self:end;">
+              <button type="button" id="btnFcLookup" class="btnPrimary">Sorgula</button>
+              <button type="button" id="btnFcClear">Temizle</button>
+              <span id="fcStatus" class="mini"></span>
+            </div>
+          </div>
+          <p id="fcUserHint" class="mini" style="margin-top:-4px;"></p>
+          <div class="row" style="gap:12px; align-items:stretch; flex-wrap:wrap;">
+            <div class="panel" style="flex:1; min-width:280px; margin:0;">
+              <h3 style="margin:0 0 6px;">Uygulama gibi (info)</h3>
+              <div id="fcAppView" class="mini" style="max-height:420px; overflow:auto; background:#f8fafc; padding:10px; border-radius:8px; border:1px solid var(--line);">Sorgula ile sonuç gelir.</div>
+            </div>
+            <div class="panel" style="flex:1; min-width:280px; margin:0;">
+              <h3 style="margin:0 0 6px;">Ham / provider debug</h3>
+              <pre id="fcRawView" class="mini" style="max-height:420px; overflow:auto; white-space:pre-wrap; background:#0f172a; color:#e2e8f0; padding:10px; border-radius:8px; margin:0;">—</pre>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section id="occupationCodesView" class="view">
         <div class="panel">
           <h3 style="margin:0 0 8px;">Görev / Occupation Kodları</h3>
@@ -1402,6 +1444,46 @@
             yeni etiketleri alır (store build gerekmez). Sınıflandırma (nöbet/off/sim heuristic’leri) hâlâ kodda;
             Deploy öncelikle <em>görünen isimleri</em> günceller.
           </p>
+          <div class="submenu" style="margin-bottom:12px;">
+            <button type="button" class="sub-btn active" data-occ-tab="occCatalogTab">Katalog</button>
+            <button type="button" class="sub-btn" data-occ-tab="occSuggestTab">Öneri kuyruğu</button>
+          </div>
+          <div id="occSuggestTab" class="occ-tab" style="display:none;">
+            <div class="users-toolbar" style="margin-bottom:10px; gap:10px; align-items:end;">
+              <div>
+                <label class="mini">Durum</label>
+                <select id="occSugStatus">
+                  <option value="pending" selected>pending</option>
+                  <option value="approved">approved</option>
+                  <option value="rejected">rejected</option>
+                  <option value="all">Tümü</option>
+                </select>
+              </div>
+              <button type="button" id="btnOccSugReload" class="btnPrimary">Yenile</button>
+              <span id="occSugStatusLine" class="mini"></span>
+            </div>
+            <div class="users-table-wrap">
+              <table class="users-table" id="occSugTable">
+                <thead>
+                  <tr>
+                    <th>Kod</th>
+                    <th>Airline</th>
+                    <th>TR</th>
+                    <th>EN</th>
+                    <th>Kategori</th>
+                    <th>Kullanıcı</th>
+                    <th>Not</th>
+                    <th>Durum</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="occSugBody">
+                  <tr><td colspan="9" class="mini">Yenile ile yükle.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div id="occCatalogTab" class="occ-tab">
           <div class="users-toolbar" style="margin-bottom:10px; flex-wrap:wrap; gap:10px; align-items:end;">
             <div>
               <label class="mini">Ara</label>
@@ -1464,6 +1546,7 @@
                 <tr><td colspan="11" class="mini">Yüklemek için Giriş + Yenile.</td></tr>
               </tbody>
             </table>
+          </div>
           </div>
         </div>
       </section>
@@ -2518,7 +2601,7 @@
           let hint = '';
           if (location.protocol === 'file:') {
             hint =
-              ' Paneli file:// ile açıyorsun — terminalde: cd docs && python3 -m http.server 8765 sonra http://localhost:8765/ADMIN_STATUS_DASHBOARD.html?ui=36';
+              ' Paneli file:// ile açıyorsun — terminalde: cd docs && python3 -m http.server 8765 sonra http://localhost:8765/ADMIN_STATUS_DASHBOARD.html?ui=38';
           } else {
             hint = ' Supabase URL ve anon key kontrol et; VPN/eklenti engeli olabilir.';
           }
@@ -2866,6 +2949,84 @@
         'ok',
       );
       await loadOccupationCodes();
+    }
+
+    async function loadOccupationSuggestions() {
+      const st = document.getElementById('occSugStatus')?.value || 'pending';
+      const line = document.getElementById('occSugStatusLine');
+      const body = document.getElementById('occSugBody');
+      if (line) line.textContent = 'Yükleniyor…';
+      const json = await callAdminAction('list_occupation_suggestions', { status: st });
+      const rows = Array.isArray(json.suggestions) ? json.suggestions : [];
+      if (line) line.textContent = rows.length + ' öneri';
+      if (!body) return;
+      if (!rows.length) {
+        body.innerHTML = '<tr><td colspan="9" class="mini">Kayıt yok.</td></tr>';
+        return;
+      }
+      body.innerHTML = rows
+        .map((s) => {
+          const pending = String(s.status) === 'pending';
+          const who =
+            (s.user_custom_id ? s.user_custom_id + ' · ' : '') +
+            (s.user_full_name || '-') +
+            (s.user_email ? ' · ' + s.user_email : '');
+          const actions = pending
+            ? '<button type="button" class="btnPrimary btnSmall" data-action="occ-sug-approve" data-id="' +
+              escapeAttr(s.id) +
+              '">Onayla+Deploy</button> ' +
+              '<button type="button" class="btnDanger btnSmall" data-action="occ-sug-reject" data-id="' +
+              escapeAttr(s.id) +
+              '">Reddet</button>'
+            : '—';
+          return (
+            '<tr>' +
+            '<td><strong>' +
+            escapeHtml(s.code || '') +
+            '</strong></td>' +
+            '<td class="mini">' +
+            escapeHtml(s.crew_airline_icao || '—') +
+            '</td>' +
+            '<td>' +
+            escapeHtml(s.label_tr || '') +
+            '</td>' +
+            '<td class="mini">' +
+            escapeHtml(s.label_en || '—') +
+            '</td>' +
+            '<td class="mini">' +
+            escapeHtml(s.category || '') +
+            '</td>' +
+            '<td class="mini">' +
+            escapeHtml(who) +
+            '</td>' +
+            '<td class="mini">' +
+            escapeHtml(s.note || '—') +
+            '</td>' +
+            '<td class="mini">' +
+            escapeHtml(s.status || '') +
+            '</td>' +
+            '<td>' +
+            actions +
+            '</td>' +
+            '</tr>'
+          );
+        })
+        .join('');
+    }
+
+    async function reviewOccupationSuggestion(id, decision) {
+      const json = await callAdminAction('review_occupation_suggestion', {
+        suggestion_id: id,
+        decision,
+      });
+      setStatus(
+        decision === 'approve'
+          ? 'Öneri onaylandı + Deploy v' + (json.published_version ?? '?')
+          : 'Öneri reddedildi',
+        'ok',
+      );
+      await loadOccupationSuggestions();
+      if (decision === 'approve') await loadOccupationCodes();
     }
 
     function formatFr24SyncError(json, httpStatus) {
@@ -3363,16 +3524,186 @@
         apikey: anon,
       };
       if (accessToken) headers.authorization = 'Bearer ' + accessToken;
+      const today = new Date();
+      const ymd = (d) =>
+        d.getFullYear() +
+        '-' +
+        String(d.getMonth() + 1).padStart(2, '0') +
+        '-' +
+        String(d.getDate()).padStart(2, '0');
+      const localToday = ymd(today);
+      const tmr = new Date(today);
+      tmr.setDate(tmr.getDate() + 1);
+      const localTomorrow = ymd(tmr);
       const res = await fetch(url, {
         method: 'POST',
         headers,
-        body: JSON.stringify({ flightNumber: flightNo, flightDate }),
+        body: JSON.stringify({
+          mode: 'by_number',
+          flight_number: flightNo,
+          flight_date: flightDate,
+          local_today: localToday,
+          local_tomorrow: localTomorrow,
+        }),
       });
       if (!res.ok) {
         const txt = await res.text();
         throw new Error('flight-lookup failed: ' + res.status + ' ' + txt);
       }
       return await res.json();
+    }
+
+    function paintFcAppInfo(info) {
+      const host = document.getElementById('fcAppView');
+      if (!host) return;
+      if (!info || typeof info !== 'object') {
+        host.textContent = 'info yok (null)';
+        return;
+      }
+      const rows = [
+        ['origin', info.origin],
+        ['destination', info.destination],
+        ['originCity', info.originCity],
+        ['destinationCity', info.destinationCity],
+        ['depTime', info.depTime],
+        ['arrTime', info.arrTime],
+        ['scheduled_departure_utc', info.scheduled_departure_utc],
+        ['scheduled_arrival_utc', info.scheduled_arrival_utc],
+        ['actual_departure_utc', info.actual_departure_utc],
+        ['actual_arrival_utc', info.actual_arrival_utc],
+        ['flightStatus', info.flightStatus],
+        ['delayed', info.delayed],
+        ['delayDepMin', info.delayDepMin],
+        ['delayArrMin', info.delayArrMin],
+        ['aircraftRegistration', info.aircraftRegistration],
+        ['aircraftType', info.aircraftType],
+        ['airline', info.airline],
+        ['flightEnded', info.flightEnded],
+        ['fr24Id', info.fr24Id],
+        ['callsign', info.callsign],
+      ];
+      host.innerHTML =
+        '<table class="users-table" style="font-size:12px;"><tbody>' +
+        rows
+          .map(
+            ([k, v]) =>
+              '<tr><td style="width:40%;font-weight:600;">' +
+              escapeHtml(k) +
+              '</td><td>' +
+              escapeHtml(v == null || v === '' ? '—' : String(v)) +
+              '</td></tr>',
+          )
+          .join('') +
+        '</tbody></table>';
+    }
+
+    function resolveFcUser(q) {
+      const raw = String(q || '').trim().toLowerCase();
+      if (!raw) return null;
+      const users = lastUsers || [];
+      const byCustom = users.find((u) => String(u.custom_id || '').toLowerCase() === raw);
+      if (byCustom) return byCustom;
+      const byId = users.find((u) => String(u.id || '').toLowerCase() === raw);
+      if (byId) return byId;
+      const byEmail = users.find((u) => String(u.email || '').toLowerCase() === raw);
+      if (byEmail) return byEmail;
+      const byName = users.filter((u) => String(u.full_name || '').toLowerCase().includes(raw));
+      if (byName.length === 1) return byName[0];
+      if (byName.length > 1) return { ambiguous: byName };
+      return null;
+    }
+
+    function refreshFcUserDatalist() {
+      const dl = document.getElementById('fcUserDatalist');
+      if (!dl) return;
+      dl.innerHTML = (lastUsers || [])
+        .slice(0, 400)
+        .map((u) => {
+          const label =
+            (u.custom_id || '—') +
+            ' · ' +
+            (u.full_name || '-') +
+            ' · ' +
+            (u.email || '-');
+          return '<option value="' + escapeAttr(u.custom_id || u.email || u.id || '') + '">' + escapeHtml(label) + '</option>';
+        })
+        .join('');
+    }
+
+    async function runFlightControlLookup() {
+      const statusEl = document.getElementById('fcStatus');
+      const hintEl = document.getElementById('fcUserHint');
+      const rawEl = document.getElementById('fcRawView');
+      const flightNo = String(document.getElementById('fcFlightNo')?.value || '')
+        .replace(/\s/g, '')
+        .trim()
+        .toUpperCase();
+      const flightDate = String(document.getElementById('fcFlightDate')?.value || '').trim();
+      const userQ = document.getElementById('fcUserQuery')?.value || '';
+      if (!flightNo || flightDate.length !== 10) {
+        if (statusEl) statusEl.textContent = 'Uçuş no + tarih gerekli';
+        return;
+      }
+      const resolved = resolveFcUser(userQ);
+      if (hintEl) {
+        if (!userQ.trim()) hintEl.textContent = 'Kullanıcı seçilmedi (opsiyonel bağlam).';
+        else if (resolved && resolved.ambiguous) {
+          hintEl.textContent = 'Birden fazla eşleşme: ' + resolved.ambiguous.map((u) => u.full_name).join(', ');
+        } else if (resolved) {
+          hintEl.textContent =
+            'Bağlam: Custom ' +
+            (resolved.custom_id || '—') +
+            ' · ' +
+            (resolved.full_name || '-') +
+            ' · ' +
+            (resolved.email || '-') +
+            ' · airline ' +
+            (resolved.airline_icao || resolved.company_name || '—');
+        } else {
+          hintEl.textContent = 'Kullanıcı bulunamadı (yine de lookup yapılır).';
+        }
+      }
+      if (statusEl) statusEl.textContent = 'Sorgulanıyor…';
+      const url = adminUrl() + '/functions/v1/flight-lookup';
+      const anon = adminAnonKey();
+      const headers = { 'Content-Type': 'application/json', apikey: anon };
+      if (accessToken) headers.authorization = 'Bearer ' + accessToken;
+      const today = new Date();
+      const ymd = (d) =>
+        d.getFullYear() +
+        '-' +
+        String(d.getMonth() + 1).padStart(2, '0') +
+        '-' +
+        String(d.getDate()).padStart(2, '0');
+      const tmr = new Date(today);
+      tmr.setDate(tmr.getDate() + 1);
+      try {
+        const res = await fetch(url, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            mode: 'by_number',
+            flight_number: flightNo,
+            flight_date: flightDate,
+            local_today: ymd(today),
+            local_tomorrow: ymd(tmr),
+            debug: true,
+          }),
+        });
+        const json = await res.json().catch(() => null);
+        if (!res.ok) {
+          throw new Error((json && json.error) || 'HTTP ' + res.status);
+        }
+        paintFcAppInfo(json && json.info);
+        if (rawEl) rawEl.textContent = JSON.stringify(json, null, 2);
+        if (statusEl) {
+          statusEl.textContent = json && json.info ? 'OK · cached=' + String(!!json.cached) : 'info null';
+        }
+      } catch (err) {
+        if (statusEl) statusEl.textContent = String(err?.message || err);
+        if (rawEl) rawEl.textContent = String(err?.message || err);
+        paintFcAppInfo(null);
+      }
     }
 
     function renderUsage(rows) {
@@ -3814,6 +4145,7 @@
       renderPhaseRefreshHealth(data.health || {});
       const userRows = data.users?.rows || [];
       renderUsers(userRows);
+      refreshFcUserDatalist();
       if (els.usersApiHint) {
         const sample = userRows[0];
         const apiHasConnections = !sample || Array.isArray(sample.connections);
@@ -4617,6 +4949,26 @@
       if (els.pdfPathNote) els.pdfPathNote.value = '';
       clearPdfSimResults();
     });
+    document.getElementById('btnFcLookup')?.addEventListener('click', () => {
+      void runFlightControlLookup();
+    });
+    document.getElementById('btnFcClear')?.addEventListener('click', () => {
+      const q = document.getElementById('fcUserQuery');
+      const n = document.getElementById('fcFlightNo');
+      const d = document.getElementById('fcFlightDate');
+      const s = document.getElementById('fcStatus');
+      const h = document.getElementById('fcUserHint');
+      const r = document.getElementById('fcRawView');
+      if (q) q.value = '';
+      if (n) n.value = '';
+      if (d) d.value = '';
+      if (s) s.textContent = '';
+      if (h) h.textContent = '';
+      if (r) r.textContent = '—';
+      paintFcAppInfo(null);
+      const host = document.getElementById('fcAppView');
+      if (host) host.textContent = 'Sorgula ile sonuç gelir.';
+    });
     els.pdfFileInput?.addEventListener('change', () => {
       const f = els.pdfFileInput?.files?.[0];
       if (f && els.pdfPathNote && !els.pdfPathNote.value.trim()) {
@@ -4625,6 +4977,46 @@
     });
     els.btnOccReload?.addEventListener('click', () => {
       void loadOccupationCodes().catch((err) => setStatus(String(err?.message || err), 'bad'));
+    });
+    document.getElementById('btnOccSugReload')?.addEventListener('click', () => {
+      void loadOccupationSuggestions().catch((err) => setStatus(String(err?.message || err), 'bad'));
+    });
+    document.getElementById('occSugStatus')?.addEventListener('change', () => {
+      void loadOccupationSuggestions().catch(() => {});
+    });
+    document.querySelectorAll('[data-occ-tab]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const tab = btn.getAttribute('data-occ-tab');
+        document.querySelectorAll('#occupationCodesView [data-occ-tab]').forEach((b) => {
+          b.classList.toggle('active', b.getAttribute('data-occ-tab') === tab);
+        });
+        document.getElementById('occCatalogTab')?.style.setProperty('display', tab === 'occCatalogTab' ? '' : 'none');
+        document.getElementById('occSuggestTab')?.style.setProperty('display', tab === 'occSuggestTab' ? '' : 'none');
+        if (tab === 'occSuggestTab') {
+          void loadOccupationSuggestions().catch(() => {});
+        }
+      });
+    });
+    document.getElementById('occSugBody')?.addEventListener('click', (ev) => {
+      const t = ev.target;
+      if (!(t instanceof HTMLElement)) return;
+      const btn = t.closest('button[data-action]');
+      if (!btn) return;
+      const id = btn.getAttribute('data-id');
+      const act = btn.getAttribute('data-action');
+      if (!id) return;
+      if (act === 'occ-sug-approve') {
+        if (!confirm('Onayla ve Deploy? (' + id.slice(0, 8) + '…)')) return;
+        void reviewOccupationSuggestion(id, 'approve').catch((err) =>
+          setStatus(String(err?.message || err), 'bad'),
+        );
+      }
+      if (act === 'occ-sug-reject') {
+        if (!confirm('Reddet?')) return;
+        void reviewOccupationSuggestion(id, 'reject').catch((err) =>
+          setStatus(String(err?.message || err), 'bad'),
+        );
+      }
     });
     els.btnOccAdd?.addEventListener('click', (ev) => {
       ev.preventDefault();
@@ -4689,6 +5081,20 @@
       }
       if (viewId === 'occupationCodesView' && accessToken) {
         loadOccupationCodes().catch((err) => setStatus(String(err?.message || err), 'bad'));
+        loadOccupationSuggestions().catch(() => {});
+      }
+      if (viewId === 'flightControlView') {
+        refreshFcUserDatalist();
+        const dateEl = document.getElementById('fcFlightDate');
+        if (dateEl && !dateEl.value) {
+          const d = new Date();
+          dateEl.value =
+            d.getFullYear() +
+            '-' +
+            String(d.getMonth() + 1).padStart(2, '0') +
+            '-' +
+            String(d.getDate()).padStart(2, '0');
+        }
       }
     }
     function switchFlightsSubview(subviewId) {

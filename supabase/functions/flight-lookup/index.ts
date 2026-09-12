@@ -1,8 +1,13 @@
 // Public lookup endpoint (auth optional). Anahtarlar yalnız Edge secret.
 // mode: roster | by_number | fr24_summary
+// debug: true → by_number için provider ham özetleri (cache atlanır)
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { fetchFlightByNumberEdge, fetchFromFlightradar24Edge } from '../_shared/flightByNumberEdge.ts';
+import {
+  fetchFlightByNumberEdge,
+  fetchFromFlightradar24Edge,
+  type FlightLookupDebugEntry,
+} from '../_shared/flightByNumberEdge.ts';
 import { getCachedPayload, setCachedPayload } from '../_shared/providerResponseCache.ts';
 import { loadCooldownUntilByProvider } from '../_shared/providerCooldown.ts';
 import { rosterPollCacheKey } from '../_shared/rosterPollCacheKey.ts';
@@ -22,7 +27,8 @@ function cacheKeyByNumber(
   localTomorrow: string,
 ): string {
   const n = flightNumber.replace(/\s/g, '').trim().toUpperCase();
-  return `flight_by_number:v1:${n}:${flightDate}:${localToday}:${localTomorrow}`;
+  // v2: AeroDataBox scheduledTime.utc tercih — eski yanlış yerel-as-Z cache kırılır
+  return `flight_by_number:v2:${n}:${flightDate}:${localToday}:${localTomorrow}`;
 }
 
 function ttlMsRoster(phase: RosterPollPhase): number {
@@ -38,6 +44,14 @@ function cacheKeyFr24Summary(flightNumber: string, flightDate: string): string {
   return `fr24_summary:v1:${n}:${flightDate}`;
 }
 
+function ymdLocalOffset(base: Date, dayOffset: number): string {
+  const d = new Date(base.getFullYear(), base.getMonth(), base.getDate() + dayOffset);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 type JsonBody = {
   mode?: string;
   flight_number?: string;
@@ -45,6 +59,7 @@ type JsonBody = {
   phase?: string;
   local_today?: string;
   local_tomorrow?: string;
+  debug?: boolean;
 };
 
 Deno.serve(async (req) => {
@@ -88,6 +103,7 @@ Deno.serve(async (req) => {
   }
 
   const supabase = createClient(supabaseUrl, serviceKey);
+  const wantDebug = body.debug === true;
   const modeRaw = String(body.mode ?? '').trim().toLowerCase();
   const mode = modeRaw === 'by_number'
     ? 'by_number'
@@ -97,11 +113,13 @@ Deno.serve(async (req) => {
 
   if (mode === 'fr24_summary') {
     const key = cacheKeyFr24Summary(flight_number, flight_date);
-    const cached = await getCachedPayload(supabase, key);
-    if (cached) {
-      return new Response(JSON.stringify({ info: cached, cached: true, mode: 'fr24_summary' }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+    if (!wantDebug) {
+      const cached = await getCachedPayload(supabase, key);
+      if (cached) {
+        return new Response(JSON.stringify({ info: cached, cached: true, mode: 'fr24_summary' }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
     }
 
     let promise = inFlight.get(key);
@@ -116,7 +134,7 @@ Deno.serve(async (req) => {
             flight_number,
             flight_date,
           );
-          if (info) {
+          if (info && !wantDebug) {
             await setCachedPayload(supabase, key, info, Date.now() + TTL_FR24_SUMMARY_MS);
           }
           return info;
@@ -133,50 +151,74 @@ Deno.serve(async (req) => {
   }
 
   if (mode === 'by_number') {
-    const local_today = String(body.local_today ?? '').trim();
-    const local_tomorrow = String(body.local_tomorrow ?? '').trim();
-    if (!local_today || !local_tomorrow || !/^\d{4}-\d{2}-\d{2}$/.test(local_today) ||
-      !/^\d{4}-\d{2}-\d{2}$/.test(local_tomorrow)
-    ) {
-      return new Response(
-        JSON.stringify({ error: 'by_number requires local_today and local_tomorrow (YYYY-MM-DD)' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-      );
+    const now = new Date();
+    let local_today = String(body.local_today ?? '').trim();
+    let local_tomorrow = String(body.local_tomorrow ?? '').trim();
+    if (!local_today || !/^\d{4}-\d{2}-\d{2}$/.test(local_today)) {
+      local_today = ymdLocalOffset(now, 0);
+    }
+    if (!local_tomorrow || !/^\d{4}-\d{2}-\d{2}$/.test(local_tomorrow)) {
+      local_tomorrow = ymdLocalOffset(now, 1);
     }
 
     const key = cacheKeyByNumber(flight_number, flight_date, local_today, local_tomorrow);
-    const cached = await getCachedPayload(supabase, key);
-    if (cached) {
-      return new Response(JSON.stringify({ info: cached, cached: true, mode: 'by_number' }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+    if (!wantDebug) {
+      const cached = await getCachedPayload(supabase, key);
+      if (cached) {
+        return new Response(JSON.stringify({ info: cached, cached: true, mode: 'by_number' }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
     }
 
-    let promise = inFlight.get(key);
-    if (!promise) {
-      promise = (async () => {
-        try {
-          const cooldownMap = await loadCooldownUntilByProvider(supabase);
-          const airlabsKey = Deno.env.get('AIRLABS_API_KEY') ?? Deno.env.get('EXPO_PUBLIC_AIRLABS_API_KEY') ?? null;
-          const fr24Token = Deno.env.get('FR24_API_TOKEN') ?? null;
-          const info = await fetchFlightByNumberEdge(flight_number, flight_date, local_today, local_tomorrow, {
-            supabase,
-            cooldownMap,
-            airlabsKey,
-            fr24Token,
-          });
-          if (info) {
-            await setCachedPayload(supabase, key, info, Date.now() + TTL_BY_NUMBER_MS);
+    const debugLog: FlightLookupDebugEntry[] | undefined = wantDebug ? [] : undefined;
+
+    const runLookup = async () => {
+      const cooldownMap = await loadCooldownUntilByProvider(supabase);
+      const airlabsKey = Deno.env.get('AIRLABS_API_KEY') ?? Deno.env.get('EXPO_PUBLIC_AIRLABS_API_KEY') ?? null;
+      const fr24Token = Deno.env.get('FR24_API_TOKEN') ?? null;
+      return fetchFlightByNumberEdge(flight_number, flight_date, local_today, local_tomorrow, {
+        supabase,
+        cooldownMap,
+        airlabsKey,
+        fr24Token,
+        debugLog,
+      });
+    };
+
+    let info: Record<string, unknown> | null;
+    if (wantDebug) {
+      info = await runLookup();
+    } else {
+      let promise = inFlight.get(key);
+      if (!promise) {
+        promise = (async () => {
+          try {
+            const result = await runLookup();
+            if (result) {
+              await setCachedPayload(supabase, key, result, Date.now() + TTL_BY_NUMBER_MS);
+            }
+            return result;
+          } finally {
+            inFlight.delete(key);
           }
-          return info;
-        } finally {
-          inFlight.delete(key);
-        }
-      })();
-      inFlight.set(key, promise);
+        })();
+        inFlight.set(key, promise);
+      }
+      info = await promise;
     }
-    const info = await promise;
-    return new Response(JSON.stringify({ info, cached: false, mode: 'by_number' }), {
+
+    const payload: Record<string, unknown> = {
+      info,
+      cached: false,
+      mode: 'by_number',
+      local_today,
+      local_tomorrow,
+    };
+    if (wantDebug) {
+      payload.debug = { providers: debugLog ?? [] };
+    }
+    return new Response(JSON.stringify(payload), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }

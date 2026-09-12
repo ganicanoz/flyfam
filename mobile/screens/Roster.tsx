@@ -52,7 +52,13 @@ import { fetchFlightByNumber, fr24UrlForAircraftRegistration, getFr24DeepLink } 
 import { pollFlightForRoster } from '../lib/flightStatusPoll';
 import { notifyFamilyTodayFlights } from '../lib/notifyFamily';
 import { setRosterLastSharedAt } from '../lib/rosterShareMeta';
-import { rosterOccupationLabelEn, rosterOccupationLabelTr } from '../lib/rosterOccupationLabels';
+import { rosterOccupationLabelEn, rosterOccupationLabelTr, isOccupationCodeDefined } from '../lib/rosterOccupationLabels';
+import {
+  hydrateLocalOccupationOverrides,
+  setLocalOccupationOverride,
+  subscribeLocalOccupationOverrides,
+} from '../lib/rosterOccupationLocalOverrides';
+import { SuggestOccupationModal } from '../components/SuggestOccupationModal';
 import { isOffDayOccupationCode, isAnnualLeaveOccupationCode, isUnpaidLeaveOccupationCode, isGroundDutyOccupationCode, isOfficeDutyOccupationCode, isStandbyOccupationCode, isTrainingOccupationCode, isRosterPdfImportSupportedForCrewAirline } from '../lib/pdfRosterImport';
 import {
   indigoDutyBlockTitleEn,
@@ -930,7 +936,7 @@ export default function Roster({
   peerView?: { peerCrewId: string; peerName: string } | null;
 } = {}) {
   const { t, i18n } = useTranslation();
-  const { profile, crewProfile, refreshProfile } = useSession();
+  const { profile, crewProfile, refreshProfile, session } = useSession();
   const themeMode = useThemeMode();
   const fontScale = useFontScaleMultiplier() || 1;
   /** Only list cards scale; chrome StyleSheet stays fixed (no full rebuild). */
@@ -943,6 +949,18 @@ export default function Roster({
   const styles = useMemo(() => getCachedRosterStyles(themeMode), [themeMode]);
   const cardInk = useMemo(() => rosterCardInk(themeMode), [themeMode]);
   const [flights, setFlights] = useState<Flight[]>([]);
+  const [occupationSuggestTick, setOccupationSuggestTick] = useState(0);
+  const [suggestOccupation, setSuggestOccupation] = useState<{
+    code: string;
+    flightId: string;
+  } | null>(null);
+  useEffect(() => {
+    void hydrateLocalOccupationOverrides();
+    return subscribeLocalOccupationOverrides(() => {
+      setOccupationSuggestTick((n) => n + 1);
+    });
+  }, []);
+
   const [liveMetricsById, setLiveMetricsById] = useState<Record<string, { gs?: number; altFt?: number; atUtc?: string }>>({});
   const [airborneSeenById, setAirborneSeenById] = useState<Record<string, boolean>>({});
   const [nextDayHintById, setNextDayHintById] = useState<Record<string, boolean>>({});
@@ -5017,6 +5035,13 @@ export default function Roster({
               showLiveTrack,
               footerHint: null,
               showAssignAction: isStandbyBlock && isCrew,
+              showSuggestOccupation:
+                isCrew &&
+                isNonFlightBlock &&
+                !isStandbyBlock &&
+                !!blockCode &&
+                !isOccupationCodeDefined(blockCode, crewProfile?.airline_icao) &&
+                occupationSuggestTick >= 0,
               aircraftReg: isEnRoute
                 ? aircraftRegById[item.id] ||
                   formatAircraftRegistration(item.aircraft_registration) ||
@@ -5039,6 +5064,14 @@ export default function Roster({
                 }
                 onFooterAction={
                   isStandbyBlock && isCrew ? () => openAssignFlightsFromStandby(item) : undefined
+                }
+                onSuggestOccupation={
+                  isCrew &&
+                  isNonFlightBlock &&
+                  !isStandbyBlock &&
+                  !isOccupationCodeDefined(blockCode, crewProfile?.airline_icao)
+                    ? () => setSuggestOccupation({ code: blockCode, flightId: item.id })
+                    : undefined
                 }
               />
             );
@@ -5243,6 +5276,34 @@ export default function Roster({
         onConfirm={(toDelete) => {
           setClearConfirmVisible(false);
           executeClearWithUndo(toDelete as Flight[]);
+        }}
+      />
+      <SuggestOccupationModal
+        visible={!!suggestOccupation}
+        code={suggestOccupation?.code || ''}
+        onClose={() => setSuggestOccupation(null)}
+        onSubmit={async (payload) => {
+          await setLocalOccupationOverride({
+            code: payload.code,
+            label_tr: payload.label_tr,
+            label_en: payload.label_en,
+            category: payload.category,
+            airline_icao: crewProfile?.airline_icao ?? null,
+          });
+          const uid = session?.user?.id;
+          if (!uid) throw new Error('Oturum yok');
+          const { error } = await supabase.from('roster_occupation_suggestions').insert({
+            user_id: uid,
+            code: payload.code.replace(/\s/g, '').toUpperCase(),
+            label_tr: payload.label_tr,
+            label_en: payload.label_en,
+            category: payload.category,
+            note: payload.note || null,
+            crew_airline_icao: (crewProfile?.airline_icao || '').trim().toUpperCase() || null,
+            sample_flight_id: suggestOccupation?.flightId || null,
+            status: 'pending',
+          });
+          if (error) throw new Error(error.message);
         }}
       />
 

@@ -2428,6 +2428,223 @@ Deno.serve(async (req) => {
       );
     }
 
+    if (action === 'list_occupation_suggestions') {
+      const statusFilter = typeof body?.status === 'string' ? body.status.trim().toLowerCase() : 'pending';
+      let q = adminClient
+        .from('roster_occupation_suggestions')
+        .select(
+          'id, user_id, crew_airline_icao, code, label_tr, label_en, category, note, status, sample_flight_id, created_at, reviewed_at, reviewed_by',
+        )
+        .order('created_at', { ascending: false })
+        .limit(200);
+      if (statusFilter && statusFilter !== 'all') {
+        q = q.eq('status', statusFilter);
+      }
+      const { data: rows, error } = await q;
+      if (error) {
+        return new Response(JSON.stringify({ error: error.message }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      const userIds = [...new Set((rows ?? []).map((r: { user_id: string }) => r.user_id).filter(Boolean))];
+      const nameById = new Map<string, string | null>();
+      if (userIds.length) {
+        const { data: profs } = await adminClient.from('profiles').select('id, full_name, custom_id').in('id', userIds);
+        for (const p of profs ?? []) {
+          nameById.set(String(p.id), p.full_name ?? null);
+        }
+      }
+      const authEmails = new Map<string, string | null>();
+      for (const uid of userIds.slice(0, 80)) {
+        const { data } = await adminClient.auth.admin.getUserById(uid);
+        if (data?.user) authEmails.set(uid, data.user.email ?? null);
+      }
+      const enriched = (rows ?? []).map((r: Record<string, unknown>) => ({
+        ...r,
+        user_full_name: nameById.get(String(r.user_id)) ?? null,
+        user_email: authEmails.get(String(r.user_id)) ?? null,
+        user_custom_id: null as string | null,
+      }));
+      if (userIds.length) {
+        const { data: profs2 } = await adminClient.from('profiles').select('id, custom_id').in('id', userIds);
+        const cid = new Map((profs2 ?? []).map((p: { id: string; custom_id?: string | null }) => [p.id, p.custom_id ?? null]));
+        for (const e of enriched) {
+          e.user_custom_id = cid.get(String(e.user_id)) ?? null;
+        }
+      }
+      return new Response(JSON.stringify({ ok: true, action, suggestions: enriched }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    if (action === 'review_occupation_suggestion') {
+      const suggestionId = typeof body?.suggestion_id === 'string' ? body.suggestion_id.trim() : '';
+      const decision = typeof body?.decision === 'string' ? body.decision.trim().toLowerCase() : '';
+      if (!suggestionId || (decision !== 'approve' && decision !== 'reject')) {
+        return new Response(JSON.stringify({ error: 'suggestion_id and decision (approve|reject) required' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      const { data: sug, error: getErr } = await adminClient
+        .from('roster_occupation_suggestions')
+        .select('*')
+        .eq('id', suggestionId)
+        .maybeSingle();
+      if (getErr || !sug) {
+        return new Response(JSON.stringify({ error: getErr?.message || 'Suggestion not found' }), {
+          status: 404,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      if (String(sug.status) !== 'pending') {
+        return new Response(JSON.stringify({ error: 'Already reviewed', status: sug.status }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      const reviewerId = claims?.sub ?? null;
+      if (decision === 'reject') {
+        const { error: upErr } = await adminClient
+          .from('roster_occupation_suggestions')
+          .update({
+            status: 'rejected',
+            reviewed_at: new Date().toISOString(),
+            reviewed_by: reviewerId,
+          })
+          .eq('id', suggestionId);
+        if (upErr) {
+          return new Response(JSON.stringify({ error: upErr.message }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+        return new Response(JSON.stringify({ ok: true, action, decision: 'rejected', suggestion_id: suggestionId }), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const code = String(sug.code || '').trim().toUpperCase();
+      const airline = sug.crew_airline_icao ? String(sug.crew_airline_icao).trim().toUpperCase() : '';
+      const category = String(sug.category || 'other');
+      const labelTr = String(sug.label_tr || '').trim();
+      const labelEn = String(sug.label_en || labelTr).trim();
+      const accentByCat: Record<string, string> = {
+        standby: 'standby',
+        off: 'off',
+        leave: 'leave',
+        training: 'training',
+        office: 'office',
+        meeting: 'meeting',
+        simulator: 'simulator',
+        flight: 'flight',
+        other: 'other',
+      };
+      const calByCat: Record<string, string> = {
+        standby: 'standby_bar',
+        off: 'off_bar',
+        leave: 'off_bar',
+        training: 'off_bar',
+        office: 'off_bar',
+        meeting: 'off_bar',
+        simulator: 'off_bar',
+        flight: 'flight_dot',
+        other: 'none',
+      };
+      const upsertRow = {
+        code,
+        airline_icao: airline || '',
+        category,
+        label_tr: labelTr,
+        label_en: labelEn,
+        description_tr: sug.note ? String(sug.note) : null,
+        description_en: null,
+        card_accent: accentByCat[category] || 'other',
+        calendar_mark: calByCat[category] || 'none',
+        special_notes: sug.note ? String(sug.note) : null,
+        sort_order: 500,
+        active: true,
+        updated_at: new Date().toISOString(),
+      };
+      const { error: upsertErr } = await adminClient.from('roster_occupation_codes').upsert(upsertRow, {
+        onConflict: 'code,airline_icao',
+      });
+      if (upsertErr) {
+        return new Response(JSON.stringify({ error: upsertErr.message || 'Catalog upsert failed' }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      // Deploy published payload (approve = draft + Deploy)
+      const { data: allCodes, error: codesErr } = await adminClient
+        .from('roster_occupation_codes')
+        .select(
+          'code, airline_icao, category, label_tr, label_en, description_tr, description_en, card_accent, calendar_mark, special_notes, sort_order, active',
+        )
+        .eq('active', true)
+        .order('sort_order', { ascending: true })
+        .order('code', { ascending: true });
+      if (codesErr) {
+        return new Response(JSON.stringify({ error: codesErr.message }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      const { data: metaPrev } = await adminClient
+        .from('roster_occupation_catalog_meta')
+        .select('published_version')
+        .eq('id', 1)
+        .maybeSingle();
+      const nextVersion = Number(metaPrev?.published_version ?? 0) + 1;
+      const { error: pubErr } = await adminClient.from('roster_occupation_catalog_meta').upsert(
+        {
+          id: 1,
+          published_version: nextVersion,
+          published_at: new Date().toISOString(),
+          published_payload: allCodes ?? [],
+          draft_updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'id' },
+      );
+      if (pubErr) {
+        return new Response(JSON.stringify({ error: pubErr.message }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const { error: upSugErr } = await adminClient
+        .from('roster_occupation_suggestions')
+        .update({
+          status: 'approved',
+          reviewed_at: new Date().toISOString(),
+          reviewed_by: reviewerId,
+        })
+        .eq('id', suggestionId);
+      if (upSugErr) {
+        return new Response(JSON.stringify({ error: upSugErr.message }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      return new Response(
+        JSON.stringify({
+          ok: true,
+          action,
+          decision: 'approved',
+          suggestion_id: suggestionId,
+          published_version: nextVersion,
+          code,
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
+
     return new Response(JSON.stringify({ error: 'Unsupported action' }), {
       status: 400,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

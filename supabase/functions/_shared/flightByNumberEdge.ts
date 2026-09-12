@@ -31,9 +31,42 @@ const COOLDOWN_FLIGHTAPI = 'flightapi';
 const IATA_TO_ICAO: Record<string, string> = { PC: 'PGT', TK: 'THY', XQ: 'SXS', VF: 'TKJ' };
 
 // deno-lint-ignore no-explicit-any
-export type FlightByNumberCtx = { supabase: any; cooldownMap: Map<string, number>; airlabsKey: string | null; fr24Token: string | null };
+export type FlightLookupDebugEntry = {
+  provider: string;
+  ok: boolean;
+  http_status?: number | null;
+  note?: string | null;
+  /** Truncated JSON string — no secrets */
+  raw_snippet?: string | null;
+};
+
+export type FlightByNumberCtx = {
+  // deno-lint-ignore no-explicit-any
+  supabase: any;
+  cooldownMap: Map<string, number>;
+  airlabsKey: string | null;
+  fr24Token: string | null;
+  debugLog?: FlightLookupDebugEntry[];
+};
 
 export type FlightInfoJson = Record<string, unknown>;
+
+const DEBUG_SNIPPET_MAX = 4000;
+
+function truncateDebugJson(value: unknown): string {
+  try {
+    const s = typeof value === 'string' ? value : JSON.stringify(value);
+    if (!s) return '';
+    return s.length > DEBUG_SNIPPET_MAX ? `${s.slice(0, DEBUG_SNIPPET_MAX)}…` : s;
+  } catch {
+    return String(value).slice(0, DEBUG_SNIPPET_MAX);
+  }
+}
+
+function pushDebug(ctx: FlightByNumberCtx, entry: FlightLookupDebugEntry): void {
+  if (!ctx.debugLog) return;
+  ctx.debugLog.push(entry);
+}
 
 function flightNumberVariants(flightNumber: string): string[] {
   const raw = flightNumber.replace(/\s/g, '').trim().toUpperCase();
@@ -138,10 +171,10 @@ function aeroCoerceLocalString(v: unknown): string | undefined {
 
 /** UTC alanı ayrı; Local asla assumeUtc ile Zulu yapılmaz. */
 function aeroPickScheduledUtc(leg: Record<string, unknown>, airportCode: string): string | undefined {
+  // AeroDataBox: scheduledTime = { utc, local } — utc mutlaka tercih edilir.
   return utcFieldOrAirportLocalToUtcIso(
-    aeroCoerceUtcString(leg.scheduledTimeUtc),
-    aeroCoerceLocalString(leg.scheduledTimeLocal) ??
-      (typeof leg.scheduledTime === 'string' ? leg.scheduledTime : aeroCoerceLocalString(leg.scheduledTime)),
+    aeroCoerceUtcString(leg.scheduledTimeUtc) ?? aeroCoerceUtcString(leg.scheduledTime),
+    aeroCoerceLocalString(leg.scheduledTimeLocal) ?? aeroCoerceLocalString(leg.scheduledTime),
     airportCode,
   );
 }
@@ -150,16 +183,16 @@ function aeroPickExpectedUtc(leg: Record<string, unknown>, airportCode: string):
   return utcFieldOrAirportLocalToUtcIso(
     aeroCoerceUtcString(leg.predictedTimeUtc) ??
       aeroCoerceUtcString(leg.estimatedTimeUtc) ??
-      aeroCoerceUtcString(leg.expectedTimeUtc),
+      aeroCoerceUtcString(leg.expectedTimeUtc) ??
+      aeroCoerceUtcString(leg.predictedTime) ??
+      aeroCoerceUtcString(leg.estimatedTime) ??
+      aeroCoerceUtcString(leg.expectedTime),
     aeroCoerceLocalString(leg.predictedTimeLocal) ??
       aeroCoerceLocalString(leg.estimatedTimeLocal) ??
       aeroCoerceLocalString(leg.expectedTimeLocal) ??
       aeroCoerceLocalString(leg.predictedTime) ??
       aeroCoerceLocalString(leg.estimatedTime) ??
-      aeroCoerceLocalString(leg.expectedTime) ??
-      (typeof leg.predictedTime === 'string' ? leg.predictedTime : undefined) ??
-      (typeof leg.estimatedTime === 'string' ? leg.estimatedTime : undefined) ??
-      (typeof leg.expectedTime === 'string' ? leg.expectedTime : undefined),
+      aeroCoerceLocalString(leg.expectedTime),
     airportCode,
   );
 }
@@ -168,10 +201,13 @@ function aeroPickActualUtc(leg: Record<string, unknown>, airportCode: string): s
   return utcFieldOrAirportLocalToUtcIso(
     aeroCoerceUtcString(leg.actualTimeUtc) ??
       aeroCoerceUtcString(leg.runwayTimeUtc) ??
-      aeroCoerceUtcString(leg.outTimeUtc),
+      aeroCoerceUtcString(leg.outTimeUtc) ??
+      aeroCoerceUtcString(leg.actualTime) ??
+      aeroCoerceUtcString(leg.runwayTime),
     aeroCoerceLocalString(leg.actualTimeLocal) ??
       aeroCoerceLocalString(leg.runwayTimeLocal) ??
-      (typeof leg.actualTime === 'string' ? leg.actualTime : undefined),
+      aeroCoerceLocalString(leg.actualTime) ??
+      aeroCoerceLocalString(leg.runwayTime),
     airportCode,
   );
 }
@@ -325,15 +361,42 @@ async function fetchFromAeroDataBoxFlightEdge(
       try {
         const res = await fetch(url, { headers: src.headers });
         if (res.status === 429) {
+          pushDebug(ctx, {
+            provider: 'aerodatabox',
+            ok: false,
+            http_status: 429,
+            note: `cooldown ${src.cooldownKey}`,
+          });
           await apply429ToCooldown(ctx.supabase, ctx.cooldownMap, src.cooldownKey, res.headers);
           continue;
         }
-        if (!res.ok) continue;
+        if (!res.ok) {
+          pushDebug(ctx, {
+            provider: 'aerodatabox',
+            ok: false,
+            http_status: res.status,
+            note: url.replace(/\/\/[^/]+/, '//…'),
+          });
+          continue;
+        }
         const json = await res.json().catch(() => null);
         const parsed = parseAeroDataBoxFlightResponse(json);
         if (parsed && (parsed.scheduled_departure_utc || parsed.scheduled_arrival_utc || parsed.origin || parsed.destination)) {
+          pushDebug(ctx, {
+            provider: 'aerodatabox',
+            ok: true,
+            http_status: res.status,
+            raw_snippet: truncateDebugJson(json),
+          });
           return parsed;
         }
+        pushDebug(ctx, {
+          provider: 'aerodatabox',
+          ok: false,
+          http_status: res.status,
+          note: 'parsed empty',
+          raw_snippet: truncateDebugJson(json),
+        });
       } catch {
         continue;
       }
@@ -620,13 +683,30 @@ async function fetchFromAirLabsFlightEdge(
       const url = `${AIRLABS_BASE}/flight?${qs}&api_key=${encodeURIComponent(apiKey)}`;
       const res = await fetch(url);
       if (res.status === 429) {
+        pushDebug(ctx, { provider: 'airlabs', ok: false, http_status: 429, note: `variant ${v}` });
         await apply429ToCooldown(ctx.supabase, ctx.cooldownMap, COOLDOWN_AIRLABS, res.headers);
         break;
       }
       const json = await res.json().catch(() => null);
-      if (!res.ok || json?.error) continue;
+      if (!res.ok || json?.error) {
+        pushDebug(ctx, {
+          provider: 'airlabs',
+          ok: false,
+          http_status: res.status,
+          note: `variant ${v}`,
+          raw_snippet: truncateDebugJson(json?.error ?? json),
+        });
+        continue;
+      }
       const f: Record<string, unknown> = json?.response ?? json;
       if (!f || typeof f !== 'object') continue;
+      pushDebug(ctx, {
+        provider: 'airlabs',
+        ok: true,
+        http_status: res.status,
+        note: `variant ${v}`,
+        raw_snippet: truncateDebugJson(f),
+      });
       const origin = toIataCode((f.dep_iata ?? f.dep_icao) as string | undefined) ?? '';
       const destination = toIataCode((f.arr_iata ?? f.arr_icao) as string | undefined) ?? '';
       // AirLabs: scheduled için dep_time_ts (Unix) en güvenilir; estimated_ts gecikmeli olabilir.
@@ -738,11 +818,28 @@ export async function fetchFromFlightradar24Edge(
       },
     });
     if (res.status === 429) {
+      pushDebug(ctx, { provider: 'fr24', ok: false, http_status: 429 });
       await apply429ToCooldown(ctx.supabase, ctx.cooldownMap, COOLDOWN_FR24, res.headers);
       return null;
     }
     const json = await res.json().catch(() => null);
-    if (!res.ok || !json?.data || !Array.isArray(json.data) || json.data.length === 0) return null;
+    if (!res.ok || !json?.data || !Array.isArray(json.data) || json.data.length === 0) {
+      pushDebug(ctx, {
+        provider: 'fr24',
+        ok: false,
+        http_status: res.status,
+        note: Array.isArray(json?.data) ? `rows=${json.data.length}` : 'no data',
+        raw_snippet: truncateDebugJson(json),
+      });
+      return null;
+    }
+    pushDebug(ctx, {
+      provider: 'fr24',
+      ok: true,
+      http_status: res.status,
+      note: `rows=${json.data.length}`,
+      raw_snippet: truncateDebugJson({ data: json.data.slice(0, 3), meta: json.meta ?? null }),
+    });
     const list = json.data as Record<string, unknown>[];
     const targetDay = date;
     const pickBest = (flights: Record<string, unknown>[]) => {

@@ -67,6 +67,7 @@ import {
   hydrateOccupationCatalogFromStorage,
   refreshOccupationCatalog,
 } from './lib/rosterOccupationCatalog';
+import { hydrateLocalOccupationOverrides } from './lib/rosterOccupationLocalOverrides';
 
 /** Instagram floating tab ölçüleri. */
 const TAB_BAR_HEIGHT = 62;
@@ -514,6 +515,7 @@ function RootNavigator() {
     (async () => {
       try {
         await hydrateOccupationCatalogFromStorage();
+        await hydrateLocalOccupationOverrides();
         void refreshOccupationCatalog();
         const policy = await fetchAppReleasePolicy();
         if (!cancelled) setReleasePolicy(policy);
