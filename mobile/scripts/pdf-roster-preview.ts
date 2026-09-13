@@ -18,6 +18,8 @@ import {
   parseFlightsFromPdfText,
   parseFlightsFromPdfText_Pegasus,
   parseFlightsFromPdfText_THY,
+  parseDutyFromPdfText_THY,
+  parseLocalTimeProgramFromPdfText_THY,
   parseFlightsFromPdfText_DutyLocalTable,
   parseFlightsFromPdfText_DutyLocalTableCore,
   parseFlightsFromPdfText_DutySingleLineSameRow,
@@ -248,15 +250,17 @@ type DutyDateFixHint = {
 
 function detectRestEndDateFixes(pcFlights: PdfFlightRow[]): Map<number, DutyDateFixHint> {
   const out = new Map<number, DutyDateFixHint>();
-  for (let i = 0; i < pcFlights.length; i += 1) {
-    const r = pcFlights[i];
+  for (let i = 1; i < pcFlights.length; i += 1) {
+    const prev = pcFlights[i - 1]!;
+    const r = pcFlights[i]!;
+    if (prev.flight_date !== r.flight_date) continue;
     const dep = timeToMinutes(r.dep_time_local);
+    const prevDep = timeToMinutes(prev.dep_time_local);
     const restOp = restEndOperatingYmd(r.duty_rest_end_date_iso, r.duty_rest_end_time_local);
-    if (dep == null || restOp == null || dep >= 12 * 60 || restOp < r.flight_date) continue;
-    if (restOp === r.flight_date) continue;
+    if (dep == null || prevDep == null || restOp == null || dep >= prevDep || restOp <= r.flight_date) continue;
     out.set(i, {
       suggestNextDay: true,
-      reason: `RestEnd ${restOp} ${r.duty_rest_end_time_local ?? ''} (sabah dönüş / layover)`,
+      reason: `RestEnd ${restOp} ${r.duty_rest_end_time_local ?? ''} (dönüş kalkışı gidişten erken)`,
     });
   }
   return out;
@@ -333,7 +337,7 @@ function formatNonPcRow(r: PdfFlightRow, i: number, listed: 'Evet' | 'Hayır', d
 function nonPcTypeLabel(r: PdfFlightRow): string {
   const fn = (r.flight_number || '').replace(/\s/g, '').toUpperCase();
   if (fn === 'FSF' || fn === 'FOF' || fn === 'SOF') return 'Boş Gün';
-  if (fn === 'SIM' || fn === 'IPT' || r.roster_entry_kind === 'sim') return 'Simülatör';
+  if (fn.includes('SIM') || fn.includes('IPT') || r.roster_entry_kind === 'sim') return 'Simülatör';
   if (/^STBY/i.test(fn)) return 'Nöbet';
   if (r.roster_entry_kind === 'duty_off') return 'Boş Gün';
   return r.roster_entry_kind ?? 'Diğer';
@@ -428,7 +432,9 @@ Kullanım:
   }
 
   const pegasus = parseFlightsFromPdfText_Pegasus(text);
-  const thy = parseFlightsFromPdfText_THY(text);
+  const thyLocal = parseLocalTimeProgramFromPdfText_THY(text);
+  const thyFlights = parseFlightsFromPdfText_THY(text);
+  const thyDuty = parseDutyFromPdfText_THY(text);
   const dutyCore = parseFlightsFromPdfText_DutyLocalTableCore(text);
   const dutySingle = parseFlightsFromPdfText_DutySingleLineSameRow(text);
   const dutyFull = [...dutySingle, ...dutyCore];
@@ -444,7 +450,9 @@ Kullanım:
 
   console.log('--- Parser ara sonuçları ---');
   console.log('  Pegasus kuralları     :', pegasus.length, 'satır');
-  console.log('  THY/MAR kuralları     :', thy.length, 'satır');
+  console.log('  THY lokal program     :', thyLocal.length, 'satır');
+  console.log('  THY uçuş (lokal/GMT)  :', thyFlights.length, 'satır');
+  console.log('  THY görev             :', thyDuty.length, 'satır');
   console.log('  Duty çekirdek tablo   :', dutyCore.length, 'satır');
   console.log('  Duty tek-satır fallback:', dutySingle.length, 'satır');
   console.log('  Duty (tek+çekirdek, birleşim sırası) :', dutyFull.length, 'satır');

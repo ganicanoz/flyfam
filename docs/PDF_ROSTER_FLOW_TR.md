@@ -1,6 +1,7 @@
 # PDF roster → uygulama: adım adım (şimdilik sadece **uçuş görevi / flight**)
 
-Bu doküman, telefondaki PDF’in nasıl metne çevrildiğini ve hangi kurallarla **uçuş satırı** üretildiğini özetler. **Şu an yalnızca Pegasus** crew roster PDF’i hedeflenir (`roster-pdf/airlines/pegasus/`). Örnek: `19.03.26-19.04.26 2.pdf`.
+Bu doküman, telefondaki PDF’in nasıl metne çevrildiğini ve hangi kurallarla **uçuş / görev satırı** üretildiğini özetler.
+Destek: **Pegasus**, **THY** (`LOKAL SAATLI`), SunExpress, Freebird, IndiGo.
 
 ## 1) PDF dosyası cihazdan okunur
 
@@ -35,16 +36,20 @@ Ana birleştirici: **`supabase/functions/_shared/roster-pdf/parseFlightsFromPdfT
 - **Çıkan uçuş satırı:** `roster_entry_kind: 'flight'`, `flight_date` = o duty bloğunun `pendingDate` (tarih satırından).
 - **FSF/FOF (Boş Gün):** Uçuş satırı yoksa `roster_entry_kind: 'duty_off'`, `flight_number: 'FSF'|'FOF'` — **uygulama içe aktarmada bunlar bilinçli olarak atlanır.**
 
-### 4b) Pegasus duty PDF: satır taran Pegasus kapatılır, THY bu dosyada **yok**
+### 4b) Pegasus duty PDF: satır taran Pegasus kapatılır
 
 `looksLikePegasusDutyStylePdf(text)` **ve** `DutyLocalTable`’dan **en az bir satır** geldiyse:
 
 - Satır taramalı **Pegasus** (`parseFlightsFromPdfText_Pegasus`) **çalışmaz** (`lastDate` ile yanlış güne yapışan PC satırları önlenir).
-- **THY** (`parseFlightsFromPdfText_THY`) **çalışmaz** — bu repo aşamasında Pegasus PDF’i THY ile karıştırılmaz; THY kullanıcısı ileride ayrı dosya / ayrı akış.
 
 `DutyLocalTable` = **önce tek-satır fallback, sonra çekirdek tablo** — Map birleşiminde çekirdek **son** geldiği için aynı `tarih|uçuş no` anahtarında **DUTY satırı kazanır**. Ardından `dropSingleLineFlightDateGhosts`: çekirdekte o uçuş no için `flight` satırı varken, kind’siz ve **farklı tarihli** hayalet tekrarlar silinir (ör. PC1259’un 20 Mart yerine yanlış güne düşmesi).
 
 Birleşik liste yine `Map` ile `pdfRowDedupeKey` üzerinden tekilleştirilir.
+
+### 4b-THY) THY ekip aylık PDF
+
+`looksLikeThyCrewRosterPdf` → **`parseLocalTimeProgramFromPdfText_THY`** (`LOKAL SAATLI UCUS PROGRAMI`).
+Uçuş + görev (RC1/EMM/HSBY/CFR…); IBB/IBI atlanır. Lokal yoksa GMT uçuş tablosu.
 
 ### 4c) İçe aktarma filtresi (sadece uçuş bacakları)
 

@@ -59,7 +59,7 @@ export {
   parseFlightsFromPdfText_DutySingleLineSameRow,
 } from './airlines/pegasus/dutyTable.ts';
 
-export { tryThyLineAnchorDate, parseFlightsFromPdfText_THY } from './airlines/thy/lineScan.ts';
+export { tryThyLineAnchorDate, parseFlightsFromPdfText_THY, parseDutyFromPdfText_THY, parseLocalTimeProgramFromPdfText_THY } from './airlines/thy/lineScan.ts';
 export { parseFlightsFromPdfText_SunExpress } from './airlines/sunexpress/lineScan.ts';
 export { parseFlightsFromPdfText_Freebird } from './airlines/freebird/lineScan.ts';
 export { parseFlightsFromPdfText_Indigo } from './airlines/indigo/lineScan.ts';

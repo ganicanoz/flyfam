@@ -3,12 +3,11 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>FlyFam — THY PDF içe aktarma önizlemesi (GMT)</title>
+  <title>FlyFam — THY PDF içe aktarma önizlemesi (lokal saat)</title>
   <style>
     :root {
       --bg: rgba(238, 243, 249, 0.92);
       --surface: #ffffff;
-      --surface-alt: #f1f6ff;
       --primary: #5aa6ff;
       --accent: #1d4fa3;
       --text: #0b1220;
@@ -16,8 +15,9 @@
       --text-muted: #6b7a90;
       --border: #e1eaf5;
       --success: #2e7d32;
-      --warn-bg: #fff8e6;
-      --warn-border: #e6c200;
+      --warn-bg: #eff6ff;
+      --warn-border: #bfdbfe;
+      --duty-bg: #f8fafc;
     }
     * { box-sizing: border-box; }
     body {
@@ -68,12 +68,13 @@
       margin-bottom: 10px;
       box-shadow: 0 1px 3px rgba(11, 18, 32, 0.06);
     }
+    .card.duty { background: var(--duty-bg); }
     .card-top {
       display: flex;
       align-items: flex-start;
       justify-content: space-between;
       gap: 12px;
-      margin-bottom: 10px;
+      margin-bottom: 8px;
     }
     .fn {
       font-size: 1.15rem;
@@ -81,18 +82,12 @@
       color: var(--accent);
       letter-spacing: -0.02em;
     }
-    .fn .p-badge {
-      display: inline-block;
-      margin-left: 6px;
-      font-size: 0.65rem;
-      font-weight: 800;
-      vertical-align: super;
-      color: #c62828;
-      border: 1px solid #ffcdd2;
-      background: #ffebee;
-      padding: 2px 5px;
-      border-radius: 4px;
-      letter-spacing: 0;
+    .kind {
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
     }
     .route {
       font-size: 1rem;
@@ -102,30 +97,20 @@
     .route span { color: var(--text-muted); font-weight: 500; margin: 0 4px; }
     .rows {
       display: grid;
-      gap: 6px;
+      gap: 4px;
       font-size: 0.88rem;
       color: var(--text-secondary);
     }
     .row {
       display: flex;
       justify-content: space-between;
-      align-items: baseline;
       gap: 8px;
       padding: 4px 0;
       border-top: 1px dashed var(--border);
     }
     .row:first-of-type { border-top: none; padding-top: 0; }
-    .row .k { color: var(--text-muted); flex-shrink: 0; }
+    .row .k { color: var(--text-muted); }
     .row .v { font-weight: 500; text-align: right; font-variant-numeric: tabular-nums; }
-    .import-date {
-      margin-top: 8px;
-      padding-top: 8px;
-      border-top: 1px solid var(--border);
-      font-size: 0.8rem;
-      color: var(--success);
-      font-weight: 600;
-    }
-    .import-date span { color: var(--text-muted); font-weight: 500; }
     footer {
       margin-top: 28px;
       font-size: 0.75rem;
@@ -138,154 +123,77 @@
   <div class="wrap">
     <h1>Roster — THY PDF içe aktarma</h1>
     <p class="sub">
-      Örnek: <code>Published_110080.pdf</code> · Kalkış/Varış <strong>GMT</strong> (PDF “Kalkış/GMT · İniş/GMT” sütunları)
+      Örnek: <code>Published_096412.pdf</code> · kaynak <strong>LOKAL SAATLI UCUS PROGRAMI</strong>
+      (Kalkış/LT · İniş/LT)
     </p>
 
     <div class="legend">
-      <strong>Tarih kuralı (içe aktarma):</strong> PDF’te varış sütunundaki tarih, <em>varışın takvim günüdür</em> (GMT).
-      Kalkış ve varış saatleri aynı günün GMT saatleri gibi düşünülür; eğer kalkış saati, varış saatinden
-      <strong>24 saatlik döngüde ilerideyse</strong> (ör. kalkış 23:50, varış 03:55), uçuş gece yarısını geçmiştir —
-      <strong>doğru kalkış tarihi, varış tarihinin bir gün öncesidir.</strong>
-      <br /><br />
-      Örnek: <code>TK422</code> varış <code>IST 17 MAR 2026 03:55 GMT</code>, kalkış <code>VKO 23:50</code>
-      → kalkış tarihi <code>16 MAR 2026</code>.
+      <strong>Kurallar (uygulama = Edge):</strong>
+      Aylık takvim grid’i kullanılmaz.
+      Her <code>MB:</code> bloğundan uçuş (<code>TK###</code> + lokal saat) veya görev
+      (<code>RC1</code> / <code>EMM</code> / <code>HSBY</code> / <code>CFR</code>…) okunur.
+      <code>IBB</code> / <code>IBI</code> boş günler import edilmez.
+      Uçuş tarihi ilgili <code>GMB:</code> satırından gelir.
     </div>
 
     <div id="app"></div>
     <footer>
-      FlyFam önizleme — uygulamadaki <code>flight_date</code> için öneri: bu hesaplanan <strong>kalkış (GMT) tarihi</strong>.
+      FlyFam — paylaşılan parser: <code>parseLocalTimeProgramFromPdfText_THY</code>
     </footer>
   </div>
 
   <script>
-    /**
-     * Published_110080.pdf — sayfa 1 GMT tablosu (ekran görüntüsü + metin çıkarımı ile hizalı).
-     * positioning: PDF’te kırmızı P (TK2170).
-     */
-    const RAW_FLIGHTS = [
-      { fn: 'TK661', depAp: 'IST', dep: '6:00', arrAp: 'TUN', arrDate: '10MAR2026', arr: '09:00' },
-      { fn: 'TK662', depAp: 'TUN', dep: '10:00', arrAp: 'IST', arrDate: '10MAR2026', arr: '12:55' },
-      { fn: 'TK2170', depAp: 'IST', dep: '15:00', arrAp: 'ESB', arrDate: '10MAR2026', arr: '16:10', positioning: true },
-      { fn: 'TK2135', depAp: 'ESB', dep: '7:55', arrAp: 'IST', arrDate: '11MAR2026', arr: '09:15' },
-      { fn: 'TK1859', depAp: 'IST', dep: '11:15', arrAp: 'MAD', arrDate: '11MAR2026', arr: '15:50' },
-      { fn: 'TK1360', depAp: 'MAD', dep: '5:20', arrAp: 'IST', arrDate: '12MAR2026', arr: '09:40' },
-      { fn: 'TK1081', depAp: 'IST', dep: '5:20', arrAp: 'BEG', arrDate: '13MAR2026', arr: '07:10' },
-      { fn: 'TK1082', depAp: 'BEG', dep: '8:00', arrAp: 'IST', arrDate: '13MAR2026', arr: '09:50' },
-      { fn: 'TK2006', depAp: 'IST', dep: '11:40', arrAp: 'NAV', arrDate: '13MAR2026', arr: '13:00' },
-      { fn: 'TK2007', depAp: 'NAV', dep: '13:45', arrAp: 'IST', arrDate: '13MAR2026', arr: '15:20' },
-      { fn: 'TK421', depAp: 'IST', dep: '18:50', arrAp: 'VKO', arrDate: '15MAR2026', arr: '22:50' },
-      { fn: 'TK422', depAp: 'VKO', dep: '23:50', arrAp: 'IST', arrDate: '17MAR2026', arr: '03:55' },
-      { fn: 'TK1027', depAp: 'IST', dep: '4:30', arrAp: 'SOF', arrDate: '30MAR2026', arr: '05:45' },
-      { fn: 'TK1028', depAp: 'SOF', dep: '6:35', arrAp: 'IST', arrDate: '30MAR2026', arr: '08:05' },
-      { fn: 'TK2244', depAp: 'IST', dep: '9:50', arrAp: 'GNY', arrDate: '30MAR2026', arr: '11:40' },
-      { fn: 'TK2245', depAp: 'GNY', dep: '12:25', arrAp: 'IST', arrDate: '30MAR2026', arr: '14:30' },
+    /** Published_096412.pdf — lokal saat tablosu parse çıktısı (2026-09). */
+    const ROWS = [
+      { date: '2026-09-01', code: 'RC1', kind: 'duty', label: 'Kokpit Yenileme Eğitimi', start: '08:30', end: '17:00' },
+      { date: '2026-09-02', code: 'EMM', kind: 'duty', label: 'E-Learning Eğitim', start: '08:00', end: '18:00' },
+      { date: '2026-09-03', code: 'RC1', kind: 'duty', label: 'Kokpit Yenileme Eğitimi', start: '08:30', end: '15:45' },
+      { date: '2026-09-07', code: 'TK026', kind: 'flight', from: 'IST', to: 'PVG', dep: '01:35', arr: '16:45' },
+      { date: '2026-09-08', code: 'TK027', kind: 'flight', from: 'PVG', to: 'IST', dep: '22:25', arr: '05:25' },
+      { date: '2026-09-13', code: 'HSBY', kind: 'duty', label: 'Ev Nöbeti', start: '03:00', end: '11:00' },
+      { date: '2026-09-14', code: 'TK298', kind: 'flight', from: 'IST', to: 'CAN', dep: '15:50', arr: '07:20' },
+      { date: '2026-09-16', code: 'TK073', kind: 'flight', from: 'CAN', to: 'IST', dep: '23:00', arr: '05:30' },
+      { date: '2026-09-19', code: 'CFR', kind: 'duty', label: 'Potansiyel Görev (CFR)', start: '06:00', end: '23:59' },
+      { date: '2026-09-20', code: 'HSBY', kind: 'duty', label: 'Ev Nöbeti', start: '09:00', end: '17:00' },
+      { date: '2026-09-22', code: 'TK157', kind: 'flight', from: 'IST', to: 'MIA', dep: '01:50', arr: '07:20' },
+      { date: '2026-09-23', code: 'TK158', kind: 'flight', from: 'MIA', to: 'IST', dep: '10:45', arr: '05:05' },
+      { date: '2026-09-29', code: 'HSBY', kind: 'duty', label: 'Ev Nöbeti', start: '03:40', end: '09:40' },
+      { date: '2026-09-30', code: 'TK205', kind: 'flight', from: 'IST', to: 'DTW', dep: '14:55', arr: '18:50' },
+      { date: '2026-10-01', code: 'TK206', kind: 'flight', from: 'DTW', to: 'IST', dep: '20:55', arr: '14:00' },
     ];
 
-    const MONTHS = { JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5, JUL: 6, AUG: 7, SEP: 8, OCT: 9, NOV: 10, DEC: 11 };
-
-    function pad2(n) { return String(n).padStart(2, '0'); }
-
-    function parseArrDate(s) {
-      const m = /^(\d{1,2})([A-Z]{3})(\d{4})$/i.exec(s.trim());
-      if (!m) return null;
-      const d = parseInt(m[1], 10);
-      const mon = MONTHS[m[2].toUpperCase()];
-      const y = parseInt(m[3], 10);
-      if (mon === undefined) return null;
-      return new Date(Date.UTC(y, mon, d));
+    function fmtDate(ymd) {
+      const [y, m, d] = ymd.split('-').map(Number);
+      const dt = new Date(Date.UTC(y, m - 1, d));
+      return dt.toLocaleDateString('tr-TR', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
     }
 
-    function isoDateUTC(d) {
-      return d.toISOString().slice(0, 10);
-    }
-
-    function addDaysUTC(d, delta) {
-      const x = new Date(d.getTime());
-      x.setUTCDate(x.getUTCDate() + delta);
-      return x;
-    }
-
-    function timeToMinutes(t) {
-      const p = String(t).trim().split(':');
-      const h = parseInt(p[0], 10);
-      const m = parseInt(p[1], 10);
-      return h * 60 + m;
-    }
-
-    /** Varış tarihi (GMT) + sütun saatleri: gece uçuşunda kalkış günü = varış günü - 1 */
-    function departureDateGmt(arrDateStr, depTime, arrTime) {
-      const arrD = parseArrDate(arrDateStr);
-      if (!arrD) return null;
-      const depM = timeToMinutes(depTime);
-      const arrM = timeToMinutes(arrTime);
-      if (depM > arrM) return isoDateUTC(addDaysUTC(arrD, -1));
-      return isoDateUTC(arrD);
-    }
-
-    function fmtTrDate(iso) {
-      const [y, mo, d] = iso.split('-').map(Number);
-      const months = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
-      return `${d} ${months[mo - 1]} ${y}`;
-    }
-
-    function fmtTime(t) {
-      const p = String(t).trim().split(':');
-      return `${pad2(parseInt(p[0], 10))}:${pad2(parseInt(p[1], 10))}`;
-    }
-
-    const enriched = RAW_FLIGHTS.map((r) => {
-      const depDateIso = departureDateGmt(r.arrDate, r.dep, r.arr);
-      const arrDateIso = parseArrDate(r.arrDate) ? isoDateUTC(parseArrDate(r.arrDate)) : null;
-      return {
-        ...r,
-        depDateIso,
-        arrDateIso,
-        depT: fmtTime(r.dep),
-        arrT: fmtTime(r.arr),
-      };
-    });
-
-    enriched.sort((a, b) => {
-      const da = a.depDateIso || '';
-      const db = b.depDateIso || '';
-      if (da !== db) return da.localeCompare(db);
-      return a.depT.localeCompare(b.depT);
-    });
-
-    const byDay = new Map();
-    for (const f of enriched) {
-      const k = f.depDateIso || '?';
-      if (!byDay.has(k)) byDay.set(k, []);
-      byDay.get(k).push(f);
-    }
-
-    const app = document.getElementById('app');
-    const keys = [...byDay.keys()].sort();
-
-    for (const day of keys) {
-      const h = document.createElement('div');
-      h.className = 'section-date';
-      h.textContent = fmtTrDate(day) + ' · GMT';
-      app.appendChild(h);
-      for (const f of byDay.get(day)) {
-        const card = document.createElement('div');
-        card.className = 'card';
-        const pBadge = f.positioning ? '<span class="p-badge" title="Positioning">P</span>' : '';
-        card.innerHTML = `
-          <div class="card-top">
-            <div class="fn">${f.fn}${pBadge}</div>
-            <div class="route">${f.depAp}<span>→</span>${f.arrAp}</div>
-          </div>
-          <div class="rows">
-            <div class="row"><span class="k">Kalkış (GMT)</span><span class="v">${fmtTrDate(f.depDateIso)} · ${f.depT} ${f.depAp}</span></div>
-            <div class="row"><span class="k">Varış (GMT)</span><span class="v">${fmtTrDate(f.arrDateIso)} · ${f.arrT} ${f.arrAp}</span></div>
-          </div>
-          <div class="import-date">
-            Uygulama <code>flight_date</code> <span>(öneri)</span>: ${f.depDateIso}
-          </div>
-        `;
-        app.appendChild(card);
+    const root = document.getElementById('app');
+    let lastDate = '';
+    for (const r of ROWS) {
+      if (r.date !== lastDate) {
+        const h = document.createElement('div');
+        h.className = 'section-date';
+        h.textContent = fmtDate(r.date);
+        root.appendChild(h);
+        lastDate = r.date;
       }
+      const card = document.createElement('div');
+      card.className = 'card' + (r.kind === 'duty' ? ' duty' : '');
+      if (r.kind === 'flight') {
+        card.innerHTML =
+          '<div class="card-top"><div class="fn">' + r.code + '</div><div class="kind">uçuş</div></div>' +
+          '<div class="route">' + r.from + '<span>→</span>' + r.to + '</div>' +
+          '<div class="rows"><div class="row"><span class="k">Kalkış / İniş (LT)</span><span class="v">' +
+          r.dep + ' → ' + r.arr + '</span></div></div>';
+      } else {
+        card.innerHTML =
+          '<div class="card-top"><div class="fn">' + r.code + '</div><div class="kind">görev</div></div>' +
+          '<div class="route">' + (r.label || r.code) + '</div>' +
+          '<div class="rows"><div class="row"><span class="k">Pencere (LT)</span><span class="v">' +
+          r.start + ' → ' + r.end + '</span></div></div>';
+      }
+      root.appendChild(card);
     }
   </script>
 </body>

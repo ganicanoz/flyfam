@@ -9,7 +9,7 @@
   <meta http-equiv="Expires" content="0" />
   <script>
     (function () {
-      var UI = '39';
+      var UI = '40';
       var p = new URLSearchParams(location.search);
       if (p.get('ui') !== UI) {
         p.set('ui', UI);
@@ -1288,6 +1288,15 @@
             Online ortamda tarayıcı dosya yolunu okuyamaz — PDF’i yükleyin. Yerel CLI:
             <code>cd mobile && npm run pdf:roster -- /path/to.pdf</code>
           </p>
+          <p class="mini" style="margin-top:-4px; padding:8px 10px; border-radius:8px; background:#eff6ff; border:1px solid #bfdbfe;">
+            <strong>THY kuralları (uygulama = Edge):</strong>
+            Kaynak <code>LOKAL SAATLI UCUS PROGRAMI</code> (Kalkış/LT · İniş/LT) günlük <code>MB:</code> bloklarıdır —
+            aylık takvim grid’i kullanılmaz (CFR/HSBY tarih kayması önlenir).
+            <code>TK###</code> + <code>AAA/h:mm</code> → uçuş (tarih: ilgili <code>GMB:</code>).
+            <code>RC1</code> / <code>EMM</code> / <code>HSBY</code> / <code>CFR</code> vb. → görev (PDF saat penceresi).
+            <code>IBB</code> / <code>IBI</code> ve diğer boş günler <strong>import edilmez</strong>.
+            Lokal bölüm yoksa yedek: GMT uçuş tablosu.
+          </p>
           <p class="mini" style="margin-top:-4px; padding:8px 10px; border-radius:8px; background:#fff7ed; border:1px solid #fed7aa;">
             <strong>SunExpress kuralları (uygulama = Edge):</strong>
             Her <code>XQ</code> satırı bir uçuştur — tüm XQ’lar alınır.
@@ -1354,6 +1363,10 @@
             <div class="card">
               <h3>Layout / kaynak</h3>
               <div class="mini" id="pdfDetectMeta" style="margin-top:6px; font-size:13px; font-weight:600;">—</div>
+            </div>
+            <div class="card">
+              <h3>THY lokal kontrol</h3>
+              <div class="mini" id="pdfThyAudit" style="margin-top:6px; font-size:13px; font-weight:600;">THY seçildiğinde çalışır</div>
             </div>
             <div class="card">
               <h3>SunExpress gece kontrolü</h3>
@@ -1667,6 +1680,7 @@
       pdfCountRaw: document.getElementById('pdfCountRaw'),
       pdfCountSkipped: document.getElementById('pdfCountSkipped'),
       pdfDetectMeta: document.getElementById('pdfDetectMeta'),
+      pdfThyAudit: document.getElementById('pdfThyAudit'),
       pdfSunexpressAudit: document.getElementById('pdfSunexpressAudit'),
       pdfRosterBody: document.getElementById('pdfRosterBody'),
       pdfRawText: document.getElementById('pdfRawText'),
@@ -2595,7 +2609,7 @@
           let hint = '';
           if (location.protocol === 'file:') {
             hint =
-              ' Paneli file:// ile açıyorsun — terminalde: cd docs && python3 -m http.server 8765 sonra http://localhost:8765/ADMIN_STATUS_DASHBOARD.html?ui=39';
+              ' Paneli file:// ile açıyorsun — terminalde: cd docs && python3 -m http.server 8765 sonra http://localhost:8765/ADMIN_STATUS_DASHBOARD.html?ui=40';
           } else {
             hint = ' Supabase URL ve anon key kontrol et; VPN/eklenti engeli olabilir.';
           }
@@ -4720,6 +4734,7 @@
       if (els.pdfCountRaw) els.pdfCountRaw.textContent = '-';
       if (els.pdfCountSkipped) els.pdfCountSkipped.textContent = '-';
       if (els.pdfDetectMeta) els.pdfDetectMeta.textContent = '—';
+      if (els.pdfThyAudit) els.pdfThyAudit.textContent = 'THY seçildiğinde çalışır';
       if (els.pdfSunexpressAudit) els.pdfSunexpressAudit.textContent = 'SXS seçildiğinde çalışır';
       if (els.pdfRosterBody) {
         els.pdfRosterBody.innerHTML = '<tr><td colspan="10" class="mini">Henüz parse yok.</td></tr>';
@@ -4741,13 +4756,16 @@
           const kind = r.roster_entry_kind || 'flight';
           const dep = r.origin_iata || '—';
           const arr = r.destination_iata || '—';
-          const times = [r.dep_time_local || '—', r.arr_time_local || '—'].join(' → ');
+          const pdfDep = r.dep_time_local || r.duty_start_time_local || '—';
+          const pdfArr = r.arr_time_local || r.duty_end_time_local || '—';
+          const times = [pdfDep, pdfArr].join(' → ');
           const utcTimes = [r.dep_schedule_utc_iso || '—', r.arr_schedule_utc_iso || '—'].join(' → ');
           const dutyWindow = [r.duty_start_time_local || '—', r.duty_end_time_local || '—'].join(' → ');
           const overnight = r.dep_schedule_utc_iso && r.arr_schedule_utc_iso &&
             String(r.dep_schedule_utc_iso).slice(0, 10) !== String(r.arr_schedule_utc_iso).slice(0, 10);
+          const basis = r.duty_clock_basis ? 'basis:' + r.duty_clock_basis : null;
           const note =
-            [overnight ? 'Gece +1 gün' : null, r.duty_occupation_code, r.duty_occupation_label_tr]
+            [overnight ? 'Gece +1 gün' : null, basis, r.duty_occupation_code, r.duty_occupation_label_tr]
               .filter(Boolean)
               .join(' · ') || '—';
           return (
@@ -4786,6 +4804,37 @@
           );
         })
         .join('');
+    }
+
+    function renderThyAudit(rows, selectedIcao, detectedLayout, rawText) {
+      if (!els.pdfThyAudit) return;
+      if (selectedIcao !== 'THY' && detectedLayout !== 'thy') {
+        els.pdfThyAudit.textContent = 'THY seçildiğinde çalışır';
+        return;
+      }
+      const list = Array.isArray(rows) ? rows : [];
+      const flights = list.filter((r) => (r.roster_entry_kind || 'flight') === 'flight');
+      const duties = list.filter((r) => r.roster_entry_kind === 'duty_off' || r.roster_entry_kind === 'sim');
+      const codes = {};
+      for (const r of duties) {
+        const c = String(r.flight_number || r.duty_occupation_code || '?').toUpperCase();
+        codes[c] = (codes[c] || 0) + 1;
+      }
+      const codeSummary = Object.keys(codes)
+        .sort()
+        .map((c) => c + '×' + codes[c])
+        .join(' · ');
+      const hasLocal = /LOKAL\s+SAATLI\s+UCUS\s+PROGRAMI/i.test(String(rawText || ''));
+      const offLeak = list.some((r) => /^(IBB|IBI|IBE|IBX)$/i.test(String(r.flight_number || '')));
+      els.pdfThyAudit.textContent =
+        (hasLocal ? 'lokal tablo' : 'GMT yedek') +
+        ' · ' +
+        flights.length +
+        ' uçuş · ' +
+        duties.length +
+        ' görev' +
+        (codeSummary ? ' (' + codeSummary + ')' : '') +
+        (offLeak ? ' · UYARI: boş gün sızdı' : ' · OK');
     }
 
     function renderSunexpressAudit(rows, selectedIcao, detectedLayout) {
@@ -4859,6 +4908,7 @@
             (json.parser_debug_error ? ' · err: ' + json.parser_debug_error : '');
         }
         renderPdfSimFlights(filtered);
+        renderThyAudit(filtered, icao, json.detected_layout, json.text);
         renderSunexpressAudit(filtered, icao, json.detected_layout);
         const text = typeof json.text === 'string' ? json.text : '';
         if (els.pdfRawText) {

@@ -1,15 +1,21 @@
 /**
- * THY ekip PDF — “Kalkış/GMT · İniş/GMT” tablosu.
- * Varış sütunundaki tarih varışın GMT günüdür; kalkış saati 24s döngüde varıştan ilerideyse kalkış günü −1.
+ * THY ekip PDF.
+ *
+ * Birincil kaynak: “LOKAL SAATLI UCUS PROGRAMI” (Kalkış/LT · İniş/LT) günlük bloklar.
+ * Yedek (lokal bölüm yoksa): “Kalkış/GMT · İniş/GMT” uçuş tablosu.
  *
  * `pdf-parse` çıktısı çoğu zaman tek satır yerine şu blokları üretir:
  *   TK661 → IST/6:00 → TUN/10MAR202609:00
- * Positioning: TK2170 → P → IST/15:00 → ESB/10MAR202616:10
+ * Lokal: MB:/GMB: tarihleri + RC1/EMM/HSBY/CFR veya TK### + AAA/h:mm
  */
 
 import type { PdfFlightRow } from '../../types.ts';
 import { addCalendarDays, utcIsoToLocalYmd } from '../../timeAndSchedule.ts';
-import { rosterOccupationLabelEn, rosterOccupationLabelTr } from '../../occupationLabels.ts';
+import {
+  isOffDayOccupationCode,
+  rosterOccupationLabelEn,
+  rosterOccupationLabelTr,
+} from '../../occupationLabels.ts';
 import { airportIanaForCode } from '../../../airportIanaByCode.ts';
 
 const MONTH_THY: Record<string, string> = {
@@ -26,6 +32,44 @@ const MONTH_THY: Record<string, string> = {
   NOV: '11',
   DEC: '12',
 };
+
+const MONTH_TR_THY: Record<string, string> = {
+  OCA: '01',
+  SUB: '02',
+  MAR: '03',
+  NIS: '04',
+  MAY: '05',
+  HAZ: '06',
+  TEM: '07',
+  AGU: '08',
+  EYL: '09',
+  EKI: '10',
+  KAS: '11',
+  ARA: '12',
+};
+
+/** Lokal tablo satır etiketleri / limit anahtarları — görev kodu değil. */
+const THY_LOCAL_META = new Set([
+  'MB',
+  'MS',
+  'US',
+  'DSB',
+  'GMB',
+  'GMS',
+  'UID',
+  'INT',
+  'AUT',
+  'UGS',
+  'T',
+  'SEFER',
+  'GOREV',
+  'UCUS',
+  'KOKPIT',
+  'GS',
+  'MDS',
+  'YI',
+  'YDS',
+]);
 
 function pad2(n: string | number): string {
   const x = typeof n === 'string' ? parseInt(n, 10) : n;
@@ -73,43 +117,13 @@ const THY_ARR_GLUED =
 const THY_ARR_SPACE =
   /^([A-Z]{3})\/(\d{1,2})(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(\d{4})\s+(\d{1,2}):(\d{2})/i;
 
-/** THY aylık gridde şimdilik ürün kapsamı: sadece bu duty kodları. */
-const THY_DUTY_CODES = new Set([
-  'CFR',
-  'IBB',
-  'IBE',
-  'IBX',
-  'IOZ',
-  'IBC',
-  'IBY',
-  'HSBY',
-  'HSYB',
-  'ASYB',
-  'III',
-]);
-
-const MONTH_TR_THY: Record<string, string> = {
-  OCA: '01',
-  SUB: '02',
-  MAR: '03',
-  NIS: '04',
-  MAY: '05',
-  HAZ: '06',
-  TEM: '07',
-  AGU: '08',
-  EYL: '09',
-  EKI: '10',
-  KAS: '11',
-  ARA: '12',
-};
-
 function skipEmpty(from: number, lines: string[]): number {
   let j = from;
   while (j < lines.length && !lines[j]!.trim()) j += 1;
   return j;
 }
 
-function pushRow(
+function pushGmtRow(
   out: PdfFlightRow[],
   fn: string,
   depAp: string,
@@ -187,7 +201,7 @@ function parseArrLine(arrLine: string): {
   return null;
 }
 
-export function parseFlightsFromPdfText_THY(text: string): PdfFlightRow[] {
+function parseGmtFlightsFromPdfText_THY(text: string): PdfFlightRow[] {
   const lines = (text || '').split(/\r?\n/).map((l) => l.trim());
   const out: PdfFlightRow[] = [];
   const seen = new Set<string>();
@@ -225,7 +239,7 @@ export function parseFlightsFromPdfText_THY(text: string): PdfFlightRow[] {
         arrMin = tm[2]!;
       }
       const row: PdfFlightRow[] = [];
-      pushRow(row, fn, depAp, depH, depMin, arrAp, arrDay, arrMon, arrYear, arrH, arrMin);
+      pushGmtRow(row, fn, depAp, depH, depMin, arrAp, arrDay, arrMon, arrYear, arrH, arrMin);
       row.forEach(addDedup);
       continue;
     }
@@ -249,7 +263,7 @@ export function parseFlightsFromPdfText_THY(text: string): PdfFlightRow[] {
     const parsedArr = parseArrLine(lines[j] ?? '');
     if (!parsedArr) continue;
     const row: PdfFlightRow[] = [];
-    pushRow(
+    pushGmtRow(
       row,
       fn,
       depAp,
@@ -268,86 +282,215 @@ export function parseFlightsFromPdfText_THY(text: string): PdfFlightRow[] {
   return out;
 }
 
-/** `pdf-parse` çıktısında aylık grid: DDdow satırları, sonra her sütunda genelde `kod` + boş satır (AG/IG yer tutucu ile hizalı). */
-function thyFindLongestDowDayRun(lines: string[]): { start: number; days: number[] } | null {
-  const re = /^(\d{2})(Pt|Sa|Ca|Pe|Cu|Ct|Pa)$/i;
-  const idx: number[] = [];
-  for (let i = 0; i < lines.length; i += 1) {
-    if (re.test(lines[i] ?? '')) idx.push(i);
-  }
-  let bestStart = -1;
-  let bestLen = 0;
-  for (let k = 0; k < idx.length; k += 1) {
-    let len = 1;
-    for (let j = k + 1; j < idx.length && idx[j] === idx[j - 1]! + 1; j += 1) len += 1;
-    if (len > bestLen) {
-      bestLen = len;
-      bestStart = idx[k]!;
-    }
-  }
-  if (bestStart < 0 || bestLen < 25) return null;
-  const days: number[] = [];
-  for (let i = bestStart; i < lines.length; i += 1) {
-    const m = re.exec(lines[i] ?? '');
-    if (!m) break;
-    days.push(parseInt(m[1]!, 10));
-  }
-  if (days.length < 25) return null;
-  return { start: bestStart, days };
+/** Gerçek lokal bölüm (dipnottaki “LOKAL SAATLI …” cümlesini değil). */
+function extractThyLocalTimeSection(text: string): string | null {
+  const m = /^LOKAL\s+SAATLI\s+UCUS\s+PROGRAMI\s*$/im.exec(text || '');
+  if (!m || m.index == null) return null;
+  const rest = (text || '').slice(m.index);
+  const end = /\nACIKLAMALAR\b/.exec(rest);
+  return end ? rest.slice(0, end.index) : rest;
 }
 
-/** İlk görev hücresinden sonra boş satır varsa sütunlar `base + 2*k` ile hizalı (AG/IG vb. yer tutucu korunur). */
-function thyMonthlyGridDutyToken(
-  lines: string[],
-  base: number,
-  colIndex: number,
-  interleavedBlank: boolean,
-): string {
-  const idx = interleavedBlank ? base + colIndex * 2 : base + colIndex;
-  const t = (lines[idx] ?? '').trim().toUpperCase();
-  if (/^[A-Z]{2,6}$/.test(t)) return t;
-  return '';
+function thyPrintedYear(text: string): number {
+  const m = /Printed\s+\d{1,2}[A-Z]{3}(20\d{2})/i.exec(text || '');
+  if (m?.[1]) return parseInt(m[1], 10);
+  const m2 = /(?:JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(20\d{2})/i.exec(text || '');
+  if (m2?.[1]) return parseInt(m2[1], 10);
+  return new Date().getFullYear();
+}
+
+type ThyDateCursor = { year: number; lastMm: number };
+
+function parseThyTrDateTime(
+  line: string,
+  cursor: ThyDateCursor,
+): { ymd: string; hm: string; mm: number } | null {
+  const m = /^(\d{1,2})([A-ZÇĞİÖŞÜ]{3})\s+(\d{1,2}):(\d{2})$/i.exec((line || '').trim());
+  if (!m) return null;
+  const mon = (m[2] || '').toUpperCase();
+  const mmStr = MONTH_TR_THY[mon];
+  if (!mmStr) return null;
+  const mm = parseInt(mmStr, 10);
+  if (cursor.lastMm >= 11 && mm <= 2) cursor.year += 1;
+  cursor.lastMm = mm;
+  return {
+    ymd: `${cursor.year}-${mmStr}-${pad2(m[1]!)}`,
+    hm: `${pad2(m[3]!)}:${pad2(m[4]!)}`,
+    mm,
+  };
+}
+
+function parseThyLocalTimeLine(line: string): { hm: string; airport?: string } | null {
+  const t = (line || '').trim();
+  const ap = /^([A-Z]{3})\/(\d{1,2}):(\d{2})$/i.exec(t);
+  if (ap) return { airport: ap[1]!.toUpperCase(), hm: `${pad2(ap[2]!)}:${pad2(ap[3]!)}` };
+  const bare = /^(\d{1,2}):(\d{2})$/.exec(t);
+  if (bare) return { hm: `${pad2(bare[1]!)}:${pad2(bare[2]!)}` };
+  return null;
+}
+
+function isThyLocalDutyCodeToken(code: string): boolean {
+  const u = (code || '').trim().toUpperCase();
+  if (!u) return false;
+  if (THY_LOCAL_META.has(u)) return false;
+  if (/^D\d+$/.test(u) || /^B\d+$/.test(u)) return false;
+  // RC1, EMM, HSBY, CFR, III, …
+  if (!/^[A-Z]{2,6}\d{0,2}$/.test(u)) return false;
+  return true;
+}
+
+function pushThyDutyRow(
+  out: PdfFlightRow[],
+  code: string,
+  flightDate: string,
+  startHm: string,
+  endHm: string,
+  endDate: string,
+): void {
+  if (isOffDayOccupationCode(code)) return;
+  // IBI PDF’de off/izin hücresi; katalogda yoksa yine at.
+  if (code === 'IBI') return;
+  out.push({
+    roster_entry_kind: 'duty_off',
+    flight_number: code,
+    flight_date: flightDate,
+    duty_occupation_code: code,
+    duty_occupation_label_tr: rosterOccupationLabelTr(code),
+    duty_occupation_label_en: rosterOccupationLabelEn(code),
+    duty_start_time_local: startHm,
+    duty_end_date_iso: endDate,
+    duty_end_time_local: endHm,
+    duty_clock_basis: 'local',
+  });
+}
+
+/**
+ * Lokal saatli günlük program → uçuş + görev satırları.
+ * Boş gün (IBB/IBI/…) import edilmez.
+ */
+export function parseLocalTimeProgramFromPdfText_THY(text: string): PdfFlightRow[] {
+  const section = extractThyLocalTimeSection(text);
+  if (!section) return [];
+
+  const lines = section.replace(/\r/g, '').split('\n').map((l) => l.trim());
+  const cursor: ThyDateCursor = { year: thyPrintedYear(text), lastMm: 0 };
+  const out: PdfFlightRow[] = [];
+  const seen = new Set<string>();
+
+  const addDedup = (r: PdfFlightRow) => {
+    const k = `${r.roster_entry_kind ?? 'flight'}|${r.flight_date}|${r.flight_number}|${r.dep_time_local ?? r.duty_start_time_local ?? ''}`;
+    if (seen.has(k)) return;
+    seen.add(k);
+    out.push(r);
+  };
+
+  const mbIdx: number[] = [];
+  for (let i = 0; i < lines.length; i += 1) {
+    if ((lines[i] ?? '') === 'MB:') mbIdx.push(i);
+  }
+
+  for (let b = 0; b < mbIdx.length; b += 1) {
+    const from = mbIdx[b]!;
+    const to = b + 1 < mbIdx.length ? mbIdx[b + 1]! : lines.length;
+    const chunk = lines.slice(from, to);
+    const mb = parseThyTrDateTime(chunk[1] ?? '', cursor);
+    if (!mb) continue;
+
+    let ms: { ymd: string; hm: string } | null = null;
+    for (let i = 0; i < chunk.length; i += 1) {
+      if (chunk[i] === 'MS:') {
+        ms = parseThyTrDateTime(chunk[i + 1] ?? '', cursor);
+        break;
+      }
+    }
+
+    const gmbs: { ymd: string; hm: string }[] = [];
+    for (let i = 0; i < chunk.length; i += 1) {
+      if (chunk[i] === 'GMB:') {
+        const g = parseThyTrDateTime(chunk[i + 1] ?? '', cursor);
+        if (g) gmbs.push(g);
+      }
+    }
+
+    type TkLeg = { fn: string; from: string; to: string; dep: string; arr: string };
+    const tks: TkLeg[] = [];
+    for (let i = 0; i < chunk.length; i += 1) {
+      const tk = /^TK(\d{2,4})$/i.exec(chunk[i] ?? '');
+      if (!tk) continue;
+      let j = skipEmpty(i + 1, chunk);
+      const dep = parseThyLocalTimeLine(chunk[j] ?? '');
+      if (!dep?.airport) continue;
+      j = skipEmpty(j + 1, chunk);
+      const arr = parseThyLocalTimeLine(chunk[j] ?? '');
+      if (!arr?.airport) continue;
+      tks.push({
+        fn: `TK${tk[1]}`,
+        from: dep.airport,
+        to: arr.airport,
+        dep: dep.hm,
+        arr: arr.hm,
+      });
+    }
+
+    if (tks.length > 0) {
+      tks.forEach((leg, idx) => {
+        const d = gmbs[idx] ?? gmbs[0] ?? mb;
+        addDedup({
+          roster_entry_kind: 'flight',
+          flight_number: leg.fn,
+          flight_date: d.ymd,
+          origin_iata: leg.from,
+          destination_iata: leg.to,
+          dep_time_local: leg.dep,
+          arr_time_local: leg.arr,
+          duty_clock_basis: 'local',
+        });
+      });
+      continue;
+    }
+
+    // Görev: blok sonundaki kod + saat çifti (IST/8:30 veya 3:00).
+    let duty: { code: string; start: string; end: string } | null = null;
+    for (let i = chunk.length - 1; i >= 1; i -= 1) {
+      const t2 = parseThyLocalTimeLine(chunk[i] ?? '');
+      if (!t2) continue;
+      let j = i - 1;
+      while (j >= 0 && !(chunk[j] ?? '').trim()) j -= 1;
+      const t1 = j >= 0 ? parseThyLocalTimeLine(chunk[j] ?? '') : null;
+      if (!t1) continue;
+      let k = j - 1;
+      while (k >= 0 && !(chunk[k] ?? '').trim()) k -= 1;
+      const code = ((chunk[k] ?? '') as string).trim().toUpperCase();
+      if (!isThyLocalDutyCodeToken(code)) continue;
+      duty = { code, start: t1.hm, end: t2.hm };
+      break;
+    }
+
+    if (!duty) continue;
+
+    const endDate =
+      ms && minutes(duty.end) < minutes(duty.start) ? ms.ymd : mb.ymd;
+    const rows: PdfFlightRow[] = [];
+    pushThyDutyRow(rows, duty.code, mb.ymd, duty.start, duty.end, endDate);
+    rows.forEach(addDedup);
+  }
+
+  return out;
+}
+
+export function parseFlightsFromPdfText_THY(text: string): PdfFlightRow[] {
+  const local = parseLocalTimeProgramFromPdfText_THY(text);
+  if (local.length > 0) {
+    return local.filter((r) => r.roster_entry_kind === 'flight' || r.roster_entry_kind == null);
+  }
+  return parseGmtFlightsFromPdfText_THY(text);
 }
 
 export function parseDutyFromPdfText_THY(text: string): PdfFlightRow[] {
-  const lines = (text || '').replace(/\r/g, '').split('\n').map((l) => l.trim());
-  const out: PdfFlightRow[] = [];
-
-  const periodLine = lines.find((l) => /Period:/i.test(l));
-  const p = /Period:\s*(\d{2})([A-ZÇĞİÖŞÜ]{3})\s*-\s*(\d{2})([A-ZÇĞİÖŞÜ]{3})/i.exec(periodLine ?? '');
-  const periodMonthToken = (p?.[2] ?? '').toUpperCase();
-  const mm = MONTH_TR_THY[periodMonthToken];
-  if (!mm) return out;
-
-  const yMatch = /(?:JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(20\d{2})/.exec(text || '');
-  const yyyy = yMatch?.[1] ?? String(new Date().getFullYear());
-  if (!/^\d{4}$/.test(yyyy)) return out;
-
-  const run = thyFindLongestDowDayRun(lines);
-  if (!run) return out;
-  const { start: first, days } = run;
-
-  const base = first + days.length;
-  const interleaved = (lines[base + 1] ?? '').trim() === '';
-  const lastIdx = interleaved ? base + (days.length - 1) * 2 : base + days.length - 1;
-  if (lastIdx >= lines.length) return out;
-
-  for (let i = 0; i < days.length; i += 1) {
-    const day = days[i]!;
-    const code = thyMonthlyGridDutyToken(lines, base, i, interleaved);
-    if (!code || !THY_DUTY_CODES.has(code)) continue;
-    const flightDate = `${yyyy}-${mm}-${pad2(day)}`;
-    out.push({
-      roster_entry_kind: 'duty_off',
-      flight_number: code,
-      flight_date: flightDate,
-      duty_occupation_code: code,
-      duty_occupation_label_tr: rosterOccupationLabelTr(code),
-      duty_occupation_label_en: rosterOccupationLabelEn(code),
-      duty_start_time_local: '00:00',
-      duty_end_date_iso: flightDate,
-      duty_end_time_local: '23:59',
-    });
+  const local = parseLocalTimeProgramFromPdfText_THY(text);
+  if (local.length > 0) {
+    return local.filter((r) => r.roster_entry_kind === 'duty_off');
   }
-  return out;
+  // Lokal bölüm yoksa eski aylık grid’e düşme — tarih kayması riski yüksek.
+  return [];
 }

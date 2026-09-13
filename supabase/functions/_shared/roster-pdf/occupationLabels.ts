@@ -44,7 +44,9 @@ export function isTrainingOccupationCode(code: string | null | undefined): boole
     u === 'TRA' ||
     u === 'SEM' ||
     u === 'SNV' ||
-    u === 'SDM'
+    u === 'SDM' ||
+    u === 'EMM' ||
+    /^RC\d+$/.test(u)
   );
 }
 
@@ -64,9 +66,12 @@ const ROSTER_OCCUPATION_TR: Record<string, string> = {
   IOZ: 'Boş Gün',
   IBC: 'Boş Gün',
   IBY: 'Boş Gün',
+  IBI: 'Boş Gün',
   HSBY: 'Ev Nöbeti',
   HSYB: 'Ev Nöbeti',
   ASYB: 'Havalimanı Nöbeti',
+  EMM: 'E-Learning Eğitim',
+  RC1: 'Kokpit Yenileme Eğitimi',
   III: 'Yıllık İzin',
   OFF: 'Boş Gün',
   SBY: 'Nöbet',
@@ -105,9 +110,12 @@ const ROSTER_OCCUPATION_EN: Record<string, string> = {
   IOZ: 'Off Day',
   IBC: 'Off Day',
   IBY: 'Off Day',
+  IBI: 'Off Day',
   HSBY: 'Home Standby',
   HSYB: 'Home Standby',
   ASYB: 'Airport Standby',
+  EMM: 'E-Learning Training',
+  RC1: 'Cockpit Recurrent Training',
   III: 'Annual Leave',
   OFF: 'Off Day',
   SBY: 'Standby',
@@ -339,9 +347,10 @@ export function rosterOccupationLabelTr(code: string | null | undefined): string
   if (u === 'UPV') return 'Ücretsiz İzin';
   if (u === 'VAV' || u === 'VAC' || u === 'AVAC' || u === 'III') return 'Yıllık İzin';
   if (u.includes('YERDR')) return 'Yer Dersi';
+  if (ROSTER_OCCUPATION_TR[u]) return ROSTER_OCCUPATION_TR[u]!;
   if (isTrainingOccupationCode(u)) return 'Görev';
   if (isOfficeDutyOccupationCode(u)) return 'Ofis';
-  return ROSTER_OCCUPATION_TR[u] ?? CREW_PLANNING_ABBR_TR[u] ?? code;
+  return CREW_PLANNING_ABBR_TR[u] ?? code;
 }
 
 export function rosterOccupationLabelEn(code: string | null | undefined): string | null {
@@ -359,9 +368,10 @@ export function rosterOccupationLabelEn(code: string | null | undefined): string
   if (u === 'UPV') return 'Unpaid Leave';
   if (u === 'VAV' || u === 'VAC' || u === 'AVAC' || u === 'III') return 'Annual Leave';
   if (u.includes('YERDR')) return 'Ground Training';
+  if (ROSTER_OCCUPATION_EN[u]) return ROSTER_OCCUPATION_EN[u]!;
   if (isTrainingOccupationCode(u)) return 'Duty';
   if (isOfficeDutyOccupationCode(u)) return 'Office Duty';
-  return ROSTER_OCCUPATION_EN[u] ?? CREW_PLANNING_ABBR_EN[u] ?? code;
+  return CREW_PLANNING_ABBR_EN[u] ?? code;
 }
 
 /** Ofis görevi — yer dersi gibi gri kutu + takvimde kırmızı. */
@@ -435,6 +445,7 @@ export function isOffDayOccupationCode(code: string | null | undefined): boolean
     u === 'IOZ' ||
     u === 'IBC' ||
     u === 'IBY' ||
+    u === 'IBI' ||
     u === 'III' ||
     u === 'VAC' ||
     u === 'AVAC' ||

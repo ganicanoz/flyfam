@@ -15,6 +15,8 @@ import {
   parseFlightsFromPdfText,
   parseFlightsFromPdfText_SunExpress,
   parseFlightsFromPdfText_THY,
+  parseDutyFromPdfText_THY,
+  parseLocalTimeProgramFromPdfText_THY,
   parseFlightsFromPdfText_Freebird,
   parseFlightsFromPdfText_Indigo,
   parseFlightsFromPdfText_DutyLocalTable,
@@ -24,7 +26,6 @@ import {
   normalizeCrewAirlineIcaoTypo,
   type PdfFlightRow,
 } from '../_shared/pdfRosterImport.ts';
-import { parseDutyFromPdfText_THY } from '../_shared/roster-pdf/airlines/thy/lineScan.ts';
 import {
   rosterOccupationLabelEn,
   rosterOccupationLabelTr,
@@ -883,7 +884,18 @@ async function parseSunExpressWithLayout(buf: Uint8Array, rawText: string): Prom
     }
   }
 
-  const flightDates = new Set(out.map((r) => r.flight_date));
+  const flightDates = new Set<string>();
+  for (const r of out) {
+    if (!/^(XQ\d{2,4}|DH)$/i.test(r.flight_number || '')) continue;
+    flightDates.add(r.flight_date);
+    if (r.dep_schedule_utc_iso) flightDates.add(r.dep_schedule_utc_iso.slice(0, 10));
+    if (r.arr_schedule_utc_iso) flightDates.add(r.arr_schedule_utc_iso.slice(0, 10));
+    const depM = r.dep_time_local ? hhmmToMin(r.dep_time_local) : null;
+    const arrM = r.arr_time_local ? hhmmToMin(r.arr_time_local) : null;
+    // Gece bacak / TR+3 taşması: ertesi yerel gün de uçuş günü (FOF/OFF basma).
+    if (depM != null && arrM != null && arrM < depM) flightDates.add(addDaysIso(r.flight_date, 1));
+    if (depM != null && depM + 3 * 60 >= 24 * 60) flightDates.add(addDaysIso(r.flight_date, 1));
+  }
   for (const [date, duty] of dutiesByLayout) {
     if (!duty.code || (flightDates.has(date) && duty.code.toUpperCase() !== 'TOF')) continue;
     // Report/Release satırları uçuş değil; görev kodları (OFF/AVAC/SB/RSV/TOF) kalsın.
@@ -903,12 +915,21 @@ async function parseSunExpressWithLayout(buf: Uint8Array, rawText: string): Prom
   }
 
   // Hedef ayı tamamlama: eksik günlere OFF ekle.
+  // Uçuş flight_date + planlı dep/arr günleri dolu sayılır (gece bacak ertesi güne FOF basmasın).
   const dayHasEntry = new Set<number>();
-  for (const r of out) {
-    const y = Number(r.flight_date.slice(0, 4));
-    const m = Number(r.flight_date.slice(5, 7));
-    const d = Number(r.flight_date.slice(8, 10));
+  const markYmd = (ymd: string | null | undefined) => {
+    if (!ymd || ymd.length < 10) return;
+    const y = Number(ymd.slice(0, 4));
+    const m = Number(ymd.slice(5, 7));
+    const d = Number(ymd.slice(8, 10));
     if (y === monthInfo.year && m === monthInfo.month) dayHasEntry.add(d);
+  };
+  for (const r of out) {
+    markYmd(r.flight_date);
+    if (/^(XQ\d{2,4}|DH)$/i.test(r.flight_number || '')) {
+      markYmd(r.dep_schedule_utc_iso?.slice(0, 10));
+      markYmd(r.arr_schedule_utc_iso?.slice(0, 10));
+    }
   }
   const monthLen = daysInMonth(monthInfo.year, monthInfo.month);
   for (let d = 1; d <= monthLen; d += 1) {
@@ -1316,8 +1337,13 @@ function parseForcedAirlineText(text: string, icao: string): PdfFlightRow[] {
     case 'IGO':
       return sortRows(parseFlightsFromPdfText_Indigo(raw));
     case 'THY': {
+      const local = parseLocalTimeProgramFromPdfText_THY(normalized);
+      const rows =
+        local.length > 0
+          ? local
+          : [...parseFlightsFromPdfText_THY(normalized), ...parseDutyFromPdfText_THY(normalized)];
       const map = new Map<string, PdfFlightRow>();
-      for (const f of [...parseFlightsFromPdfText_THY(normalized), ...parseDutyFromPdfText_THY(normalized)]) {
+      for (const f of rows) {
         const k = pdfRowDedupeKey(f);
         const prev = map.get(k);
         map.set(k, prev ? mergePdfRow(prev, f) : { ...f });

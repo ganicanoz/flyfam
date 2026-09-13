@@ -11,7 +11,7 @@ import { parseFlightsFromPdfText_Freebird } from './airlines/freebird/lineScan.t
 import { parseFlightsFromPdfText_Indigo } from './airlines/indigo/lineScan.ts';
 import { parseFlightsFromPdfText_Pegasus } from './airlines/pegasus/lineScan.ts';
 import { parseFlightsFromPdfText_SunExpress } from './airlines/sunexpress/lineScan.ts';
-import { parseDutyFromPdfText_THY, parseFlightsFromPdfText_THY } from './airlines/thy/lineScan.ts';
+import { parseDutyFromPdfText_THY, parseFlightsFromPdfText_THY, parseLocalTimeProgramFromPdfText_THY } from './airlines/thy/lineScan.ts';
 import {
   dropSingleLineFlightDateGhosts,
   mergePdfRow,
@@ -45,13 +45,15 @@ export function parseFlightsFromPdfText(text: string): PdfFlightRow[] {
 
   const normalized = normalizePdfTextForRosterParse(text);
 
-  /** THY ekip PDF: yalnız GMT tablo tarayıcısı (Pegasus ile karışmasın). */
+  /** THY ekip PDF: lokal saat tablosu (yoksa GMT uçuş). */
   if (looksLikeThyCrewRosterPdf(normalized)) {
+    const local = parseLocalTimeProgramFromPdfText_THY(normalized);
+    const rows =
+      local.length > 0
+        ? local
+        : [...parseFlightsFromPdfText_THY(normalized), ...parseDutyFromPdfText_THY(normalized)];
     const map = new Map<string, PdfFlightRow>();
-    for (const f of [
-      ...parseFlightsFromPdfText_THY(normalized),
-      ...parseDutyFromPdfText_THY(normalized),
-    ]) {
+    for (const f of rows) {
       const k = pdfRowDedupeKey(f);
       const prev = map.get(k);
       map.set(k, prev ? mergePdfRow(prev, f) : { ...f });

@@ -1,5 +1,20 @@
-# THY / AJet tarzı roster (hazırlık)
+# THY ekip aylık program PDF
 
-`lineScan.ts` içinde `15MAR2025` + `TK1234` satır parser’ı var. Pegasus duty PDF’inde `parseFlightsFromPdfText` bu yolu **bilinçli olarak kapalı** tutar.
+Kaynak: `lineScan.ts` — `parseLocalTimeProgramFromPdfText_THY` / `parseFlightsFromPdfText_THY` / `parseDutyFromPdfText_THY`.
 
-İleride: crew şirketi / dosya tipi seçimine göre ayrı pipeline veya `parseFlightsFromPdfText` içinde THY-only dalı.
+## Birincil: LOKAL SAATLI UCUS PROGRAMI
+
+- Dipnot cümlesindeki “LOKAL SAATLI …” değil; satır başı başlık `LOKAL SAATLI UCUS PROGRAMI`.
+- Bölüm sonu: `ACIKLAMALAR`.
+- Her gün `MB:` bloğu; uçuşlarda `GMB:` tarihleri + `TK###` + `AAA/h:mm` çiftleri.
+- Görevler: blok sonu kod (`RC1`, `EMM`, `HSBY`, `CFR`, …) + saat çifti (`IST/8:30` veya `3:00`).
+- **Import edilmez:** `IBB` / `IBI` ve diğer boş gün occupation’ları.
+- Saatler **lokal** (`duty_clock_basis: 'local'`); UTC Edge/istemci import’ta IATA TZ ile üretilir.
+
+## Yedek: Kalkış/GMT · İniş/GMT
+
+Lokal bölüm yoksa yalnız uçuş satırları GMT tablosundan okunur (eski davranış). Aylık takvim grid’inden duty üretilmez (tarih kayması).
+
+## Etiketler
+
+`occupationLabels.ts`: `EMM` (E-Learning), `RC1` (Kokpit Yenileme), `HSBY`, `CFR`, … — training kodları `isTrainingOccupationCode` içinde.

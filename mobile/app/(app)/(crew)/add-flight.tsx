@@ -350,7 +350,9 @@ export default function AddFlight() {
   };
 
   const rosterPdfImportSupported = isRosterPdfImportSupportedForCrewAirline(crewProfile?.airline_icao);
-  const isIndigoCrew = (crewProfile?.airline_icao ?? '').toUpperCase() === 'IGO';
+  const airlineIcaoU = (crewProfile?.airline_icao ?? '').toUpperCase();
+  const isIndigoCrew = airlineIcaoU === 'IGO';
+  const isThyCrew = airlineIcaoU === 'THY';
 
   return (
     <View style={styles.container}>
@@ -374,6 +376,9 @@ export default function AddFlight() {
             </TouchableOpacity>
             {isIndigoCrew && rosterPdfImportSupported ? (
               <Text style={styles.importFlightsIndigoHint}>{t('addFlight.importFlightsIndigoHint')}</Text>
+            ) : null}
+            {isThyCrew && rosterPdfImportSupported ? (
+              <Text style={styles.importFlightsIndigoHint}>{t('addFlight.importFlightsThyHint')}</Text>
             ) : null}
           </View>
 
