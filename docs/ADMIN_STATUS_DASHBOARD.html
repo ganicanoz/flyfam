@@ -9,7 +9,7 @@
   <meta http-equiv="Expires" content="0" />
   <script>
     (function () {
-      var UI = '42';
+      var UI = '43';
       var p = new URLSearchParams(location.search);
       if (p.get('ui') !== UI) {
         p.set('ui', UI);
@@ -1296,7 +1296,8 @@
             Tanınan görev kodları (<code>RC1</code>, <code>EMM</code>, <code>HSBY</code>, <code>CFR</code>,
             <code>IBB</code>, <code>IBI</code>, …) → görev / boş gün (PDF saat penceresi).
             Kural: lokal tabloda anlaşılan her satır alınır; bilinmeyen satırlar atlanır.
-            Lokal bölüm yoksa yedek: GMT uçuş tablosu.
+            <strong>Saat → UTC:</strong> uçuşlarda kalkış = origin istasyon lokal, iniş = destination istasyon lokal;
+            görev/boş gün/nöbet = home base lokal. Lokal bölüm yoksa yedek: GMT uçuş tablosu.
           </p>
           <p class="mini" style="margin-top:-4px; padding:8px 10px; border-radius:8px; background:#fff7ed; border:1px solid #fed7aa;">
             <strong>SunExpress kuralları (uygulama = Edge):</strong>
@@ -2610,7 +2611,7 @@
           let hint = '';
           if (location.protocol === 'file:') {
             hint =
-              ' Paneli file:// ile açıyorsun — terminalde: cd docs && python3 -m http.server 8765 sonra http://localhost:8765/ADMIN_STATUS_DASHBOARD.html?ui=42';
+              ' Paneli file:// ile açıyorsun — terminalde: cd docs && python3 -m http.server 8765 sonra http://localhost:8765/ADMIN_STATUS_DASHBOARD.html?ui=43';
           } else {
             hint = ' Supabase URL ve anon key kontrol et; VPN/eklenti engeli olabilir.';
           }

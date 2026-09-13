@@ -2,11 +2,9 @@
  * THY ekip PDF.
  *
  * Birincil kaynak: “LOKAL SAATLI UCUS PROGRAMI” (Kalkış/LT · İniş/LT) günlük bloklar.
- * Yedek (lokal bölüm yoksa): “Kalkış/GMT · İniş/GMT” uçuş tablosu.
- *
- * `pdf-parse` çıktısı çoğu zaman tek satır yerine şu blokları üretir:
- *   TK661 → IST/6:00 → TUN/10MAR202609:00
- * Lokal: MB:/GMB: tarihleri + RC1/EMM/HSBY/CFR veya TK### + AAA/h:mm
+ * Uçuş saatleri istasyon lokalidir (kalkış=origin, iniş=destination); görevler home base lokal.
+ * UTC dönüşümü import’ta (`rowToScheduleIso` / home base TZ) yapılır — burada UTC yazılmaz.
+ * Yedek (lokal bölüm yoksa): “Kalkış/GMT · İniş/GMT” uçuş tablosu (saatler UTC).
  */
 
 import type { PdfFlightRow } from '../../types.ts';

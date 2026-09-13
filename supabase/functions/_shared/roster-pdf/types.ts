@@ -7,12 +7,12 @@ export type PdfFlightRow = {
   flight_date: string;
   /** flight | sim | duty_off — sim DB’ye yazılmaz; duty_off = FSF/FOF (görev penceresi) */
   roster_entry_kind?: 'flight' | 'sim' | 'duty_off';
-  /** HH:MM — roster yerel saati (varsayılan TR+3 ile UTC’ye çevrilir) */
+  /** HH:MM — uçuşta kalkış/iniş **istasyon** lokal saati; duty’de genelde home base lokal */
   dep_time_local?: string | null;
   arr_time_local?: string | null;
   /**
    * THY crew PDF “Kalkış/GMT · İniş/GMT” veya Pegasus tabloda `(Z)` ile işaretli saatler: değerler UTC;
-   * doluysa `rowToScheduleIso` atlanır.
+   * doluysa `rowToScheduleIso` atlanır. THY LOKAL SAATLI tabloda boş bırakılır (istasyon lokal → import’ta UTC).
    */
   dep_schedule_utc_iso?: string | null;
   arr_schedule_utc_iso?: string | null;
@@ -33,6 +33,12 @@ export type PdfFlightRow = {
   /** Uçuş görevi: resting end (ikinci slash çifti); SIM’de genelde yok */
   duty_rest_end_date_iso?: string | null;
   duty_rest_end_time_local?: string | null;
+  /**
+   * Duty / nöbet / dinlenme saatlerinin PDF’deki anlamı.
+   * Pegasus `Active Plan : … (Z)` → `utc` (duvar saati Zulu).
+   * `(L)` / THY LOKAL / bilinmiyor → `local` (home base IANA ile UTC’ye çevrilir).
+   */
+  duty_clock_basis?: 'local' | 'utc' | null;
   /**
    * IndiGo PDF "Training Details" — eşleşen 6E satırına kurs adı (yalnızca IGO import).
    * Diğer havayollarında set edilmez.

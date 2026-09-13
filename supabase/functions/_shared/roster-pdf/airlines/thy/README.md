@@ -12,6 +12,8 @@ Kaynak: `lineScan.ts` — `parseLocalTimeProgramFromPdfText_THY` / `parseFlights
 - **Görev / boş gün:** blok sonundaki kod + saat çifti (`RC1`, `EMM`, `HSBY`, `CFR`, `IBB`, `IBI`, …).
 - Kural: lokal tabloda tanınan her satır import edilir; meta/limit satırları ve bilinmeyen token’lar atlanır.
 - Saatler **lokal** (`duty_clock_basis: 'local'`); UTC Edge/istemci import’ta IATA TZ ile üretilir.
+  - **Uçuş:** kalkış = origin istasyon lokal, iniş = destination istasyon lokal → UTC.
+  - **Görev / boş gün / nöbet:** home base lokal → UTC (`crewHomeBaseIata`).
 
 ## Yedek: Kalkış/GMT · İniş/GMT
 

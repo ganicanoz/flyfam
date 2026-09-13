@@ -118,8 +118,10 @@ export function localDateTimeInTimezoneToUtcIso(
 }
 
 /**
- * Yerel kalkış/iniş → UTC: kalkış **origin** TZ, iniş **destination** TZ (yoksa Istanbul).
- * `zones` verilmezse her iki bacak için `ROSTER_FALLBACK_TIMEZONE` (eski tek-Türkiye davranışı).
+ * Yerel kalkış/iniş → UTC.
+ * Uçuş: kalkış saati **origin** istasyon lokal, iniş saati **destination** istasyon lokal.
+ * Varış UTC ≤ kalkış UTC ise varış takvim günü +1 (gece/uzun menzil; dakika karşılaştırması değil).
+ * `zones` yoksa `ROSTER_FALLBACK_TIMEZONE`.
  */
 export function rowToScheduleIso(
   row: PdfFlightRow,
@@ -130,17 +132,17 @@ export function rowToScheduleIso(
 } {
   const { dep_time_local: dep, arr_time_local: arr, flight_date: d0 } = row;
   if (!dep) return { depIso: null, arrIso: null };
-  let arrDayOffset = 0;
-  if (arr) {
-    const dm = timeToMinutes(dep);
-    const am = timeToMinutes(arr);
-    if (Number.isFinite(dm) && Number.isFinite(am) && am < dm) arrDayOffset = 1;
-  }
   const originTz = zones?.originTz?.trim() || ROSTER_FALLBACK_TIMEZONE;
   const destTz = zones?.destTz?.trim() || ROSTER_FALLBACK_TIMEZONE;
-  const arrYmd = arrDayOffset > 0 ? addCalendarDays(d0, arrDayOffset) : d0;
   const depIso = localDateTimeInTimezoneToUtcIso(d0, dep, originTz, 0);
-  const arrIso = arr ? localDateTimeInTimezoneToUtcIso(arrYmd, arr, destTz, 0) : null;
+  if (!arr) return { depIso, arrIso: null };
+
+  let arrIso = localDateTimeInTimezoneToUtcIso(d0, arr, destTz, 0);
+  const depMs = depIso ? Date.parse(depIso) : NaN;
+  const arrMs = arrIso ? Date.parse(arrIso) : NaN;
+  if (Number.isFinite(depMs) && Number.isFinite(arrMs) && arrMs <= depMs) {
+    arrIso = localDateTimeInTimezoneToUtcIso(addCalendarDays(d0, 1), arr, destTz, 0);
+  }
   return { depIso, arrIso };
 }
 
@@ -150,13 +152,37 @@ function normalizeHhmmForUtc(hhmm: string): string | null {
   return `${m[1]!.padStart(2, '0')}:${m[2]}`;
 }
 
-function utcIsoFromYmdAndHhmm(dateYmd: string, hhmm: string): string | null {
+/** PDF’deki HH:MM değerleri zaten UTC ise (Pegasus `(Z)`, THY GMT). */
+export function utcClockDateTimeToUtcIso(dateYmd: string, hhmm: string, addDays = 0): string | null {
   const hm = normalizeHhmmForUtc(hhmm);
   if (!hm) return null;
   const [yy, mo, dd] = dateYmd.split('-').map((x) => parseInt(x, 10));
   if (!Number.isFinite(yy) || !Number.isFinite(mo) || !Number.isFinite(dd)) return null;
   const [hs, ms] = hm.split(':').map((x) => parseInt(x, 10));
-  return new Date(Date.UTC(yy, mo - 1, dd, hs, ms, 0, 0)).toISOString();
+  const ymd = addDays !== 0 ? addCalendarDays(dateYmd, addDays) : dateYmd;
+  const [y2, m2, d2] = ymd.split('-').map((x) => parseInt(x, 10));
+  return new Date(Date.UTC(y2, m2 - 1, d2, hs, ms, 0, 0)).toISOString();
+}
+
+function utcIsoFromYmdAndHhmm(dateYmd: string, hhmm: string): string | null {
+  return utcClockDateTimeToUtcIso(dateYmd, hhmm, 0);
+}
+
+/**
+ * Duty / nöbet / rest saatleri → UTC ISO.
+ * `utc` = PDF duvar saati Zulu (Pegasus Active Plan (Z)).
+ * Aksi halde `timeZone` (home base / istasyon IANA) veya `ROSTER_FALLBACK_TIMEZONE`.
+ */
+export function dutyClockToUtcIso(
+  dateYmd: string | null | undefined,
+  hhmm: string | null | undefined,
+  basis?: 'local' | 'utc' | null,
+  addDays = 0,
+  timeZone?: string | null,
+): string | null {
+  if (!dateYmd || !hhmm) return null;
+  if (basis === 'utc') return utcClockDateTimeToUtcIso(dateYmd, hhmm, addDays);
+  return localDateTimeInTimezoneToUtcIso(dateYmd, hhmm, timeZone ?? ROSTER_FALLBACK_TIMEZONE, addDays);
 }
 
 /**

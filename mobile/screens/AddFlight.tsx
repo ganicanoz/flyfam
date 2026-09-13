@@ -48,6 +48,7 @@ import { FormCard } from '../components/FormCard';
 import { PrimaryButton } from '../components/PrimaryButton';
 import TimeRollerField from '../components/TimeRollerField';
 import DateRollerField from '../components/DateRollerField';
+import AirlineRollerField from '../components/AirlineRollerField';
 
 // Date format DD.MM.YYYY for UI; internal/API use YYYY-MM-DD
 function toDisplayDate(isoDate: string): string {
@@ -187,6 +188,8 @@ function formatLocalAndZuluLine(localHHmm: string, zuluHHmm: string | null): str
 
 type FlightRow = {
   id: string;
+  /** Selected airline IATA for this row (defaults to profile). */
+  airlineIata: string;
   flightNumberInput: string;
   dateIso: string;
   dateInput: string;
@@ -200,11 +203,12 @@ type FlightRow = {
   lastLookupKey: string | null;
 };
 
-function createEmptyRow(dateIsoPrefill?: string): FlightRow {
+function createEmptyRow(dateIsoPrefill?: string, airlineIataPrefill?: string): FlightRow {
   const iso =
     dateIsoPrefill && /^\d{4}-\d{2}-\d{2}$/.test(dateIsoPrefill) ? dateIsoPrefill : todayIso();
   return {
     id: String(Date.now() + Math.random()),
+    airlineIata: (airlineIataPrefill || '').trim().toUpperCase(),
     flightNumberInput: '',
     dateIso: iso,
     dateInput: toDisplayDate(iso),
@@ -264,7 +268,26 @@ export default function AddFlight() {
   const isStandbyAssignMode = Boolean(replaceStandbyFlightId);
 
   const airline = crewProfile?.airline_icao ? AIRLINES.find((a) => a.icao === crewProfile.airline_icao) : null;
+  const profileAirlineIata = airline?.iata?.toUpperCase() ?? '';
 
+  // Profil havayolu gelince boş satırlara varsayılan ata.
+  useEffect(() => {
+    if (!profileAirlineIata) return;
+    setRows((prev) => {
+      let changed = false;
+      const next = prev.map((r) => {
+        if (r.airlineIata) return r;
+        changed = true;
+        return { ...r, airlineIata: profileAirlineIata };
+      });
+      return changed ? next : prev;
+    });
+  }, [profileAirlineIata]);
+
+  const rowAirlineIata = useCallback(
+    (row: FlightRow) => (row.airlineIata || profileAirlineIata || '').trim().toUpperCase() || null,
+    [profileAirlineIata],
+  );
   const pdfReportBase = useCallback(
     () => ({
       crewAirlineIcao: crewProfile?.airline_icao ?? null,
@@ -303,7 +326,10 @@ export default function AddFlight() {
   }, []);
 
   const addRow = () => {
-    setRows((prev) => [...prev, createEmptyRow(standbyPrefillDate ?? undefined)]);
+    setRows((prev) => [
+      ...prev,
+      createEmptyRow(standbyPrefillDate ?? undefined, profileAirlineIata || undefined),
+    ]);
   };
 
   const removeRow = (id: string) => {
@@ -338,6 +364,7 @@ export default function AddFlight() {
           rawText,
           crewAirlineIcao: crewProfile.airline_icao ?? null,
           crewAirlineIata: airline?.iata ?? null,
+          crewHomeBaseIata: crewProfile.home_base_iata ?? null,
         },
       );
       const skipSnippet =
@@ -587,8 +614,9 @@ export default function AddFlight() {
 
   const onChangeFlightNumber = (id: string, text: string) => {
     let next = text.toUpperCase().replace(/\s/g, '');
-    const iata = airline?.iata?.toUpperCase();
-    // Kullanıcı PC1922 yazarsa profil kodunu soy, sadece numara kalsın.
+    const row = rows.find((r) => r.id === id);
+    const iata = rowAirlineIata(row ?? createEmptyRow());
+    // Kullanıcı PC1922 yazarsa seçili kodu soy, sadece numara kalsın.
     if (iata && next.startsWith(iata) && /^\d/.test(next.slice(iata.length))) {
       next = next.slice(iata.length);
     }
@@ -606,7 +634,7 @@ export default function AddFlight() {
 
   const lookupFlightForRow = useCallback(
     async (row: FlightRow) => {
-      const fullNumber = resolveFlightNumber(airline?.iata ?? null, row.flightNumberInput);
+      const fullNumber = resolveFlightNumber(rowAirlineIata(row), row.flightNumberInput);
       if (!fullNumber || !row.dateIso) return;
 
       const lookupKey = `${fullNumber}|${row.dateIso}`;
@@ -641,7 +669,7 @@ export default function AddFlight() {
         updateRow(row.id, { flightInfo: null, fetching: false, lookupFailed: true, lastLookupKey: lookupKey });
       }
     },
-    [airline?.iata, updateRow],
+    [rowAirlineIata, updateRow],
   );
 
   useEffect(() => {
@@ -649,7 +677,7 @@ export default function AddFlight() {
     if (prefill && prefill.trim()) {
       setRows((prev) => {
         if (!prev.length) {
-          return [{ ...createEmptyRow(standbyPrefillDate ?? undefined), flightNumberInput: prefill.trim() }];
+          return [{ ...createEmptyRow(standbyPrefillDate ?? undefined, profileAirlineIata || undefined), flightNumberInput: prefill.trim() }];
         }
         const [first, ...rest] = prev;
         return [{ ...first, flightNumberInput: prefill.trim() }, ...rest];
@@ -673,7 +701,7 @@ export default function AddFlight() {
   useEffect(() => {
     const timer = setTimeout(() => {
       rows.forEach((row) => {
-        const fullNumber = resolveFlightNumber(airline?.iata ?? null, row.flightNumberInput);
+        const fullNumber = resolveFlightNumber(rowAirlineIata(row), row.flightNumberInput);
         if (!fullNumber || row.dateIso.length !== 10 || row.fetching) return;
         const key = `${fullNumber}|${row.dateIso}`;
         if (row.lastLookupKey === key) return;
@@ -681,8 +709,7 @@ export default function AddFlight() {
       });
     }, 500);
     return () => clearTimeout(timer);
-  }, [rows, airline?.iata, lookupFlightForRow]);
-
+  }, [rows, rowAirlineIata, lookupFlightForRow]);
   /**
    * Planlı kalkış/varış UTC ISO.
    * manuelDep/ArrTime = havalimanı yerel HH:MM (önizlemede düzenlenir).
@@ -755,7 +782,7 @@ export default function AddFlight() {
 
   const handleSave = async () => {
     if (!crewProfile?.id) return;
-    const validRows = rows.filter((row) => resolveFlightNumber(airline?.iata ?? null, row.flightNumberInput) !== null && row.dateIso.length === 10);
+    const validRows = rows.filter((row) => resolveFlightNumber(rowAirlineIata(row), row.flightNumberInput) !== null && row.dateIso.length === 10);
     if (!validRows.length) {
       Alert.alert(t('common.error'), t('addFlight.errorFullNumber'));
       return;
@@ -774,7 +801,7 @@ export default function AddFlight() {
       const destinationIata = destination ? toIata(destination) : null;
       const depTime = row.manualDepTime.trim();
       const arrTime = row.manualArrTime.trim();
-      const fullNumber = resolveFlightNumber(airline?.iata ?? null, row.flightNumberInput);
+      const fullNumber = resolveFlightNumber(rowAirlineIata(row), row.flightNumberInput);
       const isDelayed = info?.delayed === true;
       const p: Record<string, unknown> = {
         crew_id: crewProfile.id,
@@ -823,7 +850,7 @@ export default function AddFlight() {
       const destinationIata = destination ? toIata(destination) : null;
       const depTime = firstRow.manualDepTime.trim();
       const arrTime = firstRow.manualArrTime.trim();
-      const fullNumber = resolveFlightNumber(airline?.iata ?? null, firstRow.flightNumberInput);
+      const fullNumber = resolveFlightNumber(rowAirlineIata(firstRow), firstRow.flightNumberInput);
       const scheduledDep = resolveScheduledUtcIso(
         firstRow.dateIso,
         depTime,
@@ -877,7 +904,7 @@ export default function AddFlight() {
       const destinationIata = destination ? toIata(destination) : null;
       const depTime = row.manualDepTime.trim();
       const arrTime = row.manualArrTime.trim();
-      const fullNumber = resolveFlightNumber(airline?.iata ?? null, row.flightNumberInput);
+      const fullNumber = resolveFlightNumber(rowAirlineIata(row), row.flightNumberInput);
       const scheduledDep = resolveScheduledUtcIso(
         row.dateIso,
         depTime,
@@ -988,9 +1015,9 @@ export default function AddFlight() {
     await finishAndGoRoster(firstDate, allFlightDates);
   };
 
-  const canSave = rows.some((row) => resolveFlightNumber(airline?.iata ?? null, row.flightNumberInput) !== null && row.dateIso.length === 10);
+  const canSave = rows.some((row) => resolveFlightNumber(rowAirlineIata(row), row.flightNumberInput) !== null && row.dateIso.length === 10);
   const saveCount = rows.filter(
-    (row) => resolveFlightNumber(airline?.iata ?? null, row.flightNumberInput) !== null && row.dateIso.length === 10,
+    (row) => resolveFlightNumber(rowAirlineIata(row), row.flightNumberInput) !== null && row.dateIso.length === 10,
   ).length;
   const hasFetchedFlight = rows.some((row) => !!row.flightInfo);
   const pageTitle = isStandbyAssignMode ? t('roster.assignFlightsTitle') : t('nav.addFlight');
@@ -1034,7 +1061,7 @@ export default function AddFlight() {
             );
             const depZulu = flightTimeToUtcHHMM(depUtcIso);
             const arrZulu = flightTimeToUtcHHMM(arrUtcIso);
-            const fullNumber = resolveFlightNumber(airline?.iata ?? null, row.flightNumberInput);
+            const fullNumber = resolveFlightNumber(rowAirlineIata(row), row.flightNumberInput);
             const displayNumber = fullNumber ?? (row.flightNumberInput.trim() || '—');
             const isFetching = row.fetching;
             const canLookup = !!fullNumber && row.dateIso.length === 10;
@@ -1121,47 +1148,57 @@ export default function AddFlight() {
                   <View style={styles.cardPad}>
                     <View style={styles.twoColRow}>
                       <View style={styles.col}>
-                        <Text style={styles.fieldLabel}>
-                          {airline?.iata ? t('addFlight.flightNumberDigits') : t('addFlight.flightNumber')}
-                        </Text>
-                        {airline?.iata ? (
-                          <View style={[styles.flightNumberRow, { backgroundColor: fieldFill }]}>
-                            <View style={styles.airlinePrefixBadge}>
-                              <Text style={styles.airlinePrefixText}>{airline.iata}</Text>
-                            </View>
-                            <TextInput
-                              style={styles.flightNumberInput}
-                              placeholder={t('addFlight.placeholderNumber')}
-                              placeholderTextColor={colors.textMuted}
-                              value={row.flightNumberInput}
-                              onChangeText={(text) => onChangeFlightNumber(row.id, text)}
-                              keyboardType="number-pad"
-                              autoCapitalize="characters"
-                              autoCorrect={false}
-                              onFocus={onFieldFocus}
-                            />
-                          </View>
-                        ) : (
+                        <Text style={styles.fieldLabel}>{t('addFlight.flightNumberDigits')}</Text>
+                        <View style={[styles.flightNumberRow, { backgroundColor: fieldFill }]}>
+                          <AirlineRollerField
+                            value={rowAirlineIata(row) || ''}
+                            preferredIata={profileAirlineIata || null}
+                            onChange={(nextIata) => {
+                              const prevIata = rowAirlineIata(row);
+                              let digits = row.flightNumberInput;
+                              if (
+                                prevIata &&
+                                digits.toUpperCase().startsWith(prevIata) &&
+                                /^\d/.test(digits.slice(prevIata.length))
+                              ) {
+                                digits = digits.slice(prevIata.length);
+                              }
+                              updateRow(row.id, {
+                                airlineIata: nextIata,
+                                flightNumberInput: digits,
+                                flightInfo: null,
+                                lastLookupKey: null,
+                                lookupFailed: false,
+                              });
+                            }}
+                            accessibilityLabel={t('addFlight.airlineCode')}
+                          />
                           <TextInput
-                            style={[styles.fieldInput, { backgroundColor: fieldFill }]}
-                            placeholder={t('addFlight.placeholderFull')}
+                            style={styles.flightNumberInput}
+                            placeholder={t('addFlight.placeholderNumber')}
                             placeholderTextColor={colors.textMuted}
                             value={row.flightNumberInput}
                             onChangeText={(text) => onChangeFlightNumber(row.id, text)}
-                            keyboardType="default"
+                            keyboardType="number-pad"
                             autoCapitalize="characters"
                             autoCorrect={false}
                             onFocus={onFieldFocus}
                           />
-                        )}
-                        {airline?.iata ? (
+                        </View>
+                        {rowAirlineIata(row) ? (
                           <Text style={styles.airlinePrefixHint} numberOfLines={2}>
                             {t('addFlight.airlinePrefixHint', {
-                              code: airline.iata,
-                              airline: airline.name,
+                              code: rowAirlineIata(row),
+                              airline:
+                                AIRLINES.find((a) => a.iata === rowAirlineIata(row))?.name ??
+                                rowAirlineIata(row),
                             })}
                           </Text>
-                        ) : null}
+                        ) : (
+                          <Text style={styles.airlinePrefixHint} numberOfLines={2}>
+                            {t('addFlight.hintNoAirline')}
+                          </Text>
+                        )}
                       </View>
                       <View style={styles.col}>
                         <Text style={styles.fieldLabel}>{t('addFlight.dateLabel')}</Text>
@@ -1173,13 +1210,14 @@ export default function AddFlight() {
                           displayLabel={dateDisplay}
                           placeholder={t('addFlight.dateLabel')}
                           accessibilityLabel={t('addFlight.dateLabel')}
+                          compact
                         />
                       </View>
                     </View>
 
                     {fullNumber ? (
                       <Text style={styles.derived}>{t('addFlight.savedAs', { number: displayNumber })}</Text>
-                    ) : airline?.iata ? (
+                    ) : rowAirlineIata(row) ? (
                       <Text style={styles.derived}>{t('addFlight.enterDigitsOnly')}</Text>
                     ) : null}
 
@@ -1385,17 +1423,17 @@ function createAddFlightStyles() {
     },
     flightNumberRow: {
       flexDirection: 'row',
-      alignItems: 'center',
+      alignItems: 'stretch',
       borderRadius: 12,
-      minHeight: 48,
+      height: 48,
       overflow: 'hidden',
     },
     airlinePrefixBadge: {
       paddingHorizontal: 12,
-      alignSelf: 'stretch',
       justifyContent: 'center',
       backgroundColor: colors.primary,
       minWidth: 48,
+      height: 48,
     },
     airlinePrefixText: {
       color: colors.onPrimary,
@@ -1406,11 +1444,11 @@ function createAddFlightStyles() {
     flightNumberInput: {
       flex: 1,
       paddingHorizontal: 12,
-      paddingVertical: 12,
+      paddingVertical: 0,
       color: colors.text,
       fontSize: 15,
       fontWeight: '600',
-      minHeight: 48,
+      height: 48,
     },
     airlinePrefixHint: {
       marginTop: 6,
@@ -1428,7 +1466,8 @@ function createAddFlightStyles() {
     dateQuickRow: { flexDirection: 'row', gap: 8 },
     dateQuickBtn: {
       flex: 1,
-      paddingVertical: 11,
+      height: 48,
+      paddingVertical: 0,
       borderRadius: 12,
       alignItems: 'center',
       justifyContent: 'center',
@@ -1440,12 +1479,12 @@ function createAddFlightStyles() {
     dateQuickBtnTextSelected: { color: colors.onPrimary },
     lookupButton: {
       marginTop: 2,
-      paddingVertical: 13,
+      paddingVertical: 0,
       borderRadius: radius.pill,
       backgroundColor: colors.primary,
       alignItems: 'center',
       justifyContent: 'center',
-      minHeight: 48,
+      height: 48,
     },
     lookupButtonDisabled: { opacity: 0.4 },
     lookupButtonText: { color: colors.onPrimary, fontWeight: '700', fontSize: 15 },

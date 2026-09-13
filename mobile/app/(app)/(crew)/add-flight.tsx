@@ -155,6 +155,7 @@ export default function AddFlight() {
           rawText,
           crewAirlineIcao: crewProfile.airline_icao ?? null,
           crewAirlineIata: airline?.iata ?? null,
+          crewHomeBaseIata: crewProfile.home_base_iata ?? null,
         },
       );
       const skipSnippet =

@@ -13,6 +13,8 @@ import {
   restEndOperatingYmd,
   isSimulatorOccupationCode,
   isStandbyOccupationCode,
+  localDateTimeInTimezoneToUtcIso,
+  ROSTER_FALLBACK_TIMEZONE,
 } from '../../supabase/functions/_shared/pdfRosterImport';
 
 export * from '../../supabase/functions/_shared/pdfRosterImport';
@@ -523,7 +525,9 @@ function expandMultiDayDutyRows(prepared: PreparedImportRow[]): PreparedImportRo
 }
 
 /**
- * Uçuş satırları + SIM / duty_off (FSF/FOF/DUTY/STBY…). Kalkış/iniş TZ: `airports.timezone_iana`.
+ * Uçuş satırları + SIM / duty_off (FSF/FOF/DUTY/STBY…).
+ * Uçuş UTC: kalkış = origin istasyon lokal, iniş = destination istasyon lokal (`airports.timezone_iana`).
+ * Görev UTC: home base lokal (`crewHomeBaseIata`); yoksa Europe/Istanbul.
  */
 export async function importPdfFlightsViaRpc(
   supabase: SupabaseClient,
@@ -533,10 +537,13 @@ export async function importPdfFlightsViaRpc(
     /** Zorunlu: profil `airline_icao`. PGT/THY/SXS/FHY/IGO desteklenir; aksi veya boşsa içe aktarılmaz. */
     crewAirlineIcao?: string | null;
     crewAirlineIata?: string | null;
+    /** Duty/nöbet/off saatleri için home base IATA (istasyon lokal → UTC). */
+    crewHomeBaseIata?: string | null;
   }
 ): Promise<PdfImportRpcResult> {
   const failed: PdfImportRpcResult['failed'] = [];
   const icaoOpt = normalizeCrewAirlineIcaoTypo(options?.crewAirlineIcao?.trim());
+  const homeBaseIata = (options?.crewHomeBaseIata ?? '').trim().toUpperCase().slice(0, 3);
   let skippedWrongAirline = 0;
   let rowsForPrepare = rows;
   if (!icaoOpt) {
@@ -569,12 +576,18 @@ export async function importPdfFlightsViaRpc(
       if (p.row.origin_iata) iatas.push(p.row.origin_iata);
       if (p.row.destination_iata) iatas.push(p.row.destination_iata);
     }
+    if (homeBaseIata.length === 3) iatas.push(homeBaseIata);
     tzMap = await fetchAirportTimezonesByIata(supabase, iatas);
   } catch (e) {
     if (typeof __DEV__ !== 'undefined' && __DEV__) {
       console.warn('[importPdfFlightsViaRpc] airport TZ fetch failed, Istanbul fallback', e);
     }
   }
+
+  const homeBaseTz =
+    (homeBaseIata.length === 3
+      ? tzMap.get(homeBaseIata) ?? airportIanaForCode(homeBaseIata)
+      : null) ?? ROSTER_FALLBACK_TIMEZONE;
 
   let ok = 0;
   let importedFlights = 0;
@@ -618,9 +631,11 @@ export async function importPdfFlightsViaRpc(
         depIso = utcIsoAddCalendarDays(utcDep, delta) ?? utcDep;
         arrIso = utcIsoAddCalendarDays(utcArr, delta) ?? utcArr;
       } else {
-        const originTz = oi.length === 3 ? tzMap.get(oi) : undefined;
-        const destTz = di.length === 3 ? tzMap.get(di) : undefined;
-        const iso = rowToScheduleIso(rowForDate, { originTz: originTz ?? null, destTz: destTz ?? null });
+        const originTz =
+          (oi.length === 3 ? tzMap.get(oi) ?? airportIanaForCode(oi) : null) ?? null;
+        const destTz =
+          (di.length === 3 ? tzMap.get(di) ?? airportIanaForCode(di) : null) ?? null;
+        const iso = rowToScheduleIso(rowForDate, { originTz, destTz });
         depIso = iso.depIso;
         arrIso = iso.arrIso;
       }
@@ -646,11 +661,15 @@ export async function importPdfFlightsViaRpc(
         startDate === endDate;
 
       if (isSyntheticAllDayDutyOff) {
-        // Çok günlü off expand satırları UTC gün sınırında saklansın (00:00Z-23:59Z).
-        depIso = utcDayBoundaryIso(startDate, '00:00');
-        arrIso = utcDayBoundaryIso(endDate, '23:59');
+        // Tam gün off: home base takvim günü 00:00–23:59 → UTC.
+        depIso = startDate
+          ? localDateTimeInTimezoneToUtcIso(startDate, '00:00', homeBaseTz, 0)
+          : null;
+        arrIso = endDate
+          ? localDateTimeInTimezoneToUtcIso(endDate, '23:59', homeBaseTz, 0)
+          : null;
       } else {
-        // Active Plan (Z) → duty_clock_basis=utc; (L)/varsayılan → TR+3 local.
+        // Active Plan (Z) → duty_clock_basis=utc; (L)/THY lokal → home base IANA.
         const patch: PdfFlightRow = {
           ...rowForDate,
           flight_date: startDate ?? rowForDate.flight_date,
@@ -658,26 +677,25 @@ export async function importPdfFlightsViaRpc(
           duty_end_date_iso: endDate,
           duty_end_time_local: endTime,
         };
-        const block = rowRosterBlockDutyTimesUtc(patch);
+        const block = rowRosterBlockDutyTimesUtc(patch, homeBaseTz);
         depIso =
           block.dutyStartIso ??
-          dutyClockToUtcIso(startDate, startTime, rowForDate.duty_clock_basis) ??
-          localIstanbulToUtcIso(startDate, startTime);
+          dutyClockToUtcIso(startDate, startTime, rowForDate.duty_clock_basis, 0, homeBaseTz);
         arrIso =
           block.dutyEndIso ??
-          dutyClockToUtcIso(endDate, endTime, rowForDate.duty_clock_basis) ??
-          localIstanbulToUtcIso(endDate, endTime);
+          dutyClockToUtcIso(endDate, endTime, rowForDate.duty_clock_basis, 0, homeBaseTz);
       }
     }
 
     const dutyRestEndIso =
-      rowFlightRestEndUtc(rowForDate) ??
+      rowFlightRestEndUtc(rowForDate, homeBaseTz) ??
       dutyClockToUtcIso(
         rowForDate.duty_rest_end_date_iso ?? null,
         rowForDate.duty_rest_end_time_local ?? null,
         rowForDate.duty_clock_basis,
-      ) ??
-      localIstanbulToUtcIso(rowForDate.duty_rest_end_date_iso ?? null, rowForDate.duty_rest_end_time_local ?? null);
+        0,
+        homeBaseTz,
+      );
     const icaoU = icaoOpt?.trim().toUpperCase() ?? '';
     const indigoNote =
       icaoU === 'IGO' && p.rosterKind === 'flight'

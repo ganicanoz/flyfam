@@ -11,7 +11,10 @@
 
 **Önemli (yeniden içe aktarma):** Aynı `flight_number` + `flight_date` satırı zaten varsa, RPC **dolu gelen** `scheduled_departure` / `scheduled_arrival` / `origin` / `destination` / `duty_rest_end` değerleriyle mevcut kaydı **günceller** (`20260321100000_add_me_to_flight_roster_overwrites.sql`). Böylece önceki yanlış import veya API ile dolmuş saatler, script JSON veya doğru PDF ile tekrar içe aktarınca düzelir.
 
-**Yerel saat yorumu:** Kalkış `dep_time_local` → `origin_iata` için `public.airports.timezone_iana`; iniş `arr_time_local` → `destination_iata` TZ. IATA yoksa veya TZ boşsa `Europe/Istanbul` yedek.
+**Yerel saat yorumu:**
+- **Uçuş:** `dep_time_local` → `origin_iata` TZ; `arr_time_local` → `destination_iata` TZ (`public.airports.timezone_iana`, yoksa IANA yedek / `Europe/Istanbul`).
+- **Görev / nöbet / off:** PDF lokal saatleri **home base** TZ (`crew_profiles.home_base_iata`).
+- THY LOKAL SAATLI tablosu bu modele uyar; GMT tablo yedeğinde saatler zaten UTC olarak gelir.
 
 **Şimdilik yalnızca uçuş bacakları:** PDF/JSON içe aktarma SIM / FSF / FOF / `duty_off` satırlarını **atlar** (sayı kullanıcıya bildirilir).
 
