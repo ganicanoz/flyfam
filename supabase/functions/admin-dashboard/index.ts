@@ -2645,6 +2645,330 @@ Deno.serve(async (req) => {
       );
     }
 
+    if (action === 'list_link_graph') {
+      const [crewRes, profileRes, connRes, invRes, peerRes] = await Promise.all([
+        adminClient.from('crew_profiles').select('id, user_id, company_name, airline_icao'),
+        adminClient.from('profiles').select('id, full_name, role'),
+        adminClient
+          .from('family_connections')
+          .select('id, crew_id, family_id, status, invited_by, created_at, updated_at')
+          .order('created_at', { ascending: false }),
+        adminClient
+          .from('crew_invitations')
+          .select('id, crew_id, family_email, status, created_at')
+          .order('created_at', { ascending: false })
+          .limit(500),
+        adminClient
+          .from('crew_peer_links')
+          .select('id, follower_user_id, peer_crew_id, status, created_at, updated_at')
+          .order('created_at', { ascending: false })
+          .limit(500),
+      ]);
+
+      const crewRows = crewRes.data;
+      const profileRows = profileRes.data;
+      const connRows = connRes.data;
+      const invRows = invRes.data;
+      const peerRows = peerRes.error ? [] : peerRes.data;
+      const authList: Array<{ id: string; email?: string }> = [];
+      for (let page = 1; page <= 20; page++) {
+        const { data: pageData, error: authErr } = await adminClient.auth.admin.listUsers({
+          page,
+          perPage: 200,
+        });
+        if (authErr) break;
+        const batch = pageData?.users ?? [];
+        for (const u of batch) {
+          authList.push({ id: u.id, email: u.email ?? undefined });
+        }
+        if (batch.length < 200) break;
+      }
+      const emailById = new Map(authList.map((u) => [u.id, u.email ?? null]));
+      const profileById = new Map(
+        ((profileRows ?? []) as Array<{ id: string; full_name: string | null; role: string | null }>).map((p) => [
+          p.id,
+          p,
+        ]),
+      );
+      const crewById = new Map(
+        ((crewRows ?? []) as Array<{
+          id: string;
+          user_id: string;
+          company_name: string | null;
+          airline_icao: string | null;
+        }>).map((c) => [c.id, c]),
+      );
+      const labelForUser = (userId: string | null | undefined) => {
+        if (!userId) return null;
+        const p = profileById.get(userId);
+        const email = emailById.get(userId) ?? null;
+        return {
+          user_id: userId,
+          full_name: p?.full_name ?? null,
+          role: p?.role ?? null,
+          email,
+        };
+      };
+      const labelForCrew = (crewId: string) => {
+        const c = crewById.get(crewId);
+        if (!c) return { crew_id: crewId, company_name: null, airline_icao: null, user: null };
+        return {
+          crew_id: crewId,
+          company_name: c.company_name,
+          airline_icao: c.airline_icao,
+          user: labelForUser(c.user_id),
+        };
+      };
+
+      const connections = ((connRows ?? []) as Array<{
+        id: string;
+        crew_id: string;
+        family_id: string;
+        status: string;
+        invited_by: string | null;
+        created_at: string | null;
+        updated_at: string | null;
+      }>).map((fc) => ({
+        id: fc.id,
+        status: fc.status,
+        created_at: fc.created_at,
+        updated_at: fc.updated_at,
+        invited_by: fc.invited_by,
+        crew: labelForCrew(fc.crew_id),
+        family: labelForUser(fc.family_id),
+      }));
+
+      const invitations = ((invRows ?? []) as Array<{
+        id: string;
+        crew_id: string;
+        family_email: string;
+        status: string;
+        created_at: string | null;
+      }>).map((inv) => ({
+        id: inv.id,
+        family_email: inv.family_email,
+        status: inv.status,
+        created_at: inv.created_at,
+        crew: labelForCrew(inv.crew_id),
+      }));
+
+      const peer_links = ((peerRows ?? []) as Array<{
+        id: string;
+        follower_user_id: string;
+        peer_crew_id: string;
+        status: string;
+        created_at: string | null;
+        updated_at: string | null;
+      }>).map((pl) => ({
+        id: pl.id,
+        status: pl.status,
+        created_at: pl.created_at,
+        updated_at: pl.updated_at,
+        follower: labelForUser(pl.follower_user_id),
+        peer_crew: labelForCrew(pl.peer_crew_id),
+      }));
+
+      return new Response(
+        JSON.stringify({
+          ok: true,
+          action,
+          generated_at: new Date().toISOString(),
+          connections,
+          invitations,
+          peer_links,
+          counts: {
+            connections: connections.length,
+            invitations_pending: invitations.filter((i) => i.status === 'pending').length,
+            invitations_declined: invitations.filter((i) => i.status === 'declined').length,
+            invitations_accepted: invitations.filter((i) => i.status === 'accepted').length,
+            peer_links: peer_links.length,
+          },
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
+
+    if (action === 'admin_upsert_family_link') {
+      const familyUserId = typeof body?.family_user_id === 'string' ? body.family_user_id.trim() : '';
+      const crewUserId = typeof body?.crew_user_id === 'string' ? body.crew_user_id.trim() : '';
+      const crewIdDirect = typeof body?.crew_id === 'string' ? body.crew_id.trim() : '';
+      const statusRaw = typeof body?.status === 'string' ? body.status.trim().toLowerCase() : 'approved';
+      const status = statusRaw === 'pending' || statusRaw === 'declined' ? statusRaw : 'approved';
+      if (!familyUserId || (!crewUserId && !crewIdDirect)) {
+        return new Response(
+          JSON.stringify({ error: 'family_user_id and crew_user_id (or crew_id) required' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        );
+      }
+
+      let crewId = crewIdDirect;
+      let crewUid = crewUserId;
+      if (!crewId) {
+        const { data: crewProf, error: crewErr } = await adminClient
+          .from('crew_profiles')
+          .select('id, user_id')
+          .eq('user_id', crewUserId)
+          .maybeSingle();
+        if (crewErr || !crewProf?.id) {
+          return new Response(JSON.stringify({ error: crewErr?.message || 'Crew profile not found for crew_user_id' }), {
+            status: 404,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+        crewId = String(crewProf.id);
+        crewUid = String(crewProf.user_id);
+      } else {
+        const { data: crewProf } = await adminClient
+          .from('crew_profiles')
+          .select('id, user_id')
+          .eq('id', crewId)
+          .maybeSingle();
+        if (!crewProf?.id) {
+          return new Response(JSON.stringify({ error: 'Crew profile not found for crew_id' }), {
+            status: 404,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+        crewUid = String(crewProf.user_id);
+      }
+
+      if (crewUid === familyUserId) {
+        return new Response(JSON.stringify({ error: 'Cannot link a user to themselves' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const { data: famProfile } = await adminClient
+        .from('profiles')
+        .select('id, role')
+        .eq('id', familyUserId)
+        .maybeSingle();
+      if (!famProfile?.id) {
+        return new Response(JSON.stringify({ error: 'Family user profile not found' }), {
+          status: 404,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const invitedBy = claims?.sub || crewUid;
+      const { data: existing } = await adminClient
+        .from('family_connections')
+        .select('id, status')
+        .eq('crew_id', crewId)
+        .eq('family_id', familyUserId)
+        .maybeSingle();
+
+      let connectionId = existing?.id ? String(existing.id) : null;
+      if (connectionId) {
+        const { error: upErr } = await adminClient
+          .from('family_connections')
+          .update({ status, invited_by: invitedBy })
+          .eq('id', connectionId);
+        if (upErr) {
+          return new Response(JSON.stringify({ error: upErr.message }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+      } else {
+        const { data: inserted, error: insErr } = await adminClient
+          .from('family_connections')
+          .insert({
+            crew_id: crewId,
+            family_id: familyUserId,
+            status,
+            invited_by: invitedBy,
+          })
+          .select('id')
+          .single();
+        if (insErr || !inserted?.id) {
+          return new Response(JSON.stringify({ error: insErr?.message || 'Insert failed' }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+        connectionId = String(inserted.id);
+      }
+
+      if (status === 'approved' && connectionId) {
+        await adminClient.from('notification_preferences').upsert(
+          { user_id: familyUserId, connection_id: connectionId },
+          { onConflict: 'user_id,connection_id' },
+        );
+        const { data: authUser } = await adminClient.auth.admin.getUserById(familyUserId);
+        const email = normalizeEmail(authUser?.user?.email);
+        if (email) {
+          await adminClient
+            .from('crew_invitations')
+            .update({ status: 'accepted' })
+            .eq('crew_id', crewId)
+            .eq('status', 'pending')
+            .eq('family_email', email);
+        }
+      }
+
+      return new Response(
+        JSON.stringify({
+          ok: true,
+          action,
+          connection_id: connectionId,
+          crew_id: crewId,
+          crew_user_id: crewUid,
+          family_user_id: familyUserId,
+          status,
+          updated_existing: !!existing?.id,
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
+
+    if (action === 'admin_remove_family_link') {
+      const connectionId = typeof body?.connection_id === 'string' ? body.connection_id.trim() : '';
+      if (!connectionId) {
+        return new Response(JSON.stringify({ error: 'connection_id required' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      const { error: delErr } = await adminClient.from('family_connections').delete().eq('id', connectionId);
+      if (delErr) {
+        return new Response(JSON.stringify({ error: delErr.message }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      return new Response(JSON.stringify({ ok: true, action, connection_id: connectionId }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    if (action === 'admin_set_invitation_status') {
+      const invitationId = typeof body?.invitation_id === 'string' ? body.invitation_id.trim() : '';
+      const statusRaw = typeof body?.status === 'string' ? body.status.trim().toLowerCase() : '';
+      if (!invitationId || !['pending', 'accepted', 'declined'].includes(statusRaw)) {
+        return new Response(
+          JSON.stringify({ error: 'invitation_id and status (pending|accepted|declined) required' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        );
+      }
+      const { error: upErr } = await adminClient
+        .from('crew_invitations')
+        .update({ status: statusRaw })
+        .eq('id', invitationId);
+      if (upErr) {
+        return new Response(JSON.stringify({ error: upErr.message }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      return new Response(JSON.stringify({ ok: true, action, invitation_id: invitationId, status: statusRaw }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     return new Response(JSON.stringify({ error: 'Unsupported action' }), {
       status: 400,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

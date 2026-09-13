@@ -839,6 +839,7 @@
         <button class="nav-btn" data-view="activityView">Aktivite</button>
         <button class="nav-btn" data-view="broadcastView">Broadcast</button>
         <button class="nav-btn" data-view="usersView">Users</button>
+        <button class="nav-btn" data-view="connectionsView">Bağlantılar</button>
         <button class="nav-btn" data-view="flightsView">Flights</button>
         <button class="nav-btn" data-view="flightControlView">Uçuş Kontrol</button>
         <button class="nav-btn" data-view="historyView">History</button>
@@ -1101,6 +1102,134 @@
             </table>
           </div>
           <p id="usersApiHint" class="mini" style="margin-top:10px;display:none;"></p>
+        </div>
+      </section>
+
+      <section id="connectionsView" class="view">
+        <div class="panel">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:8px;">
+            <h3 style="margin:0;">Bağlantılar &amp; davetler</h3>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <button type="button" id="btnLinksRefresh" class="btnSmall">Yenile</button>
+              <span id="linksStatus" class="mini"></span>
+            </div>
+          </div>
+          <p class="mini" style="margin-top:0;">
+            Crew ↔ family bağlantılarını ve e-posta davetlerini gör. İstediğin crew ile family kullanıcısını
+            onaylı bağla; bekleyen / reddedilen davetleri buradan yönet.
+          </p>
+          <div class="kpi-row" style="margin:12px 0;">
+            <div class="card"><h3>Bağlantı</h3><div class="num" id="linksCountConn">-</div></div>
+            <div class="card"><h3>Davet bekleyen</h3><div class="num" id="linksCountPending">-</div></div>
+            <div class="card"><h3>Davet reddedilen</h3><div class="num" id="linksCountDeclined">-</div></div>
+            <div class="card"><h3>Peer follow</h3><div class="num" id="linksCountPeer">-</div></div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h3 style="margin:0 0 8px;">Yeni bağlantı kur</h3>
+          <div class="grid">
+            <div style="grid-column: span 5;">
+              <label class="mini">Crew (uçuş ekibi)</label>
+              <select id="linkCrewSelect"></select>
+            </div>
+            <div style="grid-column: span 5;">
+              <label class="mini">Family (bağlanacak kişi)</label>
+              <select id="linkFamilySelect"></select>
+            </div>
+            <div style="grid-column: span 2;">
+              <label class="mini">Durum</label>
+              <select id="linkStatusSelect">
+                <option value="approved" selected>approved</option>
+                <option value="pending">pending</option>
+              </select>
+            </div>
+            <div style="grid-column: span 12; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+              <button type="button" id="btnLinkCreate" class="btnPrimary">Bağla</button>
+              <span id="linkCreateStatus" class="mini"></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="users-toolbar" style="margin-bottom:8px;">
+            <div style="flex:1; min-width:180px;">
+              <label class="mini">Bağlantı ara</label>
+              <input id="linkConnSearch" type="search" placeholder="isim / email…" autocomplete="off" />
+            </div>
+            <div>
+              <label class="mini">Durum</label>
+              <select id="linkConnStatusFilter">
+                <option value="all">Tümü</option>
+                <option value="approved" selected>approved</option>
+                <option value="pending">pending</option>
+                <option value="declined">declined</option>
+              </select>
+            </div>
+          </div>
+          <div class="users-table-wrap">
+            <table class="users-table" id="linksConnTable">
+              <thead>
+                <tr>
+                  <th>Crew</th>
+                  <th>Family</th>
+                  <th>Durum</th>
+                  <th>Oluşturma</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="linksConnBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="users-toolbar" style="margin-bottom:8px;">
+            <div style="flex:1; min-width:180px;">
+              <label class="mini">Davet ara</label>
+              <input id="linkInvSearch" type="search" placeholder="email / crew…" autocomplete="off" />
+            </div>
+            <div>
+              <label class="mini">Durum</label>
+              <select id="linkInvStatusFilter">
+                <option value="all">Tümü</option>
+                <option value="pending" selected>pending</option>
+                <option value="declined">declined</option>
+                <option value="accepted">accepted</option>
+              </select>
+            </div>
+          </div>
+          <div class="users-table-wrap">
+            <table class="users-table" id="linksInvTable">
+              <thead>
+                <tr>
+                  <th>Crew</th>
+                  <th>Family email</th>
+                  <th>Durum</th>
+                  <th>Tarih</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="linksInvBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h3 style="margin:0 0 8px;">Crew peer takip (salt okunur)</h3>
+          <div class="users-table-wrap">
+            <table class="users-table">
+              <thead>
+                <tr>
+                  <th>Takip eden</th>
+                  <th>Peer crew</th>
+                  <th>Durum</th>
+                  <th>Tarih</th>
+                </tr>
+              </thead>
+              <tbody id="linksPeerBody"></tbody>
+            </table>
+          </div>
         </div>
       </section>
 
@@ -1702,6 +1831,7 @@
     const SESSION_KEY = 'flyfam_admin_dashboard_session_v2';
     let accessToken = null;
     let lastUsers = [];
+    let linkGraph = { connections: [], invitations: [], peer_links: [], counts: {} };
     let lastFlights = [];
     let lastUsageRows = [];
     let lastHistoryRows = [];
@@ -5059,6 +5189,265 @@
       renderOccupationTable();
     });
 
+    function personLabel(p) {
+      if (!p) return '—';
+      const name = String(p.full_name || '').trim();
+      const email = String(p.email || '').trim();
+      if (name && email) return name + ' · ' + email;
+      return name || email || String(p.user_id || '').slice(0, 8) || '—';
+    }
+
+    function crewSideLabel(crew) {
+      if (!crew) return '—';
+      const user = personLabel(crew.user);
+      const airline = String(crew.company_name || crew.airline_icao || '').trim();
+      return airline ? user + ' (' + airline + ')' : user;
+    }
+
+    function fillLinkUserSelects() {
+      const crewSel = document.getElementById('linkCrewSelect');
+      const famSel = document.getElementById('linkFamilySelect');
+      if (!crewSel || !famSel) return;
+      const prevCrew = crewSel.value;
+      const prevFam = famSel.value;
+      const crewOpts = lastUsers
+        .filter((u) => u.crew_id || String(u.role || '') === 'crew')
+        .slice()
+        .sort((a, b) => String(a.full_name || a.email || '').localeCompare(String(b.full_name || b.email || ''), 'tr'));
+      const famOpts = lastUsers
+        .slice()
+        .sort((a, b) => String(a.full_name || a.email || '').localeCompare(String(b.full_name || b.email || ''), 'tr'));
+      const optHtml = (rows, emptyLabel) =>
+        '<option value="">' +
+        emptyLabel +
+        '</option>' +
+        rows
+          .map((u) => {
+            const label =
+              escapeAttr((u.full_name || '').trim() || '(isimsiz)') +
+              ' · ' +
+              escapeAttr((u.email || '').trim() || u.id.slice(0, 8)) +
+              (u.role ? ' [' + escapeAttr(u.role) + ']' : '');
+            return '<option value="' + escapeAttr(u.id) + '">' + label + '</option>';
+          })
+          .join('');
+      crewSel.innerHTML = optHtml(crewOpts, 'Crew seç…');
+      famSel.innerHTML = optHtml(famOpts, 'Kişi seç…');
+      if (prevCrew) crewSel.value = prevCrew;
+      if (prevFam) famSel.value = prevFam;
+    }
+
+    function setLinksStatus(msg, ok) {
+      const el = document.getElementById('linksStatus');
+      if (!el) return;
+      el.textContent = msg || '';
+      el.style.color = ok === false ? '#dc2626' : ok === true ? '#15803d' : '';
+    }
+
+    async function loadLinkGraph() {
+      setLinksStatus('Yükleniyor…');
+      const json = await callAdminAction('list_link_graph', {});
+      linkGraph = {
+        connections: Array.isArray(json.connections) ? json.connections : [],
+        invitations: Array.isArray(json.invitations) ? json.invitations : [],
+        peer_links: Array.isArray(json.peer_links) ? json.peer_links : [],
+        counts: json.counts || {},
+      };
+      const c = linkGraph.counts;
+      const setNum = (id, v) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = v == null ? '-' : String(v);
+      };
+      setNum('linksCountConn', c.connections ?? linkGraph.connections.length);
+      setNum('linksCountPending', c.invitations_pending);
+      setNum('linksCountDeclined', c.invitations_declined);
+      setNum('linksCountPeer', c.peer_links ?? linkGraph.peer_links.length);
+      fillLinkUserSelects();
+      renderLinkConnections();
+      renderLinkInvitations();
+      renderLinkPeers();
+      setLinksStatus('Güncellendi ' + new Date().toLocaleTimeString(), true);
+    }
+
+    function renderLinkConnections() {
+      const body = document.getElementById('linksConnBody');
+      if (!body) return;
+      const q = String(document.getElementById('linkConnSearch')?.value || '')
+        .trim()
+        .toLowerCase();
+      const st = String(document.getElementById('linkConnStatusFilter')?.value || 'all');
+      const rows = linkGraph.connections.filter((row) => {
+        if (st !== 'all' && String(row.status) !== st) return false;
+        if (!q) return true;
+        const hay = [
+          crewSideLabel(row.crew),
+          personLabel(row.family),
+          row.status,
+        ]
+          .join(' ')
+          .toLowerCase();
+        return hay.includes(q);
+      });
+      if (!rows.length) {
+        body.innerHTML = '<tr><td colspan="5" class="mini">Kayıt yok</td></tr>';
+        return;
+      }
+      body.innerHTML = rows
+        .map((row) => {
+          const badge =
+            row.status === 'approved'
+              ? 'ok'
+              : row.status === 'pending'
+                ? ''
+                : 'bad';
+          return (
+            '<tr>' +
+            '<td>' +
+            escapeAttr(crewSideLabel(row.crew)) +
+            '</td>' +
+            '<td>' +
+            escapeAttr(personLabel(row.family)) +
+            '</td>' +
+            '<td><span class="badge ' +
+            badge +
+            '">' +
+            escapeAttr(row.status) +
+            '</span></td>' +
+            '<td class="mini">' +
+            escapeAttr(row.created_at ? new Date(row.created_at).toLocaleString() : '—') +
+            '</td>' +
+            '<td><button type="button" class="btnDanger btnSmall" data-unlink="' +
+            escapeAttr(row.id) +
+            '">Kaldır</button></td>' +
+            '</tr>'
+          );
+        })
+        .join('');
+    }
+
+    function renderLinkInvitations() {
+      const body = document.getElementById('linksInvBody');
+      if (!body) return;
+      const q = String(document.getElementById('linkInvSearch')?.value || '')
+        .trim()
+        .toLowerCase();
+      const st = String(document.getElementById('linkInvStatusFilter')?.value || 'all');
+      const rows = linkGraph.invitations.filter((row) => {
+        if (st !== 'all' && String(row.status) !== st) return false;
+        if (!q) return true;
+        const hay = [crewSideLabel(row.crew), row.family_email, row.status].join(' ').toLowerCase();
+        return hay.includes(q);
+      });
+      if (!rows.length) {
+        body.innerHTML = '<tr><td colspan="5" class="mini">Kayıt yok</td></tr>';
+        return;
+      }
+      body.innerHTML = rows
+        .map((row) => {
+          const actions =
+            row.status === 'pending'
+              ? '<button type="button" class="btnSmall" data-inv-status="declined" data-inv-id="' +
+                escapeAttr(row.id) +
+                '">Reddet</button> ' +
+                '<button type="button" class="btnSmall btnPrimary" data-inv-accept="' +
+                escapeAttr(row.id) +
+                '" data-crew-user="' +
+                escapeAttr(row.crew?.user?.user_id || '') +
+                '" data-family-email="' +
+                escapeAttr(row.family_email || '') +
+                '">Onaylı bağla</button>'
+              : row.status === 'declined'
+                ? '<button type="button" class="btnSmall" data-inv-status="pending" data-inv-id="' +
+                  escapeAttr(row.id) +
+                  '">Beklemeye al</button>'
+                : '<span class="mini">—</span>';
+          return (
+            '<tr>' +
+            '<td>' +
+            escapeAttr(crewSideLabel(row.crew)) +
+            '</td>' +
+            '<td>' +
+            escapeAttr(row.family_email || '') +
+            '</td>' +
+            '<td><span class="badge">' +
+            escapeAttr(row.status) +
+            '</span></td>' +
+            '<td class="mini">' +
+            escapeAttr(row.created_at ? new Date(row.created_at).toLocaleString() : '—') +
+            '</td>' +
+            '<td style="white-space:nowrap;">' +
+            actions +
+            '</td>' +
+            '</tr>'
+          );
+        })
+        .join('');
+    }
+
+    function renderLinkPeers() {
+      const body = document.getElementById('linksPeerBody');
+      if (!body) return;
+      const rows = linkGraph.peer_links || [];
+      if (!rows.length) {
+        body.innerHTML = '<tr><td colspan="4" class="mini">Peer link yok</td></tr>';
+        return;
+      }
+      body.innerHTML = rows
+        .map(
+          (row) =>
+            '<tr>' +
+            '<td>' +
+            escapeAttr(personLabel(row.follower)) +
+            '</td>' +
+            '<td>' +
+            escapeAttr(crewSideLabel(row.peer_crew)) +
+            '</td>' +
+            '<td><span class="badge">' +
+            escapeAttr(row.status) +
+            '</span></td>' +
+            '<td class="mini">' +
+            escapeAttr(row.created_at ? new Date(row.created_at).toLocaleString() : '—') +
+            '</td>' +
+            '</tr>',
+        )
+        .join('');
+    }
+
+    async function createFamilyLink() {
+      const crewUserId = String(document.getElementById('linkCrewSelect')?.value || '').trim();
+      const familyUserId = String(document.getElementById('linkFamilySelect')?.value || '').trim();
+      const status = String(document.getElementById('linkStatusSelect')?.value || 'approved');
+      const statusEl = document.getElementById('linkCreateStatus');
+      if (!crewUserId || !familyUserId) {
+        if (statusEl) statusEl.textContent = 'Crew ve family seçin';
+        return;
+      }
+      if (crewUserId === familyUserId) {
+        if (statusEl) statusEl.textContent = 'Aynı kişi bağlanamaz';
+        return;
+      }
+      if (statusEl) statusEl.textContent = 'Bağlanıyor…';
+      try {
+        const json = await callAdminAction('admin_upsert_family_link', {
+          crew_user_id: crewUserId,
+          family_user_id: familyUserId,
+          status,
+        });
+        if (statusEl) {
+          statusEl.textContent = json.updated_existing
+            ? 'Güncellendi (' + status + ')'
+            : 'Oluşturuldu (' + status + ')';
+        }
+        await loadLinkGraph();
+        // refresh main dashboard users so Bağlantılı column stays in sync
+        try {
+          await loadDashboard();
+        } catch (_) {}
+      } catch (err) {
+        if (statusEl) statusEl.textContent = String(err?.message || err);
+      }
+    }
+
     function switchView(viewId) {
       els.views.forEach((v) => v.classList.toggle('active', v.id === viewId));
       els.navButtons.forEach((b) => b.classList.toggle('active', b.dataset.view === viewId));
@@ -5067,6 +5456,10 @@
       }
       if (viewId === 'activityView' && accessToken) {
         loadActivity().catch(() => {});
+      }
+      if (viewId === 'connectionsView' && accessToken) {
+        fillLinkUserSelects();
+        loadLinkGraph().catch((err) => setStatus(String(err?.message || err), 'bad'));
       }
       if (viewId === 'occupationCodesView' && accessToken) {
         loadOccupationCodes().catch((err) => setStatus(String(err?.message || err), 'bad'));
@@ -5095,6 +5488,80 @@
     els.flightsSubButtons.forEach((btn) => {
       btn.addEventListener('click', () => switchFlightsSubview(btn.dataset.subview));
     });
+
+    document.getElementById('btnLinksRefresh')?.addEventListener('click', () => {
+      loadLinkGraph().catch((err) => setStatus(String(err?.message || err), 'bad'));
+    });
+    document.getElementById('btnLinkCreate')?.addEventListener('click', () => {
+      void createFamilyLink();
+    });
+    document.getElementById('linkConnSearch')?.addEventListener('input', () => renderLinkConnections());
+    document.getElementById('linkConnStatusFilter')?.addEventListener('change', () => renderLinkConnections());
+    document.getElementById('linkInvSearch')?.addEventListener('input', () => renderLinkInvitations());
+    document.getElementById('linkInvStatusFilter')?.addEventListener('change', () => renderLinkInvitations());
+    document.getElementById('linksConnBody')?.addEventListener('click', (ev) => {
+      const btn = ev.target && ev.target.closest ? ev.target.closest('[data-unlink]') : null;
+      if (!btn) return;
+      const id = btn.getAttribute('data-unlink');
+      if (!id) return;
+      if (!confirm('Bu bağlantıyı kaldırmak istediğine emin misin?')) return;
+      callAdminAction('admin_remove_family_link', { connection_id: id })
+        .then(() => loadLinkGraph())
+        .then(() => loadDashboard().catch(() => {}))
+        .catch((err) => setStatus(String(err?.message || err), 'bad'));
+    });
+    document.getElementById('linksInvBody')?.addEventListener('click', (ev) => {
+      const t = ev.target && ev.target.closest ? ev.target.closest('[data-inv-status],[data-inv-accept]') : null;
+      if (!t) return;
+      const acceptId = t.getAttribute('data-inv-accept');
+      if (acceptId) {
+        const crewUserId = t.getAttribute('data-crew-user') || '';
+        const familyEmail = String(t.getAttribute('data-family-email') || '')
+          .trim()
+          .toLowerCase();
+        const fam = lastUsers.find(
+          (u) => String(u.email || '').trim().toLowerCase() === familyEmail,
+        );
+        if (!crewUserId) {
+          setStatus('Crew user bulunamadı', 'bad');
+          return;
+        }
+        if (!fam?.id) {
+          setStatus(
+            'Bu e-posta ile kayıtlı family kullanıcı yok: ' + familyEmail + ' — önce kayıt olmalı',
+            'bad',
+          );
+          return;
+        }
+        if (!confirm(personLabel({ full_name: fam.full_name, email: fam.email, user_id: fam.id }) + ' ile crew bağlansın mı?'))
+          return;
+        callAdminAction('admin_upsert_family_link', {
+          crew_user_id: crewUserId,
+          family_user_id: fam.id,
+          status: 'approved',
+        })
+          .then(() =>
+            callAdminAction('admin_set_invitation_status', {
+              invitation_id: acceptId,
+              status: 'accepted',
+            }),
+          )
+          .then(() => loadLinkGraph())
+          .then(() => loadDashboard().catch(() => {}))
+          .catch((err) => setStatus(String(err?.message || err), 'bad'));
+        return;
+      }
+      const invId = t.getAttribute('data-inv-id');
+      const nextStatus = t.getAttribute('data-inv-status');
+      if (!invId || !nextStatus) return;
+      callAdminAction('admin_set_invitation_status', {
+        invitation_id: invId,
+        status: nextStatus,
+      })
+        .then(() => loadLinkGraph())
+        .catch((err) => setStatus(String(err?.message || err), 'bad'));
+    });
+
     els.btnHistoryLoad?.addEventListener('click', () => {
       loadHistory().catch((err) => setStatus(String(err?.message || err), 'bad'));
     });
