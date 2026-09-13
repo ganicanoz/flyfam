@@ -460,7 +460,7 @@
     "standbyHint": "Enter the flight numbers assigned during standby. Saving removes this standby and notifies your family.",
     "importFlights": "Import flights",
     "importFlightsIndigoHint": "IndiGo Personal Crew Schedule Report PDFs are enabled: 6E flights plus OFG / SBYP / ASBD duty rows import.",
-    "importFlightsThyHint": "THY monthly crew PDFs: TK flights and RC1 / EMM / HSBY / CFR duties come from the LOKAL SAATLI table; IBB/IBI off days are skipped.",
+    "importFlightsThyHint": "THY monthly crew PDFs: TK flights plus RC1 / EMM / HSBY / CFR / IBB / IBI (off days) come from the LOKAL SAATLI table.",
     "importFlightsPicking": "Picking PDF…",
     "importFlightsExtracting": "Processing PDF…",
     "importFlightsSuccessTitle": "Import completed.",

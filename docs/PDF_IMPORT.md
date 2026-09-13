@@ -38,7 +38,7 @@ JWT doğrulaması açık (`config.toml`); kullanıcı oturumlu olmalı. Deploy y
 ## Parser
 
 - **Pegasus:** `DD.MM.YYYY` + satırlarda `PC 123` / `PC123`; tarih sonraki satırlara taşınır.
-- **THY:** Birincil kaynak `LOKAL SAATLI UCUS PROGRAMI` (`MB:` / `GMB:` + `TK###` veya `RC1`/`EMM`/`HSBY`/`CFR`). Boş gün (`IBB`/`IBI`) import edilmez. Lokal yoksa GMT uçuş tablosu yedek.
+- **THY:** Birincil kaynak `LOKAL SAATLI UCUS PROGRAMI` (`MB:` / `GMB:` + `TK###` veya `RC1`/`EMM`/`HSBY`/`CFR`/`IBB`/`IBI`). Lokal yoksa GMT uçuş tablosu yedek.
 
 **Saatler (aynı satır):**
 

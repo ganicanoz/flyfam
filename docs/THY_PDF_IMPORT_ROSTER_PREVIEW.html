@@ -131,8 +131,7 @@
       <strong>Kurallar (uygulama = Edge):</strong>
       Aylık takvim grid’i kullanılmaz.
       Her <code>MB:</code> bloğundan uçuş (<code>TK###</code> + lokal saat) veya görev
-      (<code>RC1</code> / <code>EMM</code> / <code>HSBY</code> / <code>CFR</code>…) okunur.
-      <code>IBB</code> / <code>IBI</code> boş günler import edilmez.
+      (<code>RC1</code> / <code>EMM</code> / <code>HSBY</code> / <code>CFR</code> / <code>IBB</code> / <code>IBI</code>…) okunur.
       Uçuş tarihi ilgili <code>GMB:</code> satırından gelir.
     </div>
 
@@ -148,8 +147,13 @@
       { date: '2026-09-01', code: 'RC1', kind: 'duty', label: 'Kokpit Yenileme Eğitimi', start: '08:30', end: '17:00' },
       { date: '2026-09-02', code: 'EMM', kind: 'duty', label: 'E-Learning Eğitim', start: '08:00', end: '18:00' },
       { date: '2026-09-03', code: 'RC1', kind: 'duty', label: 'Kokpit Yenileme Eğitimi', start: '08:30', end: '15:45' },
+      { date: '2026-09-04', code: 'IBB', kind: 'duty', label: 'Boş Gün', start: '00:00', end: '23:59' },
+      { date: '2026-09-05', code: 'IBI', kind: 'duty', label: 'Boş Gün', start: '00:00', end: '23:59' },
+      { date: '2026-09-06', code: 'IBB', kind: 'duty', label: 'Boş Gün', start: '00:00', end: '23:59' },
       { date: '2026-09-07', code: 'TK026', kind: 'flight', from: 'IST', to: 'PVG', dep: '01:35', arr: '16:45' },
       { date: '2026-09-08', code: 'TK027', kind: 'flight', from: 'PVG', to: 'IST', dep: '22:25', arr: '05:25' },
+      { date: '2026-09-11', code: 'IBB', kind: 'duty', label: 'Boş Gün', start: '00:00', end: '23:59' },
+      { date: '2026-09-12', code: 'IBB', kind: 'duty', label: 'Boş Gün', start: '00:00', end: '23:59' },
       { date: '2026-09-13', code: 'HSBY', kind: 'duty', label: 'Ev Nöbeti', start: '03:00', end: '11:00' },
       { date: '2026-09-14', code: 'TK298', kind: 'flight', from: 'IST', to: 'CAN', dep: '15:50', arr: '07:20' },
       { date: '2026-09-16', code: 'TK073', kind: 'flight', from: 'CAN', to: 'IST', dep: '23:00', arr: '05:30' },
@@ -157,6 +161,9 @@
       { date: '2026-09-20', code: 'HSBY', kind: 'duty', label: 'Ev Nöbeti', start: '09:00', end: '17:00' },
       { date: '2026-09-22', code: 'TK157', kind: 'flight', from: 'IST', to: 'MIA', dep: '01:50', arr: '07:20' },
       { date: '2026-09-23', code: 'TK158', kind: 'flight', from: 'MIA', to: 'IST', dep: '10:45', arr: '05:05' },
+      { date: '2026-09-26', code: 'IBI', kind: 'duty', label: 'Boş Gün', start: '00:00', end: '23:59' },
+      { date: '2026-09-27', code: 'IBI', kind: 'duty', label: 'Boş Gün', start: '00:00', end: '23:59' },
+      { date: '2026-09-28', code: 'IBB', kind: 'duty', label: 'Boş Gün', start: '00:00', end: '23:59' },
       { date: '2026-09-29', code: 'HSBY', kind: 'duty', label: 'Ev Nöbeti', start: '03:40', end: '09:40' },
       { date: '2026-09-30', code: 'TK205', kind: 'flight', from: 'IST', to: 'DTW', dep: '14:55', arr: '18:50' },
       { date: '2026-10-01', code: 'TK206', kind: 'flight', from: 'DTW', to: 'IST', dep: '20:55', arr: '14:00' },

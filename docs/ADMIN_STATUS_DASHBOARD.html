@@ -9,7 +9,7 @@
   <meta http-equiv="Expires" content="0" />
   <script>
     (function () {
-      var UI = '40';
+      var UI = '41';
       var p = new URLSearchParams(location.search);
       if (p.get('ui') !== UI) {
         p.set('ui', UI);
@@ -1294,7 +1294,7 @@
             aylık takvim grid’i kullanılmaz (CFR/HSBY tarih kayması önlenir).
             <code>TK###</code> + <code>AAA/h:mm</code> → uçuş (tarih: ilgili <code>GMB:</code>).
             <code>RC1</code> / <code>EMM</code> / <code>HSBY</code> / <code>CFR</code> vb. → görev (PDF saat penceresi).
-            <code>IBB</code> / <code>IBI</code> ve diğer boş günler <strong>import edilmez</strong>.
+            <code>IBB</code> / <code>IBI</code> (boş gün) de aynı tablodan alınır.
             Lokal bölüm yoksa yedek: GMT uçuş tablosu.
           </p>
           <p class="mini" style="margin-top:-4px; padding:8px 10px; border-radius:8px; background:#fff7ed; border:1px solid #fed7aa;">
@@ -2609,7 +2609,7 @@
           let hint = '';
           if (location.protocol === 'file:') {
             hint =
-              ' Paneli file:// ile açıyorsun — terminalde: cd docs && python3 -m http.server 8765 sonra http://localhost:8765/ADMIN_STATUS_DASHBOARD.html?ui=40';
+              ' Paneli file:// ile açıyorsun — terminalde: cd docs && python3 -m http.server 8765 sonra http://localhost:8765/ADMIN_STATUS_DASHBOARD.html?ui=41';
           } else {
             hint = ' Supabase URL ve anon key kontrol et; VPN/eklenti engeli olabilir.';
           }
@@ -4825,7 +4825,7 @@
         .map((c) => c + '×' + codes[c])
         .join(' · ');
       const hasLocal = /LOKAL\s+SAATLI\s+UCUS\s+PROGRAMI/i.test(String(rawText || ''));
-      const offLeak = list.some((r) => /^(IBB|IBI|IBE|IBX)$/i.test(String(r.flight_number || '')));
+      const offDays = list.filter((r) => /^(IBB|IBI|IBE|IBX|IBC|IBY|IOZ)$/i.test(String(r.flight_number || ''))).length;
       els.pdfThyAudit.textContent =
         (hasLocal ? 'lokal tablo' : 'GMT yedek') +
         ' · ' +
@@ -4834,7 +4834,9 @@
         duties.length +
         ' görev' +
         (codeSummary ? ' (' + codeSummary + ')' : '') +
-        (offLeak ? ' · UYARI: boş gün sızdı' : ' · OK');
+        ' · ' +
+        offDays +
+        ' boş gün · OK';
     }
 
     function renderSunexpressAudit(rows, selectedIcao, detectedLayout) {

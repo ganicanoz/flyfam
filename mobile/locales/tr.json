@@ -460,7 +460,7 @@
     "standbyHint": "Nöbet sırasında verilen uçuş kodlarını girin. Kaydedince nöbet silinir ve aileniz bilgilendirilir.",
     "importFlights": "Uçuşları içe aktar",
     "importFlightsIndigoHint": "IndiGo «Personal Crew Schedule Report» PDF’leri açıktır: 6E uçuşları ve OFG / SBYP / ASBD görev satırları içe aktarılır.",
-    "importFlightsThyHint": "THY aylık ekip PDF’leri: LOKAL SAATLI programdan TK uçuşları ile RC1 / EMM / HSBY / CFR görevleri alınır; IBB/IBI boş günler alınmaz.",
+    "importFlightsThyHint": "THY aylık ekip PDF’leri: LOKAL SAATLI programdan TK uçuşları ile RC1 / EMM / HSBY / CFR / IBB / IBI (boş gün) görevleri alınır.",
     "importFlightsPicking": "PDF seçiliyor…",
     "importFlightsExtracting": "PDF işleniyor…",
     "importFlightsSuccessTitle": "İçe aktarma tamamlandı.",

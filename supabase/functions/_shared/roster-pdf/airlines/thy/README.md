@@ -8,7 +8,7 @@ Kaynak: `lineScan.ts` — `parseLocalTimeProgramFromPdfText_THY` / `parseFlights
 - Bölüm sonu: `ACIKLAMALAR`.
 - Her gün `MB:` bloğu; uçuşlarda `GMB:` tarihleri + `TK###` + `AAA/h:mm` çiftleri.
 - Görevler: blok sonu kod (`RC1`, `EMM`, `HSBY`, `CFR`, …) + saat çifti (`IST/8:30` veya `3:00`).
-- **Import edilmez:** `IBB` / `IBI` ve diğer boş gün occupation’ları.
+- **Boş gün:** `IBB` / `IBI` (ve benzeri off kodları) duty_off olarak alınır.
 - Saatler **lokal** (`duty_clock_basis: 'local'`); UTC Edge/istemci import’ta IATA TZ ile üretilir.
 
 ## Yedek: Kalkış/GMT · İniş/GMT

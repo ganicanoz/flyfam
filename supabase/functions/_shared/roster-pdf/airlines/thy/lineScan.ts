@@ -11,11 +11,7 @@
 
 import type { PdfFlightRow } from '../../types.ts';
 import { addCalendarDays, utcIsoToLocalYmd } from '../../timeAndSchedule.ts';
-import {
-  isOffDayOccupationCode,
-  rosterOccupationLabelEn,
-  rosterOccupationLabelTr,
-} from '../../occupationLabels.ts';
+import { rosterOccupationLabelEn, rosterOccupationLabelTr } from '../../occupationLabels.ts';
 import { airportIanaForCode } from '../../../airportIanaByCode.ts';
 
 const MONTH_THY: Record<string, string> = {
@@ -347,9 +343,6 @@ function pushThyDutyRow(
   endHm: string,
   endDate: string,
 ): void {
-  if (isOffDayOccupationCode(code)) return;
-  // IBI PDF’de off/izin hücresi; katalogda yoksa yine at.
-  if (code === 'IBI') return;
   out.push({
     roster_entry_kind: 'duty_off',
     flight_number: code,
@@ -365,8 +358,7 @@ function pushThyDutyRow(
 }
 
 /**
- * Lokal saatli günlük program → uçuş + görev satırları.
- * Boş gün (IBB/IBI/…) import edilmez.
+ * Lokal saatli günlük program → uçuş + görev satırları (IBB/IBI boş günler dahil).
  */
 export function parseLocalTimeProgramFromPdfText_THY(text: string): PdfFlightRow[] {
   const section = extractThyLocalTimeSection(text);
