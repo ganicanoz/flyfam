@@ -9,7 +9,7 @@
   <meta http-equiv="Expires" content="0" />
   <script>
     (function () {
-      var UI = '38';
+      var UI = '39';
       var p = new URLSearchParams(location.search);
       if (p.get('ui') !== UI) {
         p.set('ui', UI);
@@ -1398,18 +1398,13 @@
         <div class="panel">
           <h3 style="margin:0 0 8px;">Uçuş Kontrol</h3>
           <p class="mini" style="margin-top:0;">
-            Manuel uçuş ekleme / lookup pratiği. Edge <code>flight-lookup</code> (<code>by_number</code> + <code>debug</code>) —
-            uygulama alanları ve provider ham özetleri yan yana.
+            Basit API check: Edge <code>flight-lookup</code> (<code>by_number</code> + <code>debug</code>).
+            Kullanıcı bağlamı gerekmez — uçuş no + tarih yeter.
           </p>
           <div class="users-toolbar" style="margin-bottom:12px; align-items:end; flex-wrap:wrap; gap:10px;">
-            <div style="flex:1.2; min-width:200px;">
-              <label class="mini">Kullanıcı (Custom ID / isim / email)</label>
-              <input id="fcUserQuery" type="search" placeholder="00012 veya Akif…" list="fcUserDatalist" autocomplete="off" />
-              <datalist id="fcUserDatalist"></datalist>
-            </div>
             <div>
               <label class="mini">Uçuş no</label>
-              <input id="fcFlightNo" type="text" placeholder="XQ596 / PC1234" style="min-width:120px;" />
+              <input id="fcFlightNo" type="text" placeholder="XQ596 / PC1234" style="min-width:140px;" />
             </div>
             <div>
               <label class="mini">Tarih</label>
@@ -1421,7 +1416,6 @@
               <span id="fcStatus" class="mini"></span>
             </div>
           </div>
-          <p id="fcUserHint" class="mini" style="margin-top:-4px;"></p>
           <div class="row" style="gap:12px; align-items:stretch; flex-wrap:wrap;">
             <div class="panel" style="flex:1; min-width:280px; margin:0;">
               <h3 style="margin:0 0 6px;">Uygulama gibi (info)</h3>
@@ -2601,7 +2595,7 @@
           let hint = '';
           if (location.protocol === 'file:') {
             hint =
-              ' Paneli file:// ile açıyorsun — terminalde: cd docs && python3 -m http.server 8765 sonra http://localhost:8765/ADMIN_STATUS_DASHBOARD.html?ui=38';
+              ' Paneli file:// ile açıyorsun — terminalde: cd docs && python3 -m http.server 8765 sonra http://localhost:8765/ADMIN_STATUS_DASHBOARD.html?ui=39';
           } else {
             hint = ' Supabase URL ve anon key kontrol et; VPN/eklenti engeli olabilir.';
           }
@@ -3597,71 +3591,17 @@
         '</tbody></table>';
     }
 
-    function resolveFcUser(q) {
-      const raw = String(q || '').trim().toLowerCase();
-      if (!raw) return null;
-      const users = lastUsers || [];
-      const byCustom = users.find((u) => String(u.custom_id || '').toLowerCase() === raw);
-      if (byCustom) return byCustom;
-      const byId = users.find((u) => String(u.id || '').toLowerCase() === raw);
-      if (byId) return byId;
-      const byEmail = users.find((u) => String(u.email || '').toLowerCase() === raw);
-      if (byEmail) return byEmail;
-      const byName = users.filter((u) => String(u.full_name || '').toLowerCase().includes(raw));
-      if (byName.length === 1) return byName[0];
-      if (byName.length > 1) return { ambiguous: byName };
-      return null;
-    }
-
-    function refreshFcUserDatalist() {
-      const dl = document.getElementById('fcUserDatalist');
-      if (!dl) return;
-      dl.innerHTML = (lastUsers || [])
-        .slice(0, 400)
-        .map((u) => {
-          const label =
-            (u.custom_id || '—') +
-            ' · ' +
-            (u.full_name || '-') +
-            ' · ' +
-            (u.email || '-');
-          return '<option value="' + escapeAttr(u.custom_id || u.email || u.id || '') + '">' + escapeHtml(label) + '</option>';
-        })
-        .join('');
-    }
-
     async function runFlightControlLookup() {
       const statusEl = document.getElementById('fcStatus');
-      const hintEl = document.getElementById('fcUserHint');
       const rawEl = document.getElementById('fcRawView');
       const flightNo = String(document.getElementById('fcFlightNo')?.value || '')
         .replace(/\s/g, '')
         .trim()
         .toUpperCase();
       const flightDate = String(document.getElementById('fcFlightDate')?.value || '').trim();
-      const userQ = document.getElementById('fcUserQuery')?.value || '';
       if (!flightNo || flightDate.length !== 10) {
         if (statusEl) statusEl.textContent = 'Uçuş no + tarih gerekli';
         return;
-      }
-      const resolved = resolveFcUser(userQ);
-      if (hintEl) {
-        if (!userQ.trim()) hintEl.textContent = 'Kullanıcı seçilmedi (opsiyonel bağlam).';
-        else if (resolved && resolved.ambiguous) {
-          hintEl.textContent = 'Birden fazla eşleşme: ' + resolved.ambiguous.map((u) => u.full_name).join(', ');
-        } else if (resolved) {
-          hintEl.textContent =
-            'Bağlam: Custom ' +
-            (resolved.custom_id || '—') +
-            ' · ' +
-            (resolved.full_name || '-') +
-            ' · ' +
-            (resolved.email || '-') +
-            ' · airline ' +
-            (resolved.airline_icao || resolved.company_name || '—');
-        } else {
-          hintEl.textContent = 'Kullanıcı bulunamadı (yine de lookup yapılır).';
-        }
       }
       if (statusEl) statusEl.textContent = 'Sorgulanıyor…';
       const url = adminUrl() + '/functions/v1/flight-lookup';
@@ -4145,7 +4085,6 @@
       renderPhaseRefreshHealth(data.health || {});
       const userRows = data.users?.rows || [];
       renderUsers(userRows);
-      refreshFcUserDatalist();
       if (els.usersApiHint) {
         const sample = userRows[0];
         const apiHasConnections = !sample || Array.isArray(sample.connections);
@@ -4953,17 +4892,13 @@
       void runFlightControlLookup();
     });
     document.getElementById('btnFcClear')?.addEventListener('click', () => {
-      const q = document.getElementById('fcUserQuery');
       const n = document.getElementById('fcFlightNo');
       const d = document.getElementById('fcFlightDate');
       const s = document.getElementById('fcStatus');
-      const h = document.getElementById('fcUserHint');
       const r = document.getElementById('fcRawView');
-      if (q) q.value = '';
       if (n) n.value = '';
       if (d) d.value = '';
       if (s) s.textContent = '';
-      if (h) h.textContent = '';
       if (r) r.textContent = '—';
       paintFcAppInfo(null);
       const host = document.getElementById('fcAppView');
@@ -5084,7 +5019,6 @@
         loadOccupationSuggestions().catch(() => {});
       }
       if (viewId === 'flightControlView') {
-        refreshFcUserDatalist();
         const dateEl = document.getElementById('fcFlightDate');
         if (dateEl && !dateEl.value) {
           const d = new Date();
