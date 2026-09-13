@@ -49,7 +49,7 @@ Birleşik liste yine `Map` ile `pdfRowDedupeKey` üzerinden tekilleştirilir.
 ### 4b-THY) THY ekip aylık PDF
 
 `looksLikeThyCrewRosterPdf` → **`parseLocalTimeProgramFromPdfText_THY`** (`LOKAL SAATLI UCUS PROGRAMI`).
-Uçuş + görev (RC1/EMM/HSBY/CFR/IBB/IBI…). Lokal yoksa GMT uçuş tablosu.
+Uçuş + görev/boş gün — lokal tabloda anlaşılan her satır. Lokal yoksa GMT uçuş tablosu.
 
 ### 4c) İçe aktarma filtresi (sadece uçuş bacakları)
 

@@ -358,7 +358,8 @@ function pushThyDutyRow(
 }
 
 /**
- * Lokal saatli günlük program → uçuş + görev satırları (IBB/IBI boş günler dahil).
+ * Lokal saatli günlük program → tanınan her uçuş ve görev satırı
+ * (TK…, RC1/EMM/HSBY/CFR, IBB/IBI boş günler, vb.).
  */
 export function parseLocalTimeProgramFromPdfText_THY(text: string): PdfFlightRow[] {
   const section = extractThyLocalTimeSection(text);

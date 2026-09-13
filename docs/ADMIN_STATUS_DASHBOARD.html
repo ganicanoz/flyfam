@@ -9,7 +9,7 @@
   <meta http-equiv="Expires" content="0" />
   <script>
     (function () {
-      var UI = '41';
+      var UI = '42';
       var p = new URLSearchParams(location.search);
       if (p.get('ui') !== UI) {
         p.set('ui', UI);
@@ -1293,8 +1293,9 @@
             Kaynak <code>LOKAL SAATLI UCUS PROGRAMI</code> (Kalkış/LT · İniş/LT) günlük <code>MB:</code> bloklarıdır —
             aylık takvim grid’i kullanılmaz (CFR/HSBY tarih kayması önlenir).
             <code>TK###</code> + <code>AAA/h:mm</code> → uçuş (tarih: ilgili <code>GMB:</code>).
-            <code>RC1</code> / <code>EMM</code> / <code>HSBY</code> / <code>CFR</code> vb. → görev (PDF saat penceresi).
-            <code>IBB</code> / <code>IBI</code> (boş gün) de aynı tablodan alınır.
+            Tanınan görev kodları (<code>RC1</code>, <code>EMM</code>, <code>HSBY</code>, <code>CFR</code>,
+            <code>IBB</code>, <code>IBI</code>, …) → görev / boş gün (PDF saat penceresi).
+            Kural: lokal tabloda anlaşılan her satır alınır; bilinmeyen satırlar atlanır.
             Lokal bölüm yoksa yedek: GMT uçuş tablosu.
           </p>
           <p class="mini" style="margin-top:-4px; padding:8px 10px; border-radius:8px; background:#fff7ed; border:1px solid #fed7aa;">
@@ -2609,7 +2610,7 @@
           let hint = '';
           if (location.protocol === 'file:') {
             hint =
-              ' Paneli file:// ile açıyorsun — terminalde: cd docs && python3 -m http.server 8765 sonra http://localhost:8765/ADMIN_STATUS_DASHBOARD.html?ui=41';
+              ' Paneli file:// ile açıyorsun — terminalde: cd docs && python3 -m http.server 8765 sonra http://localhost:8765/ADMIN_STATUS_DASHBOARD.html?ui=42';
           } else {
             hint = ' Supabase URL ve anon key kontrol et; VPN/eklenti engeli olabilir.';
           }
