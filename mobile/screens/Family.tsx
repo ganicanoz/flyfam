@@ -23,7 +23,7 @@ import { supabase } from '../lib/supabase';
 import { getPushTokenWithReason, registerPushTokenForFamilyUser } from '../lib/pushNotifications';
 import { colors, useThemeMode } from '../theme/colors';
 import { fetchMySubscriptionAccess, type SubscriptionAccess } from '../lib/subscriptionAccess';
-import { demoPeersForUser, peerInitials } from '../lib/crewPeerDemo';
+import { demoPeersForUser, peerInitials, dismissDemoPeer, hydrateDismissedPeers, hydrateCrewPeersFromServer, subscribeDismissedPeers, subscribeCrewPeers } from '../lib/crewPeerDemo';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { radius, shadow } from '../theme/tokens';
@@ -102,11 +102,23 @@ export default function Family() {
   const [pushError, setPushError] = useState<string | null>(null);
   const [showSwipeHint, setShowSwipeHint] = useState(false);
   const isCrew = profile?.role === 'crew';
-  const demoPeers = useMemo(() => demoPeersForUser(profile?.id), [profile?.id]);
+  const [peerTick, setPeerTick] = useState(0);
+  const demoPeers = useMemo(() => demoPeersForUser(profile?.id), [profile?.id, peerTick]);
   const [lastSharedAtMs, setLastSharedAtMs] = useState<number | null>(() => getRosterLastSharedAt());
   const emailInputRef = useRef<TextInput>(null);
   const scrollRef = useRef<ScrollView>(null);
   const inviteCardY = useRef(0);
+
+  useEffect(() => {
+    void hydrateDismissedPeers().then(() => setPeerTick((n) => n + 1));
+    return subscribeDismissedPeers(() => setPeerTick((n) => n + 1));
+  }, []);
+
+  useEffect(() => {
+    if (!profile?.id || !isCrew) return;
+    void hydrateCrewPeersFromServer(profile.id);
+    return subscribeCrewPeers(() => setPeerTick((n) => n + 1));
+  }, [profile?.id, isCrew]);
 
   useEffect(() => {
     void hydrateRosterLastSharedAt().then(() => setLastSharedAtMs(getRosterLastSharedAt()));
@@ -168,17 +180,26 @@ export default function Family() {
   }, [profile?.id, crewProfile?.id]);
 
   const loadPendingInvites = useCallback(async () => {
-    if (isCrew) {
-      setPendingInvites([]);
-      return;
-    }
-    const { data, error } = await supabase
-      .from('crew_invitations')
-      .select('id, crew_id, family_email, status, crew_profiles(company_name)')
-      .eq('status', 'pending');
+    const { data, error } = await supabase.rpc('get_my_pending_crew_invitations');
     if (error) {
-      console.warn('[Family] invites error:', error.message);
-      setPendingInvites([]);
+      // Fallback for older backends without the RPC.
+      const { data: rows, error: qErr } = await supabase
+        .from('crew_invitations')
+        .select('id, crew_id, family_email, status, crew_profiles(company_name)')
+        .eq('status', 'pending');
+      if (qErr) {
+        console.warn('[Family] invites error:', qErr.message);
+        setPendingInvites([]);
+        return;
+      }
+      setPendingInvites(
+        (rows ?? []).map((row: any) => ({
+          id: row.id,
+          crew_id: row.crew_id,
+          family_email: row.family_email,
+          crew_name: row.crew_profiles?.company_name ?? null,
+        })),
+      );
       return;
     }
     setPendingInvites(
@@ -186,10 +207,10 @@ export default function Family() {
         id: row.id,
         crew_id: row.crew_id,
         family_email: row.family_email,
-        crew_name: row.crew_profiles?.company_name ?? null,
+        crew_name: row.crew_name ?? null,
       })),
     );
-  }, [isCrew]);
+  }, []);
 
   const loadSentPendingInvites = useCallback(async () => {
     if (!isCrew || !crewProfile?.id) {
@@ -364,6 +385,19 @@ export default function Family() {
     );
   };
 
+  const unlinkCrewPeer = (peerId: string, peerName: string) => {
+    Alert.alert(t('family.unlinkCrewConfirmTitle'), t('family.unlinkCrewConfirmMessage', { name: peerName }), [
+      { text: t('common.cancel'), style: 'cancel' },
+      {
+        text: t('family.unlinkCrew'),
+        style: 'destructive',
+        onPress: () => {
+          void dismissDemoPeer(peerId);
+        },
+      },
+    ]);
+  };
+
   const openMemberActions = (c: Connection) => {
     const label = c.other_name ?? (isCrew ? t('family.familyMember') : t('family.crewMember'));
     Alert.alert(t('family.memberActionsTitle'), label, [
@@ -386,6 +420,9 @@ export default function Family() {
     }
     setPendingInvites((prev) => prev.filter((i) => i.id !== id));
     await loadConnections();
+    if (isCrew && profile?.id) {
+      await hydrateCrewPeersFromServer(profile.id);
+    }
     Alert.alert(t('connect.connected'), `${t('connect.connectedMessage')}\n\n${t('connect.subscriptionNotice')}`);
   };
 
@@ -417,7 +454,7 @@ export default function Family() {
         ref={scrollRef}
         contentContainerStyle={[
           styles.scroll,
-          { paddingTop: Math.max(insets.top, 8) + 8, paddingBottom: 48 + Math.max(insets.bottom, 8) },
+          { paddingTop: Math.max(insets.top, 8) + 8, paddingBottom: 32 },
         ]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
@@ -429,6 +466,46 @@ export default function Family() {
             <Text style={[styles.lastShared, { color: colors.textSecondary }]}>{lastSharedLabel}</Text>
           ) : null}
         </View>
+
+        {pendingInvites.length > 0 && (
+          <View style={[styles.card, shadow.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <Text style={[styles.cardTitle, { color: colors.text, marginBottom: 10 }]}>
+              {t('family.pendingInvitesTitle')} · {t('family.invitationsCount', { count: pendingInvites.length })}
+            </Text>
+            {pendingInvites.map((inv) => (
+              <View key={inv.id} style={[styles.inviteBlock, { borderColor: colors.border }]}>
+                <Text style={[styles.name, { color: colors.text }]}>
+                  {inv.crew_name ?? t('connect.crewMember')}
+                </Text>
+                <Text style={[styles.meta, { color: colors.textSecondary }]}>
+                  {t('connect.invited')} {inv.family_email}
+                </Text>
+                <View style={styles.inviteActions}>
+                  <TouchableOpacity
+                    style={[styles.secondaryBtn, { borderColor: colors.border }]}
+                    onPress={() => declineInvite(inv.id)}
+                    disabled={!!inviteResponding}
+                  >
+                    <Text style={[styles.secondaryBtnText, { color: colors.text }]}>
+                      {t('family.declineInvite')}
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.primaryBtn, { flex: 1, backgroundColor: colors.primary }]}
+                    onPress={() => acceptInvite(inv.id)}
+                    disabled={!!inviteResponding}
+                  >
+                    {inviteResponding === inv.id ? (
+                      <ActivityIndicator color={colors.onPrimary} size="small" />
+                    ) : (
+                      <Text style={styles.primaryBtnText}>{t('family.acceptInvite')}</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ))}
+          </View>
+        )}
 
         {isCrew && (
           <View
@@ -581,46 +658,6 @@ export default function Family() {
                 ) : null}
               </View>
             </View>
-
-            {pendingInvites.length > 0 && (
-              <View style={[styles.card, shadow.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                <Text style={[styles.cardTitle, { color: colors.text, marginBottom: 10 }]}>
-                  {t('family.pendingInvitesTitle')} · {t('family.invitationsCount', { count: pendingInvites.length })}
-                </Text>
-                {pendingInvites.map((inv) => (
-                  <View key={inv.id} style={[styles.inviteBlock, { borderColor: colors.border }]}>
-                    <Text style={[styles.name, { color: colors.text }]}>
-                      {inv.crew_name ?? t('connect.crewMember')}
-                    </Text>
-                    <Text style={[styles.meta, { color: colors.textSecondary }]}>
-                      {t('connect.invited')} {inv.family_email}
-                    </Text>
-                    <View style={styles.inviteActions}>
-                      <TouchableOpacity
-                        style={[styles.secondaryBtn, { borderColor: colors.border }]}
-                        onPress={() => declineInvite(inv.id)}
-                        disabled={!!inviteResponding}
-                      >
-                        <Text style={[styles.secondaryBtnText, { color: colors.text }]}>
-                          {t('family.declineInvite')}
-                        </Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={[styles.primaryBtn, { flex: 1, backgroundColor: colors.primary }]}
-                        onPress={() => acceptInvite(inv.id)}
-                        disabled={!!inviteResponding}
-                      >
-                        {inviteResponding === inv.id ? (
-                          <ActivityIndicator color={colors.onPrimary} size="small" />
-                        ) : (
-                          <Text style={styles.primaryBtnText}>{t('family.acceptInvite')}</Text>
-                        )}
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                ))}
-              </View>
-            )}
           </>
         )}
 
@@ -650,34 +687,59 @@ export default function Family() {
 
         {isCrew && demoPeers.length > 0 && (
           <View style={[styles.card, shadow.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <Text style={[styles.cardTitle, { color: colors.text, marginBottom: 8 }]}>
-              {isTr ? 'Crew takiplerim' : 'Crew following'}
-            </Text>
+            <View style={styles.sectionHead}>
+              <Text style={[styles.cardTitle, { color: colors.text }]}>{t('family.linkedCrewTitle')}</Text>
+              {showSwipeHint ? (
+                <View style={styles.swipeHint}>
+                  <Ionicons name="swap-horizontal-outline" size={14} color={colors.textMuted} />
+                  <Text style={[styles.swipeHintText, { color: colors.textMuted }]}>
+                    {t('family.swipeToDeleteShort')}
+                  </Text>
+                </View>
+              ) : null}
+            </View>
             {demoPeers.map((p) => (
-              <TouchableOpacity
-                key={p.id}
-                style={[styles.memberRow, { borderColor: colors.border, minHeight: 44 }]}
-                activeOpacity={0.85}
-                onPress={() =>
-                  navigation.navigate('PartnerRoster', {
-                    peerCrewId: p.peerCrewId,
-                    peerName: p.name,
-                    peerAirline: p.airline,
-                  })
-                }
-              >
-                <View style={[styles.avatar, { backgroundColor: colors.primaryLight }]}>
-                  <Text style={[styles.avatarInitial, { color: colors.primary }]}>
-                    {peerInitials(p.name)}
-                  </Text>
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.name, { color: colors.text }]}>{p.name}</Text>
-                  <Text style={[styles.meta, { color: colors.textSecondary }]}>
-                    {p.airline} · {p.icao}
-                  </Text>
-                </View>
-              </TouchableOpacity>
+              <View key={p.id} style={styles.swipeRowWrap}>
+                <Swipeable
+                  renderRightActions={() => (
+                    <RectButton
+                      style={styles.swipeDelete}
+                      onPress={() => {
+                        markSwipeHintSeen();
+                        unlinkCrewPeer(p.id, p.name);
+                      }}
+                    >
+                      <Text style={styles.swipeDeleteText}>{t('family.unlinkCrew')}</Text>
+                    </RectButton>
+                  )}
+                  onSwipeableOpen={markSwipeHintSeen}
+                  overshootRight={false}
+                >
+                  <TouchableOpacity
+                    style={[styles.memberRowSolid, { backgroundColor: colors.surface, borderColor: colors.border, minHeight: 44 }]}
+                    activeOpacity={0.85}
+                    onPress={() =>
+                      navigation.navigate('PartnerRoster', {
+                        peerCrewId: p.peerCrewId,
+                        peerName: p.name,
+                        peerAirline: p.airline,
+                      })
+                    }
+                  >
+                    <View style={[styles.avatar, { backgroundColor: colors.primaryLight }]}>
+                      <Text style={[styles.avatarInitial, { color: colors.primary }]}>
+                        {peerInitials(p.name)}
+                      </Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.name, { color: colors.text }]}>{p.name}</Text>
+                      <Text style={[styles.meta, { color: colors.textSecondary }]}>
+                        {p.airline} · {p.icao}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                </Swipeable>
+              </View>
             ))}
           </View>
         )}

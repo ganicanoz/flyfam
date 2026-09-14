@@ -11,7 +11,8 @@ import { AuthEmailLinkListener } from './components/AuthEmailLinkListener';
 import { PdfImportLinkingListener } from './components/PdfImportLinkingListener';
 import { trackScreenViewThrottled } from './lib/userActivity';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { createBottomTabNavigator, type BottomTabBarProps, BottomTabBarHeightCallbackContext } from '@react-navigation/bottom-tabs';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { createNativeBottomTabNavigator } from '@bottom-tabs/react-navigation';
 import * as SplashScreen from 'expo-splash-screen';
 import {
   View,
@@ -19,19 +20,15 @@ import {
   StyleSheet,
   ImageBackground,
   Platform,
-  Pressable,
-  Text,
-  Animated,
 } from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets, initialWindowMetrics } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useTranslation } from 'react-i18next';
 import { SessionProvider, useSession } from './contexts/SessionContext';
 import { AdminRosterProvider, useAdminRoster } from './contexts/AdminRosterContext';
 import { colors, loadStoredThemeMode, useThemeMode } from './theme/colors';
 import { loadStoredFontSizePreset } from './theme/fontScale';
-import { demoPeersForUser, peerTabShortLabel, hydrateDismissedPeers, subscribeDismissedPeers } from './lib/crewPeerDemo';
+import { demoPeersForUser, peerTabShortLabel, hydrateDismissedPeers, hydrateCrewPeersFromServer, subscribeDismissedPeers, subscribeCrewPeers } from './lib/crewPeerDemo';
 
 import Welcome from './screens/Welcome';
 import SignIn from './screens/SignIn';
@@ -69,17 +66,13 @@ import {
 } from './lib/rosterOccupationCatalog';
 import { hydrateLocalOccupationOverrides } from './lib/rosterOccupationLocalOverrides';
 
-/** Instagram floating tab ölçüleri. */
-const TAB_BAR_HEIGHT = 62;
-const TAB_ICON_SIZE = 20;
-const TAB_INDICATOR_W = 52;
-const TAB_INDICATOR_H = 48;
-const TAB_INDICATOR_RADIUS = 14;
-const TAB_SIDE_MARGIN = 28;
-const TAB_INNER_PAD_H = 8;
-
+/**
+ * Platform native tabs (iOS UITabBar / Android Material3).
+ * Web keeps JS bottom tabs (no native host).
+ */
+const NativeTab = createNativeBottomTabNavigator();
+const WebTab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
-const Tab = createBottomTabNavigator();
 
 function RosterTabScreen() {
   const { adminRosterMode, isAdminUser } = useAdminRoster();
@@ -98,7 +91,21 @@ function PeerRosterTabScreen() {
   return <Roster peerView={{ peerCrewId: peer.peerCrewId, peerName: peer.name }} />;
 }
 
-const TAB_ICONS: Record<
+const TAB_SF: Record<string, string> = {
+  Roster: 'list.bullet',
+  PeerRoster: 'calendar',
+  Family: 'person.2',
+  Profile: 'person',
+};
+
+const TAB_ANDROID_ICON: Record<string, number> = {
+  Roster: require('./assets/tab-icons/list.png'),
+  PeerRoster: require('./assets/tab-icons/calendar.png'),
+  Family: require('./assets/tab-icons/people.png'),
+  Profile: require('./assets/tab-icons/person.png'),
+};
+
+const TAB_WEB_ICONS: Record<
   string,
   { active: React.ComponentProps<typeof Ionicons>['name']; inactive: React.ComponentProps<typeof Ionicons>['name'] }
 > = {
@@ -108,262 +115,7 @@ const TAB_ICONS: Record<
   Profile: { active: 'person', inactive: 'person-outline' },
 };
 
-/** Instagram tarzı floating glass pill + kayan soft indicator. */
-function InstagramGlassTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
-  const { t } = useTranslation();
-  const { profile } = useSession();
-  const [peerTick, setPeerTick] = React.useState(0);
-  React.useEffect(() => subscribeDismissedPeers(() => setPeerTick((n) => n + 1)), []);
-  const peer = React.useMemo(() => demoPeersForUser(profile?.id)[0] ?? null, [profile?.id, peerTick]);
-  const peerLabel = React.useMemo(
-    () => (peer ? peerTabShortLabel(peer.name) : null),
-    [peer],
-  );
-  const insets = useSafeAreaInsets();
-  const mode = useThemeMode();
-  const isDark = mode === 'dark';
-  const onTabBarHeightChange = React.useContext(BottomTabBarHeightCallbackContext);
-  const floatBottom = Math.max(insets.bottom > 0 ? 6 : 10, 6);
-  const routeCount = state.routes.length;
-  const tabCenters = React.useRef<number[]>(Array.from({ length: routeCount }, () => 0));
-  const indicatorX = React.useRef(new Animated.Value(0)).current;
-  const indicatorReady = React.useRef(false);
-  React.useEffect(() => {
-    onTabBarHeightChange?.(0);
-  }, [onTabBarHeightChange]);
-
-  // Peer sekmesi eklenince/çıkınca eski merkezler Aile altına kayıyor — yeniden ölç.
-  React.useEffect(() => {
-    tabCenters.current = Array.from({ length: routeCount }, () => 0);
-    indicatorReady.current = false;
-  }, [routeCount]);
-
-  const animateIndicatorTo = React.useCallback(
-    (index: number, instant = false) => {
-      const x = tabCenters.current[index];
-      if (x == null || Number.isNaN(x)) return;
-      if (instant || !indicatorReady.current) {
-        indicatorX.setValue(x);
-        indicatorReady.current = true;
-        return;
-      }
-      Animated.spring(indicatorX, {
-        toValue: x,
-        useNativeDriver: true,
-        friction: 8,
-        tension: 160,
-        overshootClamping: false,
-      }).start();
-    },
-    [indicatorX],
-  );
-
-  React.useEffect(() => {
-    animateIndicatorTo(state.index);
-  }, [state.index, routeCount, animateIndicatorTo]);
-
-
-  return (
-    <View
-      pointerEvents="box-none"
-      style={[
-        igTabStyles.dock,
-        {
-          bottom: floatBottom,
-          left: TAB_SIDE_MARGIN,
-          right: TAB_SIDE_MARGIN,
-        },
-      ]}
-    >
-      <View
-        style={[
-          igTabStyles.pillShadow,
-          {
-            shadowColor: isDark ? '#000' : '#0F172A',
-            marginBottom: 4,
-          },
-        ]}
-      >
-        <View
-          style={[
-            igTabStyles.pill,
-            {
-              height: TAB_BAR_HEIGHT,
-              backgroundColor: isDark ? 'rgba(28, 32, 40, 0.88)' : 'rgba(255, 255, 255, 0.94)',
-              borderColor: isDark ? 'rgba(255,255,255,0.14)' : 'rgba(0,0,0,0.06)',
-            },
-          ]}
-        >
-          <LinearGradient
-            pointerEvents="none"
-            colors={
-              isDark
-                ? ['rgba(255,255,255,0.14)', 'rgba(255,255,255,0.03)', 'rgba(0,0,0,0.22)']
-                : ['rgba(255,255,255,0.92)', 'rgba(255,255,255,0.4)', 'rgba(236,242,250,0.5)']
-            }
-            locations={[0, 0.45, 1]}
-            style={StyleSheet.absoluteFillObject}
-          />
-          <View style={[igTabStyles.row, { paddingHorizontal: TAB_INNER_PAD_H }]}>
-            <Animated.View
-              pointerEvents="none"
-              style={[
-                igTabStyles.indicator,
-                {
-                  width: TAB_INDICATOR_W,
-                  height: TAB_INDICATOR_H,
-                  borderRadius: TAB_INDICATOR_RADIUS,
-                  backgroundColor: isDark ? colors.surfaceAlt : colors.primaryLight,
-                  top: (TAB_BAR_HEIGHT - TAB_INDICATOR_H) / 2,
-                  transform: [{ translateX: indicatorX }],
-                },
-              ]}
-            />
-            {state.routes.map((route, index) => {
-              const focused = state.index === index;
-              const { options } = descriptors[route.key];
-              const iconSet = TAB_ICONS[route.name] ?? { active: 'ellipse', inactive: 'ellipse-outline' };
-              const a11yRaw =
-                options.tabBarAccessibilityLabel ??
-                (route.name === 'Roster'
-                  ? t('nav.rosterTab')
-                  : route.name === 'PeerRoster'
-                    ? peerLabel || peer?.name || t('nav.peerTab')
-                    : route.name === 'Family'
-                      ? t('nav.family')
-                      : t('nav.profile'));
-              const a11y = typeof a11yRaw === 'string' ? a11yRaw : route.name;
-              const color = focused
-                ? isDark
-                  ? colors.text
-                  : colors.primary
-                : isDark
-                  ? colors.textMuted
-                  : colors.textMuted;
-
-              const onPress = () => {
-                const event = navigation.emit({
-                  type: 'tabPress',
-                  target: route.key,
-                  canPreventDefault: true,
-                });
-                if (!focused && !event.defaultPrevented) {
-                  navigation.navigate(route.name, route.params);
-                }
-              };
-
-              return (
-                <React.Fragment key={route.key}>
-                  {index > 0 ? (
-                    <View
-                      pointerEvents="none"
-                      style={[
-                        igTabStyles.sep,
-                        {
-                          backgroundColor: isDark
-                            ? 'rgba(255,255,255,0.18)'
-                            : 'rgba(15,23,42,0.14)',
-                        },
-                      ]}
-                    />
-                  ) : null}
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityState={focused ? { selected: true } : {}}
-                    accessibilityLabel={a11y}
-                    onPress={onPress}
-                    onLongPress={() => {
-                      navigation.emit({ type: 'tabLongPress', target: route.key });
-                    }}
-                    style={igTabStyles.item}
-                    onLayout={(e) => {
-                      const { x, width } = e.nativeEvent.layout;
-                      tabCenters.current[index] = x + width / 2 - TAB_INDICATOR_W / 2;
-                      if (index === state.index) {
-                        animateIndicatorTo(index, !indicatorReady.current);
-                      }
-                    }}
-                  >
-                    <Ionicons
-                      name={focused ? iconSet.active : iconSet.inactive}
-                      size={TAB_ICON_SIZE}
-                      color={color}
-                    />
-                    <Text
-                      style={[igTabStyles.label, { color }]}
-                      numberOfLines={1}
-                    >
-                      {a11y}
-                    </Text>
-                  </Pressable>
-                </React.Fragment>
-              );
-            })}
-          </View>
-        </View>
-      </View>
-    </View>
-  );
-}
-
-const igTabStyles = StyleSheet.create({
-  dock: {
-    position: 'absolute',
-    zIndex: 100,
-    elevation: 100,
-  },
-  pillShadow: {
-    borderRadius: 999,
-    shadowOpacity: 0.18,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 14,
-  },
-  pill: {
-    borderRadius: 999,
-    borderWidth: StyleSheet.hairlineWidth * 2,
-    overflow: 'hidden',
-  },
-  indicator: {
-    position: 'absolute',
-    left: 0,
-  },
-  row: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  item: {
-    flex: 1,
-    height: '100%',
-    minHeight: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 2,
-    paddingTop: 4,
-  },
-  label: {
-    fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 0.1,
-    maxWidth: '100%',
-  },
-  peerAvatar: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  sep: {
-    width: StyleSheet.hairlineWidth * 2,
-    height: 28,
-    borderRadius: 1,
-    alignSelf: 'center',
-  },
-});
-
-function MainTabs() {
+function useMainTabMeta() {
   const { t } = useTranslation();
   const { profile } = useSession();
   const [peerTick, setPeerTick] = React.useState(0);
@@ -371,6 +123,11 @@ function MainTabs() {
     void hydrateDismissedPeers().then(() => setPeerTick((n) => n + 1));
     return subscribeDismissedPeers(() => setPeerTick((n) => n + 1));
   }, []);
+  React.useEffect(() => {
+    if (!profile?.id) return;
+    void hydrateCrewPeersFromServer(profile.id);
+    return subscribeCrewPeers(() => setPeerTick((n) => n + 1));
+  }, [profile?.id]);
   const peers = React.useMemo(() => demoPeersForUser(profile?.id), [profile?.id, peerTick]);
   const hasPeerFollow = peers.length > 0;
   const peerName = peers[0]?.name ?? '';
@@ -378,8 +135,6 @@ function MainTabs() {
   const insets = useSafeAreaInsets();
   const mode = useThemeMode();
   const isDark = mode === 'dark';
-  const floatBottom = Math.max(insets.bottom > 0 ? 6 : 10, 6);
-  const contentBottomPad = TAB_BAR_HEIGHT + 12 + floatBottom + 8;
   const screenOptions = React.useMemo(
     () => ({
       headerStyle: {
@@ -395,29 +150,105 @@ function MainTabs() {
     }),
     [insets.top],
   );
+  return { t, hasPeerFollow, peerTabTitle, isDark, screenOptions };
+}
+
+function MainTabs() {
+  if (Platform.OS === 'web') {
+    return <WebMainTabs />;
+  }
+  return <NativeMainTabs />;
+}
+
+function NativeMainTabs() {
+  const { t, hasPeerFollow, peerTabTitle, isDark } = useMainTabMeta();
   return (
-    <Tab.Navigator
-      tabBar={(props) => <InstagramGlassTabBar {...props} />}
-      safeAreaInsets={{ top: 0, bottom: 0, left: 0, right: 0 }}
+    <NativeTab.Navigator
+      labeled
+      translucent
+      hapticFeedbackEnabled
+      tabBarActiveTintColor={isDark ? colors.text : colors.primary}
+      tabBarInactiveTintColor={colors.textMuted}
+      activeIndicatorColor={isDark ? colors.surfaceAlt : colors.primaryLight}
       screenOptions={{
+        sceneStyle: { backgroundColor: colors.background },
+      }}
+    >
+      <NativeTab.Screen
+        name="Roster"
+        component={RosterTabScreen}
+        options={{
+          title: t('nav.roster'),
+          tabBarLabel: t('nav.rosterTab'),
+          tabBarIcon: () =>
+            Platform.OS === 'ios'
+              ? { sfSymbol: TAB_SF.Roster as any }
+              : TAB_ANDROID_ICON.Roster,
+        }}
+      />
+      {hasPeerFollow ? (
+        <NativeTab.Screen
+          name="PeerRoster"
+          component={PeerRosterTabScreen}
+          options={{
+            title: peerTabTitle,
+            tabBarLabel: peerTabTitle,
+            tabBarIcon: () =>
+              Platform.OS === 'ios'
+                ? { sfSymbol: TAB_SF.PeerRoster as any }
+                : TAB_ANDROID_ICON.PeerRoster,
+          }}
+        />
+      ) : null}
+      <NativeTab.Screen
+        name="Family"
+        component={Family}
+        options={{
+          title: t('nav.family'),
+          tabBarLabel: t('nav.family'),
+          tabBarIcon: () =>
+            Platform.OS === 'ios'
+              ? { sfSymbol: TAB_SF.Family as any }
+              : TAB_ANDROID_ICON.Family,
+        }}
+      />
+      <NativeTab.Screen
+        name="Profile"
+        component={Profile}
+        options={{
+          title: t('nav.profile'),
+          tabBarLabel: t('nav.profile'),
+          tabBarIcon: () =>
+            Platform.OS === 'ios'
+              ? { sfSymbol: TAB_SF.Profile as any }
+              : TAB_ANDROID_ICON.Profile,
+        }}
+      />
+    </NativeTab.Navigator>
+  );
+}
+
+function WebMainTabs() {
+  const { t, hasPeerFollow, peerTabTitle, isDark, screenOptions } = useMainTabMeta();
+  return (
+    <WebTab.Navigator
+      screenOptions={({ route }) => ({
         ...screenOptions,
-        tabBarShowLabel: false,
+        tabBarShowLabel: true,
         tabBarActiveTintColor: isDark ? colors.text : colors.primary,
         tabBarInactiveTintColor: colors.textMuted,
         tabBarStyle: {
-          position: 'absolute',
-          backgroundColor: 'transparent',
-          borderTopWidth: 0,
-          elevation: 0,
-          height: 0,
+          backgroundColor: colors.surface,
+          borderTopColor: colors.border,
         },
-        sceneStyle: {
-          backgroundColor: colors.background,
-          paddingBottom: contentBottomPad,
+        sceneStyle: { backgroundColor: colors.background },
+        tabBarIcon: ({ focused, color, size }) => {
+          const set = TAB_WEB_ICONS[route.name] ?? { active: 'ellipse' as const, inactive: 'ellipse-outline' as const };
+          return <Ionicons name={focused ? set.active : set.inactive} size={size} color={color} />;
         },
-      }}
+      })}
     >
-      <Tab.Screen
+      <WebTab.Screen
         name="Roster"
         component={RosterTabScreen}
         options={{
@@ -427,7 +258,7 @@ function MainTabs() {
         }}
       />
       {hasPeerFollow ? (
-        <Tab.Screen
+        <WebTab.Screen
           name="PeerRoster"
           component={PeerRosterTabScreen}
           options={{
@@ -437,7 +268,7 @@ function MainTabs() {
           }}
         />
       ) : null}
-      <Tab.Screen
+      <WebTab.Screen
         name="Family"
         component={Family}
         options={{
@@ -446,7 +277,7 @@ function MainTabs() {
           tabBarAccessibilityLabel: t('nav.family'),
         }}
       />
-      <Tab.Screen
+      <WebTab.Screen
         name="Profile"
         component={Profile}
         options={{
@@ -455,7 +286,7 @@ function MainTabs() {
           tabBarAccessibilityLabel: t('nav.profile'),
         }}
       />
-    </Tab.Navigator>
+    </WebTab.Navigator>
   );
 }
 
@@ -467,6 +298,8 @@ function RootNavigator() {
   const [releasePolicy, setReleasePolicy] = useState<AppReleasePolicy | null>(null);
   const [forceUpdateChecked, setForceUpdateChecked] = useState(false);
   const [brandSplashVisible, setBrandSplashVisible] = useState(Platform.OS !== 'web');
+  /** Cap splash hang: profile (live or disk cache) is enough to leave splash. */
+  const splashBusy = isLoading && !profile;
   const mode = useThemeMode();
   void mode;
 
@@ -582,7 +415,14 @@ function RootNavigator() {
       </Stack.Navigator>
     );
   } else if (session && !profile) {
-    // Profil henüz gelmedi / geçici hata — boş ekran bırakma (splash kapandıktan sonra).
+    // Profil henüz gelmedi — cache de yoksa kısa spinner (splash timeout ile isLoading false olur).
+    body = (
+      <View style={styles.loading}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  } else if (consentCheck === 'unknown' && session && profile) {
+    // Consent check in flight — don't flash Consent/Main.
     body = (
       <View style={styles.loading}>
         <ActivityIndicator size="large" color={colors.primary} />
@@ -685,7 +525,7 @@ function RootNavigator() {
       <ForceUpdateModal visible={blockUpdate} policy={releasePolicy} />
       {brandSplashVisible ? (
         <BrandSplashOverlay
-          busy={isLoading || (!!session && !profile)}
+          busy={splashBusy}
           onFinished={() => setBrandSplashVisible(false)}
         />
       ) : null}

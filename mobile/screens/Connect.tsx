@@ -35,15 +35,31 @@ export default function Connect() {
 
   useEffect(() => {
     const fetchInvitations = async () => {
-      const { data, error } = await supabase
+      const { data, error } = await supabase.rpc('get_my_pending_crew_invitations');
+      if (!error && data) {
+        setInvitations(
+          (data as Array<{ id: string; crew_id: string; family_email: string; crew_name: string | null }>).map(
+            (row) => ({
+              id: row.id,
+              crew_id: row.crew_id,
+              family_email: row.family_email,
+              status: 'pending',
+              crew_profiles: { company_name: row.crew_name },
+            }),
+          ),
+        );
+        setLoading(false);
+        return;
+      }
+      const { data: rows, error: qErr } = await supabase
         .from('crew_invitations')
         .select('id, crew_id, family_email, status, crew_profiles(company_name)')
         .eq('status', 'pending');
-      if (error) {
-        console.error(error);
+      if (qErr) {
+        console.error(qErr);
         setInvitations([]);
       } else {
-        setInvitations((data ?? []) as Invitation[]);
+        setInvitations((rows ?? []) as Invitation[]);
       }
       setLoading(false);
     };
