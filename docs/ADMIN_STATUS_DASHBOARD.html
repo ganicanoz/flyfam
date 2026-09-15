@@ -9,7 +9,7 @@
   <meta http-equiv="Expires" content="0" />
   <script>
     (function () {
-      var UI = '43';
+      var UI = '46';
       var p = new URLSearchParams(location.search);
       if (p.get('ui') !== UI) {
         p.set('ui', UI);
@@ -17,22 +17,35 @@
       }
     })();
   </script>
-  <title>FlyFam Admin · panel</title>
+  <title>FlyFam Admin</title>
   <style>
     :root {
-      --bg: #eef2f7;
+      --bg: #e8eef5;
       --sidebar: #ffffff;
       --panel: #ffffff;
-      --panel-soft: #f7f9fc;
-      --text: #1f2937;
+      --panel-soft: #f4f7fb;
+      --text: #0f172a;
       --muted: #64748b;
-      --line: #d6deea;
-      --ok: #16a34a;
-      --warn: #d97706;
-      --bad: #dc2626;
-      --brand: #2563eb;
-      /* Sticky header block height (keep in sync when changing topbar density) */
+      --border: #d5dee9;
+      --line: var(--border);
+      --brand: #1d4ed8;
+      --brand-dark: #0b1f3a;
+      --accent: #c4a035;
+      --success: #15803d;
+      --warning: #b45309;
+      --danger: #b91c1c;
+      --ok: var(--success);
+      --warn: var(--warning);
+      --bad: var(--danger);
+      --radius: 10px;
+      --radius-sm: 8px;
+      --space-1: 4px;
+      --space-2: 8px;
+      --space-3: 12px;
+      --space-4: 16px;
+      --space-5: 20px;
       --topbar-offset: 48px;
+      --focus-ring: 0 0 0 3px rgba(29, 78, 216, 0.28);
     }
     * { box-sizing: border-box; }
     body {
@@ -143,26 +156,54 @@
       height: calc(100vh - var(--topbar-offset));
       overflow: auto;
     }
-    .main { padding: 14px; }
-    h1 { margin: 0 0 2px; font-size: 20px; }
-    h2 { margin: 0 0 4px; font-size: 17px; }
-    .sub { margin: 0 0 10px; color: var(--muted); font-size: 12px; }
+    .main { padding: var(--space-4) var(--space-5) 28px; max-width: 1400px; }
+    h1 { margin: 0 0 var(--space-1); font-size: 22px; letter-spacing: -0.02em; font-weight: 750; color: var(--brand-dark); }
+    h2 { margin: 0 0 var(--space-1); font-size: 17px; color: var(--brand-dark); }
+    .sub { margin: 0 0 var(--space-3); color: var(--muted); font-size: 13px; line-height: 1.4; }
+    .page-head {
+      margin-bottom: var(--space-4);
+      padding-bottom: var(--space-3);
+      border-bottom: 1px solid var(--border);
+    }
+    .page-head h1 { margin-bottom: var(--space-1); }
+    .page-head .sub { margin-bottom: 0; max-width: 62ch; }
+    .section-kicker {
+      display: inline-block;
+      margin: 0 0 6px;
+      font-size: 10px;
+      font-weight: 750;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--brand);
+      background: #e8effc;
+      border: 1px solid #c7d7f5;
+      border-radius: 999px;
+      padding: 3px 8px;
+      line-height: 1.2;
+    }
     .panel {
       background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 10px;
-      padding: 10px;
-      margin-bottom: 10px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: var(--space-3) var(--space-4);
+      margin-bottom: var(--space-3);
     }
     .mini { font-size: 12px; color: var(--muted); }
     .hidden { display: none !important; }
-    .grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 8px; }
-    .kpi-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+    .grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: var(--space-2); }
+    .kpi-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-3); }
+    .kpi-row.kpi-row-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
     .kpi-row.kpi-row-5 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
     .kpi-row.kpi-row-6 { grid-template-columns: repeat(6, minmax(0, 1fr)); }
-    .card { background: var(--panel-soft); border: 1px solid #2f3b49; border-radius: 8px; padding: 10px; }
-    .card h3 { margin: 0; font-size: 13px; color: var(--muted); font-weight: 600; }
-    .num { font-size: 24px; font-weight: 700; margin-top: 2px; }
+    .card {
+      background: var(--panel-soft);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: var(--space-3);
+    }
+    .card:hover { border-color: #b8c9e0; }
+    .card h3 { margin: 0; font-size: 11px; color: var(--muted); font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
+    .num { font-size: 26px; font-weight: 750; margin-top: 6px; letter-spacing: -0.03em; color: var(--brand-dark); font-variant-numeric: tabular-nums; }
     .act-charts-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -308,17 +349,27 @@
     button {
       background: #f4f7fd;
       color: var(--text);
-      border: 1px solid #c7d5ea;
-      border-radius: 6px;
-      padding: 7px 10px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 8px 12px;
       cursor: pointer;
       font-weight: 600;
+      font-size: 12px;
     }
     button:hover { border-color: #8ea8cf; background: #eef4ff; }
-    .btnPrimary { background: #2563eb; border-color: #1d4ed8; color: #fff; }
-    .btnPrimary:hover { background: #1d4ed8; border-color: #1e40af; }
-    .btnDanger { background: #fef2f2; border-color: #fecaca; color: #b91c1c; }
-    .btnDanger:hover { border-color: #ef4444; }
+    button:focus-visible,
+    input:focus-visible,
+    select:focus-visible,
+    textarea:focus-visible,
+    a:focus-visible {
+      outline: none;
+      box-shadow: var(--focus-ring);
+    }
+    .btnPrimary { background: var(--brand); border-color: #1e40af; color: #fff; }
+    .btnPrimary:hover { background: #1e40af; border-color: #1e3a8a; }
+    .btnDanger { background: #fef2f2; border-color: #fecaca; color: var(--danger); }
+    .btnDanger:hover { background: #fee2e2; border-color: #fca5a5; }
+    .btnSmall { padding: 5px 9px; font-size: 11px; min-height: 28px; }
     .btnDangerProfile {
       background: #7f1d1d;
       border: 1px solid #450a0a;
@@ -369,9 +420,40 @@
     .ok { color: var(--ok); } .warn { color: var(--warn); } .bad { color: var(--bad); }
     .route { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; font-weight: 600; color: #334155; }
     .route .line { width: 26px; height: 2px; background: #60a5fa; border-radius: 2px; display: inline-block; }
-    .menu { margin-top: 12px; display: flex; flex-direction: column; gap: 8px; }
-    .menu button { text-align: left; width: 100%; }
-    .menu button.active { background: #eaf2ff; border-color: #9eb9e5; color: #1e3a8a; }
+    .sidebar-brand { margin-bottom: 4px; }
+    .sidebar-brand h2 { font-size: 15px; font-weight: 750; letter-spacing: -0.01em; }
+    .menu { margin-top: 10px; display: flex; flex-direction: column; gap: 14px; }
+    .menu-group { display: flex; flex-direction: column; gap: 4px; }
+    .menu-group-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #94a3b8;
+      padding: 0 4px 2px;
+    }
+    .menu button.nav-btn {
+      text-align: left;
+      width: 100%;
+      border-radius: 8px;
+      border: 1px solid transparent;
+      background: transparent;
+      padding: 8px 10px 8px 12px;
+      position: relative;
+      font-size: 13px;
+      font-weight: 600;
+      color: #334155;
+    }
+    .menu button.nav-btn:hover {
+      background: #f1f5fb;
+      border-color: #e2e8f0;
+    }
+    .menu button.nav-btn.active {
+      background: #eaf2ff;
+      border-color: #9eb9e5;
+      color: #1e3a8a;
+      box-shadow: inset 3px 0 0 var(--brand);
+    }
     .menu a.nav-external {
       display: block;
       text-align: left;
@@ -379,15 +461,15 @@
       background: #f4f7fd;
       color: var(--brand);
       border: 1px solid #c7d5ea;
-      border-radius: 6px;
-      padding: 7px 10px;
+      border-radius: 8px;
+      padding: 8px 12px;
       cursor: pointer;
       font-weight: 600;
       font-size: 12px;
       text-decoration: none;
     }
     .menu a.nav-external:hover { border-color: #2563eb; background: #eef4ff; }
-    .submenu { display: flex; gap: 8px; margin-bottom: 10px; }
+    .submenu { /* base; refined in design system block */ display: flex; gap: 8px; margin-bottom: 10px; }
     .sub-btn.active { background: #dbeafe; border-color: #93c5fd; color: #1e3a8a; }
     .subview { display: none; }
     .subview.active { display: block; }
@@ -402,21 +484,22 @@
     .kv code { font-size: 12px; }
     .users-toolbar {
       display: flex;
-      gap: 10px;
+      gap: var(--space-3);
       flex-wrap: wrap;
-      margin-bottom: 10px;
+      margin-bottom: var(--space-3);
       align-items: end;
-      padding: 8px;
-      background: #f8fbff;
-      border: 1px solid #dbe7f7;
-      border-radius: 8px;
+      padding: var(--space-3);
+      background: var(--panel-soft);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
     }
-    .users-toolbar > div { min-width: 180px; }
+    .users-toolbar > div { min-width: 160px; }
     .users-table-wrap {
-      border: 1px solid #dbe4f1;
-      border-radius: 10px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
       overflow: auto;
       background: #fff;
+      max-height: min(70vh, 820px);
     }
     .users-table {
       width: 100%;
@@ -428,10 +511,13 @@
       position: sticky;
       top: 0;
       z-index: 2;
-      background: #f2f6fd;
-      color: #475569;
-      border-bottom: 1px solid #dbe4f1;
+      background: #edf2f9;
+      color: #334155;
+      border-bottom: 1px solid var(--border);
       font-weight: 700;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
     }
     table thead th.sortable,
     .users-table thead th.sortable,
@@ -675,8 +761,7 @@
         backdrop-filter: blur(8px);
         box-shadow: 0 -6px 24px rgba(15, 23, 42, 0.12);
       }
-      .sidebar h2,
-      .sidebar > .sub { display: none; }
+      .sidebar-brand { display: none; }
       .menu {
         flex-direction: row;
         flex-wrap: nowrap;
@@ -687,7 +772,14 @@
         padding: 0 2px 2px;
         margin-top: 0;
       }
-      .menu button,
+      .menu-group {
+        flex-direction: row;
+        flex-wrap: nowrap;
+        gap: 6px;
+        flex: 0 0 auto;
+      }
+      .menu-group-label { display: none; }
+      .menu button.nav-btn,
       .menu a.nav-external {
         width: auto;
         flex: 0 0 auto;
@@ -699,6 +791,10 @@
         font-weight: 700;
         border-radius: 999px;
         scroll-snap-align: start;
+        box-shadow: none;
+      }
+      .menu button.nav-btn.active {
+        box-shadow: none;
       }
       .submenu {
         flex-wrap: nowrap;
@@ -798,6 +894,232 @@
     .email-confirm-inline .btnPrimary {
       white-space: nowrap;
     }
+
+    /* —— Design system extensions (all pages) —— */
+    .ops-hero {
+      background: var(--brand-dark);
+      color: #e8eef8;
+      border: 1px solid #0a1930;
+      border-radius: var(--radius);
+      padding: var(--space-4);
+      margin-bottom: var(--space-3);
+    }
+    .ops-hero h2 { color: #fff; margin: 0 0 4px; font-size: 18px; }
+    .ops-hero .mini { color: #9fb0c9; }
+    .ops-hero-top {
+      display: flex;
+      justify-content: space-between;
+      gap: var(--space-3);
+      flex-wrap: wrap;
+      align-items: flex-start;
+      margin-bottom: var(--space-4);
+      padding-bottom: var(--space-3);
+      border-bottom: 1px solid rgba(255,255,255,0.12);
+    }
+    .ops-hero .card {
+      background: rgba(255,255,255,0.06);
+      border-color: rgba(255,255,255,0.14);
+    }
+    .ops-hero .card h3 { color: #9fb0c9; }
+    .ops-hero .num { color: #fff; }
+    .ops-hero .card .mini { color: #b6c4d8; }
+    .ops-accent {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent);
+      margin-right: 6px;
+      vertical-align: middle;
+    }
+    .quick-actions {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: var(--space-2);
+      margin-top: var(--space-3);
+    }
+    .quick-actions button {
+      background: rgba(255,255,255,0.08);
+      border-color: rgba(255,255,255,0.18);
+      color: #fff;
+      text-align: left;
+      padding: 12px 14px;
+      font-weight: 700;
+    }
+    .quick-actions button:hover {
+      background: rgba(29, 78, 216, 0.45);
+      border-color: rgba(147, 197, 253, 0.5);
+    }
+    .panel-title {
+      margin: 0 0 var(--space-2);
+      font-size: 14px;
+      font-weight: 750;
+      color: var(--brand-dark);
+    }
+    .info-callout {
+      margin: 0 0 var(--space-3);
+      padding: var(--space-3);
+      border-radius: var(--radius-sm);
+      border: 1px solid #bfdbfe;
+      background: #eff6ff;
+      color: #1e3a5f;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+    .info-callout.warn {
+      border-color: #fde68a;
+      background: #fffbeb;
+      color: #78350f;
+    }
+    .info-callout.ok {
+      border-color: #bbf7d0;
+      background: #f0fdf4;
+      color: #14532d;
+    }
+    .empty-state {
+      padding: 28px 16px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 13px;
+      border: 1px dashed var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--panel-soft);
+    }
+    .split-panes {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--space-3);
+      align-items: stretch;
+    }
+    .debug-pre {
+      max-height: 420px;
+      overflow: auto;
+      white-space: pre-wrap;
+      background: #0f172a;
+      color: #e2e8f0;
+      padding: var(--space-3);
+      border-radius: var(--radius-sm);
+      margin: 0;
+      font-size: 12px;
+      line-height: 1.4;
+      border: 1px solid #1e293b;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+    .soft-pre {
+      max-height: 280px;
+      overflow: auto;
+      white-space: pre-wrap;
+      background: var(--panel-soft);
+      color: var(--text);
+      padding: var(--space-2);
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      margin: 0;
+      font-size: 12px;
+    }
+    .form-section {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: var(--space-3);
+      background: var(--panel);
+      margin-bottom: var(--space-3);
+    }
+    .ops-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-2);
+      align-items: center;
+      padding: var(--space-3);
+      background: #f8fafc;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      margin-bottom: var(--space-3);
+    }
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      border: 1px solid var(--border);
+      background: #f1f5f9;
+      color: #334155;
+      white-space: nowrap;
+    }
+    .badge.b-ok, .badge.ok { background: #dcfce7; color: #166534; border-color: #bbf7d0; }
+    .badge.b-warn, .badge.warn { background: #ffedd5; color: #9a3412; border-color: #fed7aa; }
+    .badge.b-bad, .badge.bad { background: #fee2e2; color: #991b1b; border-color: #fecaca; }
+    .badge.b-info { background: #dbeafe; color: #1e40af; border-color: #bfdbfe; }
+    .badge.b-accent { background: #fef9c3; color: #854d0e; border-color: #fde68a; }
+    .drawer-section {
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: var(--space-3);
+      margin-bottom: var(--space-3);
+      background: var(--panel-soft);
+    }
+    .drawer-section h4 {
+      margin: 0 0 var(--space-2);
+      font-size: 13px;
+      font-weight: 750;
+      color: var(--brand-dark);
+      padding-bottom: 6px;
+      border-bottom: 1px solid var(--border);
+    }
+    .submenu {
+      display: flex;
+      gap: 6px;
+      margin-bottom: var(--space-3);
+      padding: 4px;
+      background: var(--panel-soft);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      width: fit-content;
+      max-width: 100%;
+      flex-wrap: wrap;
+    }
+    .submenu .sub-btn {
+      border: 1px solid transparent;
+      background: transparent;
+      border-radius: var(--radius-sm);
+      padding: 8px 14px;
+      font-weight: 700;
+    }
+    .submenu .sub-btn.active {
+      background: #fff;
+      border-color: #93c5fd;
+      color: #1e3a8a;
+      box-shadow: inset 0 -2px 0 var(--brand);
+    }
+    .phase-active { border-color: var(--brand); color: var(--brand); background: #eff6ff; }
+    .health-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-2);
+      align-items: center;
+      margin-top: var(--space-3);
+    }
+    .attention-list {
+      margin: 0;
+      padding-left: 18px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    .attention-list li { margin-bottom: 4px; }
+    .status-line.ok { color: var(--success); }
+    .status-line.warn { color: var(--warning); }
+    .status-line.bad { color: var(--danger); }
+    @media (max-width: 1100px) {
+      .quick-actions { grid-template-columns: 1fr 1fr; }
+      .split-panes { grid-template-columns: 1fr; }
+      .kpi-row.kpi-row-4 { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 760px) {
+      .quick-actions { grid-template-columns: 1fr; }
+      .kpi-row.kpi-row-4 { grid-template-columns: 1fr; }
+      .main { max-width: none; }
+    }
   </style>
 </head>
 <body>
@@ -832,55 +1154,105 @@
   </header>
   <div class="app">
     <aside class="sidebar">
-      <h2>Menu</h2>
-      <p class="sub">Details on the left, summary on home</p>
+      <div class="sidebar-brand">
+        <h2>FlyFam Admin</h2>
+        <p class="sub">Operasyon paneli</p>
+      </div>
       <nav class="menu">
-        <button class="nav-btn active" data-view="overviewView">Özet</button>
-        <button class="nav-btn" data-view="activityView">Aktivite</button>
-        <button class="nav-btn" data-view="broadcastView">Broadcast</button>
-        <button class="nav-btn" data-view="usersView">Users</button>
-        <button class="nav-btn" data-view="connectionsView">Bağlantılar</button>
-        <button class="nav-btn" data-view="flightsView">Flights</button>
-        <button class="nav-btn" data-view="flightControlView">Uçuş Kontrol</button>
-        <button class="nav-btn" data-view="historyView">History</button>
-        <button class="nav-btn" data-view="usageView">Kota</button>
-        <button class="nav-btn" data-view="pdfRosterView">PDF Roster</button>
-        <button class="nav-btn" data-view="occupationCodesView">Görev Kodları</button>
+        <div class="menu-group">
+          <div class="menu-group-label">Genel</div>
+          <button class="nav-btn active" data-view="overviewView">Özet</button>
+          <button class="nav-btn" data-view="activityView">Aktivite</button>
+          <button class="nav-btn" data-view="broadcastView">Duyurular</button>
+        </div>
+        <div class="menu-group">
+          <div class="menu-group-label">Kullanıcılar</div>
+          <button class="nav-btn" data-view="usersView">Kullanıcılar</button>
+          <button class="nav-btn" data-view="connectionsView">Bağlantılar</button>
+        </div>
+        <div class="menu-group">
+          <div class="menu-group-label">Operasyon</div>
+          <button class="nav-btn" data-view="flightsView">Uçuşlar</button>
+          <button class="nav-btn" data-view="flightControlView">Uçuş kontrol</button>
+          <button class="nav-btn" data-view="historyView">Geçmiş</button>
+          <button class="nav-btn" data-view="usageView">API kota</button>
+        </div>
+        <div class="menu-group">
+          <div class="menu-group-label">Veri</div>
+          <button class="nav-btn" data-view="pdfRosterView">PDF roster</button>
+          <button class="nav-btn" data-view="occupationCodesView">Görev kodları</button>
+        </div>
       </nav>
     </aside>
     <main class="main">
       <section id="overviewView" class="view active">
-        <h1>Overview</h1>
-        <p class="sub">Summary metrics on the home screen</p>
-        <div class="kpi-row">
-          <div class="card">
-            <h3>Active database users</h3>
-            <div class="num" id="usersActive">-</div>
-            <div class="mini">Total: <span id="usersTotal">-</span> · Active in last 30 days</div>
+        <header class="page-head">
+          <div class="section-kicker">Genel</div>
+          <h1>Özet</h1>
+          <p class="sub">Operasyon merkezi — canlı kullanıcı, uçuş ve kota durumu</p>
+        </header>
+        <div class="ops-hero">
+          <div class="ops-hero-top">
+            <div>
+              <h2><span class="ops-accent"></span>Operasyon merkezi</h2>
+              <p class="mini" style="margin:0;">Son yenileme: <span id="overviewLastRefresh">—</span></p>
+            </div>
+            <div>
+              <span class="pill pill-muted" id="overviewSessionStatus">Oturum yok</span>
+            </div>
           </div>
-          <div class="card">
-            <h3>Flights and phases</h3>
-            <div class="num" id="flightsActive">-</div>
-            <div class="mini">Total: <span id="flightsTotal">-</span> · active + semi_active</div>
-            <div id="phaseSummary" class="mini" style="margin-top:6px;"></div>
-            <div id="phaseRefreshHealth" class="mini" style="margin-top:6px;"></div>
+          <div class="kpi-row kpi-row-4">
+            <div class="card">
+              <h3>Aktif kullanıcı</h3>
+              <div class="num" id="usersActive">-</div>
+              <div class="mini">Toplam: <span id="usersTotal">-</span> · Son 30 günde aktif</div>
+            </div>
+            <div class="card">
+              <h3>Aktif uçuş</h3>
+              <div class="num" id="flightsActive">-</div>
+              <div class="mini">active + semi_active</div>
+            </div>
+            <div class="card">
+              <h3>Toplam uçuş</h3>
+              <div class="num" id="flightsTotal">-</div>
+              <div class="mini" id="phaseSummary"></div>
+            </div>
+            <div class="card">
+              <h3>API kota</h3>
+              <div class="num" id="usageConfigured">-</div>
+              <div class="mini" id="usageShortHint">Kota özeti</div>
+            </div>
           </div>
-          <div class="card">
-            <h3>API quota / usage</h3>
-            <div class="num" id="usageConfigured">-</div>
-            <div class="mini" id="usageShortHint">Quota summary</div>
+          <div class="health-row" style="margin-top:14px;">
+            <span class="mini" style="color:#9fb0c9;">Faz senkronu:</span>
+            <span id="phaseRefreshHealth" class="mini"></span>
           </div>
+          <div class="quick-actions">
+            <button type="button" data-goto-view="usersView">Kullanıcıları aç</button>
+            <button type="button" data-goto-view="flightsView">Uçuşları yönet</button>
+            <button type="button" data-goto-view="broadcastView">Duyuru gönder</button>
+            <button type="button" data-goto-view="pdfRosterView">PDF roster aç</button>
+          </div>
+        </div>
+        <div class="panel">
+          <h3 class="panel-title">Dikkat gerektiren alanlar</h3>
+          <ul class="attention-list" id="overviewAttention">
+            <li>Panel verisi yüklenince otomatik güncellenir.</li>
+          </ul>
         </div>
       </section>
 
       <section id="activityView" class="view">
+        <header class="page-head">
+          <div class="section-kicker">Genel</div>
+          <h1>Aktivite</h1>
+          <p class="sub">Günlük ürün kullanımı: açılış, ekran, aile push ve admin duyuru</p>
+        </header>
         <div class="panel">
-          <h3 style="margin:0 0 8px;">Kullanıcı aktivitesi</h3>
-          <p class="mini" style="margin-top:0;">
-            Günlük ürün kullanımı: uygulama açılışı, ekran görüntüleme, aile push ve admin broadcast.
+          <p class="info-callout">
             <code>screen_view</code> yeni app sürümünden sonra birikir. Aktif = son 7g açılış/ekran veya cihaz token.
           </p>
-          <div class="users-toolbar" style="margin-bottom:10px;">
+          <div class="users-toolbar">
             <div>
               <label class="mini">Son kaç gün</label>
               <select id="activityDays">
@@ -912,7 +1284,7 @@
             <div class="card">
               <h3>7 gün (WAU)</h3>
               <div class="num" id="actWau">-</div>
-              <div class="mini">unique engaged</div>
+              <div class="mini">benzersiz aktif</div>
             </div>
             <div class="card">
               <h3>Aktif 7g</h3>
@@ -920,7 +1292,7 @@
               <div class="mini">açılış + cihaz proxy</div>
             </div>
             <div class="card">
-              <h3>Ekran view</h3>
+              <h3>Ekran</h3>
               <div class="num" id="actScreens">-</div>
               <div class="mini">seçilen dönemde</div>
             </div>
@@ -951,7 +1323,7 @@
               <div class="act-legend">
                 <span><span class="act-legend-dot" style="background:#d97706;"></span>Aile push</span>
                 <span><span class="act-legend-dot" style="background:#7c3aed;"></span>Admin push</span>
-                <span><span class="act-legend-dot" style="background:#e11d48;"></span>Roster import</span>
+                <span><span class="act-legend-dot" style="background:#e11d48;"></span>Roster içe aktarım</span>
                 <span id="activityPushChartHint" class="mini"></span>
               </div>
             </div>
@@ -998,11 +1370,14 @@
       </section>
 
       <section id="broadcastView" class="view">
+        <header class="page-head">
+          <div class="section-kicker">Genel</div>
+          <h1>Duyurular</h1>
+          <p class="sub">Rol, platform veya havayoluna göre toplu push bildirimi</p>
+        </header>
         <div class="panel">
-          <h3 style="margin:0 0 8px;">Grup bildirimi</h3>
-          <p class="mini" style="margin-top:0;">
-            Rol, platform (iOS / Android) ve/veya havayoluna göre toplu Expo push. Opsiyonel link
-            (TestFlight / APK) bildirime <code>data.url</code> olarak eklenir; uygulamada tıklanınca açılır.
+          <p class="info-callout">
+            Opsiyonel link (TestFlight / APK) bildirime <code>data.url</code> olarak eklenir; uygulamada tıklanınca açılır.
           </p>
           <div class="grid" style="margin-top:10px;">
             <div style="grid-column: span 3;">
@@ -1046,17 +1421,21 @@
       </section>
 
       <section id="usersView" class="view">
+        <header class="page-head">
+          <div class="section-kicker">Kullanıcılar</div>
+          <h1>Kullanıcılar</h1>
+          <p class="sub">Profil, abonelik, platform ve bağlantı özeti</p>
+        </header>
         <div class="panel">
-          <h3 style="margin:0 0 8px;">User details</h3>
           <div class="users-toolbar">
             <div style="flex:1.4; min-width:220px;">
               <label class="mini">İsim / Custom ID / email / Auth ID ara</label>
               <input id="userSearchInput" type="search" placeholder="Örn. Akif, 00012, oben@…" autocomplete="off" />
             </div>
             <div>
-              <label class="mini">App role filter</label>
+              <label class="mini">Rol filtresi</label>
               <select id="userTypeFilter">
-                <option value="all">All</option>
+                <option value="all">Tümü</option>
                 <option value="crew">crew</option>
                 <option value="family">family</option>
               </select>
@@ -1084,17 +1463,17 @@
                 <tr id="usersHead">
                   <th>#</th>
                   <th class="sortable" data-sort="custom_id">Custom ID <span class="sort-ind"></span></th>
-                  <th class="sortable" data-sort="full_name">Full name <span class="sort-ind"></span></th>
+                  <th class="sortable" data-sort="full_name">Ad soyad <span class="sort-ind"></span></th>
                   <th class="sortable" data-sort="id">Auth ID <span class="sort-ind"></span></th>
                   <th class="sortable" data-sort="email">Email <span class="sort-ind"></span></th>
-                  <th class="sortable" data-sort="role">Role <span class="sort-ind"></span></th>
+                  <th class="sortable" data-sort="role">Rol <span class="sort-ind"></span></th>
                   <th class="sortable" data-sort="subscription">Abonelik <span class="sort-ind"></span></th>
                   <th class="sortable" data-sort="slots">Slot <span class="sort-ind"></span></th>
                   <th class="sortable" data-sort="platform">Platform <span class="sort-ind"></span></th>
-                  <th class="sortable" data-sort="version">Version <span class="sort-ind"></span></th>
+                  <th class="sortable" data-sort="version">Sürüm <span class="sort-ind"></span></th>
                   <th class="sortable" data-sort="airline">Havayolu (app) <span class="sort-ind"></span></th>
                   <th class="sortable" data-sort="connections">Bağlantılı <span class="sort-ind"></span></th>
-                  <th class="sortable is-sorted" data-sort="last_sign_in_at">Last sign in <span class="sort-ind">▼</span></th>
+                  <th class="sortable is-sorted" data-sort="last_sign_in_at">Son giriş <span class="sort-ind">▼</span></th>
                   <th></th>
                 </tr>
               </thead>
@@ -1106,28 +1485,32 @@
       </section>
 
       <section id="connectionsView" class="view">
+        <header class="page-head">
+          <div class="section-kicker">Kullanıcılar</div>
+          <h1>Bağlantılar</h1>
+          <p class="sub">Crew ↔ family bağlantıları, davetler ve peer takip</p>
+        </header>
         <div class="panel">
           <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:8px;">
-            <h3 style="margin:0;">Bağlantılar &amp; davetler</h3>
+            <h3 style="margin:0;">Özet</h3>
             <div style="display:flex;gap:8px;align-items:center;">
               <button type="button" id="btnLinksRefresh" class="btnSmall">Yenile</button>
               <span id="linksStatus" class="mini"></span>
             </div>
           </div>
           <p class="mini" style="margin-top:0;">
-            Crew ↔ family bağlantılarını ve e-posta davetlerini gör. İstediğin crew ile family kullanıcısını
-            onaylı bağla; bekleyen / reddedilen davetleri buradan yönet.
+            Crew ile family kullanıcısını onaylı bağla; bekleyen / reddedilen davetleri buradan yönet.
           </p>
           <div class="kpi-row" style="margin:12px 0;">
             <div class="card"><h3>Bağlantı</h3><div class="num" id="linksCountConn">-</div></div>
             <div class="card"><h3>Davet bekleyen</h3><div class="num" id="linksCountPending">-</div></div>
             <div class="card"><h3>Davet reddedilen</h3><div class="num" id="linksCountDeclined">-</div></div>
-            <div class="card"><h3>Peer follow</h3><div class="num" id="linksCountPeer">-</div></div>
+            <div class="card"><h3>Peer takip</h3><div class="num" id="linksCountPeer">-</div></div>
           </div>
         </div>
 
-        <div class="panel">
-          <h3 style="margin:0 0 8px;">Yeni bağlantı kur</h3>
+        <div class="panel form-section">
+          <h3 class="panel-title">Yeni bağlantı kur</h3>
           <div class="grid">
             <div style="grid-column: span 5;">
               <label class="mini">Crew (uçuş ekibi)</label>
@@ -1204,7 +1587,7 @@
               <thead>
                 <tr>
                   <th>Crew</th>
-                  <th>Family email</th>
+                  <th>Family e-posta</th>
                   <th>Durum</th>
                   <th>Tarih</th>
                   <th></th>
@@ -1234,15 +1617,19 @@
       </section>
 
       <section id="flightsView" class="view">
+        <header class="page-head">
+          <div class="section-kicker">Operasyon</div>
+          <h1>Uçuşlar</h1>
+          <p class="sub">Liste, toplu faz/status ve manuel uçuş oluşturma</p>
+        </header>
         <div class="panel">
-          <h3 style="margin:0 0 8px;">Flight details</h3>
           <div class="submenu">
-            <button id="flightsListTab" class="sub-btn active" data-subview="flightsListView">Flight list</button>
-            <button id="flightsCreateTab" class="sub-btn" data-subview="flightsCreateView">Add flight</button>
+            <button id="flightsListTab" class="sub-btn active" data-subview="flightsListView">Uçuş listesi</button>
+            <button id="flightsCreateTab" class="sub-btn" data-subview="flightsCreateView">Uçuş ekle</button>
           </div>
           <div id="flightsCreateView" class="subview">
-            <div class="panel" style="margin-bottom:8px;">
-              <h3 style="margin:0 0 8px;">GOD Tools · Create flight</h3>
+            <div class="form-section" style="margin-bottom:8px;">
+              <h3 class="panel-title">Manuel uçuş oluştur</h3>
               <div class="grid">
                 <div style="grid-column: span 2;"><input id="newFlightNo" placeholder="PC1234" /></div>
                 <div style="grid-column: span 2;"><input id="newFlightDate" placeholder="YYYY-MM-DD" /></div>
@@ -1250,42 +1637,42 @@
                 <div style="grid-column: span 2;"><input id="newDestination" placeholder="DES (ADB)" /></div>
                 <div style="grid-column: span 2;"><input id="newStdUtc" placeholder="STD UTC ISO" /></div>
                 <div style="grid-column: span 2;"><input id="newStaUtc" placeholder="STA UTC ISO" /></div>
-                <div style="grid-column: span 8;"><label class="mini">Select crew (multi-select):</label><select id="newCrewIds" multiple style="min-height:74px;"></select></div>
-                <div style="grid-column: span 4; display:flex; align-items:end;"><button id="btnCreateFlight" class="btnPrimary">Create flight</button></div>
+                <div style="grid-column: span 8;"><label class="mini">Crew seç (çoklu):</label><select id="newCrewIds" multiple style="min-height:74px;"></select></div>
+                <div style="grid-column: span 4; display:flex; align-items:end;"><button id="btnCreateFlight" class="btnPrimary">Uçuş oluştur</button></div>
               </div>
             </div>
           </div>
           <div id="flightsListView" class="subview active">
-            <div class="panel" style="margin-bottom:8px;">
-            <h3 style="margin:0 0 8px;">GOD Tools · Bulk flight actions</h3>
+            <div class="form-section" style="margin-bottom:8px;">
+            <h3 class="panel-title">Toplu uçuş işlemleri</h3>
             <div class="grid">
-              <div style="grid-column: span 6;"><label class="mini">Flight ID list (comma or newline)</label><textarea id="bulkFlightIds" placeholder="uuid-1,uuid-2"></textarea></div>
+              <div style="grid-column: span 6;"><label class="mini">Uçuş ID listesi (virgül veya satır)</label><textarea id="bulkFlightIds" placeholder="uuid-1,uuid-2"></textarea></div>
               <div style="grid-column: span 3;">
-                <label class="mini">Bulk phase</label>
-                <select id="bulkPhase"><option value="">Select</option><option value="active">active</option><option value="semi_active">semi_active</option><option value="passive_future">passive_future</option><option value="passive_upcoming">passive_upcoming</option><option value="passive_past">passive_past</option></select>
-                <button id="btnBulkPhase" class="btnSmall" style="margin-top:6px;">Apply bulk phase</button>
+                <label class="mini">Toplu faz</label>
+                <select id="bulkPhase"><option value="">Seç</option><option value="active">active</option><option value="semi_active">semi_active</option><option value="passive_future">passive_future</option><option value="passive_upcoming">passive_upcoming</option><option value="passive_past">passive_past</option></select>
+                <button id="btnBulkPhase" class="btnSmall" style="margin-top:6px;">Fazı uygula</button>
               </div>
               <div style="grid-column: span 3;">
-                <label class="mini">Bulk status</label>
-                <select id="bulkStatus"><option value="">Select</option><option value="scheduled">scheduled</option><option value="taxi_out">taxi_out</option><option value="en_route">en_route</option><option value="landed">landed</option><option value="parked">parked</option><option value="cancelled">cancelled</option><option value="diverted">diverted</option></select>
-                <button id="btnBulkStatus" class="btnSmall" style="margin-top:6px;">Apply bulk status</button>
-                <button id="btnBulkDelete" class="btnDanger btnSmall" style="margin-top:6px;">Bulk delete</button>
+                <label class="mini">Toplu status</label>
+                <select id="bulkStatus"><option value="">Seç</option><option value="scheduled">scheduled</option><option value="taxi_out">taxi_out</option><option value="en_route">en_route</option><option value="landed">landed</option><option value="parked">parked</option><option value="cancelled">cancelled</option><option value="diverted">diverted</option></select>
+                <button id="btnBulkStatus" class="btnSmall" style="margin-top:6px;">Status uygula</button>
+                <button id="btnBulkDelete" class="btnDanger btnSmall" style="margin-top:6px;">Toplu sil</button>
               </div>
             </div>
             </div>
             <div id="flightsSelectionBar" class="flights-selection-bar hidden">
-              <strong id="flightsSelectionCount">0 selected</strong>
+              <strong id="flightsSelectionCount">0 seçili</strong>
               <select id="bulkSelPhase" class="btnSmall" style="width:auto;">
-                <option value="">Bulk phase</option>
+                <option value="">Toplu faz</option>
                 <option value="active">active</option>
                 <option value="semi_active">semi_active</option>
                 <option value="passive_future">passive_future</option>
                 <option value="passive_upcoming">passive_upcoming</option>
                 <option value="passive_past">passive_past</option>
               </select>
-              <button type="button" id="btnBulkSelPhase" class="btnSmall">Apply phase</button>
+              <button type="button" id="btnBulkSelPhase" class="btnSmall">Fazı uygula</button>
               <select id="bulkSelStatus" class="btnSmall" style="width:auto;">
-                <option value="">Bulk status</option>
+                <option value="">Toplu status</option>
                 <option value="scheduled">scheduled</option>
                 <option value="taxi_out">taxi_out</option>
                 <option value="en_route">en_route</option>
@@ -1294,18 +1681,18 @@
                 <option value="cancelled">cancelled</option>
                 <option value="diverted">diverted</option>
               </select>
-              <button type="button" id="btnBulkSelStatus" class="btnSmall">Apply status</button>
-              <button type="button" id="btnBulkSelDelete" class="btnDanger btnSmall">Delete selected</button>
-              <button type="button" id="btnBulkSelClear" class="btnSmall">Clear</button>
+              <button type="button" id="btnBulkSelStatus" class="btnSmall">Status uygula</button>
+              <button type="button" id="btnBulkSelDelete" class="btnDanger btnSmall">Seçilenleri sil</button>
+              <button type="button" id="btnBulkSelClear" class="btnSmall">Temizle</button>
             </div>
             <p id="flightsApiHint" class="mini" style="margin:8px 0;display:none;"></p>
             <table id="flightsTable"><thead><tr id="flightsHead">
-              <th style="width:28px;"><input type="checkbox" id="flightsSelectAll" title="Select all" /></th>
-              <th class="sortable" data-sort="flight_number">Flight <span class="sort-ind"></span></th>
+              <th style="width:28px;"><input type="checkbox" id="flightsSelectAll" title="Tümünü seç" /></th>
+              <th class="sortable" data-sort="flight_number">Uçuş <span class="sort-ind"></span></th>
               <th class="sortable" data-sort="origin">DEP <span class="sort-ind"></span></th>
               <th class="sortable" data-sort="destination">ARR <span class="sort-ind"></span></th>
               <th class="sortable" data-sort="tail">Tail <span class="sort-ind"></span></th>
-              <th class="sortable" data-sort="date">Date <span class="sort-ind"></span></th>
+              <th class="sortable" data-sort="date">Tarih <span class="sort-ind"></span></th>
               <th class="sortable" data-sort="delay">Delay <span class="sort-ind"></span></th>
               <th class="sortable is-sorted" data-sort="phase">Phase <span class="sort-ind">▲</span></th>
               <th class="sortable" data-sort="status">Status <span class="sort-ind"></span></th>
@@ -1317,13 +1704,16 @@
       </section>
 
       <section id="historyView" class="view">
+        <header class="page-head">
+          <div class="section-kicker">Operasyon</div>
+          <h1>Geçmiş</h1>
+          <p class="sub">Silinen uçuş arşivi ve durum / faz ops log’u</p>
+        </header>
         <div class="panel">
-          <h3 style="margin:0 0 8px;">History / ops log</h3>
-          <p class="mini" style="margin-top:0;">
-            Silinen uçuşların arşivi + durum/faz milestone log’u. Sistem doğru mu diye geçmişe bakmak için.
+          <p class="info-callout">
             Ops event’ler canlı uçuş değişince yazılır; arşiv satırı silinince / 30s cron ile kalır (90 gün).
           </p>
-          <div class="users-toolbar" style="margin-bottom:10px;">
+          <div class="users-toolbar">
             <div>
               <label class="mini">Son kaç gün</label>
               <select id="historyDays">
@@ -1337,9 +1727,9 @@
             <div>
               <label class="mini">Kaynak</label>
               <select id="historySource">
-                <option value="events">Ops events</option>
-                <option value="archives" selected>Archived flights</option>
-                <option value="all">Both</option>
+                <option value="events">Ops olayları</option>
+                <option value="archives" selected>Arşiv uçuşlar</option>
+                <option value="all">İkisi</option>
               </select>
             </div>
             <div>
@@ -1366,7 +1756,7 @@
                   <th class="sortable" data-sort="route">Rota <span class="sort-ind"></span></th>
                   <th class="sortable" data-sort="statusPhase">Status / phase <span class="sort-ind"></span></th>
                   <th class="sortable" data-sort="stdSta">STD → STA <span class="sort-ind"></span></th>
-                  <th class="sortable" data-sort="fr24">FR24 takeoff / land <span class="sort-ind"></span></th>
+                  <th class="sortable" data-sort="fr24">FR24 kalkış / iniş <span class="sort-ind"></span></th>
                   <th class="sortable" data-sort="delay">Delay d/a <span class="sort-ind"></span></th>
                   <th class="sortable" data-sort="crew">Crew <span class="sort-ind"></span></th>
                   <th class="sortable" data-sort="note">Not <span class="sort-ind"></span></th>
@@ -1379,19 +1769,27 @@
       </section>
 
       <section id="usageView" class="view">
+        <header class="page-head">
+          <div class="section-kicker">Operasyon</div>
+          <h1>API kota</h1>
+          <p class="sub">Aylık provider kotası ve FR24 kullanım snapshot’ı</p>
+        </header>
         <div class="panel">
-          <h3 style="margin:0 0 8px;">API usage / quota (monthly)</h3>
-            <p class="mini" style="margin-top:0;">Quotas: <code>ADMIN_PROVIDER_QUOTAS_JSON</code> + <code>ADMIN_PROVIDER_MONTHLY_USAGE_JSON</code>. FR24 Used: önce DB snapshot; canlı <code>/api/usage</code> dashboard yenilemede kapalı (429). Manuel sync veya <code>ADMIN_FR24_LIVE_ON_DASHBOARD=true</code>.</p>
-          <div id="fr24CachePanel" class="panel" style="margin-bottom:10px;background:#f0f7ff;border-color:#bfd3f3;">
-            <h3 style="margin:0 0 6px;">FR24 · son kayıtlı snapshot</h3>
+            <p class="info-callout">
+              Kotalar: <code>ADMIN_PROVIDER_QUOTAS_JSON</code> + <code>ADMIN_PROVIDER_MONTHLY_USAGE_JSON</code>.
+              FR24 Used: önce DB snapshot; canlı <code>/api/usage</code> dashboard yenilemede kapalı (429).
+              Manuel sync veya <code>ADMIN_FR24_LIVE_ON_DASHBOARD=true</code>.
+            </p>
+          <div id="fr24CachePanel" class="info-callout ok" style="margin-bottom:12px;">
+            <h3 class="panel-title" style="margin-bottom:6px;">FR24 · son kayıtlı snapshot</h3>
             <p id="fr24CacheSummary" class="mini" style="margin:0;">—</p>
           </div>
           <div class="panel">
-            <h3 style="margin:0 0 8px;">FR24 Login & Sync</h3>
-            <p class="mini" style="margin:0 0 8px;">429 alırsan 15–60 dk bekle; token uçuş sorgularıyla paylaşılır. Tarayıcı kotası: “Open FR24 login in new tab”.</p>
+            <h3 style="margin:0 0 8px;">FR24 giriş &amp; senkron</h3>
+            <p class="mini" style="margin:0 0 8px;">429 alırsan 15–60 dk bekle; token uçuş sorgularıyla paylaşılır. Tarayıcı kotası: “FR24 girişini yeni sekmede aç”.</p>
             <div class="row" style="margin-bottom:8px;">
-              <button id="btnFr24Open">Open FR24 login in new tab</button>
-              <button id="btnFr24Fetch" class="btnPrimary">Fetch FR24 usage now</button>
+              <button id="btnFr24Open">FR24 girişini yeni sekmede aç</button>
+              <button id="btnFr24Fetch" class="btnPrimary">FR24 kullanımını şimdi çek</button>
               <span id="fr24Status" class="mini"></span>
             </div>
             <iframe id="fr24Frame" src="https://fr24api.flightradar24.com/usage-metrics?period=30d" title="FR24 login" style="width:100%; min-height:420px; border:1px solid var(--line); border-radius:8px; background:#fff;"></iframe>
@@ -1399,25 +1797,29 @@
           <p id="quotaHint" class="mini" style="margin-top:0;"></p>
           <table id="usageTable"><thead><tr id="usageHead">
             <th class="sortable" data-sort="provider">Provider <span class="sort-ind"></span></th>
-            <th class="sortable" data-sort="quota">Quota <span class="sort-ind"></span></th>
-            <th class="sortable is-sorted" data-sort="used">Used <span class="sort-ind">▼</span></th>
-            <th class="sortable" data-sort="remaining">Remaining <span class="sort-ind"></span></th>
-            <th class="sortable" data-sort="percent">Cumulative <span class="sort-ind"></span></th>
-            <th class="sortable" data-sort="cooldown">Cooldown <span class="sort-ind"></span></th>
+            <th class="sortable" data-sort="quota">Kota <span class="sort-ind"></span></th>
+            <th class="sortable is-sorted" data-sort="used">Kullanılan <span class="sort-ind">▼</span></th>
+            <th class="sortable" data-sort="remaining">Kalan <span class="sort-ind"></span></th>
+            <th class="sortable" data-sort="percent">Kümülatif <span class="sort-ind"></span></th>
+            <th class="sortable" data-sort="cooldown">Bekleme <span class="sort-ind"></span></th>
           </tr></thead><tbody id="usageBody"></tbody></table>
         </div>
       </section>
 
       <section id="pdfRosterView" class="view">
+        <header class="page-head">
+          <div class="section-kicker">Veri</div>
+          <h1>PDF roster</h1>
+          <p class="sub">Uygulama ile aynı Edge parse motorunu simüle et</p>
+        </header>
         <div class="panel">
-          <h3 style="margin:0 0 8px;">PDF Roster Import Simülatörü</h3>
-          <p class="mini" style="margin-top:0;">
-            Uygulamanın kullandığı Edge <code>parse-roster-pdf</code> ile aynı motor (pdf-parse + paylaşılan parser).
+          <p class="info-callout">
+            Edge <code>parse-roster-pdf</code> (pdf-parse + paylaşılan parser).
             Havayolu seçimi uygulama gibi satır filtresi uygular; “Zorla parser” ile layout heuristic’ini ezer.
             Online ortamda tarayıcı dosya yolunu okuyamaz — PDF’i yükleyin. Yerel CLI:
             <code>cd mobile && npm run pdf:roster -- /path/to.pdf</code>
           </p>
-          <p class="mini" style="margin-top:-4px; padding:8px 10px; border-radius:8px; background:#eff6ff; border:1px solid #bfdbfe;">
+          <p class="info-callout">
             <strong>THY kuralları (uygulama = Edge):</strong>
             Kaynak <code>LOKAL SAATLI UCUS PROGRAMI</code> (Kalkış/LT · İniş/LT) günlük <code>MB:</code> bloklarıdır —
             aylık takvim grid’i kullanılmaz (CFR/HSBY tarih kayması önlenir).
@@ -1428,7 +1830,7 @@
             <strong>Saat → UTC:</strong> uçuşlarda kalkış = origin istasyon lokal, iniş = destination istasyon lokal;
             görev/boş gün/nöbet = home base lokal. Lokal bölüm yoksa yedek: GMT uçuş tablosu.
           </p>
-          <p class="mini" style="margin-top:-4px; padding:8px 10px; border-radius:8px; background:#fff7ed; border:1px solid #fed7aa;">
+          <p class="info-callout warn">
             <strong>SunExpress kuralları (uygulama = Edge):</strong>
             Her <code>XQ</code> satırı bir uçuştur — tüm XQ’lar alınır.
             <code>Transit</code>, <code>Report</code> ve <code>Release</code> yok sayılır (tarih/saat için XQ satırına bakılır).
@@ -1438,7 +1840,7 @@
             RSV2 “Rezerv” olarak değerlendirilir. TOF tam gün izin değildir; PDF’deki başlangıç ve bitiş
             saatleriyle “Serbest Zaman” olarak gösterilir ve aynı gün uçuş varsa iki kayıt birlikte korunur.
           </p>
-          <div class="users-toolbar" style="margin-bottom:12px; align-items:end; flex-wrap:wrap; gap:10px;">
+          <div class="users-toolbar">
             <div>
               <label class="mini">Havayolu (crew ICAO filtresi)</label>
               <select id="pdfAirlineIcao">
@@ -1525,27 +1927,30 @@
               </tbody>
             </table>
           </div>
-          <div class="row" style="gap:12px; align-items:stretch; flex-wrap:wrap;">
-            <div class="panel" style="flex:1; min-width:280px; margin:0;">
-              <h3 style="margin:0 0 6px;">Ham metin (ilk 8k)</h3>
-              <pre id="pdfRawText" class="mini" style="max-height:280px; overflow:auto; white-space:pre-wrap; background:#f8fafc; padding:8px; border-radius:8px; border:1px solid var(--line); margin:0;"></pre>
+          <div class="split-panes">
+            <div class="form-section" style="margin:0;">
+              <h3 class="panel-title">Ham metin (ilk 8k)</h3>
+              <pre id="pdfRawText" class="soft-pre"></pre>
             </div>
-            <div class="panel" style="flex:1; min-width:280px; margin:0;">
-              <h3 style="margin:0 0 6px;">JSON (filtrelenmiş flights)</h3>
-              <pre id="pdfRawJson" class="mini" style="max-height:280px; overflow:auto; white-space:pre-wrap; background:#f8fafc; padding:8px; border-radius:8px; border:1px solid var(--line); margin:0;"></pre>
+            <div class="form-section" style="margin:0;">
+              <h3 class="panel-title">JSON (filtrelenmiş flights)</h3>
+              <pre id="pdfRawJson" class="soft-pre"></pre>
             </div>
           </div>
         </div>
       </section>
 
       <section id="flightControlView" class="view">
+        <header class="page-head">
+          <div class="section-kicker">Operasyon</div>
+          <h1>Uçuş kontrol</h1>
+          <p class="sub">Uçuş no + tarih ile provider / uygulama yanıtını karşılaştır</p>
+        </header>
         <div class="panel">
-          <h3 style="margin:0 0 8px;">Uçuş Kontrol</h3>
-          <p class="mini" style="margin-top:0;">
-            Basit API check: Edge <code>flight-lookup</code> (<code>by_number</code> + <code>debug</code>).
-            Kullanıcı bağlamı gerekmez — uçuş no + tarih yeter.
+          <p class="info-callout">
+            Edge <code>flight-lookup</code> (<code>by_number</code> + <code>debug</code>). Kullanıcı bağlamı gerekmez.
           </p>
-          <div class="users-toolbar" style="margin-bottom:12px; align-items:end; flex-wrap:wrap; gap:10px;">
+          <div class="users-toolbar">
             <div>
               <label class="mini">Uçuş no</label>
               <input id="fcFlightNo" type="text" placeholder="XQ596 / PC1234" style="min-width:140px;" />
@@ -1560,27 +1965,31 @@
               <span id="fcStatus" class="mini"></span>
             </div>
           </div>
-          <div class="row" style="gap:12px; align-items:stretch; flex-wrap:wrap;">
-            <div class="panel" style="flex:1; min-width:280px; margin:0;">
-              <h3 style="margin:0 0 6px;">Uygulama gibi (info)</h3>
-              <div id="fcAppView" class="mini" style="max-height:420px; overflow:auto; background:#f8fafc; padding:10px; border-radius:8px; border:1px solid var(--line);">Sorgula ile sonuç gelir.</div>
+          <div class="split-panes">
+            <div class="form-section" style="margin:0;">
+              <h3 class="panel-title">Uygulama gibi (info)</h3>
+              <div id="fcAppView" class="soft-pre">Sorgula ile sonuç gelir.</div>
             </div>
-            <div class="panel" style="flex:1; min-width:280px; margin:0;">
-              <h3 style="margin:0 0 6px;">Ham / provider debug</h3>
-              <pre id="fcRawView" class="mini" style="max-height:420px; overflow:auto; white-space:pre-wrap; background:#0f172a; color:#e2e8f0; padding:10px; border-radius:8px; margin:0;">—</pre>
+            <div class="form-section" style="margin:0;">
+              <h3 class="panel-title">Ham / provider debug</h3>
+              <pre id="fcRawView" class="debug-pre">—</pre>
             </div>
           </div>
         </div>
       </section>
 
       <section id="occupationCodesView" class="view">
+        <header class="page-head">
+          <div class="section-kicker">Veri</div>
+          <h1>Görev kodları</h1>
+          <p class="sub">Roster görev etiketleri, renkler ve yayınlama</p>
+        </header>
         <div class="panel">
-          <h3 style="margin:0 0 8px;">Görev / Occupation Kodları</h3>
-          <p class="mini" style="margin-top:0;">
+          <p class="info-callout">
             Roster’dan gelen görev kodları, kart etiketleri (TR/EN), renkler ve havayolu.
-            <strong>Save</strong> taslağı DB’ye yazar; <strong>Deploy</strong> yayınlar — uygulama bir sonraki açılış/yenilemede
+            <strong>Kaydet</strong> taslağı DB’ye yazar; <strong>Yayınla</strong> yayınlar — uygulama bir sonraki açılış/yenilemede
             yeni etiketleri alır (store build gerekmez). Sınıflandırma (nöbet/off/sim heuristic’leri) hâlâ kodda;
-            Deploy öncelikle <em>görünen isimleri</em> günceller.
+            Yayınla öncelikle <em>görünen isimleri</em> günceller.
           </p>
           <div class="submenu" style="margin-bottom:12px;">
             <button type="button" class="sub-btn active" data-occ-tab="occCatalogTab">Katalog</button>
@@ -1657,8 +2066,8 @@
             <div style="align-self:end; display:flex; gap:8px; flex-wrap:wrap;">
               <button type="button" id="btnOccReload">Yenile</button>
               <button type="button" id="btnOccAdd" class="btnPrimary">+ Kod</button>
-              <button type="button" id="btnOccSave">Save</button>
-              <button type="button" id="btnOccDeploy" class="btnPrimary">Deploy</button>
+              <button type="button" id="btnOccSave">Kaydet</button>
+              <button type="button" id="btnOccDeploy" class="btnPrimary">Yayınla</button>
             </div>
           </div>
           <div class="mini" id="occMetaLine" style="margin-bottom:10px;">—</div>
@@ -1695,7 +2104,7 @@
   <aside id="adminDrawer" class="admin-drawer hidden" aria-hidden="true">
     <div class="drawer-head">
       <h3 id="drawerTitle">—</h3>
-      <button type="button" id="drawerClose" class="btnSmall" aria-label="Close">✕</button>
+      <button type="button" id="drawerClose" class="btnSmall" aria-label="Kapat">Kapat</button>
     </div>
     <div id="drawerBody" class="drawer-body"></div>
   </aside>
@@ -1730,9 +2139,12 @@
       phaseRefreshHealth: document.getElementById('phaseRefreshHealth'),
       usageConfigured: document.getElementById('usageConfigured'),
       usageShortHint: document.getElementById('usageShortHint'),
+      overviewLastRefresh: document.getElementById('overviewLastRefresh'),
+      overviewSessionStatus: document.getElementById('overviewSessionStatus'),
+      overviewAttention: document.getElementById('overviewAttention'),
       navButtons: Array.from(document.querySelectorAll('.nav-btn[data-view]')),
       views: Array.from(document.querySelectorAll('.view')),
-      flightsSubButtons: Array.from(document.querySelectorAll('.sub-btn')),
+      flightsSubButtons: Array.from(document.querySelectorAll('#flightsView .sub-btn[data-subview]')),
       flightSubViews: Array.from(document.querySelectorAll('.subview')),
       usersBody: document.getElementById('usersBody'),
       usersHead: document.getElementById('usersHead'),
@@ -2179,7 +2591,7 @@
       const cnt = document.getElementById('flightsSelectionCount');
       const n = selectedFlightIds.size;
       if (bar) bar.classList.toggle('hidden', n === 0);
-      if (cnt) cnt.textContent = n + ' selected';
+      if (cnt) cnt.textContent = n + ' seçili';
       if (n > 0 && els.bulkFlightIds) {
         els.bulkFlightIds.value = [...selectedFlightIds].join('\n');
       }
@@ -2382,7 +2794,7 @@
                 '<input data-role="home-base-iata" data-user-id="' + uid + '" value="' + escapeAttr(u.home_base_iata || '') + '" placeholder="SAW" maxlength="4" /></div>' +
               '<div class="drawer-field"><label>Home base city</label>' +
                 '<input data-role="home-base-city" data-user-id="' + uid + '" value="' + escapeAttr(u.home_base_city || '') + '" placeholder="Istanbul" /></div>' +
-              '<div class="drawer-field"><label>Roster time display</label>' +
+              '<div class="drawer-field"><label>Roster saat gösterimi</label>' +
                 '<select data-role="time-preference" data-user-id="' + uid + '">' +
                   '<option value="local"' + tpLocal + '>local</option>' +
                   '<option value="utc"' + tpUtc + '>utc</option>' +
@@ -2529,7 +2941,7 @@
       if (drawerMode === 'roster') {
         html =
           '<div class="drawer-section">' +
-            '<h4>Roster</h4>' +
+            '<h4>Program</h4>' +
             '<div id="userRosterHost" class="mini">Loading…</div>' +
           '</div>';
       } else {
@@ -2677,6 +3089,15 @@
     function setStatus(msg, level) {
       els.status.textContent = msg;
       els.status.className = 'mini ' + (level || '');
+      if (els.overviewSessionStatus) {
+        if (accessToken) {
+          els.overviewSessionStatus.textContent = 'Oturum açık';
+          els.overviewSessionStatus.className = 'pill pill-ok';
+        } else {
+          els.overviewSessionStatus.textContent = 'Oturum yok';
+          els.overviewSessionStatus.className = 'pill pill-muted';
+        }
+      }
     }
     function setFr24Status(msg, level) {
       if (!els.fr24Status) return;
@@ -3020,7 +3441,7 @@
         els.occMetaLine.textContent =
           (els.occMetaLine.textContent || '') + ' · yeni satır eklendi: ' + code + ' (üstte)';
       }
-      setStatus('Yeni kod satırı eklendi: ' + code + ' — düzenleyip Save / Deploy yap', 'ok');
+      setStatus('Yeni kod satırı eklendi: ' + code + ' — düzenleyip Kaydet / Yayınla yap', 'ok');
       const wrap = document.querySelector('#occupationCodesView .users-table-wrap');
       if (wrap) wrap.scrollTop = 0;
       const firstInput = els.occBody?.querySelector('tr[data-occ-idx] input[data-occ="code"]');
@@ -3073,19 +3494,19 @@
         .filter((r) => r.code);
       const json = await callAdminAction('save_roster_occupation_codes', { codes: payload });
       occDirty = false;
-      setStatus('Occupation Save OK (' + (json.saved ?? payload.length) + ' — henüz yayınlanmadı)', 'ok');
+      setStatus('Görev kodları kaydedildi (' + (json.saved ?? payload.length) + ' — henüz yayınlanmadı)', 'ok');
       await loadOccupationCodes();
     }
 
     async function deployOccupationCodes() {
       if (occDirty) {
-        const ok = confirm('Kaydedilmemiş değişiklikler var. Önce Save, sonra Deploy yapılsın mı?');
+        const ok = confirm('Kaydedilmemiş değişiklikler var. Önce Kaydet, sonra Yayınla yapılsın mı?');
         if (!ok) return;
         await saveOccupationCodes();
       }
       const json = await callAdminAction('deploy_roster_occupation_codes', {});
       setStatus(
-        'Occupation Deploy OK · v' + (json.published_version ?? '?') + ' · ' + (json.published_count ?? 0) + ' kod',
+        'Görev kodları yayınlandı · v' + (json.published_version ?? '?') + ' · ' + (json.published_count ?? 0) + ' kod',
         'ok',
       );
       await loadOccupationCodes();
@@ -3114,7 +3535,7 @@
           const actions = pending
             ? '<button type="button" class="btnPrimary btnSmall" data-action="occ-sug-approve" data-id="' +
               escapeAttr(s.id) +
-              '">Onayla+Deploy</button> ' +
+              '">Onayla + yayınla</button> ' +
               '<button type="button" class="btnDanger btnSmall" data-action="occ-sug-reject" data-id="' +
               escapeAttr(s.id) +
               '">Reddet</button>'
@@ -3161,7 +3582,7 @@
       });
       setStatus(
         decision === 'approve'
-          ? 'Öneri onaylandı + Deploy v' + (json.published_version ?? '?')
+          ? 'Öneri onaylandı + yayın v' + (json.published_version ?? '?')
           : 'Öneri reddedildi',
         'ok',
       );
@@ -3439,7 +3860,7 @@
             '<td class="mini">' + escapeAttr(airlineLabel) + '</td>' +
             '<td style="max-width:240px;">' + connCell + '</td>' +
             '<td><span class="u-signin">' + fmtDate(u.last_sign_in_at) + '</span></td>' +
-            '<td><a href="#" class="menu-link" data-action="open-user-roster" data-user-id="' + uid + '" onclick="return false;">Roster</a></td>' +
+            '<td><a href="#" class="menu-link" data-action="open-user-roster" data-user-id="' + uid + '" onclick="return false;">Program</a></td>' +
           '</tr>'
         );
       }).join('');
@@ -3592,7 +4013,7 @@
             (hasRevisedSignal(f) ? ' <span class="badge b-ok">revised</span>' : '') +
           '</td>' +
           '<td>' + crewCellHtml(f.crew_names) + '</td>' +
-          '<td><a href="#" class="menu-link" data-action="toggle-edit" data-flight-id="' + fid + '" onclick="return false;">Edit</a></td>' +
+          '<td><a href="#" class="menu-link" data-action="toggle-edit" data-flight-id="' + fid + '" onclick="return false;">Düzenle</a></td>' +
         '</tr>' +
         '<tr class="flight-detail-row" id="flight-detail-row-' + fid + '">' +
           '<td colspan="11">' +
@@ -3847,7 +4268,8 @@
       if (!els.historyBody) return;
       updateSortableHeaders(els.historyHead, historySortKey, historySortDir);
       if (!lastHistoryRows.length) {
-        els.historyBody.innerHTML = '<tr><td colspan="11" class="mini">Kayıt yok. Filtreyi genişlet veya ops event birikmesini bekle.</td></tr>';
+        els.historyBody.innerHTML =
+          '<tr><td colspan="11"><div class="empty-state">Kayıt yok. Filtreyi genişlet veya ops event birikmesini bekle.</div></td></tr>';
         return;
       }
       function historySortValue(r, key) {
@@ -4085,7 +4507,8 @@
     function renderActivityUsersTable() {
       if (!els.activityUsersBody) return;
       if (!activityUsersCache.length) {
-        els.activityUsersBody.innerHTML = '<tr><td colspan="10" class="mini">Kullanıcı yok veya henüz event birikmedi.</td></tr>';
+        els.activityUsersBody.innerHTML =
+          '<tr><td colspan="10"><div class="empty-state">Kullanıcı yok veya henüz event birikmedi.</div></td></tr>';
         updateActivitySortHeaders();
         return;
       }
@@ -4222,6 +4645,39 @@
       }
     }
 
+    function updateOverviewChrome(data) {
+      if (els.overviewLastRefresh) {
+        els.overviewLastRefresh.textContent = new Date().toLocaleString('tr-TR');
+      }
+      if (els.overviewSessionStatus) {
+        els.overviewSessionStatus.textContent = accessToken ? 'Oturum açık' : 'Oturum yok';
+        els.overviewSessionStatus.className = accessToken ? 'pill pill-ok' : 'pill pill-muted';
+      }
+      if (!els.overviewAttention) return;
+      const items = [];
+      try {
+        const rows = (data && data.users && data.users.rows) || lastUsers || [];
+        const unconfirmed = rows.filter((u) => u && u.email_confirmed === false).length;
+        if (unconfirmed > 0) items.push(unconfirmed + ' kullanıcının e-postası onaylanmamış');
+        const qc = data && data.api_usage ? data.api_usage.quota_configured_count : null;
+        if (qc === 0) items.push('Provider kota yapılandırması bulunamadı');
+        const active = data && data.flights ? data.flights.active_now : null;
+        if (active != null && Number(active) === 0) items.push('Şu an aktif (active/semi_active) uçuş yok');
+        const pr = data && data.health && data.health.phase_refresh;
+        if (!pr) {
+          items.push('Faz senkronu bilgisi yok');
+        } else if (!pr.healthy) {
+          items.push('Faz senkronu sağlıksız: ' + String(pr.status || 'unknown'));
+        }
+      } catch (_) {}
+      if (!items.length) {
+        items.push('Kritik uyarı yok — sistem stabil görünüyor.');
+      }
+      els.overviewAttention.innerHTML = items
+        .map((t) => '<li>' + escapeHtml(String(t)) + '</li>')
+        .join('');
+    }
+
     function renderDashboard(data) {
       els.usersActive.textContent = data.users?.active_30d ?? '-';
       els.usersTotal.textContent = data.users?.total ?? '-';
@@ -4229,6 +4685,7 @@
       els.flightsTotal.textContent = data.flights?.total ?? '-';
       renderPhaseSummary(data.flights?.phase_summary || {});
       renderPhaseRefreshHealth(data.health || {});
+      updateOverviewChrome(data);
       const userRows = data.users?.rows || [];
       renderUsers(userRows);
       if (els.usersApiHint) {
@@ -4681,6 +5138,41 @@
     const drawerClose = document.getElementById('drawerClose');
     if (drawerClose) drawerClose.addEventListener('click', closeDrawer);
     if (drawerBackdrop) drawerBackdrop.addEventListener('click', closeDrawer);
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        const drawer = document.getElementById('adminDrawer');
+        if (drawer && !drawer.classList.contains('hidden')) {
+          e.preventDefault();
+          closeDrawer();
+        }
+        return;
+      }
+      if ((e.metaKey || e.ctrlKey) && String(e.key || '').toLowerCase() === 'k') {
+        const activeView = document.querySelector('.view.active');
+        const candidates = [
+          activeView && activeView.querySelector('#userSearchInput'),
+          activeView && activeView.querySelector('#linkConnSearch'),
+          activeView && activeView.querySelector('#linkInvSearch'),
+          activeView && activeView.querySelector('#historyQ'),
+          activeView && activeView.querySelector('#occSearch'),
+          document.getElementById('userSearchInput'),
+        ].filter(Boolean);
+        const target = candidates[0];
+        if (target) {
+          e.preventDefault();
+          switchView(target.closest('.view')?.id || 'usersView');
+          setTimeout(() => {
+            try { target.focus(); target.select && target.select(); } catch (_) {}
+          }, 0);
+        }
+      }
+    });
+    document.querySelectorAll('[data-goto-view]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const viewId = btn.getAttribute('data-goto-view');
+        if (viewId) switchView(viewId);
+      });
+    });
     if (drawerBody) {
       drawerBody.addEventListener('click', async (e) => {
         const target = e.target;
@@ -5125,7 +5617,7 @@
       const act = btn.getAttribute('data-action');
       if (!id) return;
       if (act === 'occ-sug-approve') {
-        if (!confirm('Onayla ve Deploy? (' + id.slice(0, 8) + '…)')) return;
+        if (!confirm('Onayla ve yayınla? (' + id.slice(0, 8) + '…)')) return;
         void reviewOccupationSuggestion(id, 'approve').catch((err) =>
           setStatus(String(err?.message || err), 'bad'),
         );
