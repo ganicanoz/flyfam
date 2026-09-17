@@ -12,6 +12,14 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+### 2026-09-17 — Admin mobil boş/açılmama düzeltmesi (ui=53)
+
+- **Dosyalar:** `docs/ADMIN_STATUS_DASHBOARD.html`, `support/index.html`
+- **Kök neden:** Mobil CSS’te `.nav-scrim { display:none }` media query’yi eziyordu; rail grid içinde yer kaplayıp içeriği itebiliyordu; üst bar grid+order mobilde kırılgandı.
+- **Uygulama:** Shell `display:block`; rail fixed + kapalıyken `visibility/pointer-events` kapalı; cmd-bar flex kolon; scrim `display:block !important` mobilde; UI `53`.
+- **Doğrulama:** Stil brace dengesi 0; tek `@media 1100/760`; Pages deploy.
+- **Koruma:** Masaüstü rail/grid aynı.
+
 ### 2026-09-17 — Admin panel mobil + Pages yayın (ui=52)
 
 - **Dosyalar:** `docs/ADMIN_STATUS_DASHBOARD.html`, `support/index.html`, `docs/CURSOR_CHANGE_HANDOFF.md`
@@ -19,6 +27,14 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - **Uygulama:** Hamburger + sol slide menü + scrim; üst bar/form/tablo dokunmatik düzen; UI `52`. Deploy: `Deploy support site` workflow (`support/` + kopyalanan dashboard).
 - **Doğrulama:** Kod incelemesi; push sonrası workflow + `?ui=52` cache bust.
 - **Koruma:** Admin API / `data-view` ID’leri aynı; masaüstü rail davranışı korunur.
+
+### 2026-09-17 — Metro 127.0.0.1 bind (sim bağlantı)
+
+- **Dosyalar:** `mobile/scripts/start-metro-direct.js`
+- **Amaç:** Simülatörün `http://127.0.0.1:8081` isteğinin IPv6-only Metro dinlemesine takılmasını önlemek.
+- **Uygulama:** `metro start --host 127.0.0.1`.
+- **Doğrulama:** `lsof` → `127.0.0.1:8081 LISTEN`.
+- **Koruma:** Roster UI / liste penceresi değişiklikleri aynı.
 
 ### 2026-09-17 — Roster: belirgin ayırıcı, Bugün, dar liste penceresi
 
