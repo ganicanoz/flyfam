@@ -12,6 +12,38 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+### 2026-09-17 — Admin kısa mobil URL `/admin/`
+
+- **Dosyalar:** `.github/workflows/deploy-support.yml`, `support/index.html`
+- **Amaç:** Mobil Chrome’da uzun dosya adını “bulamama” / Google aramasına düşme.
+- **Uygulama:** Pages’e `admin/index.html`; destek sayfasında büyük buton + kısa link.
+- **Doğrulama:** Deploy sonrası `…/flyfam/admin/` 200.
+- **Koruma:** Eski `ADMIN_STATUS_DASHBOARD.html` yolu kalır.
+
+### 2026-09-17 — Bugün görünür + ayırıcı takvim altı
+
+- **Dosyalar:** `mobile/screens/Roster.tsx`
+- **Amaç:** Bugün chip’i her zaman ay satırı sağında görünsün; ayırıcı takvim bloğunun en altına full-bleed çizgi olarak otursun.
+- **Uygulama:** `inlineCalendarHeaderRight` (Bugün + sync); Bugün bugündeyken muted; `calendarRosterSep` FlatList’ten sonra, `marginHorizontal: -12`, `borderTopWidth: 2`.
+- **Doğrulama:** Simülatör — başlıkta Bugün; takvim gün çizgilerinin altında net ayırıcı.
+- **Koruma:** `goToToday` / liste penceresi aynı.
+
+### 2026-09-17 — Bugün: ay satırına taşındı
+
+- **Dosyalar:** `mobile/screens/Roster.tsx`
+- **Amaç:** Ayırıcı satırındaki chip yerine iOS Takvim tarzı konum.
+- **Uygulama:** `Bugün` ay başlığı ile sync meta arasında; yalnız `selectedDate !== today` iken; ayırıcı yalnızca çizgi.
+- **Doğrulama:** Simülatör — geçmiş güne gidince başlıkta Bugün, bugündeyken gizli.
+- **Koruma:** `goToToday` / liste penceresi mantığı aynı.
+
+### 2026-09-17 — Metro `@/` alias (bare metro)
+
+- **Dosyalar:** `mobile/metro.config.js`
+- **Kök neden:** `start-metro-direct.js` Expo CLI `tsconfigPaths` wrapper’ını atlıyor; `@/lib/supabase` çözülemiyordu.
+- **Uygulama:** `resolver.resolveRequest` içinde `@/` → project root.
+- **Doğrulama:** Simülatör Reload — SessionContext bundle.
+- **Koruma:** Relative import’lar ve node_modules çözümlemesi aynı.
+
 ### 2026-09-17 — Admin mobil boş/açılmama düzeltmesi (ui=53)
 
 - **Dosyalar:** `docs/ADMIN_STATUS_DASHBOARD.html`, `support/index.html`
@@ -242,8 +274,18 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 ## Tam Git secret taraması ve kaynak kimliği temizliği (17 Eylül 2026)
 
 - Homebrew üzerinden Gitleaks 8.30.1 kuruldu. `--all` ile 89 commit tarandı; 22 geçmiş eşleşmesi bulundu ve sınıflandırıldı.
-- Geçmiş RapidAPI eşleşmeleri daha önce kaynaklardan kaldırılan değerlerdir; sağlayıcı panelinde aktif Authorization Key bulunmadığı ayrıca doğrulanmıştı. Firebase/GCP istemci anahtarları ayrı `firebase-restrict` maddesinde kısıtlama doğrulaması bekliyor. Supabase anon JWT istemci için yayımlanabilir anahtardır; güvenlik RLS ve server authorization ile sağlanır.
+- Geçmiş RapidAPI eşleşmeleri daha önce kaynaklardan kaldırılan değerlerdir; sağlayıcı panelinde aktif Authorization Key bulunmadığı ayrıca doğrulanmıştı. Firebase/GCP istemci anahtarı kısıtlaması aşağıdaki `firebase-restrict` çalışmasıyla tamamlandı. Supabase anon JWT istemci için yayımlanabilir anahtardır; güvenlik RLS ve server authorization ile sağlanır.
 - Güncel diff'in yalnız eklenen satırlarına yapılan Gitleaks taraması sıfır sızıntı döndürdü. Ignore kapsamındaki `.env`, Firebase service-account JSON ve yerel tester listeleri repoya alınmamalıdır.
+
+## 2026-09-17 — Firebase / Google Cloud Android API anahtarı sertleştirmesi
+
+- Google Play Console'daki FlyFam **uygulama imzalama anahtarının üretim SHA-1** parmak izi alındı.
+- Bu parmak izi Firebase Console'da Android uygulaması `com.flyfam.app` kaydına eklendi ve SHA-1 satırı görünerek doğrulandı.
+- Firebase'in otomatik oluşturduğu Android API anahtarının Google Cloud **Application restrictions** ayarı `Android apps` olarak değiştirildi.
+- İzin verilen tek Android uygulaması `com.flyfam.app` + Google Play üretim SHA-1 kombinasyonu olarak kaydedildi.
+- Mevcut **25 API restriction** seçimi değiştirilmedi.
+- Anahtar ayrıntısı yeniden açıldı; Android kısıtlamasının kalıcı olduğu doğrulandı.
+- Bu güvenlik ayarı debug/yanlış imzalı APK'ların ilgili Firebase istemci anahtarını kullanmasını engeller. Play Store üretim imzası desteklenir. Yeni yapılandırmanın Google altyapısına yayılması yaklaşık 5 dakika sürebilir.
 - `mobile/lib/crewPeerDemo.ts` içindeki şahsi isimler, kullanıcı/crew UUID'leri ve hardcoded karşılıklı demo fallback kaldırıldı. Dosyanın mevcut public API'si korunarak yalnız `get_my_approved_crew_peers` sunucu sonuçları gösteriliyor.
 - Mobil admin yetkisi hardcoded e-posta yerine `admin-dashboard` / `check_access` sunucu kontrolüne taşındı. `ADMIN_DASHBOARD_ALLOWED_EMAILS` yalnız Supabase secret olarak kalır. `admin-dashboard`, `admin-panel-login` ve `sync-fr24-usage-metrics` üretime deploy edildi; yetkisiz kontrol HTTP 401 döndürdü.
 - Admin panel HTML içindeki kişisel e-posta/session alanı ve backend fallback e-postaları kaldırıldı. Bilinen şahsi ad/e-posta varyasyonları çalışma ağacında sıfır sonuç verdi.

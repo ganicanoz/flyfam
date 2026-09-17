@@ -54,13 +54,17 @@
   </p>
 
   <h2>Yönetici</h2>
-  <p style="margin: 0 0 16px; font-size: 0.95rem;">
+  <p style="margin: 0 0 12px; font-size: 0.95rem;">
     <a
       id="adminPanelLink"
-      href="https://ganicanoz.github.io/flyfam/ADMIN_STATUS_DASHBOARD.html"
-      >FlyFam Admin paneli</a>
-    <span style="color: #64748b; font-size: 0.85rem;">
-      (GitHub Pages’te <code>/docs</code> kaynağıyla yayınlanır; aşağıdaki adres repo adına göre otomatik seçilir.)
+      class="mail"
+      style="display:block;text-align:center;margin:0 0 10px;"
+      href="https://ganicanoz.github.io/flyfam/admin/"
+      >Admin paneli aç</a>
+    <span style="display:block;color:#94a3b8;font-size:0.85rem;word-break:break-all;line-height:1.45;">
+      Mobil Chrome: adresi <strong>adres çubuğuna yapıştır</strong> (Google aramasına yazma).<br />
+      Kısa adres:
+      <a id="adminShortLink" href="https://ganicanoz.github.io/flyfam/admin/" style="color:#38bdf8;">https://ganicanoz.github.io/flyfam/admin/</a>
     </span>
   </p>
 
@@ -83,6 +87,7 @@
     document.getElementById('y').textContent = new Date().getFullYear();
     (function () {
       var a = document.getElementById('adminPanelLink');
+      var shortA = document.getElementById('adminShortLink');
       if (!a) return;
       var host = window.location.hostname || '';
       var parts = window.location.pathname.split('/').filter(Boolean);
@@ -93,19 +98,24 @@
       var adminUi = '53';
       var q =
         '?cb=' + encodeURIComponent(cb) + '&ui=' + encodeURIComponent(adminUi);
-      var file = 'ADMIN_STATUS_DASHBOARD.html';
       var origin = window.location.origin;
       var base;
       if (host.endsWith('github.io') && parts.length >= 1) {
-        /* Project pages: /repo/... → admin her zaman /repo/ kökünde */
+        /* Project pages: /repo/... → admin her zaman /repo/admin/ */
         base = origin + '/' + parts[0] + '/';
       } else {
         base = 'https://ganicanoz.github.io/flyfam/';
       }
+      var href;
       try {
-        a.href = new URL(file + q, base).href;
+        href = new URL('admin/' + q, base).href;
       } catch (e) {
-        a.href = 'https://ganicanoz.github.io/flyfam/' + file + q;
+        href = 'https://ganicanoz.github.io/flyfam/admin/' + q;
+      }
+      a.href = href;
+      if (shortA) {
+        shortA.href = href;
+        shortA.textContent = href.replace(/\?.*$/, '');
       }
     })();
   </script>
