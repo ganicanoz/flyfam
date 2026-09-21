@@ -13,7 +13,7 @@
   <meta http-equiv="Expires" content="0" />
   <script>
     (function () {
-      var UI = '53';
+      var UI = '56';
       var p = new URLSearchParams(location.search);
       if (p.get('ui') !== UI) {
         p.set('ui', UI);
@@ -170,8 +170,12 @@
     body.nav-collapsed .shell { grid-template-columns: var(--rail-w-collapsed) minmax(0, 1fr); }
     body.nav-collapsed .menu-group-label,
     body.nav-collapsed .rail-foot span,
-    body.nav-collapsed .nav-btn .nav-label { display: none; }
+    body.nav-collapsed .nav-btn .nav-label,
+    body.nav-collapsed .nav-btn .nav-now { display: none; }
     body.nav-collapsed .nav-btn { justify-content: center; padding-left: 0; padding-right: 0; }
+    body.nav-collapsed .nav-btn.active .nav-ico {
+      box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.35);
+    }
     body.nav-collapsed .rail-tools { justify-content: center; }
 
     .rail {
@@ -179,54 +183,157 @@
       top: var(--topbar-h);
       height: calc(100vh - var(--topbar-h));
       overflow: auto;
-      background: var(--sidebar);
+      background:
+        linear-gradient(180deg, #eef2f7 0%, #e8ebf0 48%, #e4e9f0 100%);
       border-right: 1px solid var(--border);
-      padding: 12px 10px;
+      padding: 12px 10px 14px;
       display: flex;
       flex-direction: column;
-      gap: 10px;
+      gap: 12px;
     }
     .rail-tools { display: flex; gap: 6px; flex-wrap: wrap; }
-    .menu { display: flex; flex-direction: column; gap: 14px; margin: 0; }
-    .menu-group { display: flex; flex-direction: column; gap: 3px; }
+    .rail-here {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid #cfe8f8;
+      background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+      box-shadow: var(--shadow-sm);
+    }
+    .rail-here-kicker {
+      font-size: 9px;
+      font-weight: 750;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--brand);
+    }
+    .rail-here-title {
+      font-size: 13px;
+      font-weight: 750;
+      color: var(--text);
+      letter-spacing: -0.01em;
+      line-height: 1.25;
+    }
+    body.nav-collapsed .rail-here { align-items: center; padding: 8px 6px; }
+    body.nav-collapsed .rail-here-kicker { display: none; }
+    body.nav-collapsed .rail-here-title {
+      font-size: 10px;
+      text-align: center;
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .menu {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      margin: 0;
+      padding: 0;
+    }
+    .menu-group {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      padding: 10px 0;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.45);
+    }
+    .menu-group:first-child { padding-top: 2px; }
+    .menu-group:last-child {
+      border-bottom: 0;
+      padding-bottom: 2px;
+    }
     .menu-group-label {
       font-size: 10px;
       font-weight: 750;
-      letter-spacing: 0.08em;
+      letter-spacing: 0.09em;
       text-transform: uppercase;
       color: var(--muted);
-      padding: 4px 8px;
+      padding: 2px 10px 6px;
     }
     .menu button.nav-btn {
+      position: relative;
       display: flex;
       align-items: center;
       gap: 10px;
       text-align: left;
       width: 100%;
-      border-radius: 8px;
+      border-radius: 10px;
       border: 1px solid transparent;
       background: transparent;
       color: var(--text);
       padding: 9px 10px;
       font-size: 13px;
       font-weight: 600;
+      cursor: pointer;
+      transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease, box-shadow 0.12s ease;
     }
     .menu button.nav-btn .nav-ico {
-      width: 18px; text-align: center; color: var(--muted); font-family: var(--mono); font-size: 11px;
+      flex: 0 0 auto;
+      width: 26px;
+      height: 26px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.72);
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 10px;
+      font-weight: 700;
+      line-height: 1;
+    }
+    .menu button.nav-btn .nav-label { flex: 1; min-width: 0; }
+    .menu button.nav-btn .nav-now {
+      display: none;
+      flex: 0 0 auto;
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--brand-dark);
+      background: #fff;
+      border: 1px solid #7dd3fc;
+      border-radius: 999px;
+      padding: 2px 7px;
     }
     .menu button.nav-btn:hover {
-      background: rgba(2,132,199,0.08);
-      border-color: rgba(2,132,199,0.2);
+      background: rgba(2, 132, 199, 0.08);
+      border-color: rgba(2, 132, 199, 0.22);
       color: var(--text);
     }
-    .menu button.nav-btn.active {
-      background: #e0f2fe;
+    .menu button.nav-btn:focus-visible {
+      outline: none;
+      box-shadow: var(--focus-ring);
+    }
+    .menu button.nav-btn.active,
+    .menu button.nav-btn[aria-current="page"] {
+      background: linear-gradient(90deg, #e0f2fe 0%, #f0f9ff 100%);
       border-color: #7dd3fc;
-      color: var(--text);
-      box-shadow: inset 3px 0 0 var(--brand);
+      color: var(--brand-dark);
+      box-shadow: inset 3px 0 0 var(--brand), 0 1px 2px rgba(2, 132, 199, 0.12);
+      font-weight: 750;
     }
-    .menu button.nav-btn.active .nav-ico { color: var(--brand); }
-    .rail-foot { margin-top: auto; padding-top: 8px; border-top: 1px solid var(--border); }
+    .menu button.nav-btn.active .nav-ico,
+    .menu button.nav-btn[aria-current="page"] .nav-ico {
+      color: #fff;
+      background: var(--brand);
+      border-color: var(--brand-dark);
+    }
+    .menu button.nav-btn.active .nav-now,
+    .menu button.nav-btn[aria-current="page"] .nav-now {
+      display: inline-flex;
+      align-items: center;
+    }
+    .rail-foot {
+      margin-top: auto;
+      padding-top: 10px;
+      border-top: 1px solid rgba(148, 163, 184, 0.45);
+    }
+    .rail-foot .mini { color: var(--muted); font-size: 11px; }
 
     .workspace {
       padding: 18px 20px 32px;
@@ -519,6 +626,48 @@
       max-height: 280px; overflow: auto; white-space: pre-wrap; background: var(--code-bg); color: var(--text);
       padding: 10px; border-radius: 8px; border: 1px solid var(--border); margin: 0; font-size: 12px;
     }
+    /* Uçuş kontrol: geniş, okunabilir ham veri */
+    .fc-layout { display: flex; flex-direction: column; gap: 14px; }
+    .fc-panel {
+      border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px;
+      background: var(--panel);
+    }
+    .fc-panel h3 { margin: 0 0 10px; }
+    .fc-app-host, .fc-raw-host {
+      max-height: min(72vh, 820px);
+      overflow: auto;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--panel-soft);
+      padding: 4px 0;
+    }
+    .fc-kv { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .fc-kv tr { border-bottom: 1px solid var(--border); }
+    .fc-kv tr:last-child { border-bottom: 0; }
+    .fc-kv td { padding: 8px 12px; vertical-align: top; }
+    .fc-kv td.k { width: 36%; font-weight: 700; color: var(--muted); background: rgba(28,36,48,0.03); }
+    .fc-kv td.v { font-family: var(--mono); word-break: break-word; white-space: pre-wrap; }
+    .fc-provider {
+      margin: 10px 12px 14px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--bg-elevated);
+      overflow: hidden;
+    }
+    .fc-provider-head {
+      display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+      padding: 10px 12px; border-bottom: 1px solid var(--border);
+      background: #eef2f7; font-weight: 800;
+    }
+    .fc-provider-head.fr24 { background: #dbeafe; color: #1e3a8a; }
+    .fc-provider-body { padding: 0; }
+    .fc-snippet {
+      margin: 0; padding: 12px 14px; max-height: 420px; overflow: auto;
+      font-family: var(--mono); font-size: 11.5px; line-height: 1.55;
+      white-space: pre-wrap; word-break: break-word;
+      background: #0f172a; color: #e2e8f0; border-top: 1px solid var(--border);
+    }
+    .fc-meta { padding: 8px 12px; font-size: 12px; color: var(--muted); border-bottom: 1px solid var(--border); }
     .form-section {
       border: 1px solid var(--border); border-radius: var(--radius); padding: 12px;
       background: var(--panel); margin-bottom: 12px;
@@ -749,15 +898,21 @@
         pointer-events: auto;
       }
       .rail-tools { display: none !important; }
+      .rail-here { margin-bottom: 4px; }
       .rail-foot { display: block; }
       .menu-group-label { display: block !important; }
-      .menu { flex-direction: column; flex-wrap: nowrap; gap: 14px; overflow: visible; }
-      .menu-group { flex-direction: column; gap: 4px; }
+      .menu { flex-direction: column; flex-wrap: nowrap; gap: 0; overflow: visible; }
+      .menu-group { flex-direction: column; gap: 4px; padding: 12px 0; }
       .menu button.nav-btn {
-        width: 100%; white-space: nowrap; border-radius: 10px;
+        width: 100%; white-space: nowrap; border-radius: 12px;
         padding: 12px; min-height: 48px; font-size: 15px; box-shadow: none;
       }
-      body.nav-collapsed .nav-btn .nav-label { display: inline; }
+      .menu button.nav-btn.active,
+      .menu button.nav-btn[aria-current="page"] {
+        box-shadow: inset 4px 0 0 var(--brand), 0 1px 2px rgba(2, 132, 199, 0.12);
+      }
+      body.nav-collapsed .nav-btn .nav-label,
+      body.nav-collapsed .nav-btn .nav-now { display: inline-flex; }
       .workspace { display: block; width: 100%; max-width: 100%; min-width: 0; padding: 12px 12px 28px; }
       .quick-actions { grid-template-columns: 1fr 1fr; }
       .split-panes, .act-charts-grid { grid-template-columns: 1fr; }
@@ -832,7 +987,6 @@
     .flight-detail-grid { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
     .status-board-meta { background: #fff; }
     .cmd-search { background: #fff; border-radius: 10px; }
-    .menu button.nav-btn.active { box-shadow: inset 3px 0 0 var(--brand); }
     .submenu .sub-btn:hover { color: var(--text); background: #f1f5f9; }
     .users-table tbody tr:hover td { background: #f0f9ff; }
     .users-table tbody tr.user-row-main:nth-child(4n + 3) td { background: #f8fafc; }
@@ -888,42 +1042,46 @@
   </header>
 
   <div class="shell app">
-    <aside class="rail sidebar">
+    <aside class="rail sidebar" aria-label="Yönetim menüsü">
       <div class="rail-tools">
         <button type="button" id="btnToggleNav" class="btnSmall" title="Menüyü daralt/genişlet">Rail</button>
         <button type="button" id="btnToggleDensity" class="btnSmall" title="Yoğunluk">Yoğun</button>
       </div>
-      <nav class="menu">
+      <div class="rail-here" aria-live="polite">
+        <span class="rail-here-kicker">Şu an</span>
+        <strong class="rail-here-title" id="railCurrentPage">Özet</strong>
+      </div>
+      <nav class="menu" aria-label="Sayfalar">
         <div class="menu-group">
           <div class="menu-group-label">Genel</div>
-          <button class="nav-btn active" data-view="overviewView"><span class="nav-ico">01</span><span class="nav-label">Özet</span></button>
-          <button class="nav-btn" data-view="activityView"><span class="nav-ico">02</span><span class="nav-label">Aktivite</span></button>
-          <button class="nav-btn" data-view="broadcastView"><span class="nav-ico">03</span><span class="nav-label">Duyurular</span></button>
+          <button type="button" class="nav-btn active" data-view="overviewView" aria-current="page"><span class="nav-ico">01</span><span class="nav-label">Özet</span><span class="nav-now">Şimdi</span></button>
+          <button type="button" class="nav-btn" data-view="activityView"><span class="nav-ico">02</span><span class="nav-label">Aktivite</span><span class="nav-now">Şimdi</span></button>
+          <button type="button" class="nav-btn" data-view="broadcastView"><span class="nav-ico">03</span><span class="nav-label">Duyurular</span><span class="nav-now">Şimdi</span></button>
         </div>
         <div class="menu-group">
           <div class="menu-group-label">Kullanıcılar</div>
-          <button class="nav-btn" data-view="usersView"><span class="nav-ico">04</span><span class="nav-label">Kullanıcılar</span></button>
-          <button class="nav-btn" data-view="connectionsView"><span class="nav-ico">05</span><span class="nav-label">Bağlantılar</span></button>
+          <button type="button" class="nav-btn" data-view="usersView"><span class="nav-ico">04</span><span class="nav-label">Kullanıcılar</span><span class="nav-now">Şimdi</span></button>
+          <button type="button" class="nav-btn" data-view="connectionsView"><span class="nav-ico">05</span><span class="nav-label">Bağlantılar</span><span class="nav-now">Şimdi</span></button>
         </div>
         <div class="menu-group">
           <div class="menu-group-label">Operasyon</div>
-          <button class="nav-btn" data-view="flightsView"><span class="nav-ico">06</span><span class="nav-label">Uçuşlar</span></button>
-          <button class="nav-btn" data-view="flightControlView"><span class="nav-ico">07</span><span class="nav-label">Uçuş kontrol</span></button>
-          <button class="nav-btn" data-view="historyView"><span class="nav-ico">08</span><span class="nav-label">Geçmiş</span></button>
-          <button class="nav-btn" data-view="usageView"><span class="nav-ico">09</span><span class="nav-label">API kota</span></button>
+          <button type="button" class="nav-btn" data-view="flightsView"><span class="nav-ico">06</span><span class="nav-label">Uçuşlar</span><span class="nav-now">Şimdi</span></button>
+          <button type="button" class="nav-btn" data-view="flightControlView"><span class="nav-ico">07</span><span class="nav-label">Uçuş kontrol</span><span class="nav-now">Şimdi</span></button>
+          <button type="button" class="nav-btn" data-view="historyView"><span class="nav-ico">08</span><span class="nav-label">Geçmiş</span><span class="nav-now">Şimdi</span></button>
+          <button type="button" class="nav-btn" data-view="usageView"><span class="nav-ico">09</span><span class="nav-label">API kota</span><span class="nav-now">Şimdi</span></button>
         </div>
         <div class="menu-group">
           <div class="menu-group-label">Veri</div>
-          <button class="nav-btn" data-view="pdfRosterView"><span class="nav-ico">10</span><span class="nav-label">PDF roster</span></button>
-          <button class="nav-btn" data-view="occupationCodesView"><span class="nav-ico">11</span><span class="nav-label">Görev kodları</span></button>
+          <button type="button" class="nav-btn" data-view="pdfRosterView"><span class="nav-ico">10</span><span class="nav-label">PDF roster</span><span class="nav-now">Şimdi</span></button>
+          <button type="button" class="nav-btn" data-view="occupationCodesView"><span class="nav-ico">11</span><span class="nav-label">Görev kodları</span><span class="nav-now">Şimdi</span></button>
         </div>
         <div class="menu-group">
           <div class="menu-group-label">Yayın</div>
-          <button class="nav-btn" data-view="routeToLiveView"><span class="nav-ico">12</span><span class="nav-label">Route to Live</span></button>
+          <button type="button" class="nav-btn" data-view="routeToLiveView"><span class="nav-ico">12</span><span class="nav-label">Route to Live</span><span class="nav-now">Şimdi</span></button>
         </div>
       </nav>
       <div class="rail-foot">
-        <span class="mini">Ops console v2</span>
+        <span class="mini">Ops console · ui 54</span>
       </div>
     </aside>
     <main class="workspace main">
@@ -1702,14 +1860,14 @@
               <span id="fcStatus" class="mini"></span>
             </div>
           </div>
-          <div class="split-panes">
-            <div class="form-section" style="margin:0;">
+          <div class="fc-layout">
+            <div class="fc-panel">
               <h3 class="panel-title">Uygulama gibi (info)</h3>
-              <div id="fcAppView" class="soft-pre">Sorgula ile sonuç gelir.</div>
+              <div id="fcAppView" class="fc-app-host soft-pre" style="max-height:none;border:0;background:transparent;padding:0;">Sorgula ile sonuç gelir.</div>
             </div>
-            <div class="form-section" style="margin:0;">
-              <h3 class="panel-title">Ham / provider debug</h3>
-              <pre id="fcRawView" class="debug-pre">—</pre>
+            <div class="fc-panel">
+              <h3 class="panel-title">Ham / provider debug · FR24 üstte</h3>
+              <div id="fcRawView" class="fc-raw-host">—</div>
             </div>
           </div>
         </div>
@@ -2931,14 +3089,22 @@
     async function signInWithPanelPassword(password) {
       if (!password) throw new Error('Panel şifresi gerekli');
       const url = adminUrl();
+      const anon = adminAnonKey();
       const res = await safeFetch(url + '/functions/v1/admin-panel-login', {
         method: 'POST',
-        headers: { apikey: adminAnonKey(), 'Content-Type': 'application/json' },
+        headers: {
+          apikey: anon,
+          Authorization: 'Bearer ' + anon,
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({ password }),
       });
       const json = await res.json().catch(() => null);
       if (!res.ok || !json?.access_token) {
-        throw new Error((json && json.error) || 'Giriş başarısız');
+        const detail =
+          (json && (json.error || json.message || json.msg)) ||
+          ('HTTP ' + res.status);
+        throw new Error(detail === 'Invalid credentials' ? 'Şifre hatalı' : String(detail));
       }
       accessToken = json.access_token;
       persistAuthSession(json);
@@ -3900,13 +4066,13 @@
         ['callsign', info.callsign],
       ];
       host.innerHTML =
-        '<table class="users-table" style="font-size:12px;"><tbody>' +
+        '<table class="fc-kv"><tbody>' +
         rows
           .map(
             ([k, v]) =>
-              '<tr><td style="width:40%;font-weight:600;">' +
+              '<tr><td class="k">' +
               escapeHtml(k) +
-              '</td><td>' +
+              '</td><td class="v">' +
               escapeHtml(v == null || v === '' ? '—' : String(v)) +
               '</td></tr>',
           )
@@ -3914,9 +4080,117 @@
         '</tbody></table>';
     }
 
+    function prettyJsonSnippet(raw) {
+      if (raw == null || raw === '') return '—';
+      const s = String(raw);
+      try {
+        const parsed = JSON.parse(s);
+        return JSON.stringify(parsed, null, 2);
+      } catch {
+        return s;
+      }
+    }
+
+    function paintFcRawDebug(json) {
+      const rawEl = document.getElementById('fcRawView');
+      if (!rawEl) return;
+      if (!json || typeof json !== 'object') {
+        rawEl.textContent = '—';
+        return;
+      }
+      const providers = Array.isArray(json?.debug?.providers) ? json.debug.providers.slice() : [];
+      providers.sort((a, b) => {
+        const pa = String(a?.provider || '').toLowerCase();
+        const pb = String(b?.provider || '').toLowerCase();
+        if (pa === 'fr24' && pb !== 'fr24') return -1;
+        if (pb === 'fr24' && pa !== 'fr24') return 1;
+        return pa.localeCompare(pb);
+      });
+      const summaryRows = [
+        ['cached', json.cached],
+        ['mode', json.mode],
+        ['has_info', !!json.info],
+        ['providers', providers.length],
+      ];
+      let html =
+        '<div class="fc-meta"><strong>Özet</strong></div>' +
+        '<table class="fc-kv"><tbody>' +
+        summaryRows
+          .map(
+            ([k, v]) =>
+              '<tr><td class="k">' +
+              escapeHtml(k) +
+              '</td><td class="v">' +
+              escapeHtml(v == null || v === '' ? '—' : String(v)) +
+              '</td></tr>',
+          )
+          .join('') +
+        '</tbody></table>';
+
+      if (providers.length === 0) {
+        html +=
+          '<div class="fc-meta">Provider debug yok — tam JSON:</div>' +
+          '<pre class="fc-snippet">' +
+          escapeHtml(JSON.stringify(json, null, 2)) +
+          '</pre>';
+        rawEl.innerHTML = html;
+        return;
+      }
+
+      for (const p of providers) {
+        const name = String(p?.provider || 'unknown');
+        const isFr24 = name.toLowerCase() === 'fr24';
+        const ok = !!p?.ok;
+        html +=
+          '<div class="fc-provider">' +
+          '<div class="fc-provider-head' +
+          (isFr24 ? ' fr24' : '') +
+          '">' +
+          '<span>' +
+          escapeHtml(isFr24 ? 'FR24' : name.toUpperCase()) +
+          '</span>' +
+          '<span class="badge ' +
+          (ok ? 'b-ok' : 'b-bad') +
+          '">' +
+          (ok ? 'ok' : 'fail') +
+          '</span>' +
+          (p?.http_status != null
+            ? '<span class="mini">HTTP ' + escapeHtml(String(p.http_status)) + '</span>'
+            : '') +
+          '</div>' +
+          '<table class="fc-kv"><tbody>' +
+          [
+            ['provider', name],
+            ['ok', ok],
+            ['http_status', p?.http_status],
+            ['note', p?.note],
+          ]
+            .map(
+              ([k, v]) =>
+                '<tr><td class="k">' +
+                escapeHtml(k) +
+                '</td><td class="v">' +
+                escapeHtml(v == null || v === '' ? '—' : String(v)) +
+                '</td></tr>',
+            )
+            .join('') +
+          '</tbody></table>' +
+          '<pre class="fc-snippet">' +
+          escapeHtml(prettyJsonSnippet(p?.raw_snippet)) +
+          '</pre>' +
+          '</div>';
+      }
+
+      html +=
+        '<details style="margin:12px;"><summary class="mini" style="cursor:pointer;">Tam yanıt JSON</summary>' +
+        '<pre class="fc-snippet">' +
+        escapeHtml(JSON.stringify(json, null, 2)) +
+        '</pre></details>';
+      rawEl.innerHTML = html;
+    }
+
     async function runFlightControlLookup() {
       const statusEl = document.getElementById('fcStatus');
-      const rawEl = document.getElementById('fcRawView');
       const flightNo = String(document.getElementById('fcFlightNo')?.value || '')
         .replace(/\s/g, '')
         .trim()
@@ -3958,12 +4232,13 @@
           throw new Error((json && json.error) || 'HTTP ' + res.status);
         }
         paintFcAppInfo(json && json.info);
-        if (rawEl) rawEl.textContent = JSON.stringify(json, null, 2);
+        paintFcRawDebug(json);
         if (statusEl) {
           statusEl.textContent = json && json.info ? 'OK · cached=' + String(!!json.cached) : 'info null';
         }
       } catch (err) {
         if (statusEl) statusEl.textContent = String(err?.message || err);
+        const rawEl = document.getElementById('fcRawView');
         if (rawEl) rawEl.textContent = String(err?.message || err);
         paintFcAppInfo(null);
       }
@@ -5866,7 +6141,20 @@
 
     function switchView(viewId) {
       els.views.forEach((v) => v.classList.toggle('active', v.id === viewId));
-      els.navButtons.forEach((b) => b.classList.toggle('active', b.dataset.view === viewId));
+      let currentLabel = '';
+      els.navButtons.forEach((b) => {
+        const on = b.dataset.view === viewId;
+        b.classList.toggle('active', on);
+        if (on) {
+          b.setAttribute('aria-current', 'page');
+          const lab = b.querySelector('.nav-label');
+          currentLabel = lab ? String(lab.textContent || '').trim() : '';
+        } else {
+          b.removeAttribute('aria-current');
+        }
+      });
+      const here = document.getElementById('railCurrentPage');
+      if (here && currentLabel) here.textContent = currentLabel;
       closeMobileNav();
       if (viewId === 'historyView' && accessToken) {
         loadHistory().catch(() => {});
