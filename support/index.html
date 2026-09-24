@@ -59,12 +59,14 @@
       id="adminPanelLink"
       class="mail"
       style="display:block;text-align:center;margin:0 0 10px;"
-      href="https://ganicanoz.github.io/flyfam/admin/"
-      >Admin paneli aç</a>
+      href="https://wispy-glade-310.zerodeploy.app/"
+      >Admin paneli aç (mobil)</a>
     <span style="display:block;color:#94a3b8;font-size:0.85rem;word-break:break-all;line-height:1.45;">
       Mobil Chrome: adresi <strong>adres çubuğuna yapıştır</strong> (Google aramasına yazma).<br />
-      Kısa adres:
-      <a id="adminShortLink" href="https://ganicanoz.github.io/flyfam/admin/" style="color:#38bdf8;">https://ganicanoz.github.io/flyfam/admin/</a>
+      Mobil:
+      <a id="adminShortLink" href="https://wispy-glade-310.zerodeploy.app/" style="color:#38bdf8;">https://wispy-glade-310.zerodeploy.app/</a><br />
+      Markalı yedek adres:
+      <a id="adminGithubLink" href="https://app.flyfamapp.com/admin/" style="color:#38bdf8;">https://app.flyfamapp.com/admin/</a>
     </span>
   </p>
 
@@ -89,33 +91,26 @@
       var a = document.getElementById('adminPanelLink');
       var shortA = document.getElementById('adminShortLink');
       if (!a) return;
-      var host = window.location.hostname || '';
-      var parts = window.location.pathname.split('/').filter(Boolean);
       /* Yerelde __DEPLOY_SHA__ kalır; CI’da kısa commit ile değiştirilir (CDN kırma). */
       var cb = '__DEPLOY_SHA__';
       if (!cb || cb.indexOf('__') === 0) cb = String(Date.now());
       /* docs/ADMIN_STATUS_DASHBOARD.html içindeki var UI ile aynı tut. */
-      var adminUi = '53';
+      var adminUi = '57';
+      /* Mobil birincil: zerodeploy. Markalı alan adı aynı panelin yedeğidir. */
+      var mobileBase = 'https://wispy-glade-310.zerodeploy.app/';
+      var githubBase = 'https://app.flyfamapp.com/admin/';
       var q =
         '?cb=' + encodeURIComponent(cb) + '&ui=' + encodeURIComponent(adminUi);
-      var origin = window.location.origin;
-      var base;
-      if (host.endsWith('github.io') && parts.length >= 1) {
-        /* Project pages: /repo/... → admin her zaman /repo/admin/ */
-        base = origin + '/' + parts[0] + '/';
-      } else {
-        base = 'https://ganicanoz.github.io/flyfam/';
-      }
-      var href;
-      try {
-        href = new URL('admin/' + q, base).href;
-      } catch (e) {
-        href = 'https://ganicanoz.github.io/flyfam/admin/' + q;
-      }
+      var href = mobileBase.replace(/\?.*$/, '') + q;
       a.href = href;
       if (shortA) {
         shortA.href = href;
-        shortA.textContent = href.replace(/\?.*$/, '');
+        shortA.textContent = mobileBase.replace(/\/$/, '') + '/';
+      }
+      var gh = document.getElementById('adminGithubLink');
+      if (gh) {
+        gh.href = githubBase + q;
+        gh.textContent = githubBase;
       }
     })();
   </script>
