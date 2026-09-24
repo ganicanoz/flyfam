@@ -17,7 +17,7 @@ Tek dosya: `index.html`. Aşağıdaki yollardan birini kullan.
 
 1. Repo → **Settings** → **Pages** → **Source**: **GitHub Actions**.
 2. `support/` ve workflow’u push et. Push sonrası sayfa otomatik yayına girer.  
-   URL: `https://<kullanici>.github.io/<repo-adi>/`
+   Markalı canlı URL: `https://app.flyfamapp.com/`
 
 ---
 
@@ -29,14 +29,14 @@ Tek dosya: `index.html`. Aşağıdaki yollardan birini kullan.
 
 ---
 
-E-posta adresini değiştirmek için `index.html` içinde `support@flyfam.app` metnini düzenle.
+E-posta adresini değiştirmek için `index.html` içinde `support@flyfamapp.com` metnini düzenle.
 
 ---
 
 ## Admin panel
 
-Admin arayüzü **`docs/ADMIN_STATUS_DASHBOARD.html`** dosyasıdır; GitHub Pages’i **`/docs`** klasöründen yayınladığınızda adres:
+Admin arayüzü **`docs/ADMIN_STATUS_DASHBOARD.html`** dosyasıdır. Destek sitesi workflow'u bu dosyayı yayın paketine kopyalar.
 
-`https://<kullanici>.github.io/<repo>/ADMIN_STATUS_DASHBOARD.html`
+`https://app.flyfamapp.com/admin/`
 
-Destek sayfasındaki **FlyFam Admin paneli** linki, `github.io` üzerindeyseniz repo adını pathname’den okuyarak bu dosyaya gider; aksi halde varsayılan olarak `ganicanoz.github.io/flyfam` kullanılır (`support/index.html` içinde düzenleyebilirsiniz).
+`support/CNAME` dosyası GitHub Pages özel alan adını `app.flyfamapp.com` olarak sabitler. Cloudflare'da `app` CNAME kaydı GitHub Pages hedefine yönlendirilmelidir.
