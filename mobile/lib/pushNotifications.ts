@@ -6,7 +6,23 @@ import { Linking, Platform } from 'react-native';
 import Constants from 'expo-constants';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
+import { FAMILY_PUSH_SOUND } from './notificationSounds';
 import { supabase } from './supabase';
+
+/** Android: separate channels so takeoff / landing / roster share can use distinct sounds. */
+export async function ensureFamilyNotificationChannels(): Promise<void> {
+  if (Platform.OS !== 'android') return;
+  const kinds = ['default', 'took_off', 'landed', 'roster_share'] as const;
+  for (const kind of kinds) {
+    const cfg = FAMILY_PUSH_SOUND[kind];
+    await Notifications.setNotificationChannelAsync(cfg.channelId, {
+      name: cfg.channelName,
+      importance: Notifications.AndroidImportance.HIGH,
+      enableVibrate: true,
+      sound: cfg.soundFile === 'default' ? 'default' : cfg.soundFile,
+    });
+  }
+}
 
 // Optional: show notification when app is in foreground
 Notifications.setNotificationHandler({
@@ -59,14 +75,7 @@ export async function getPushTokenWithReason(): Promise<{ token: string | null; 
     const tokenResult = await Notifications.getExpoPushTokenAsync({ projectId });
     const token = tokenResult?.data;
     if (!token || typeof token !== 'string') return { token: null, reason: 'Expo did not return a push token.' };
-    if (Platform.OS === 'android') {
-      await Notifications.setNotificationChannelAsync('default', {
-        name: 'FlyFam',
-        importance: Notifications.AndroidImportance.HIGH,
-        enableVibrate: true,
-        sound: 'default',
-      });
-    }
+    await ensureFamilyNotificationChannels();
     return { token };
   } catch (e: any) {
     const msg = String(e?.message ?? e ?? 'unknown error');

@@ -167,7 +167,7 @@ export default function CrewProfileScreen() {
               <View style={styles.rosterSettingsRowInner}>
                 <Ionicons name="settings-outline" size={22} color={colors.primary} />
                 <Text style={[styles.rosterSettingsLabel, { color: colors.text }]}>
-                  {t('profile.rosterListTasksTitle')}
+                  {t('profile.listSettingsTitle')}
                 </Text>
               </View>
               <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />

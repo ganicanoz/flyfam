@@ -24,7 +24,7 @@
   },
   "forceUpdate": {
     "title": "Update required",
-    "body": "Please use the latest FlyFam version for new features. Older versions will be discontinued soon. iOS: update via TestFlight or the App Store. Android: update via Play Store closed testing; if you are not on the tester list, email flyfamapp@gmail.com to request an invite.",
+    "body": "Please use the latest FlyFam version for new features. Older versions will be discontinued soon. iOS: update via TestFlight or the App Store. Android: update via Play Store closed testing; if you are not on the tester list, email support@flyfamapp.com to request an invite.",
     "openStoreIos": "Open App Store / TestFlight",
     "openStoreAndroid": "Open Play Store",
     "requestInvite": "Request closed testing invite (email)"
@@ -258,6 +258,7 @@
     "deleteFlight": "Delete flight",
     "deleteFlightConfirm": "Delete {{number}}?",
     "sync": "Sync",
+    "offlineBanner": "Offline — showing last saved roster ({{when}}). Live status won't update.",
     "listTaskSettings": "List tasks",
     "calendarTitle": "Calendar",
     "calendarOpen": "Calendar",
@@ -350,6 +351,12 @@
       "passive_complete": "Passive (past)"
     },
     "today": "Today",
+    "showPast": "Show past",
+    "showPastWeek": "Show past",
+    "hidePast": "Hide past",
+    "backToToday": "Back to today",
+    "backToTodayLine1": "Back to",
+    "backToTodayLine2": "today",
     "tomorrow": "Tomorrow",
     "yesterday": "Yesterday",
     "adminModeTitle": "ADMIN MODE",
@@ -374,6 +381,7 @@
     "comparing": "Comparing",
     "legendMyFlight": "My flights",
     "offBadge": "Off",
+    "trainingBadge": "Duty",
     "restDay": "Off day",
     "sharedOffDaysMonth": "{{count}} shared off day(s) this month: {{days}}",
     "noDutiesToday": "No duties planned for today",
@@ -414,6 +422,7 @@
     "legendOff": "Off",
     "legendStandby": "Standby",
     "legendLayover": "Layover",
+    "layoverDurationParen": "(Layover: {{duration}})",
     "legendOrderHint": "Dot = flight, bar = layover / standby",
     "dayHeader": "{{date}} · {{count}} flight(s){{block}}",
     "dayHeaderBlock": " · Total block {{hours}}h {{mins}}m",
@@ -435,6 +444,7 @@
     "importRosterFileHint": "Choose a PDF or roster file",
     "durationShort": "{{hours}}h {{mins}}m",
     "durationMinsOnly": "{{mins}}m",
+    "durationDaysShort": "{{days}}d {{hours}}h {{mins}}m",
     "departInMins": "Departs in {{mins}} min",
     "departInHours": "Departs in {{hours}}h {{mins}}m",
     "departInDays": "Departs in {{days}}d {{hours}}h",
@@ -530,7 +540,7 @@
     "errorNumberShort": "Enter flight number (e.g. 614 or 1234)",
     "errorFullNumber": "Enter full flight number (e.g. PC614) or set your airline in Profile",
     "errorDuplicate": "This flight is already saved for this date.",
-    "apiHint": "For auto-lookup: add EXPO_PUBLIC_FLIGHTRADAR24_API_TOKEN to mobile/.env, then run: npx expo start --clear"
+    "apiHint": "Automatic flight lookup is temporarily unavailable. Please try again later or enter the details manually."
   },
   "editFlight": {
     "title": "Edit Flight",

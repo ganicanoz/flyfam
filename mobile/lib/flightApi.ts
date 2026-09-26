@@ -1,4 +1,3 @@
-import Constants from 'expo-constants';
 import { getAirportDisplay } from '../constants/airports';
 import { getLocalDateString, getLocalDateStringPlusDays, getLocalDateStringTomorrow, isLocalTodayOrTomorrow } from './dateUtils';
 import { supabase } from './supabase';
@@ -15,12 +14,12 @@ export { utcIsoToLocalDateAtAirport } from './airportUtcOffset';
 
 // Deprecated provider disabled.
 const AVIATION_EDGE_KEY = '';
-const FR24_TOKEN =
-  Constants.expoConfig?.extra?.flightradar24Token ?? process.env.EXPO_PUBLIC_FLIGHTRADAR24_API_TOKEN;
+// Provider credentials live only in Supabase Edge Function secrets.
+// Direct provider fallbacks remain inert so a release bundle never contains a provider key.
+const FR24_TOKEN = '';
 // Deprecated provider disabled.
 const AVIATION_KEY = '';
-const AIRLABS_KEY =
-  Constants.expoConfig?.extra?.airlabsKey ?? process.env.EXPO_PUBLIC_AIRLABS_API_KEY;
+const AIRLABS_KEY = '';
 /** Uçuş araması: FR24 + AirLabs. */
 export const hasFlightApiKeys = !!FR24_TOKEN || !!AIRLABS_KEY;
 
@@ -91,6 +90,8 @@ export type FlightInfo = {
   actual_arrival_utc?: string;
   airline?: string;
   aircraftRegistration?: string;
+  /** Aircraft type ICAO/IATA (e.g. A333, B738). */
+  aircraftType?: string;
   /** FR24 unique id for this flight leg when sourced from FR24. */
   fr24Id?: string;
   /** FR24 Mode-S hex identifier when available. */
@@ -751,6 +752,8 @@ async function fetchFromAviationEdgeTimetable(
             actual_arrival_utc: arrActualIso ?? undefined,
             airline: f.airline?.name,
             aircraftRegistration: f.aircraft?.regNumber,
+            aircraftType:
+              f.aircraft?.icaoCode ?? f.aircraft?.icao ?? f.aircraft?.iataCode ?? f.aircraft?.iata ?? undefined,
             delayed: Number(dep.delay) > 0 || Number(arr.delay) > 0,
             delayDepMin: Number(dep.delay) || 0,
             delayArrMin: Number(arr.delay) || 0,
@@ -831,6 +834,8 @@ async function fetchFromAviationEdgeTimetableAtAirports(
             scheduled_arrival_utc: arrIsoNorm,
             airline: f.airline?.name,
             aircraftRegistration: f.aircraft?.regNumber,
+            aircraftType:
+              f.aircraft?.icaoCode ?? f.aircraft?.icao ?? f.aircraft?.iataCode ?? f.aircraft?.iata ?? undefined,
             delayed: Number(dep.delay) > 0 || Number(arr.delay) > 0,
             delayDepMin: Number(dep.delay) || 0,
             delayArrMin: Number(arr.delay) || 0,
@@ -1480,6 +1485,12 @@ async function fetchFromAirLabsFlight(
         actual_arrival_utc: arrActualIso,
         airline: typeof f.airline_name === 'string' ? f.airline_name : undefined,
         aircraftRegistration: typeof f.reg_number === 'string' ? f.reg_number : undefined,
+        aircraftType:
+          typeof f.aircraft_icao === 'string'
+            ? f.aircraft_icao
+            : typeof f.ac_icao === 'string'
+              ? f.ac_icao
+              : undefined,
         hex: typeof f.hex === 'string' ? f.hex : undefined,
         flightStatus: mapped,
         delayed: Number(f.dep_delayed ?? f.arr_delayed ?? f.delayed ?? 0) > 0,
@@ -1619,47 +1630,49 @@ export function flightInfoFromAeroDataBoxRoot(
   const origin = toIataCode(depAp.code || (dep.iata as string) || (dep.icao as string) || '') ?? '';
   const destination = toIataCode(arrAp.code || (arr.iata as string) || (arr.icao as string) || '') ?? '';
 
-  // UTC alanları ayrı; Local asla assumeUtc ile Zulu yapılmaz.
+  // UTC alanları ayrı; Local asla assumeUtc ile Z yapılmaz.
+  // AeroDataBox scheduledTime = { utc, local } — .utc tercih edilir.
   const depSched = utcFieldOrAirportLocalToUtcIso(
-    aeroCoerceUtcString(dep.scheduledTimeUtc),
-    aeroCoerceLocalString(dep.scheduledTimeLocal) ??
-      (typeof dep.scheduledTime === 'string' ? dep.scheduledTime : aeroCoerceLocalString(dep.scheduledTime)),
+    aeroCoerceUtcString(dep.scheduledTimeUtc) ?? aeroCoerceUtcString(dep.scheduledTime),
+    aeroCoerceLocalString(dep.scheduledTimeLocal) ?? aeroCoerceLocalString(dep.scheduledTime),
     origin,
     fallbackDateYmd,
   );
   const arrSched = utcFieldOrAirportLocalToUtcIso(
-    aeroCoerceUtcString(arr.scheduledTimeUtc),
-    aeroCoerceLocalString(arr.scheduledTimeLocal) ??
-      (typeof arr.scheduledTime === 'string' ? arr.scheduledTime : aeroCoerceLocalString(arr.scheduledTime)),
+    aeroCoerceUtcString(arr.scheduledTimeUtc) ?? aeroCoerceUtcString(arr.scheduledTime),
+    aeroCoerceLocalString(arr.scheduledTimeLocal) ?? aeroCoerceLocalString(arr.scheduledTime),
     destination,
     fallbackDateYmd,
   );
   const depExp = utcFieldOrAirportLocalToUtcIso(
     aeroCoerceUtcString(dep.predictedTimeUtc) ??
       aeroCoerceUtcString(dep.estimatedTimeUtc) ??
-      aeroCoerceUtcString(dep.expectedTimeUtc),
+      aeroCoerceUtcString(dep.expectedTimeUtc) ??
+      aeroCoerceUtcString(dep.predictedTime) ??
+      aeroCoerceUtcString(dep.estimatedTime) ??
+      aeroCoerceUtcString(dep.expectedTime),
     aeroCoerceLocalString(dep.predictedTimeLocal) ??
       aeroCoerceLocalString(dep.estimatedTimeLocal) ??
       aeroCoerceLocalString(dep.expectedTimeLocal) ??
       aeroCoerceLocalString(dep.predictedTime) ??
       aeroCoerceLocalString(dep.estimatedTime) ??
-      aeroCoerceLocalString(dep.expectedTime) ??
-      (typeof dep.predictedTime === 'string' ? dep.predictedTime : undefined) ??
-      (typeof dep.estimatedTime === 'string' ? dep.estimatedTime : undefined) ??
-      (typeof dep.expectedTime === 'string' ? dep.expectedTime : undefined),
+      aeroCoerceLocalString(dep.expectedTime),
     origin,
     fallbackDateYmd,
   );
   const arrExp = utcFieldOrAirportLocalToUtcIso(
     aeroCoerceUtcString(arr.predictedTimeUtc) ??
       aeroCoerceUtcString(arr.estimatedTimeUtc) ??
-      aeroCoerceUtcString(arr.expectedTimeUtc),
+      aeroCoerceUtcString(arr.expectedTimeUtc) ??
+      aeroCoerceUtcString(arr.predictedTime) ??
+      aeroCoerceUtcString(arr.estimatedTime) ??
+      aeroCoerceUtcString(arr.expectedTime),
     aeroCoerceLocalString(arr.predictedTimeLocal) ??
       aeroCoerceLocalString(arr.estimatedTimeLocal) ??
       aeroCoerceLocalString(arr.expectedTimeLocal) ??
-      (typeof arr.predictedTime === 'string' ? arr.predictedTime : undefined) ??
-      (typeof arr.estimatedTime === 'string' ? arr.estimatedTime : undefined) ??
-      (typeof arr.expectedTime === 'string' ? arr.expectedTime : undefined),
+      aeroCoerceLocalString(arr.predictedTime) ??
+      aeroCoerceLocalString(arr.estimatedTime) ??
+      aeroCoerceLocalString(arr.expectedTime),
     destination,
     fallbackDateYmd,
   );
@@ -1667,18 +1680,26 @@ export function flightInfoFromAeroDataBoxRoot(
   const arrIsoRaw = arrSched ?? arrExp;
   const arrIso = normalizeOvernightArrival(depIso, arrIsoRaw);
   const depActual = utcFieldOrAirportLocalToUtcIso(
-    aeroCoerceUtcString(dep.actualTimeUtc) ?? aeroCoerceUtcString(dep.runwayTimeUtc),
+    aeroCoerceUtcString(dep.actualTimeUtc) ??
+      aeroCoerceUtcString(dep.runwayTimeUtc) ??
+      aeroCoerceUtcString(dep.actualTime) ??
+      aeroCoerceUtcString(dep.runwayTime),
     aeroCoerceLocalString(dep.actualTimeLocal) ??
       aeroCoerceLocalString(dep.runwayTimeLocal) ??
-      (typeof dep.actualTime === 'string' ? dep.actualTime : undefined),
+      aeroCoerceLocalString(dep.actualTime) ??
+      aeroCoerceLocalString(dep.runwayTime),
     origin,
     fallbackDateYmd,
   );
   const arrActual = utcFieldOrAirportLocalToUtcIso(
-    aeroCoerceUtcString(arr.actualTimeUtc) ?? aeroCoerceUtcString(arr.runwayTimeUtc),
+    aeroCoerceUtcString(arr.actualTimeUtc) ??
+      aeroCoerceUtcString(arr.runwayTimeUtc) ??
+      aeroCoerceUtcString(arr.actualTime) ??
+      aeroCoerceUtcString(arr.runwayTime),
     aeroCoerceLocalString(arr.actualTimeLocal) ??
       aeroCoerceLocalString(arr.runwayTimeLocal) ??
-      (typeof arr.actualTime === 'string' ? arr.actualTime : undefined),
+      aeroCoerceLocalString(arr.actualTime) ??
+      aeroCoerceLocalString(arr.runwayTime),
     destination,
     fallbackDateYmd,
   );

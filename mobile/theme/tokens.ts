@@ -19,7 +19,7 @@ export const spacing = {
 export const radius = {
   sm: 8,
   button: 12,
-  card: 16,
+  card: 20,
   pill: 999,
 } as const;
 
@@ -53,14 +53,17 @@ export type FlightStatusToken =
 
 type StatusChrome = { bg: string; text: string };
 
-/** Planlı / gecikmeli / iptal vb. durum rozetleri. */
+/**
+ * Tonlu 24 durum rozetleri — açık tonlu arka plan + aynı aileden koyu metin.
+ * Havada/İndi=yeşil, Gecikmeli=turuncu, İptal=kırmızı, Planlı=nötr.
+ */
 const STATUS_LIGHT: Record<FlightStatusToken, StatusChrome> = {
   scheduled: { bg: '#F1F3F7', text: '#4B5563' },
   onTime: { bg: '#E6F6EC', text: '#1B7F3B' },
   delayed: { bg: '#FFF1E0', text: '#B45309' },
   cancelled: { bg: '#FDECEC', text: '#B42318' },
-  inFlight: { bg: '#E8F0FE', text: '#1A5CF5' },
-  completed: { bg: '#F1F3F7', text: '#6B7280' },
+  inFlight: { bg: '#E6F6EC', text: '#1B7F3B' },
+  completed: { bg: '#E6F6EC', text: '#1B7F3B' },
 };
 
 const STATUS_DARK: Record<FlightStatusToken, StatusChrome> = {
@@ -68,8 +71,8 @@ const STATUS_DARK: Record<FlightStatusToken, StatusChrome> = {
   onTime: { bg: '#1A3324', text: '#7BC47F' },
   delayed: { bg: '#3A2A14', text: '#F0B060' },
   cancelled: { bg: '#3A1A1A', text: '#F07171' },
-  inFlight: { bg: '#1A2740', text: '#4D7FFF' },
-  completed: { bg: '#243049', text: '#9AA8BC' },
+  inFlight: { bg: '#1A3324', text: '#7BC47F' },
+  completed: { bg: '#1A3324', text: '#7BC47F' },
 };
 
 export function statusChrome(token: FlightStatusToken, mode: ThemeMode): StatusChrome {
@@ -94,6 +97,9 @@ export const rosterMarksLight = {
   standbyBadgeText: '#B45309',
   layoverBadgeBg: '#FCE4EC',
   layoverBadgeText: '#AD1457',
+  /** Eğitim / yer dersi / ofis — takvim kırmızı noktasıyla aynı aile */
+  trainingBadgeBg: '#FDECEC',
+  trainingBadgeText: '#B42318',
   /** Ortak boş gün ✓ (karşılaştırma) */
   sharedOffMark: '#1B7F3B',
   sharedOffBannerBg: '#E6F6EC',
@@ -112,6 +118,8 @@ export const rosterMarksDark = {
   standbyBadgeText: '#F0B060',
   layoverBadgeBg: '#3A1A2A',
   layoverBadgeText: '#F9A8D4',
+  trainingBadgeBg: '#3A1A1A',
+  trainingBadgeText: '#F07171',
   sharedOffMark: '#7BC47F',
   sharedOffBannerBg: '#1A3324',
   sharedOffBannerBorder: '#2D5A3D',
@@ -166,7 +174,8 @@ export const cardAccentLight = {
   flight: '#1A5CF5',
   duty_off: rosterMarksLight.offLine,
   standby: rosterMarksLight.standbyLine,
-  in_flight: '#1D4ED8',
+  training: rosterMarksLight.flightDot,
+  in_flight: '#16A34A',
   landed: '#16A34A',
   layover: rosterMarksLight.layoverLine,
 } as const;
@@ -175,7 +184,8 @@ export const cardAccentDark = {
   flight: '#4D7FFF',
   duty_off: rosterMarksDark.offLine,
   standby: rosterMarksDark.standbyLine,
-  in_flight: '#6BB3FF',
+  training: rosterMarksDark.flightDot,
+  in_flight: '#4ADE80',
   landed: '#7BC47F',
   layover: rosterMarksDark.layoverLine,
 } as const;
@@ -193,7 +203,12 @@ export const touchMin = 44;
 export const calendarMarkSize = {
   dot: 6,
   barHeight: 4,
-  cellBottomGap: 2,
+  /** Space between day number / dot and bottom bar. */
+  cellBottomGap: 5,
+  /** Horizontal inset so adjacent day bars don't touch. */
+  barInset: 3,
+  /** Extra gap between flight dot and bar track. */
+  dotBarGap: 5,
 } as const;
 
 /** Roster list / card spacing (px). */
@@ -202,5 +217,6 @@ export const rosterListSpacing = {
   dayGroupGap: 18,
   cardPadding: 14,
   fabSize: 56,
-  listBottomPad: 56 + 16,
+  /** Extra list pad above system/native tab bar (navigator already insets). */
+  listBottomPad: 28,
 } as const;

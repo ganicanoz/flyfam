@@ -8,7 +8,6 @@ import {
   Alert,
   ActivityIndicator,
   Linking,
-  RefreshControl,
   ScrollView,
   AppState,
   Platform,
@@ -24,6 +23,7 @@ import { useTranslation } from 'react-i18next';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Swipeable, RectButton } from 'react-native-gesture-handler';
 import { useNavigation, useFocusEffect, useRoute } from '@react-navigation/native';
+import * as DocumentPicker from 'expo-document-picker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSession } from '../contexts/SessionContext';
 import { supabase } from '../lib/supabase';
@@ -58,8 +58,9 @@ import {
   setLocalOccupationOverride,
   subscribeLocalOccupationOverrides,
 } from '../lib/rosterOccupationLocalOverrides';
+import { subscribeOccupationCatalog } from '../lib/rosterOccupationCatalog';
 import { SuggestOccupationModal } from '../components/SuggestOccupationModal';
-import { isOffDayOccupationCode, isAnnualLeaveOccupationCode, isUnpaidLeaveOccupationCode, isGroundDutyOccupationCode, isOfficeDutyOccupationCode, isStandbyOccupationCode, isTrainingOccupationCode, isRosterPdfImportSupportedForCrewAirline } from '../lib/pdfRosterImport';
+import { importPdfFlightsViaRpc, isOffDayOccupationCode, isAnnualLeaveOccupationCode, isUnpaidLeaveOccupationCode, isGroundDutyOccupationCode, isOfficeDutyOccupationCode, isStandbyOccupationCode, isTrainingOccupationCode, isHomeDutyOccupationCode, isRosterPdfImportSupportedForCrewAirline } from '../lib/pdfRosterImport';
 import {
   indigoDutyBlockTitleEn,
   indigoDutyBlockTitleTr,
@@ -88,6 +89,7 @@ import {
   isLiveAirborneFlight,
 } from '../lib/rosterFlightClear';
 import { getAirportDisplay, getAirportTimezone } from '../constants/airports';
+import { AIRLINES } from '../constants/airlines';
 import { colors, useThemeMode } from '../theme/colors';
 import {
   rosterCardStyleTokens,
@@ -99,17 +101,77 @@ import { useFontScaleMultiplier } from '../theme/fontScale';
 import { fetchMySubscriptionAccess, fetchCrewRosterAccess, type SubscriptionAccess } from '../lib/subscriptionAccess';
 import { isSimulatorOccupationCode } from '../lib/pdfRosterImport';
 import { setRosterLastSyncedAt, getRosterLastSyncedAt, subscribeRosterLastSyncedAt, hydrateRosterLastSyncedAt } from '../lib/rosterSyncMeta';
+import { loadRosterLocalCache, saveRosterLocalCache } from '../lib/rosterLocalCache';
+import {
+  loadCrewRosterAccessCache,
+  loadMySubscriptionAccessCache,
+  saveCrewRosterAccessCache,
+  saveMySubscriptionAccessCache,
+} from '../lib/rosterAccessCache';
 import { formatRelativeSyncedAt } from '../lib/relativeTime';
 import { demoPeersForUser } from '../lib/crewPeerDemo';
+import { extractText, isAvailable } from 'expo-pdf-text-extract';
+import { mergePdfRowsFromTextParse } from '../lib/pdfRowMerge';
+import { parseRosterPdfFromDevice, pdfParseSourceDevLabel } from '../lib/rosterPdfParse';
+import { materializeSharedPdfToCache } from '../lib/sharedPdfImport';
+import { maybePromptHomeBaseAfterRosterImport } from '../lib/homeBaseFromRoster';
+import { alertWithCopy } from '../lib/alertWithCopy';
+import { buildPdfImportReport, showPdfImportAlert } from '../lib/pdfImportAlert';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-/** En eski dün: herkes dünün uçuşlarını görür; dünden öncekiler silinir. */
-const ROSTER_MIN_DAYS_AGO = 1; // 1 = yesterday (show flight_date >= yesterday)
+function looksLikeNetworkFailure(message: string | undefined): boolean {
+  const m = (message || '').toLowerCase();
+  return (
+    m.includes('network') ||
+    m.includes('fetch') ||
+    m.includes('failed to connect') ||
+    m.includes('timeout') ||
+    m.includes('offline') ||
+    m.includes('internet') ||
+    m.includes('network request failed') ||
+    m.includes('load failed') ||
+    m.includes('the internet connection appears to be offline') ||
+    m.includes('socket') ||
+    m.includes('econnrefused') ||
+    m.includes('enotfound')
+  );
+}
+
+/** Best-effort online probe (no NetInfo dependency). */
+async function probeSupabaseReachable(): Promise<boolean> {
+  try {
+    const { error } = await supabase.from('profiles').select('id').limit(1).maybeSingle();
+    if (!error) return true;
+    return !looksLikeNetworkFailure(error.message);
+  } catch (e) {
+    return !looksLikeNetworkFailure(e instanceof Error ? e.message : String(e));
+  }
+}
+
+/**
+ * API poll penceresi (canlı satırlar): kısa tut — sunucu ~12h sonra slim archive’a alır.
+ * Liste/gösterim: `ROSTER_ARCHIVE_MIN_DAYS_AGO` ile canlı + arşiv birleşik (~12 ay kart geçmişi).
+ * 7g: PDF’de plan başı−1 (ör. PC398) import sonrası “dün” temizliğine takılmadan canlıda kalsın.
+ */
+const ROSTER_LIVE_MIN_DAYS_AGO = 7;
+const ROSTER_ARCHIVE_MIN_DAYS_AGO = 365;
+/** Tarih şeridi / takvim: arşiv + canlı birleşik geriye bakış. */
+const ROSTER_MIN_DAYS_AGO = ROSTER_ARCHIVE_MIN_DAYS_AGO;
+/** Admin roster: geçmiş uçuşlar; tarih şeridi ve DB çekimi için geriye bakış (gün). */
+const ROSTER_MIN_DAYS_AGO_ADMIN = 540;
 /** Üst tarih şeridi + liste: bugünden en fazla bu kadar ileri gün (dahil). */
 const ROSTER_MAX_DAYS_AHEAD = 30;
+/** Liste render: varsayılan yalnız bugün→ileri. Geçmiş yalnız “Geçmiş (7 gün)” chip ile. */
+const LIST_INITIAL_PAST_DAYS = 0;
+/** Chip / takvim ile açılan geçmiş penceresi (gün). */
+const LIST_PAST_CHUNK_DAYS = 7;
+/** Program sekmesine hızlı dönüş: bu süre içinde ağ refetch atlanır (force/sync hariç). */
+const ROSTER_FOCUS_REFETCH_THROTTLE_MS = 45_000;
+/** Slim arşiv bellek TTL — lazy yükleme sonrası tekrar çekmeyi azaltır. */
+const ROSTER_ARCHIVE_CACHE_TTL_MS = 180_000;
 
 /** Takvimde geçmiş gün renkleri: uçuş silinse bile ~2 ay işaret kalsın. */
 const CALENDAR_DAY_MARKS_RETENTION_DAYS = 62;
@@ -135,6 +197,10 @@ function calendarDayKindForEntry(f: {
     isSimulatorOccupationCode(blockCode) ||
     isSimulatorOccupationCode(occCode);
   if (isSim) return 'duty_off';
+  // Evden görev (COTD): turuncu çizgi — kırmızı uçuş noktası yok.
+  if (isHomeDutyOccupationCode(blockCode) || isHomeDutyOccupationCode(occCode)) {
+    return 'standby';
+  }
   // Yer dersi / ofis: görev — takvimde kırmızı (uçuş günü).
   if (isGroundDutyOccupationCode(blockCode) || isGroundDutyOccupationCode(occCode)) {
     return 'flight';
@@ -156,6 +222,8 @@ function mergeCalendarDayKind(prev: CalendarDayKind | undefined, next: CalendarD
 }
 
 const LAYOVER_MIN_HOURS = 10;
+/** Üst sınır: daha uzun boşluk = üs dinlenmesi / yanlış eşleşme, yatı değil. */
+const LAYOVER_MAX_HOURS = 72;
 
 type LayoverWindow = {
   key: string;
@@ -172,26 +240,11 @@ function isLayoverPlaceholder(f: { id?: string | null; flight_number?: string | 
   return id.startsWith('layover:') || fn === LAYOVER_PLACEHOLDER_FN;
 }
 
-function isoToYmd(iso: string | null | undefined): string | null {
-  if (!iso) return null;
-  const m = iso.trim().match(/^(\d{4}-\d{2}-\d{2})/);
-  return m ? m[1] : null;
-}
-
-function minYmd(a: string, b: string | null | undefined): string {
-  if (!b) return a;
-  return b < a ? b : a;
-}
-
-function maxYmd(a: string, b: string | null | undefined): string {
-  if (!b) return a;
-  return b > a ? b : a;
-}
-
 /**
  * A layover is a stay at a non-home station until the next departure from that
- * station (≥ LAYOVER_MIN_HOURS). Calendar paints the full gidiş–dönüş span
- * (flight_date + schedule days) so 20–22 LED becomes one merged block.
+ * station (≥ LAYOVER_MIN_HOURS). Takvim çizgisi gidiş–dönüş duty günlerini kapsar
+ * (ör. 14→16 = 3 gün blok). Süre kartı ise varış istasyonuna iniş → oradan kalkış
+ * arasındaki gerçek/planlı zamandır (takvim gün sayısı değil).
  * `homeBaseIata` — tek IATA veya aile/peer için birden fazla (görüntülenen crew base’leri).
  */
 function computeLayoverWindows(
@@ -222,6 +275,9 @@ function computeLayoverWindows(
   )
     .map((b) => (b ?? '').trim().toUpperCase())
     .filter(Boolean);
+  // Home base yoksa yatı hesaplama: aksi halde üs (SAW) gece boşlukları “yatı” olur,
+  // ara gün FOF/OFF listeden gizlenir — admin tablosu doğru, takvim şişer.
+  if (homeBases.length === 0) return [];
   const homeBaseCities = new Set(
     homeBases
       .map((b) => getAirportDisplay(b)?.city?.trim().toLowerCase() ?? null)
@@ -254,10 +310,10 @@ function computeLayoverWindows(
     }
     if (!outbound || depMs == null) continue;
     const gapHours = (depMs - arrMs) / (1000 * 60 * 60);
-    if (gapHours < LAYOVER_MIN_HOURS) continue;
+    if (gapHours < LAYOVER_MIN_HOURS || gapHours > LAYOVER_MAX_HOURS) continue;
 
-    const startYmd = minYmd(inbound.flight_date, isoToYmd(inbound.scheduled_arrival));
-    const endYmd = maxYmd(outbound.flight_date, isoToYmd(outbound.scheduled_departure));
+    const startYmd = inbound.flight_date;
+    const endYmd = outbound.flight_date;
     if (!startYmd || !endYmd || endYmd < startYmd) continue;
     usedOutbound.add(outbound.id);
     windows.push({
@@ -272,6 +328,7 @@ function computeLayoverWindows(
   return windows;
 }
 
+/** Takvim / blok çizgisi: başlangıç–bitiş günleri dahil (gidiş→dönüş span). */
 function layoverDatesFromWindows(windows: readonly LayoverWindow[]): Set<string> {
   const dates = new Set<string>();
   for (const w of windows) {
@@ -284,6 +341,18 @@ function layoverDatesFromWindows(windows: readonly LayoverWindow[]): Set<string>
   return dates;
 }
 
+/** Ara günler (FOF gizleme): gidiş/dönüş uçuş günleri hariç. */
+function layoverInteriorDates(w: LayoverWindow): string[] {
+  if (!w.startYmd || !w.endYmd || w.startYmd >= w.endYmd) return [];
+  const out: string[] = [];
+  let cur = addUtcDaysToYmd(w.startYmd, 1);
+  while (cur < w.endYmd) {
+    out.push(cur);
+    cur = addUtcDaysToYmd(cur, 1);
+  }
+  return out;
+}
+
 const CALENDAR_COL_H = 48;
 const CALENDAR_DAY_RADIUS = 10;
 const CALENDAR_BAR_H = calendarMarkSize.barHeight;
@@ -292,7 +361,8 @@ const CALENDAR_DOT_SIZE = calendarMarkSize.dot;
 const CALENDAR_DOT_BAR_GAP = 2;
 const CALENDAR_BAR_INSET = calendarMarkSize.barInset;
 const CALENDAR_MARK_BOTTOM = 3;
-const CALENDAR_RANGE_DAYS_BACK = 30;
+/** Takvim şeridi: slim archive kartlarına ulaşılabilsin (~12 ay değil, performans için 120 gün). */
+const CALENDAR_RANGE_DAYS_BACK = 120;
 const CALENDAR_RANGE_DAYS_AHEAD = 45;
 
 type CalendarDayCell = { ymd: string; day: number };
@@ -306,6 +376,16 @@ function addUtcDaysToYmd(ymd: string, days: number): string {
   const dt = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
   dt.setUTCDate(dt.getUTCDate() + days);
   return formatUtcYmd(dt);
+}
+
+/** Takvim gün farkı (b − a), tam gün. */
+function calendarDayDiff(aYmd: string, bYmd: string): number {
+  const [ay, am, ad] = aYmd.split('-').map((x) => parseInt(x, 10));
+  const [by, bm, bd] = bYmd.split('-').map((x) => parseInt(x, 10));
+  if (![ay, am, ad, by, bm, bd].every(Number.isFinite)) return 0;
+  const a = Date.UTC(ay, am - 1, ad);
+  const b = Date.UTC(by, bm - 1, bd);
+  return Math.round((b - a) / 86400000);
 }
 
 function mondayYmdOf(ymd: string): string | null {
@@ -606,13 +686,16 @@ function mapCrewRosterFetchedRows(rows: any[]): any[] {
   }));
 }
 
-/** İniş sonrası roster listesi + DB temizliği (aynı eşik). */
-const LANDED_REMOVE_AFTER_MS = 16 * 60 * 60 * 1000;
-/** Admin roster: geçmiş uçuşlar; tarih şeridi ve DB çekimi için geriye bakış (gün). */
-const ROSTER_MIN_DAYS_AGO_ADMIN = 540;
-
 function getRosterMinDaysAgo(exemptLandedAutoPurge: boolean, isCrew: boolean): number {
   return exemptLandedAutoPurge && isCrew ? ROSTER_MIN_DAYS_AGO_ADMIN : ROSTER_MIN_DAYS_AGO;
+}
+
+function getRosterLiveMinDaysAgo(exemptLandedAutoPurge: boolean, isCrew: boolean): number {
+  return exemptLandedAutoPurge && isCrew ? ROSTER_MIN_DAYS_AGO_ADMIN : ROSTER_LIVE_MIN_DAYS_AGO;
+}
+
+function getRosterArchiveMinDaysAgo(exemptLandedAutoPurge: boolean, isCrew: boolean): number {
+  return exemptLandedAutoPurge && isCrew ? ROSTER_MIN_DAYS_AGO_ADMIN : ROSTER_ARCHIVE_MIN_DAYS_AGO;
 }
 
 type RowForLandedListPurge = {
@@ -625,92 +708,15 @@ type RowForLandedListPurge = {
   flight_date?: string | null;
 };
 
-/** passive_past iniş referansı: gerçek > FR24 > planlı varış. */
-function passivePastListPurgeReferenceUtcMs(r: RowForLandedListPurge): number {
-  let ms = parseUtcMsStatic(r.actual_arrival);
-  if (ms > 0) return ms;
-  ms = parseUtcMsStatic(r.fr24_datetime_landed_utc);
-  if (ms > 0) return ms;
-  return parseUtcMsStatic(r.scheduled_arrival);
-}
-
-/** duty_off bitiş: DUTY END (`scheduled_arrival`); yoksa flight_date gün sonu. */
-function dutyOffEndedReferenceUtcMs(r: RowForLandedListPurge): number {
-  return getArrivalMs({
-    scheduled_arrival: r.scheduled_arrival,
-    flight_date: r.flight_date,
-  });
-}
-
-function isEndedDutyOffRow(r: RowForLandedListPurge, nowMs = Date.now()): boolean {
-  if (isLayoverPlaceholder(r)) return false;
-  const kind = (r.roster_entry_kind ?? '').toLowerCase();
-  if (kind !== 'duty_off') return false;
-  const endMs = dutyOffEndedReferenceUtcMs(r);
-  return endMs > 0 && nowMs >= endMs;
-}
-
 /**
- * Roster otomatik temizlik (crew; admin skip):
- * - Uçuş: passive_past (+ eski passive_complete) → inişten 16 saat sonra
- * - Boş gün (duty_off): DUTY END biter bitmez
- * Admin roster: otomatik listeden düşürme / DB purge yok.
+ * Roster listesi: kart bilgisi kalır; poll zaten passive_past ile kapalı.
+ * Hard delete / slim archive sunucu cron’unda (~12h). Client DB silmez.
  */
 async function removeFlightsLandedOver6hAgo<T extends RowForLandedListPurge>(
   list: T[],
-  options?: { adminSkipLandedPurge?: boolean },
+  _options?: { adminSkipLandedPurge?: boolean },
 ): Promise<{ kept: T[]; dbPurgeIds: string[] }> {
-  if (options?.adminSkipLandedPurge) {
-    return { kept: [...list], dbPurgeIds: [] };
-  }
-  const removeAfterMs = LANDED_REMOVE_AFTER_MS;
-  const now = Date.now();
-  const dbPurgeIds: string[] = [];
-  const kept = list.filter((r) => {
-    const kind = (r.roster_entry_kind ?? 'flight').toLowerCase();
-    if (kind === 'duty_off') {
-      if (isEndedDutyOffRow(r, now)) {
-        dbPurgeIds.push(r.id);
-        return false;
-      }
-      return true;
-    }
-    if (r.roster_entry_kind != null && kind !== 'flight') return true;
-    const p = (r.api_refresh_phase ?? '').toLowerCase();
-    if (p !== 'passive_past' && p !== 'passive_complete') return true;
-    const refMs = passivePastListPurgeReferenceUtcMs(r);
-    if (refMs <= 0) return true;
-    if (now >= refMs + removeAfterMs) {
-      dbPurgeIds.push(r.id);
-      return false;
-    }
-    return true;
-  });
-  return { kept, dbPurgeIds };
-}
-
-/** `removeFlightForCrew` ile aynı RPC/yedek yollar; hata sessiz (arka plan temizliği). */
-async function purgeCrewFlightFromDbSilently(client: SupabaseClient, crewId: string, flightId: string): Promise<void> {
-  const { error: rpcErr } = await client.rpc('remove_me_from_flight', { p_flight_id: flightId });
-  if (!rpcErr) {
-    await client.from('flights').delete().eq('id', flightId);
-    return;
-  }
-  const { error: relErr } = await client
-    .from('flight_crew')
-    .delete()
-    .eq('flight_id', flightId)
-    .eq('crew_id', crewId);
-  if (!relErr) {
-    await client.from('flights').delete().eq('id', flightId);
-    return;
-  }
-  await client.from('flights').delete().eq('id', flightId).eq('crew_id', crewId);
-}
-
-function scheduleLandedFlightsDbPurge(client: SupabaseClient, crewId: string | null | undefined, ids: string[]): void {
-  if (!crewId || ids.length === 0) return;
-  void Promise.all(ids.map((id) => purgeCrewFlightFromDbSilently(client, crewId, id)));
+  return { kept: [...list], dbPurgeIds: [] };
 }
 
 type Flight = {
@@ -758,6 +764,8 @@ type Flight = {
   aircraft_registration?: string | null;
   /** Aircraft type code when known (e.g. A333). */
   aircraft_type?: string | null;
+  /** Slim hard-archive snapshot; never polled. */
+  _archived?: boolean;
   crew_profiles?: { company_name: string | null } | { company_name: string | null }[] | null;
 };
 
@@ -793,8 +801,27 @@ function flightPhaseComputeArgs(f: Flight, nowMs: number) {
   };
 }
 
+/** Aynı mantıksal satır (yeniden import / arşiv-canlı) tek kartta kalsın. */
+function rosterLogicalDedupeKey(r: Flight): string {
+  const kind = (r.roster_entry_kind ?? 'flight').toLowerCase();
+  const date = r.flight_date ?? '';
+  const num = (r.flight_number ?? '').trim().toUpperCase();
+  if (kind === 'flight') {
+    return [
+      'flight',
+      date,
+      num,
+      (r.origin_airport ?? '').trim().toUpperCase(),
+      (r.destination_airport ?? '').trim().toUpperCase(),
+    ].join('|');
+  }
+  // Görev / OFF / sim: id değil gün+tür+kod (arşiv ile canlı farklı id üretebiliyor)
+  return ['duty', date, kind, num].join('|');
+}
+
 function dedupeVisibleRosterRows(rows: Flight[]): Flight[] {
   const score = (r: Flight) =>
+    Number(!r._archived) * 20 +
     Number(!!r.actual_departure) +
     Number(!!r.actual_arrival) +
     Number(!!r.estimated_departure) +
@@ -803,20 +830,7 @@ function dedupeVisibleRosterRows(rows: Flight[]): Flight[] {
     Number(!!r.fr24_datetime_landed_utc);
   const byKey = new Map<string, Flight>();
   for (const r of rows) {
-    const kind = (r.roster_entry_kind ?? 'flight').toLowerCase();
-    if (kind !== 'flight') {
-      byKey.set(`id:${r.id}`, r);
-      continue;
-    }
-    const key = [
-      kind,
-      r.flight_date ?? '',
-      (r.flight_number ?? '').trim().toUpperCase(),
-      (r.origin_airport ?? '').trim().toUpperCase(),
-      (r.destination_airport ?? '').trim().toUpperCase(),
-      r.scheduled_departure ?? '',
-      r.scheduled_arrival ?? '',
-    ].join('|');
+    const key = rosterLogicalDedupeKey(r);
     const prev = byKey.get(key);
     if (!prev || score(r) > score(prev)) byKey.set(key, r);
   }
@@ -824,32 +838,200 @@ function dedupeVisibleRosterRows(rows: Flight[]): Flight[] {
 }
 
 /** Fetch flight IDs for a crew: flight_crew first, then fallback to flights.crew_id (legacy inserts). */
-async function fetchFlightIdsForCrew(supabaseClient: ReturnType<typeof supabase>, crewId: string, minFlightDate: string): Promise<string[]> {
-  const { data: fcData } = await supabaseClient
+async function fetchFlightIdsForCrew(
+  supabaseClient: SupabaseClient,
+  crewId: string,
+  minFlightDate: string,
+): Promise<{ ids: string[]; networkFailed: boolean }> {
+  const { data: fcData, error: fcErr } = await supabaseClient
     .from('flight_crew')
     .select('flight_id')
     .eq('crew_id', crewId);
+  if (fcErr && looksLikeNetworkFailure(fcErr.message)) {
+    return { ids: [], networkFailed: true };
+  }
   let ids: string[] = [];
   if (fcData?.length) {
     ids = [...new Set((fcData as { flight_id: string }[]).map((r) => r.flight_id))];
   }
-  const { data: flightsByCrew } = await supabaseClient
+  const { data: flightsByCrew, error: legacyErr } = await supabaseClient
     .from('flights')
     .select('id')
     .eq('crew_id', crewId)
     .gte('flight_date', minFlightDate);
-  const legacyIds = (flightsByCrew ?? []).map((f) => f.id);
+  if (legacyErr && looksLikeNetworkFailure(legacyErr.message) && ids.length === 0) {
+    return { ids: [], networkFailed: true };
+  }
+  const legacyIds = legacyErr ? [] : ((flightsByCrew ?? []) as { id: string }[]).map((f) => f.id);
   const combined = [...new Set([...ids, ...legacyIds])];
-  const { data: flights } = await supabaseClient
+  if (combined.length === 0) return { ids: [], networkFailed: false };
+  const { data: flights, error: filterErr } = await supabaseClient
     .from('flights')
     .select('id')
     .in('id', combined)
     .gte('flight_date', minFlightDate);
-  return (flights ?? []).map((f) => f.id);
+  if (filterErr && looksLikeNetworkFailure(filterErr.message)) {
+    return { ids: [], networkFailed: true };
+  }
+  return { ids: ((flights ?? []) as { id: string }[]).map((f) => f.id), networkFailed: false };
+}
+
+function mapArchiveSnapshotToFlight(row: {
+  original_flight_id: string;
+  flight_date?: string | null;
+  flight_snapshot?: Record<string, unknown> | null;
+}): Flight | null {
+  const snap = row.flight_snapshot;
+  if (!snap || typeof snap !== 'object') return null;
+  const id = String(snap.id ?? row.original_flight_id ?? '').trim();
+  if (!id) return null;
+  return {
+    id,
+    flight_number: String(snap.flight_number ?? ''),
+    origin_airport: (snap.origin_airport as string | null) ?? null,
+    destination_airport: (snap.destination_airport as string | null) ?? null,
+    origin_city: (snap.origin_city as string | null) ?? null,
+    destination_city: (snap.destination_city as string | null) ?? null,
+    flight_date: String(snap.flight_date ?? row.flight_date ?? ''),
+    scheduled_departure: (snap.scheduled_departure as string | null) ?? null,
+    scheduled_arrival: (snap.scheduled_arrival as string | null) ?? null,
+    actual_departure: (snap.actual_departure as string | null) ?? null,
+    actual_arrival: (snap.actual_arrival as string | null) ?? null,
+    delay_dep_min: (snap.delay_dep_min as number | null) ?? null,
+    delay_arr_min: (snap.delay_arr_min as number | null) ?? null,
+    is_delayed: (snap.is_delayed as boolean | null) ?? null,
+    flight_status: (snap.flight_status as string | null) ?? null,
+    internal_status: (snap.internal_status as string | null) ?? null,
+    diverted_to: (snap.diverted_to as string | null) ?? null,
+    api_refresh_phase: 'passive_past',
+    phase_active_locked: false,
+    estimated_departure: (snap.estimated_departure as string | null) ?? null,
+    estimated_arrival: (snap.estimated_arrival as string | null) ?? null,
+    roster_entry_kind: (snap.roster_entry_kind as string | null) ?? 'flight',
+    duty_rest_end: (snap.duty_rest_end as string | null) ?? null,
+    roster_detail: (snap.roster_detail as string | null) ?? null,
+    aircraft_registration: (snap.aircraft_registration as string | null) ?? null,
+    aircraft_type: (snap.aircraft_type as string | null) ?? null,
+    fr24_progress_dep_utc: (snap.fr24_progress_dep_utc as string | null) ?? null,
+    fr24_progress_eta_utc: (snap.fr24_progress_eta_utc as string | null) ?? null,
+    fr24_datetime_takeoff_utc: (snap.fr24_datetime_takeoff_utc as string | null) ?? null,
+    fr24_datetime_landed_utc: (snap.fr24_datetime_landed_utc as string | null) ?? null,
+    fr24_first_seen_utc: (snap.fr24_first_seen_utc as string | null) ?? null,
+    airlabs_progress_percent: (snap.airlabs_progress_percent as number | null) ?? null,
+    _archived: true,
+  };
+}
+
+/** Slim card history: past_12h_slim_card (+ live_delete with _archived snapshot). ~12 ay. */
+async function fetchArchivedRosterCardFlights(
+  supabaseClient: SupabaseClient,
+  crewIds: string[],
+  minFlightDate: string,
+): Promise<Flight[]> {
+  const ids = [...new Set(crewIds.filter(Boolean))];
+  if (ids.length === 0) return [];
+
+  const selectCols = 'original_flight_id, flight_date, flight_snapshot, archived_reason';
+  const reasons = ['past_12h_slim_card', 'live_delete'];
+
+  // İki sorgu: tek .or() + uuid array filtreleri bazen boş dönebiliyor.
+  const byCrewIdPromise =
+    ids.length === 1
+      ? supabaseClient
+          .from('flights_archive')
+          .select(selectCols)
+          .in('archived_reason', reasons)
+          .gte('flight_date', minFlightDate)
+          .eq('crew_id', ids[0])
+          .limit(800)
+      : supabaseClient
+          .from('flights_archive')
+          .select(selectCols)
+          .in('archived_reason', reasons)
+          .gte('flight_date', minFlightDate)
+          .in('crew_id', ids)
+          .limit(800);
+
+  const byCrewIdsPromise = supabaseClient
+    .from('flights_archive')
+    .select(selectCols)
+    .in('archived_reason', reasons)
+    .gte('flight_date', minFlightDate)
+    .overlaps('crew_ids', ids)
+    .limit(800);
+
+  const [r1, r2] = await Promise.all([byCrewIdPromise, byCrewIdsPromise]);
+  if (r1.error) console.log('[Roster] flights_archive by crew_id failed', r1.error.message);
+  if (r2.error) console.log('[Roster] flights_archive by crew_ids failed', r2.error.message);
+
+  type ArchRow = {
+    original_flight_id: string;
+    flight_date?: string | null;
+    flight_snapshot?: Record<string, unknown> | null;
+    archived_reason?: string | null;
+  };
+  const byId = new Map<string, ArchRow>();
+  for (const row of [...(r1.data ?? []), ...(r2.data ?? [])] as ArchRow[]) {
+    const k = String(row.original_flight_id || '');
+    if (k && !byId.has(k)) byId.set(k, row);
+  }
+  if (byId.size === 0) return [];
+
+  const out: Flight[] = [];
+  for (const row of byId.values()) {
+    const reason = (row.archived_reason ?? '').toLowerCase();
+    const snap = row.flight_snapshot;
+    const flag = String(snap?._archived ?? '').toLowerCase();
+    const isSlimCard =
+      reason === 'past_12h_slim_card' ||
+      flag === 'true' ||
+      flag === 't' ||
+      flag === '1' ||
+      snap?._archived === true;
+    if (!isSlimCard) continue;
+    const f = mapArchiveSnapshotToFlight(row);
+    if (f?.flight_date) out.push(f);
+  }
+  return out;
+}
+
+function mergeLiveAndArchivedRoster(live: Flight[], archived: Flight[]): Flight[] {
+  if (archived.length === 0) return live;
+  const liveIds = new Set(live.map((f) => f.id));
+  const liveKeys = new Set(live.map((f) => rosterLogicalDedupeKey(f)));
+  // Canlıda zaten olan mantıksal uçuş/görev için eski arşiv kartını ekleme (yeniden import farklı id üretir).
+  const extras = archived.filter(
+    (a) => !liveIds.has(a.id) && !liveKeys.has(rosterLogicalDedupeKey(a)),
+  );
+  if (extras.length === 0) return live;
+  return dedupeVisibleRosterRows([...live, ...extras]);
+}
+
+async function fetchCrewLiveRosterRows(
+  supabaseClient: SupabaseClient,
+  crewId: string,
+  liveMinDate: string,
+): Promise<{ rows: Flight[]; networkFailed: boolean }> {
+  const { ids: flightIds, networkFailed } = await fetchFlightIdsForCrew(
+    supabaseClient,
+    crewId,
+    liveMinDate,
+  );
+  if (networkFailed) return { rows: [], networkFailed: true };
+  if (flightIds.length === 0) return { rows: [], networkFailed: false };
+  const { data, error } = await fetchCrewRosterFlightsByIds(supabaseClient, flightIds);
+  if (error) {
+    return {
+      rows: [],
+      networkFailed: looksLikeNetworkFailure(error.message),
+    };
+  }
+  if (!data) return { rows: [], networkFailed: false };
+  return { rows: mapCrewRosterFetchedRows(data) as Flight[], networkFailed: false };
 }
 
 /** Fetch flight IDs for family: flight_crew + fallback flights.crew_id (legacy). crew_id yoksa sadece flight_crew kullan. */
-async function fetchFlightIdsForFamily(supabaseClient: ReturnType<typeof supabase>, crewIds: string[], minFlightDate: string): Promise<string[]> {
+async function fetchFlightIdsForFamily(supabaseClient: SupabaseClient, crewIds: string[], minFlightDate: string): Promise<string[]> {
   if (crewIds.length === 0) return [];
   const { data: fcData } = await supabaseClient
     .from('flight_crew')
@@ -862,7 +1044,7 @@ async function fetchFlightIdsForFamily(supabaseClient: ReturnType<typeof supabas
     .select('id')
     .in('crew_id', crewIds)
     .gte('flight_date', minFlightDate);
-  const legacyIds = legacyErr ? [] : (byCrewId ?? []).map((f) => f.id);
+  const legacyIds = legacyErr ? [] : ((byCrewId ?? []) as { id: string }[]).map((f) => f.id);
   const combined = [...new Set([...ids, ...legacyIds])];
   if (combined.length === 0) return [];
   const { data: flights } = await supabaseClient
@@ -879,50 +1061,6 @@ function resolveRosterTodayYmd(crewUtcView: boolean, familyRosterTz: string | nu
   if (crewUtcView) return getUtcDateString();
   if (familyRosterTz) return getCalendarDateStringInTimeZone(new Date(), familyRosterTz);
   return getLocalDateString();
-}
-
-function rosterListGroupDateForAnchor(
-  f: Flight,
-  crewUtcView: boolean,
-  familyRosterTz: string | null,
-): string {
-  if (crewUtcView) return rosterCrewUtcGroupDate(f);
-  if (familyRosterTz) {
-    return (
-      calendarDateFromUtcIsoInTimeZone(f.scheduled_departure, familyRosterTz) ??
-      calendarDateFromUtcIsoInTimeZone(f.scheduled_arrival, familyRosterTz) ??
-      f.flight_date
-    );
-  }
-  return f.flight_date;
-}
-
-/** Canlı uçuş yardımcıları → `lib/rosterFlightClear`. */
-
-/**
- * Açılışta tepeye alınacak gün: canlı uçuş varsa onun liste günü
- * (ertesi güne taşsa bile); yoksa null → bugün kullanılır.
- */
-function findLiveRosterAnchorYmd(
-  rows: Flight[],
-  crewUtcView: boolean,
-  familyRosterTz: string | null,
-): string | null {
-  let best: { ymd: string; depMs: number } | null = null;
-  for (const f of rows) {
-    if (!isLiveAirborneFlight(f)) continue;
-    const ymd = rosterListGroupDateForAnchor(f, crewUtcView, familyRosterTz);
-    if (!ymd) continue;
-    const depMs =
-      parseUtcMsStatic(f.actual_departure) ||
-      parseUtcMsStatic(f.fr24_datetime_takeoff_utc) ||
-      parseUtcMsStatic(f.scheduled_departure) ||
-      0;
-    if (!best || depMs < best.depMs || (depMs === best.depMs && ymd < best.ymd)) {
-      best = { ymd, depMs };
-    }
-  }
-  return best?.ymd ?? null;
 }
 
 export default function Roster({
@@ -956,9 +1094,16 @@ export default function Roster({
   } | null>(null);
   useEffect(() => {
     void hydrateLocalOccupationOverrides();
-    return subscribeLocalOccupationOverrides(() => {
+    const unsubLocal = subscribeLocalOccupationOverrides(() => {
       setOccupationSuggestTick((n) => n + 1);
     });
+    const unsubCatalog = subscribeOccupationCatalog(() => {
+      setOccupationSuggestTick((n) => n + 1);
+    });
+    return () => {
+      unsubLocal();
+      unsubCatalog();
+    };
   }, []);
 
   const [liveMetricsById, setLiveMetricsById] = useState<Record<string, { gs?: number; altFt?: number; atUtc?: string }>>({});
@@ -976,13 +1121,14 @@ export default function Roster({
   const [updatingTimes, setUpdatingTimes] = useState(false);
   const [refreshingList, setRefreshingList] = useState(false);
   const [syncError, setSyncError] = useState(false);
+  const [rosterOffline, setRosterOffline] = useState(false);
   const syncInFlightRef = useRef(false);
   const [sendingToFamily, setSendingToFamily] = useState(false);
   const [cleanupMessage, setCleanupMessage] = useState<string | null>(null);
   const [nowTick, setNowTick] = useState(0);
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
-  /** Program içi roster değiştirici kaldırıldı — peer yalnızca 4. sekme. */
+  /** Program içi roster değiştirici yok — her takip edilen crew ayrı alt sekme. */
   const effectivePeerView = peerView ?? null;
   const isPeerViewer = Boolean(effectivePeerView?.peerCrewId);
   /** Ortak boş günler (kendi Program + peer sekmesi). */
@@ -1002,6 +1148,12 @@ export default function Roster({
   const isCrew = profile?.role === 'crew' && !isPeerViewer;
   const flightsRef = useRef<Flight[]>([]);
   flightsRef.current = flights;
+  /** Son başarılı focus network yüklemesi (throttle). */
+  const lastFocusLoadMsRef = useRef(0);
+  /** Lazy slim-archive bellek; focus live-only ile birleşir. */
+  const archivedFlightsRef = useRef<Flight[]>([]);
+  const archiveHydratedAtMsRef = useRef(0);
+  const archiveLoadInFlightRef = useRef<Promise<void> | null>(null);
 
   useEffect(() => {
     setAircraftRegById((prev) => {
@@ -1036,6 +1188,15 @@ export default function Roster({
   const [syncNowMs, setSyncNowMs] = useState(() => Date.now());
   const todayStr = getLocalDateString();
   const [selectedDate, setSelectedDate] = useState<string>(() => todayStr);
+  const selectedDateRef = useRef(selectedDate);
+  selectedDateRef.current = selectedDate;
+  /** Liste kaydırınca takvim haftası/seçim senkronu (effect animasyon bayrağı). */
+  const calendarSyncFromListRef = useRef(false);
+  /** Bugün viewport’ta değilse FAB; debounce ile titreme yok. */
+  const [showTodayFab, setShowTodayFab] = useState(false);
+  const showTodayFabTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** goToToday / programatik kaydırma: viewability + takvim momentum eski konuma çekmesin. */
+  const listScrollPinUntilRef = useRef(0);
   const sharedOffSet = useMemo(() => new Set(sharedOffDates), [sharedOffDates]);
   const sharedOffThisMonth = useMemo(() => {
     const ym = selectedDate.slice(0, 7);
@@ -1049,15 +1210,30 @@ export default function Roster({
   const [addFlightMenuVisible, setAddFlightMenuVisible] = useState(false);
   const [calendarExpanded, setCalendarExpanded] = useState(false);
   const [calendarMonth, setCalendarMonth] = useState(() => todayStr.slice(0, 7));
+  /** Liste FlatList geriye bakış (gün); focus’ta 0; chip/takvim ile artar. */
+  const [listPastDaysBack, setListPastDaysBack] = useState(LIST_INITIAL_PAST_DAYS);
+  /**
+   * Boş gün başlığı yalnız programatik hedef için (takvim / açılış / eklenen uçuş).
+   * viewability `selectedDate` ile enjekte etme — scroll sırasında liste şişip söner = sıçrama.
+   */
+  const [listEnsureEmptyYmd, setListEnsureEmptyYmd] = useState<string | null>(null);
+  /** Ölçülen satır yükseklikleri — liste yapı/past değişince sıfırlanır. */
+  const itemHeightsRef = useRef<number[]>([]);
   const programmaticListScrollRef = useRef(false);
   /** Takvim gününe basınca listData (boş gün başlığı) güncellenene kadar bekleyen hedef. */
   const pendingListScrollDateRef = useRef<string | null>(null);
   const pendingListScrollClearTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingRosterAnchorRef = useRef<string | null>(null);
-  /** Focus sonrası açılış hizası: `auto` = canlı uçuş varsa onun günü, yoksa bugün; `added` = AddFlight. */
+  /** Takvim/programatik hedef gün; viewability bunu doğrulayana kadar seçimi ezme. */
+  const scrollTargetDateRef = useRef<string | null>(null);
+  /** Focus sonrası açılış hizası: `auto` = bugün tepeye; `added` = AddFlight günü. */
   const openRosterAnchorRef = useRef<null | { kind: 'auto' } | { kind: 'added'; ymd: string }>(null);
-  const liveAnchorYmdPrevRef = useRef<string | null | undefined>(undefined);
   const [rosterAnchorNonce, setRosterAnchorNonce] = useState(0);
+  /**
+   * Sekme dönüşünde FlatList eski contentOffset’i tutar; past shrink üstten satır silince
+   * aynı offset ileriki güne (ör. 30 Eyl) kayar. key değişince liste offset 0’da doğar.
+   */
+  const [listSessionKey, setListSessionKey] = useState(0);
   /** Geçmiş gün takvim renkleri (uçuş listeden düşünce de kırmızı/turuncu/yeşil kalsın). */
   const [persistedDayKinds, setPersistedDayKinds] = useState<Record<string, CalendarDayKind>>({});
   const [familyCrewOptions, setFamilyCrewOptions] = useState<Array<{ id: string; name: string }>>([]);
@@ -1088,6 +1264,75 @@ export default function Roster({
     () => resolveRosterTodayYmd(crewUtcView, familyRosterTz),
     [crewUtcView, familyRosterTz, nowTick, todayStr],
   );
+  const rosterTodayYmdRef = useRef(rosterTodayYmd);
+  rosterTodayYmdRef.current = rosterTodayYmd;
+  const listPastDaysCap = useMemo(
+    () => getRosterMinDaysAgo(exemptLandedAutoPurge, isCrew),
+    [exemptLandedAutoPurge, isCrew],
+  );
+  const listMinYmd = useMemo(
+    () => addUtcDaysToYmd(rosterTodayYmd, -listPastDaysBack),
+    [rosterTodayYmd, listPastDaysBack],
+  );
+  const ensureListPastCoversYmd = useCallback(
+    (ymd: string) => {
+      if (!ymd || calendarDayCardsOnly) return;
+      if (ymd >= rosterTodayYmd) return;
+      const need = calendarDayDiff(ymd, rosterTodayYmd);
+      if (need <= 0) return;
+      setListPastDaysBack((prev) => Math.max(prev, Math.min(listPastDaysCap, need)));
+    },
+    [calendarDayCardsOnly, rosterTodayYmd, listPastDaysCap],
+  );
+  /** Yukarı scroll’da Geçmişi Göster; basınca +7g yerinde kal (MVP), bugüne çekme yok. */
+  const [showPastFab, setShowPastFab] = useState(false);
+  /** Prepend öncesi MVP açık olmalı — yoksa offset 0’da kalıp “bugüne/eskiye” zıplar. */
+  const [listMvpEnabled, setListMvpEnabled] = useState(false);
+  /** Reveal sonrası tepede hemen tekrar açılmasın; önce aşağı inip yeniden tepeye gelsin. */
+  const pastFabNeedsLeaveTopRef = useRef(false);
+  const revealListPastWeek = useCallback(() => {
+    if (calendarDayCardsOnly) return;
+    if (listPastDaysBack >= listPastDaysCap) return;
+    // Stale today-pin / hedef scroll’u iptal — geçmiş açılışta bugüne çekmesin.
+    openRosterAnchorRef.current = null;
+    pendingRosterAnchorRef.current = null;
+    pendingListScrollDateRef.current = null;
+    scrollTargetDateRef.current = null;
+    programmaticListScrollRef.current = false;
+    listScrollPinUntilRef.current = 0;
+    itemHeightsRef.current = [];
+    setShowPastFab(false);
+    pastFabNeedsLeaveTopRef.current = true;
+    // MVP önce açılsın; sonra prepend — yoksa offset 0’da “bugün/eski” zıplaması.
+    setListMvpEnabled(true);
+    requestAnimationFrame(() => {
+      setListPastDaysBack((prev) =>
+        Math.min(listPastDaysCap, prev + LIST_PAST_CHUNK_DAYS),
+      );
+    });
+  }, [calendarDayCardsOnly, listPastDaysBack, listPastDaysCap]);
+  const canRevealMorePast = listPastDaysBack < listPastDaysCap;
+  const onListScrollMaybeShowPastFab = useCallback(
+    (e: { nativeEvent: { contentOffset: { y: number } } }) => {
+      if (calendarDayCardsOnly || !canRevealMorePast) {
+        setShowPastFab(false);
+        return;
+      }
+      if (programmaticListScrollRef.current) return;
+      if (Date.now() < listScrollPinUntilRef.current) return;
+      const y = e.nativeEvent.contentOffset.y;
+      if (pastFabNeedsLeaveTopRef.current) {
+        if (y > 48) pastFabNeedsLeaveTopRef.current = false;
+        else {
+          setShowPastFab(false);
+          return;
+        }
+      }
+      if (y <= 40) setShowPastFab(true);
+      else if (y > 48) setShowPastFab(false);
+    },
+    [calendarDayCardsOnly, canRevealMorePast],
+  );
   const crewUtcViewRef = useRef(crewUtcView);
   crewUtcViewRef.current = crewUtcView;
   const familyRosterTzRef = useRef(familyRosterTz);
@@ -1114,10 +1359,52 @@ export default function Roster({
   const isSyncingMeta = refreshingList;
   const syncMetaLabel = isSyncingMeta
     ? t('nav.lastUpdatedUpdating')
-    : syncError
+    : syncError || rosterOffline
       ? t('nav.lastUpdatedFailed')
-      : `↻ ${rosterSyncMetaText}`;
-  const syncMetaColor = syncError ? '#E67E22' : isSyncingMeta ? colors.primary : colors.textMuted;
+      : rosterSyncMetaText;
+  const syncMetaColor =
+    syncError || rosterOffline ? '#E67E22' : isSyncingMeta ? colors.primary : colors.textMuted;
+  const syncMetaIconColor = syncError || rosterOffline ? '#E67E22' : colors.primary;
+
+  const rosterCacheSubjectKey = useMemo(() => {
+    if (effectivePeerView?.peerCrewId) return `peer:${effectivePeerView.peerCrewId}`;
+    if (isCrew && crewProfile?.id) return `crew:${crewProfile.id}`;
+    if (profile?.id) {
+      const filterId = familyCrewFilterIdRef.current || 'all';
+      return `family:${filterId}`;
+    }
+    return 'unknown';
+  }, [effectivePeerView?.peerCrewId, isCrew, crewProfile?.id, profile?.id, familyCrewFilterId]);
+
+  const persistRosterCache = useCallback(
+    (rows: Flight[]) => {
+      const uid = profile?.id;
+      if (!uid || rosterCacheSubjectKey === 'unknown') return;
+      // Never overwrite a good disk cache with [] — offline fetches often return empty
+      // without throwing, which previously wiped cold-start offline.
+      if (rows.length === 0) return;
+      void saveRosterLocalCache({ userId: uid, subjectKey: rosterCacheSubjectKey, flights: rows });
+    },
+    [profile?.id, rosterCacheSubjectKey],
+  );
+
+  const hydrateRosterFromCache = useCallback(async (): Promise<boolean> => {
+    const uid = profile?.id;
+    if (!uid || rosterCacheSubjectKey === 'unknown') return false;
+    const cached = await loadRosterLocalCache(uid, rosterCacheSubjectKey);
+    if (!cached?.flights?.length) return false;
+    if (flightsRef.current.length > 0) return true;
+    setFlights(cached.flights as Flight[]);
+    if (cached.savedAt > 0) setRosterLastSyncedAt(cached.savedAt);
+    return true;
+  }, [profile?.id, rosterCacheSubjectKey]);
+
+  /** Network/empty fail: keep on-screen list + disk cache; mark offline. */
+  const keepRosterFromCacheOnNetworkFail = useCallback(async () => {
+    setRosterOffline(true);
+    setSyncError(true);
+    if (flightsRef.current.length === 0) await hydrateRosterFromCache();
+  }, [hydrateRosterFromCache]);
 
 
   const listGroupDate = useCallback(
@@ -1152,24 +1439,25 @@ export default function Roster({
       // Soft switch: update "today" without forcing a full list re-scroll (that freezes the UI).
       startTransition(() => {
         setSelectedDate(today);
+        setListEnsureEmptyYmd(null);
         setCalendarMonth(today.slice(0, 7));
       });
     }
   }, [isCrew, rosterListPrefs.time_display, familyRosterTz]);
 
-  /** Uçuş + duty_off satırları gösterilir; sim blokları listede gizlenir. Önümüzdeki N gün. Biten boş gün anında düşer. */
+  /** Uçuş + duty_off satırları gösterilir; sim blokları listede gizlenir. Önümüzdeki N gün. Geçmiş kartlar slim archive ile kalır. */
   const displayFlights = React.useMemo(() => {
-    const now = Date.now();
     const maxDate = getLocalDateStringPlusDays(ROSTER_MAX_DAYS_AHEAD);
+    const minDate = getLocalDateStringPlusDays(-getRosterMinDaysAgo(exemptLandedAutoPurge, isCrew));
     const visible = flights.filter((f) => {
       const kind = (f.roster_entry_kind ?? 'flight').toLowerCase();
       if (kind === 'sim') return false;
-      if (isEndedDutyOffRow(f, now)) return false;
       if ((f.flight_date || '') > maxDate) return false;
+      if ((f.flight_date || '') < minDate) return false;
       return rosterListRowVisible(f, rosterListPrefs);
     });
     return dedupeVisibleRosterRows(visible);
-  }, [flights, rosterListPrefs, todayStr, nowTick]);
+  }, [flights, rosterListPrefs, todayStr, nowTick, exemptLandedAutoPurge, isCrew]);
 
   const reloadFamilyRosterPrefs = useCallback(() => {
     if (profile?.id && (profile.role === 'family' || isPeerViewer)) {
@@ -1194,9 +1482,10 @@ export default function Roster({
     (list: Flight[]) => {
       const now = Date.now();
       const minFlightDateStr = getLocalDateStringPlusDays(
-        -getRosterMinDaysAgo(exemptLandedAutoPurge, isCrew),
+        -getRosterLiveMinDaysAgo(exemptLandedAutoPurge, isCrew),
       );
       return list.filter((f) => {
+        if (f._archived) return false;
         if (f.roster_entry_kind === 'duty_off' || f.roster_entry_kind === 'sim') return false;
         if (f.flight_date < minFlightDateStr) return false;
         if (shouldForceLookupForMissingSchedule(f)) return true;
@@ -1234,7 +1523,17 @@ export default function Roster({
     };
     const toScheduled = rows
       .filter((r) => {
+        if ((r as { _archived?: boolean })._archived) return false;
         if (preserveCancelledOnly(r.flight_status)) return false;
+        const st = (r.flight_status ?? '').toLowerCase();
+        const internal = (r.internal_status ?? '').toLowerCase();
+        const looksLanded =
+          st === 'landed' ||
+          st === 'parked' ||
+          internal === 'landed' ||
+          internal === 'arrived' ||
+          !!r.fr24_datetime_landed_utc ||
+          !!r.actual_arrival;
         // Rule: passive_future must always be scheduled.
         if (
           (r.api_refresh_phase === 'passive_future' || r.api_refresh_phase === 'passive_upcoming' || r.api_refresh_phase === 'semi_active') &&
@@ -1246,18 +1545,17 @@ export default function Roster({
         if (
           r.flight_date > todayLocal &&
           !r.actual_arrival &&
-          (r.flight_status === 'landed' || r.flight_status === 'parked')
+          (r.flight_status === 'landed' || r.flight_status === 'parked' || internal === 'landed')
         ) {
           return true;
         }
         // Extra guard: future date should not remain landed/parked.
-        if (r.flight_date > todayLocal && (r.flight_status === 'landed' || r.flight_status === 'parked')) return true;
-        // Çelişki: planlı kalkış henüz gelmemişken landed olamaz (eski kotarı DB satırları).
+        if (r.flight_date > todayLocal && (r.flight_status === 'landed' || r.flight_status === 'parked' || internal === 'landed')) {
+          return true;
+        }
+        // Çelişki: planlı kalkış henüz gelmemişken landed olamaz (eski/yanlış-gün DB satırları).
         const depMs = parseUtcMsStatic((r as { scheduled_departure?: string | null }).scheduled_departure);
-        if (
-          (r.flight_status === 'landed' || r.flight_status === 'parked') &&
-          depMs > Date.now() + 120_000
-        ) {
+        if (looksLanded && depMs > Date.now() + 120_000) {
           return true;
         }
         return false;
@@ -1267,6 +1565,7 @@ export default function Roster({
 
     const toLanded = rows
       .filter((r) => {
+        if ((r as { _archived?: boolean })._archived) return false;
         if (terminalNoReschedule(r.flight_status)) return false;
         const st = (r.flight_status ?? '').toLowerCase();
         return r.api_refresh_phase === 'passive_past' && st !== 'landed' && st !== 'parked';
@@ -1277,6 +1576,7 @@ export default function Roster({
     // Tampon self-heal: cron faz refresh aksarsa, ETD-30dk eşiğini geçmiş semi_active satırları active+locked yap.
     const toActive = rows
       .filter((r) => {
+        if ((r as { _archived?: boolean })._archived) return false;
         if (r.api_refresh_phase !== 'semi_active') return false;
         if (terminalNoReschedule(r.flight_status)) return false;
         if (landedFromRow(r)) return false;
@@ -1291,7 +1591,19 @@ export default function Roster({
       .filter(Boolean);
 
     if (toScheduled.length > 0) {
-      await supabase.from('flights').update({ flight_status: 'scheduled' }).in('id', toScheduled);
+      await supabase
+        .from('flights')
+        .update({
+          flight_status: 'scheduled',
+          internal_status: 'scheduled',
+          actual_arrival: null,
+          actual_departure: null,
+          fr24_datetime_takeoff_utc: null,
+          fr24_datetime_landed_utc: null,
+          fr24_first_seen_utc: null,
+          last_seen_utc: null,
+        })
+        .in('id', toScheduled);
     }
     if (toLanded.length > 0) {
       await supabase.from('flights').update({ flight_status: 'landed', internal_status: 'landed' }).in('id', toLanded);
@@ -1308,7 +1620,19 @@ export default function Roster({
     const landedSet = new Set(toLanded);
     const activeSet = new Set(toActive);
     return rows.map((r) => {
-      if (scheduledSet.has(r.id)) return { ...r, flight_status: 'scheduled' };
+      if (scheduledSet.has(r.id)) {
+        return {
+          ...r,
+          flight_status: 'scheduled',
+          internal_status: 'scheduled',
+          actual_arrival: null,
+          actual_departure: null,
+          fr24_datetime_takeoff_utc: null,
+          fr24_datetime_landed_utc: null,
+          fr24_first_seen_utc: null,
+          last_seen_utc: null,
+        } as T;
+      }
       if (landedSet.has(r.id)) return { ...r, flight_status: 'landed', internal_status: 'landed' } as T;
       if (activeSet.has(r.id)) return { ...r, api_refresh_phase: 'active', phase_active_locked: true } as T;
       return r;
@@ -1333,17 +1657,60 @@ export default function Roster({
     [displayFlights, selectedDate, listGroupDate]
   );
 
+  /** Session’da home_base boş kaldıysa crew_profiles’ten bir kez çek (yanlış SAW yatısı + FSF gizleme). */
+  const [layoverHomeBaseFallback, setLayoverHomeBaseFallback] = useState<string | null>(null);
+  useEffect(() => {
+    if (!isCrew || isPeerViewer || !crewProfile?.id) {
+      setLayoverHomeBaseFallback(null);
+      return;
+    }
+    const own = (crewProfile.home_base_iata ?? '').trim().toUpperCase();
+    if (own) {
+      setLayoverHomeBaseFallback(null);
+      return;
+    }
+    let cancelled = false;
+    void supabase
+      .from('crew_profiles')
+      .select('home_base_iata')
+      .eq('id', crewProfile.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (cancelled) return;
+        const hb = (data?.home_base_iata ?? '').trim().toUpperCase();
+        setLayoverHomeBaseFallback(hb || null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isCrew, isPeerViewer, crewProfile?.id, crewProfile?.home_base_iata]);
+
   /** Layover pencereleri — crew kendi base’i; aile/peer görüntülenen crew base’i. */
   const layoverHomeBases = useMemo(() => {
     if (isCrew && !isPeerViewer) {
-      const own = (crewProfile?.home_base_iata ?? '').trim().toUpperCase();
+      const own = (crewProfile?.home_base_iata ?? layoverHomeBaseFallback ?? '')
+        .trim()
+        .toUpperCase();
       return own ? [own] : [];
     }
     return viewedCrewHomeBases;
-  }, [isCrew, isPeerViewer, crewProfile?.home_base_iata, viewedCrewHomeBases]);
+  }, [
+    isCrew,
+    isPeerViewer,
+    crewProfile?.home_base_iata,
+    layoverHomeBaseFallback,
+    viewedCrewHomeBases,
+  ]);
+  /** Layover: takvim işaretleri listPast’tan bağımsız (her zaman CALENDAR_RANGE). Liste kartları listMin ile kesilir. */
+  const layoverSourceFlights = useMemo(() => {
+    const calendarFloor = addUtcDaysToYmd(rosterTodayYmd, -(CALENDAR_RANGE_DAYS_BACK + 2));
+    const listFloor = addUtcDaysToYmd(listMinYmd, -2);
+    const padYmd = calendarFloor < listFloor ? calendarFloor : listFloor;
+    return flights.filter((f) => (f.flight_date || '') >= padYmd);
+  }, [flights, listMinYmd, rosterTodayYmd]);
   const layoverWindows = useMemo(
-    () => computeLayoverWindows(flights, layoverHomeBases),
-    [flights, layoverHomeBases],
+    () => computeLayoverWindows(layoverSourceFlights, layoverHomeBases),
+    [layoverSourceFlights, layoverHomeBases],
   );
   const layoverDateSet = useMemo(() => layoverDatesFromWindows(layoverWindows), [layoverWindows]);
   /** “Sadece uçuş” açıkken yatı / nöbet / boş gün işaretleri takvimde de gizlenir. */
@@ -1362,11 +1729,7 @@ export default function Roster({
   const allFlightsSorted = React.useMemo(() => {
     const interiorLayoverDays = new Set<string>();
     for (const w of layoverWindows) {
-      let cur = addUtcDaysToYmd(w.startYmd, 1);
-      while (cur < w.endYmd) {
-        interiorLayoverDays.add(cur);
-        cur = addUtcDaysToYmd(cur, 1);
-      }
+      for (const d of layoverInteriorDates(w)) interiorLayoverDays.add(d);
     }
     const datesWithFlight = new Set<string>();
     for (const f of displayFlights) {
@@ -1375,13 +1738,29 @@ export default function Roster({
       if (rk !== 'flight') continue;
       const code = (f.flight_number || '').trim().toUpperCase();
       if (isOffDayOccupationCode(code) || isStandbyOccupationCode(code)) continue;
-      datesWithFlight.add(listGroupDate(f));
+      const g = listGroupDate(f);
+      if (!calendarDayCardsOnly && g < listMinYmd) continue;
+      datesWithFlight.add(g);
     }
     const copy = displayFlights.filter((f) => {
       if (isLayoverPlaceholder(f)) return false;
       const kind = (f.roster_entry_kind ?? 'flight').toLowerCase();
       const ymd = listGroupDate(f);
-      if (kind === 'duty_off' && interiorLayoverDays.has(ymd)) return false;
+      if (!calendarDayCardsOnly && ymd < listMinYmd) return false;
+      // Ara gün: yalnız isimsiz duty_off gizle. FSF/FOF/STBYC/COTD üs-yanlış yatı span’inde kaybolmasın.
+      if (kind === 'duty_off' && interiorLayoverDays.has(ymd)) {
+        const code = (f.flight_number || '').trim().toUpperCase();
+        const keepNamed =
+          isOffDayOccupationCode(code) ||
+          isStandbyOccupationCode(code) ||
+          isTrainingOccupationCode(code) ||
+          isHomeDutyOccupationCode(code) ||
+          isGroundDutyOccupationCode(code) ||
+          isOfficeDutyOccupationCode(code) ||
+          code === 'COTD' ||
+          code.startsWith('COTD');
+        if (!keepNamed) return false;
+      }
       // Uçuş gününde FOF/OFF/AVAC vb. gösterme (XQ613 gece dönüş + 24 OFF).
       if (kind === 'duty_off' && datesWithFlight.has(ymd)) return false;
       return true;
@@ -1393,7 +1772,14 @@ export default function Roster({
       return sortByDepartureAsc(a, b);
     });
     return copy;
-  }, [displayFlights, sortByDepartureAsc, listGroupDate, layoverWindows]);
+  }, [
+    displayFlights,
+    sortByDepartureAsc,
+    listGroupDate,
+    layoverWindows,
+    listMinYmd,
+    calendarDayCardsOnly,
+  ]);
   /**
    * Sticky-ish day headers + flight rows.
    * Aynı gün içindeki kartlar eşit aralıklı; günler arası ayrım dayHeader ile.
@@ -1419,27 +1805,44 @@ export default function Roster({
         station: string;
         windowKey: string;
         inboundId: string;
+        outboundId: string;
       };
+  /** Takvim görünümü dışında selectedDate listData’yı yeniden üretmesin (liste→takvim sync sıçratmasın). */
+  const listDataDayFocus = calendarDayCardsOnly ? selectedDate : null;
   const listData = React.useMemo((): ListEntry[] => {
     const byDate = new Map<string, Flight[]>();
+    const dayCardsOnly = !!listDataDayFocus;
     for (const f of allFlightsSorted) {
       const g = listGroupDate(f);
+      // Liste: listMinYmd altını FlatList’e hiç koyma (açılış/navigasyon maliyeti).
+      if (dayCardsOnly) {
+        if (g !== listDataDayFocus) continue;
+      } else if (g < listMinYmd) {
+        continue;
+      }
       if (!byDate.has(g)) byDate.set(g, []);
       byDate.get(g)!.push(f);
     }
     // Layover başlangıç günü listede yoksa boş gün için başlık oluştur
     for (const w of layoverWindows) {
+      if (dayCardsOnly) {
+        if (w.startYmd !== listDataDayFocus) continue;
+      } else if (w.startYmd < listMinYmd) {
+        continue;
+      }
       if (!byDate.has(w.startYmd)) byDate.set(w.startYmd, []);
     }
-    // Bugün/seçili gün boşsa sticky başlık + empty satırı için dahil et
-    for (const ymd of [rosterTodayYmd, selectedDate]) {
-      if (ymd && !byDate.has(ymd)) byDate.set(ymd, []);
+    // Bugün + programatik boş gün hedefi (takvim/açılış). Scroll-selectedDate enjekte etme.
+    const ensureYmds = dayCardsOnly
+      ? [listDataDayFocus]
+      : [rosterTodayYmd, listEnsureEmptyYmd];
+    for (const ymd of ensureYmds) {
+      if (!ymd) continue;
+      if (dayCardsOnly && ymd !== listDataDayFocus) continue;
+      if (!dayCardsOnly && ymd < listMinYmd) continue;
+      if (!byDate.has(ymd)) byDate.set(ymd, []);
     }
-    const sortedDates = [...byDate.keys()].sort();
-    const datesToRender =
-      calendarDayCardsOnly && selectedDate
-        ? sortedDates.filter((ymd) => ymd === selectedDate)
-        : sortedDates;
+    const datesToRender = [...byDate.keys()].sort();
     const rebuilt: ListEntry[] = [];
     let gIdx = -1;
     for (const ymd of datesToRender) {
@@ -1486,6 +1889,7 @@ export default function Roster({
           station: w.station,
           windowKey: w.key,
           inboundId: w.inboundId,
+          outboundId: w.outboundId,
         });
       }
     }
@@ -1495,9 +1899,11 @@ export default function Roster({
     listGroupDate,
     layoverWindows,
     rosterTodayYmd,
-    selectedDate,
-    calendarDayCardsOnly,
+    listDataDayFocus,
+    listEnsureEmptyYmd,
+    listMinYmd,
   ]);
+
   const flightsSorted = React.useMemo(() => {
     const copy = [...flightsForSelectedDay];
     copy.sort(sortByDepartureAsc);
@@ -1613,38 +2019,80 @@ export default function Roster({
       // Update in two phases so missing actual_* columns don't block scheduled_* updates.
       const payloadScheduled = {} as Record<string, unknown>;
       const toIata = (code: string | undefined) => (code ? (getAirportDisplay(code)?.iata ?? code) : undefined);
-      if (effectiveInfo.scheduled_departure_utc != null) payloadScheduled.scheduled_departure = effectiveInfo.scheduled_departure_utc;
-      if (effectiveInfo.scheduled_arrival_utc != null) payloadScheduled.scheduled_arrival = effectiveInfo.scheduled_arrival_utc;
+      const rosterStdMs = parseUtcMsStatic(flight.scheduled_departure);
+      const rosterStaMs = parseUtcMsStatic(flight.scheduled_arrival);
+      const providerStdMs = parseUtcMsStatic(effectiveInfo.scheduled_departure_utc);
+      const providerStaMs = parseUtcMsStatic(effectiveInfo.scheduled_arrival_utc);
+      const within12h = (a: number, b: number) => a > 0 && b > 0 && Math.abs(a - b) <= 12 * 60 * 60 * 1000;
+      // Roster STD/STA are source of truth — never overwrite with previous-day provider times.
+      if (effectiveInfo.scheduled_departure_utc != null) {
+        if (!rosterStdMs || within12h(providerStdMs, rosterStdMs)) {
+          payloadScheduled.estimated_departure = effectiveInfo.scheduled_departure_utc;
+        }
+      }
+      if (effectiveInfo.scheduled_arrival_utc != null) {
+        if (!rosterStaMs || within12h(providerStaMs, rosterStaMs)) {
+          payloadScheduled.estimated_arrival = effectiveInfo.scheduled_arrival_utc;
+        }
+      }
       if (effectiveInfo.origin) payloadScheduled.origin_airport = toIata(effectiveInfo.origin) ?? effectiveInfo.origin;
       if (effectiveInfo.destination) payloadScheduled.destination_airport = toIata(effectiveInfo.destination) ?? effectiveInfo.destination;
       if (effectiveInfo.originCity != null) payloadScheduled.origin_city = effectiveInfo.originCity;
       if (effectiveInfo.destinationCity != null) payloadScheduled.destination_city = effectiveInfo.destinationCity;
       if (effectiveInfo.flightStatus != null) {
-        payloadScheduled.flight_status = effectiveInfo.flightStatus;
-        const mir = internalStatusMirrorFromApiFlightStatus(effectiveInfo.flightStatus);
-        if (mir != null) (payloadScheduled as any).internal_status = mir;
+        const st = String(effectiveInfo.flightStatus).toLowerCase();
+        const beforeStd = rosterStdMs > 0 && Date.now() < rosterStdMs - 120_000;
+        // Do not accept provider landed/en_route before roster STD (wrong-day legs).
+        if (beforeStd && (st === 'landed' || st === 'parked' || st === 'en_route' || st === 'departed' || st === 'taxi_out')) {
+          payloadScheduled.flight_status = 'scheduled';
+          (payloadScheduled as any).internal_status = 'scheduled';
+        } else {
+          payloadScheduled.flight_status = effectiveInfo.flightStatus;
+          const mir = internalStatusMirrorFromApiFlightStatus(effectiveInfo.flightStatus);
+          if (mir != null) (payloadScheduled as any).internal_status = mir;
+        }
       }
-      if (effectiveInfo.lastTrackUtc) (payloadScheduled as any).last_seen_utc = effectiveInfo.lastTrackUtc;
+      if (effectiveInfo.lastTrackUtc) {
+        const lastMs = parseUtcMsStatic(effectiveInfo.lastTrackUtc);
+        if (!rosterStdMs || (lastMs > 0 && Math.abs(lastMs - rosterStdMs) <= 18 * 60 * 60 * 1000)) {
+          (payloadScheduled as any).last_seen_utc = effectiveInfo.lastTrackUtc;
+        }
+      }
       if (effectiveInfo.delayed != null) payloadScheduled.is_delayed = effectiveInfo.delayed;
       if ((effectiveInfo as any).delayDepMin != null) payloadScheduled.delay_dep_min = (effectiveInfo as any).delayDepMin;
       if ((effectiveInfo as any).delayArrMin != null) payloadScheduled.delay_arr_min = (effectiveInfo as any).delayArrMin;
       if (effectiveInfo.divertedTo != null) payloadScheduled.diverted_to = effectiveInfo.divertedTo;
       if (effectiveInfo.fr24_progress_dep_utc != null) {
-        (payloadScheduled as any).fr24_progress_dep_utc = effectiveInfo.fr24_progress_dep_utc;
+        const depMs = parseUtcMsStatic(effectiveInfo.fr24_progress_dep_utc);
+        if (!rosterStdMs || (depMs > 0 && Math.abs(depMs - rosterStdMs) <= 12 * 60 * 60 * 1000)) {
+          (payloadScheduled as any).fr24_progress_dep_utc = effectiveInfo.fr24_progress_dep_utc;
+        }
       }
       if (effectiveInfo.fr24_progress_eta_utc != null) {
-        (payloadScheduled as any).fr24_progress_eta_utc = effectiveInfo.fr24_progress_eta_utc;
+        const etaMs = parseUtcMsStatic(effectiveInfo.fr24_progress_eta_utc);
+        if (!rosterStaMs || (etaMs > 0 && Math.abs(etaMs - rosterStaMs) <= 18 * 60 * 60 * 1000)) {
+          (payloadScheduled as any).fr24_progress_eta_utc = effectiveInfo.fr24_progress_eta_utc;
+        }
       }
       const takeoffUtc =
         effectiveInfo.fr24_datetime_takeoff_utc ?? (effectiveInfo as { datetime_takeoff_utc?: string }).datetime_takeoff_utc;
       if (takeoffUtc != null) {
-        (payloadScheduled as any).fr24_datetime_takeoff_utc = takeoffUtc;
+        const takeoffMs = parseUtcMsStatic(takeoffUtc);
+        if (!rosterStdMs || (takeoffMs > 0 && Math.abs(takeoffMs - rosterStdMs) <= 12 * 60 * 60 * 1000)) {
+          (payloadScheduled as any).fr24_datetime_takeoff_utc = takeoffUtc;
+        }
       }
       if (effectiveInfo.first_seen_utc != null) {
-        (payloadScheduled as any).fr24_first_seen_utc = effectiveInfo.first_seen_utc;
+        const firstMs = parseUtcMsStatic(effectiveInfo.first_seen_utc);
+        if (!rosterStdMs || (firstMs > 0 && Math.abs(firstMs - rosterStdMs) <= 12 * 60 * 60 * 1000)) {
+          (payloadScheduled as any).fr24_first_seen_utc = effectiveInfo.first_seen_utc;
+        }
       }
       if (effectiveInfo.fr24_datetime_landed_utc != null) {
-        (payloadScheduled as any).fr24_datetime_landed_utc = effectiveInfo.fr24_datetime_landed_utc;
+        const landMs = parseUtcMsStatic(effectiveInfo.fr24_datetime_landed_utc);
+        if (!rosterStaMs || (landMs > 0 && Math.abs(landMs - rosterStaMs) <= 18 * 60 * 60 * 1000)) {
+          (payloadScheduled as any).fr24_datetime_landed_utc = effectiveInfo.fr24_datetime_landed_utc;
+        }
       } else if (effectiveInfo.flightStatus && effectiveInfo.flightStatus !== 'landed') {
         // Avoid stale 100% bar from previously stored landed timestamp.
         (payloadScheduled as any).fr24_datetime_landed_utc = null;
@@ -1661,25 +2109,22 @@ export default function Roster({
         (payloadScheduled as any).aircraft_registration = regToSave;
       }
 
-      // Etiket: planlı kalkışın UTC takvim günü (çakışan başka satır yoksa flight_date güncellenir).
-      const depUtcStr = effectiveInfo.scheduled_departure_utc;
-      if (typeof depUtcStr === 'string' && depUtcStr.length >= 10) {
-        const utcDay = depUtcStr.slice(0, 10);
-        if (/^\d{4}-\d{2}-\d{2}$/.test(utcDay) && utcDay !== flight.flight_date) {
-          const { data: clash } = await supabase
-            .from('flights')
-            .select('id')
-            .eq('flight_number', flight.flight_number)
-            .eq('flight_date', utcDay)
-            .neq('id', flight.id)
-            .maybeSingle();
-          if (!clash) payloadScheduled.flight_date = utcDay;
-        }
-      }
+      // Do NOT rewrite flight_date from provider UTC day — wrong-day legs moved PC398 20→19.
 
       const payloadActual = {} as Record<string, unknown>;
-      if (effectiveInfo.actual_departure_utc != null) payloadActual.actual_departure = effectiveInfo.actual_departure_utc;
-      if (effectiveInfo.actual_arrival_utc != null) payloadActual.actual_arrival = effectiveInfo.actual_arrival_utc;
+      const beforeStdNow = rosterStdMs > 0 && Date.now() < rosterStdMs - 120_000;
+      if (effectiveInfo.actual_departure_utc != null && !beforeStdNow) {
+        const adMs = parseUtcMsStatic(effectiveInfo.actual_departure_utc);
+        if (!rosterStdMs || (adMs > 0 && Math.abs(adMs - rosterStdMs) <= 12 * 60 * 60 * 1000)) {
+          payloadActual.actual_departure = effectiveInfo.actual_departure_utc;
+        }
+      }
+      if (effectiveInfo.actual_arrival_utc != null && !beforeStdNow) {
+        const aaMs = parseUtcMsStatic(effectiveInfo.actual_arrival_utc);
+        if (!rosterStaMs || (aaMs > 0 && Math.abs(aaMs - rosterStaMs) <= 18 * 60 * 60 * 1000)) {
+          payloadActual.actual_arrival = effectiveInfo.actual_arrival_utc;
+        }
+      }
 
       if (Object.keys(payloadScheduled).length > 0) {
         if (debugKey === 'PC2088' || debugKey === 'PC2199') console.log(`[${debugKey}] Updating DB with payloadScheduled.flight_status =`, payloadScheduled.flight_status);
@@ -1782,60 +2227,173 @@ export default function Roster({
     await Promise.all(workers);
     if (!silent) setUpdatingTimes(false);
     setRosterLastSyncedAt();
-    const todayLocal = getLocalDateString();
-    const minFlightDate = getLocalDateStringPlusDays(-getRosterMinDaysAgo(exemptLandedAutoPurge, isCrew));
     if (listOverride?.length === 1) {
       const id = listOverride[0].id;
       const { data: one, error: oneErr } = await fetchCrewRosterFlightRowById(supabase, id);
       if (!oneErr && one) {
         const [normed] = mapCrewRosterFetchedRows([one]);
-        setFlights((prev) => prev.map((f) => (f.id === id ? { ...f, ...normed } : f)));
+        setFlights((prev) => prev.map((f) => (f.id === id ? { ...f, ...normed, _archived: false } : f)));
       }
       return;
     }
     // Listeyi sadece güncellenen uçuşlarla değiştirme (PC1029 gibi pencerenin dışındakiler kaybolmasın).
-    // Tam roster'ı DB'den tekrar çek.
+    // Canlı dar pencere + bellek arşivi (poll’da tam archive refetch yok).
     if (!crewProfile?.id) return;
-    const flightIds = await fetchFlightIdsForCrew(supabase, crewProfile.id, minFlightDate);
-    if (flightIds.length === 0) {
-      if (!silent) setUpdatingTimes(false);
+    const liveMinDate = getLocalDateStringPlusDays(-getRosterLiveMinDaysAgo(exemptLandedAutoPurge, isCrew));
+    const { rows: liveRows, networkFailed } = await fetchCrewLiveRosterRows(supabase, crewProfile.id, liveMinDate);
+    if (networkFailed) {
+      await keepRosterFromCacheOnNetworkFail();
       return;
     }
-    const { data: rawList, error: listErr } = await fetchCrewRosterFlightsByIds(supabase, flightIds);
-    if (listErr || !rawList) return;
-    const data = mapCrewRosterFetchedRows(rawList);
+    const data = mergeLiveAndArchivedRoster(liveRows, archivedFlightsRef.current);
     const fullList = await normalizeFutureLandedInDb(data as any[]);
-    const { kept, dbPurgeIds } = await removeFlightsLandedOver6hAgo(fullList, {
+    const { kept } = await removeFlightsLandedOver6hAgo(fullList, {
       adminSkipLandedPurge: exemptLandedAutoPurge,
     });
-    scheduleLandedFlightsDbPurge(supabase, crewProfile.id, dbPurgeIds);
     if (kept.length > 0 || flightsRef.current.length === 0) {
       setFlights(kept);
     }
+    if (kept.length > 0) persistRosterCache(kept as Flight[]);
   }, [
     isCrew,
     crewProfile?.id,
     normalizeFutureLandedInDb,
     exemptLandedAutoPurge,
     getAutoRefreshList,
+    keepRosterFromCacheOnNetworkFail,
+    persistRosterCache,
   ]);
 
   /** Crew: re-fetch list from DB so cron-updated flight_status (e.g. landed) is visible without waiting for API refresh. */
   const refreshCrewListFromDb = useCallback(async () => {
     if (!isCrew || !crewProfile?.id) return;
-    const minFlightDate = getLocalDateStringPlusDays(-getRosterMinDaysAgo(exemptLandedAutoPurge, isCrew));
-    const flightIds = await fetchFlightIdsForCrew(supabase, crewProfile.id, minFlightDate);
-    if (flightIds.length === 0) return;
-    const { data, error } = await fetchCrewRosterFlightsByIds(supabase, flightIds);
-    if (error || !data) return;
-    const normalized = await normalizeFutureLandedInDb(mapCrewRosterFetchedRows(data) as any[]);
-    const { kept, dbPurgeIds } = await removeFlightsLandedOver6hAgo(normalized as any, {
+    const archiveMinDate = getLocalDateStringPlusDays(-getRosterArchiveMinDaysAgo(exemptLandedAutoPurge, isCrew));
+    const liveMinDate = getLocalDateStringPlusDays(-getRosterLiveMinDaysAgo(exemptLandedAutoPurge, isCrew));
+    const { rows: liveRows, networkFailed } = await fetchCrewLiveRosterRows(
+      supabase,
+      crewProfile.id,
+      liveMinDate,
+    );
+    if (networkFailed) {
+      await keepRosterFromCacheOnNetworkFail();
+      return;
+    }
+    if (liveRows.length === 0 && flightsRef.current.length === 0) {
+      const online = await probeSupabaseReachable();
+      if (!online) {
+        await keepRosterFromCacheOnNetworkFail();
+        return;
+      }
+    }
+    const archivedRows = await fetchArchivedRosterCardFlights(supabase, [crewProfile.id], archiveMinDate);
+    archivedFlightsRef.current = archivedRows;
+    archiveHydratedAtMsRef.current = Date.now();
+    const merged = mergeLiveAndArchivedRoster(liveRows, archivedRows);
+    const normalized = await normalizeFutureLandedInDb(merged as any[]);
+    const { kept } = await removeFlightsLandedOver6hAgo(normalized as any, {
       adminSkipLandedPurge: exemptLandedAutoPurge,
     });
-    scheduleLandedFlightsDbPurge(supabase, crewProfile.id, dbPurgeIds);
-    if (kept.length > 0 || flightsRef.current.length === 0) setFlights(kept);
+    if (kept.length > 0 || flightsRef.current.length === 0) setFlights(kept as Flight[]);
+    lastFocusLoadMsRef.current = Date.now();
     setRosterLastSyncedAt();
-  }, [isCrew, crewProfile?.id, normalizeFutureLandedInDb, exemptLandedAutoPurge]);
+    setRosterOffline(false);
+    setSyncError(false);
+    persistRosterCache(kept as Flight[]);
+  }, [
+    isCrew,
+    crewProfile?.id,
+    normalizeFutureLandedInDb,
+    exemptLandedAutoPurge,
+    persistRosterCache,
+    keepRosterFromCacheOnNetworkFail,
+  ]);
+
+  /** Focus / poll: yalnız canlı dar pencere + bellekdeki arşiv (varsa). */
+  const refreshCrewLiveOnlyFromDb = useCallback(async () => {
+    if (!isCrew || !crewProfile?.id) return;
+    const liveMinDate = getLocalDateStringPlusDays(-getRosterLiveMinDaysAgo(exemptLandedAutoPurge, isCrew));
+    const { rows: liveRows, networkFailed } = await fetchCrewLiveRosterRows(
+      supabase,
+      crewProfile.id,
+      liveMinDate,
+    );
+    if (networkFailed) {
+      await keepRosterFromCacheOnNetworkFail();
+      return;
+    }
+    if (liveRows.length === 0 && flightsRef.current.length === 0) {
+      const online = await probeSupabaseReachable();
+      if (!online) {
+        await keepRosterFromCacheOnNetworkFail();
+        return;
+      }
+    }
+    const merged = mergeLiveAndArchivedRoster(liveRows, archivedFlightsRef.current);
+    const normalized = await normalizeFutureLandedInDb(merged as any[]);
+    const { kept } = await removeFlightsLandedOver6hAgo(normalized as any, {
+      adminSkipLandedPurge: exemptLandedAutoPurge,
+    });
+    if (kept.length > 0 || flightsRef.current.length === 0) setFlights(kept as Flight[]);
+    lastFocusLoadMsRef.current = Date.now();
+    setRosterLastSyncedAt();
+    setRosterOffline(false);
+    setSyncError(false);
+    persistRosterCache(kept as Flight[]);
+  }, [
+    isCrew,
+    crewProfile?.id,
+    normalizeFutureLandedInDb,
+    exemptLandedAutoPurge,
+    persistRosterCache,
+    keepRosterFromCacheOnNetworkFail,
+  ]);
+
+  /** Slim arşiv: past expand / takvim geri / force sync. TTL içinde tekrar çekme. */
+  const ensureArchivedRosterLoaded = useCallback(
+    async (opts?: { force?: boolean }) => {
+      if (!isCrew || !crewProfile?.id) return;
+      const force = !!opts?.force;
+      const now = Date.now();
+      if (
+        !force &&
+        archiveHydratedAtMsRef.current > 0 &&
+        now - archiveHydratedAtMsRef.current < ROSTER_ARCHIVE_CACHE_TTL_MS
+      ) {
+        return;
+      }
+      if (archiveLoadInFlightRef.current) {
+        await archiveLoadInFlightRef.current;
+        return;
+      }
+      const run = (async () => {
+        const archiveMinDate = getLocalDateStringPlusDays(
+          -getRosterArchiveMinDaysAgo(exemptLandedAutoPurge, isCrew),
+        );
+        const archivedRows = await fetchArchivedRosterCardFlights(
+          supabase,
+          [crewProfile.id],
+          archiveMinDate,
+        );
+        archivedFlightsRef.current = archivedRows;
+        archiveHydratedAtMsRef.current = Date.now();
+        const livePortion = flightsRef.current.filter((f) => !f._archived);
+        const merged = mergeLiveAndArchivedRoster(livePortion, archivedRows);
+        const normalized = await normalizeFutureLandedInDb(merged as any[]);
+        const { kept } = await removeFlightsLandedOver6hAgo(normalized as any, {
+          adminSkipLandedPurge: exemptLandedAutoPurge,
+        });
+        if (kept.length > 0 || flightsRef.current.length === 0) setFlights(kept as Flight[]);
+        persistRosterCache(kept as Flight[]);
+      })();
+      archiveLoadInFlightRef.current = run;
+      try {
+        await run;
+      } finally {
+        if (archiveLoadInFlightRef.current === run) archiveLoadInFlightRef.current = null;
+      }
+    },
+    [isCrew, crewProfile?.id, exemptLandedAutoPurge, normalizeFutureLandedInDb, persistRosterCache],
+  );
 
   const refreshFamilyListFromDb = useCallback(async () => {
     if (isCrew || !profile?.id) return;
@@ -1843,31 +2401,74 @@ export default function Roster({
     let allCrewIds: string[] = [];
     if (effectivePeerView?.peerCrewId) {
       setSubscriptionAccessLoading(true);
-      const peerAccess = await fetchCrewRosterAccess(effectivePeerView!.peerCrewId).catch(() => null);
+      let peerAccess: Awaited<ReturnType<typeof fetchCrewRosterAccess>> | null = null;
+      let accessFetchFailed = false;
+      try {
+        peerAccess = await fetchCrewRosterAccess(effectivePeerView!.peerCrewId);
+      } catch {
+        accessFetchFailed = true;
+        peerAccess = profile?.id
+          ? await loadCrewRosterAccessCache(profile.id, effectivePeerView!.peerCrewId)
+          : null;
+      }
       setSubscriptionAccessLoading(false);
-      setSubscriptionAccess({
-        role: 'crew',
-        crew_id: effectivePeerView!.peerCrewId,
-        plan_code: null,
-        plan_title: peerAccess?.plan_title ?? 'crew_peer',
-        subscription_status: (peerAccess?.subscription_status as SubscriptionAccess['subscription_status']) ?? null,
-        trial_ends_at: null,
-        current_period_ends_at: null,
-        base_family_members: null,
-        extra_family_slots: 0,
-        max_extra_family_members: 0,
-        extra_family_member_price_usd: null,
-        max_family_members: null,
-        used_family_approved: 0,
-        used_family_pending: 0,
-        available_family_slots: 0,
-        can_invite_more: false,
-        has_access: !!peerAccess?.has_access,
-      });
+
+      const applyPeerAccessState = (hasAccess: boolean) => {
+        setSubscriptionAccess({
+          role: 'crew',
+          crew_id: effectivePeerView!.peerCrewId,
+          plan_code: null,
+          plan_title: peerAccess?.plan_title ?? 'crew_peer',
+          subscription_status:
+            (peerAccess?.subscription_status as SubscriptionAccess['subscription_status']) ?? null,
+          trial_ends_at: null,
+          current_period_ends_at: null,
+          base_family_members: null,
+          extra_family_slots: 0,
+          max_extra_family_members: 0,
+          extra_family_member_price_usd: null,
+          max_family_members: null,
+          used_family_approved: 0,
+          used_family_pending: 0,
+          available_family_slots: 0,
+          can_invite_more: false,
+          has_access: hasAccess,
+        });
+      };
+
+      if (!accessFetchFailed && peerAccess) {
+        void saveCrewRosterAccessCache({
+          userId: profile.id,
+          peerCrewId: effectivePeerView!.peerCrewId,
+          access: peerAccess,
+        });
+      }
+
       if (!peerAccess?.has_access) {
-        setFlights([]);
+        // Offline RPC fail + no cached denial: show last roster instead of "Plan gerekli".
+        if (accessFetchFailed && peerAccess === null) {
+          let hasLocal = flightsRef.current.length > 0;
+          if (!hasLocal) hasLocal = await hydrateRosterFromCache();
+          if (hasLocal) {
+            applyPeerAccessState(true);
+            setFamilyCrewOptions([
+              { id: effectivePeerView!.peerCrewId, name: effectivePeerView!.peerName },
+            ]);
+            familyCrewFilterIdRef.current = effectivePeerView!.peerCrewId;
+            setFamilyCrewFilterId(effectivePeerView!.peerCrewId);
+            setRosterOffline(true);
+            setSyncError(true);
+            return;
+          }
+        }
+        applyPeerAccessState(false);
+        if (flightsRef.current.length === 0) {
+          const hydrated = await hydrateRosterFromCache();
+          if (!hydrated) setFlights([]);
+        }
         return;
       }
+      applyPeerAccessState(true);
       allCrewIds = [effectivePeerView!.peerCrewId];
       setFamilyCrewOptions([{ id: effectivePeerView!.peerCrewId, name: effectivePeerView!.peerName }]);
       familyCrewFilterIdRef.current = effectivePeerView!.peerCrewId;
@@ -1875,13 +2476,55 @@ export default function Roster({
       console.log('[PeerRoster] loading peer crew:', effectivePeerView!.peerCrewId, effectivePeerView!.peerName);
     } else {
       setSubscriptionAccessLoading(true);
-      const access = await fetchMySubscriptionAccess().catch(() => null);
-      setSubscriptionAccess(access);
+      let access: SubscriptionAccess | null = null;
+      let accessFetchFailed = false;
+      try {
+        access = await fetchMySubscriptionAccess();
+      } catch {
+        accessFetchFailed = true;
+        access = profile?.id ? await loadMySubscriptionAccessCache(profile.id) : null;
+      }
       setSubscriptionAccessLoading(false);
+      if (access && !accessFetchFailed) {
+        void saveMySubscriptionAccessCache({ userId: profile.id, access });
+      }
       if (!access?.has_access) {
-        setFlights([]);
+        if (accessFetchFailed && access === null) {
+          let hasLocal = flightsRef.current.length > 0;
+          if (!hasLocal) hasLocal = await hydrateRosterFromCache();
+          if (hasLocal) {
+            setSubscriptionAccess({
+              role: 'family',
+              crew_id: null,
+              plan_code: null,
+              plan_title: null,
+              subscription_status: null,
+              trial_ends_at: null,
+              current_period_ends_at: null,
+              base_family_members: null,
+              extra_family_slots: 0,
+              max_extra_family_members: 0,
+              extra_family_member_price_usd: null,
+              max_family_members: null,
+              used_family_approved: 0,
+              used_family_pending: 0,
+              available_family_slots: 0,
+              can_invite_more: false,
+              has_access: true,
+            });
+            setRosterOffline(true);
+            setSyncError(true);
+            return;
+          }
+        }
+        setSubscriptionAccess(access);
+        if (flightsRef.current.length === 0) {
+          const hydrated = await hydrateRosterFromCache();
+          if (!hydrated) setFlights([]);
+        }
         return;
       }
+      setSubscriptionAccess(access);
       const { data: conns } = await supabase
         .from('family_connections')
         .select('crew_id')
@@ -1922,7 +2565,17 @@ export default function Roster({
         ? [filterId]
         : allCrewIds;
     if (crewIds.length === 0) {
-      if (flightsRef.current.length === 0) setFlights([]);
+      if (flightsRef.current.length === 0) {
+        const hydrated = await hydrateRosterFromCache();
+        if (!hydrated) {
+          const online = await probeSupabaseReachable();
+          if (!online) await keepRosterFromCacheOnNetworkFail();
+          else setFlights([]);
+        } else {
+          setRosterOffline(true);
+          setSyncError(true);
+        }
+      }
       setViewedCrewHomeBases([]);
       return;
     }
@@ -1937,20 +2590,20 @@ export default function Roster({
           .from('crew_profiles')
           .select('id, home_base_iata')
           .in('id', crewIds);
-        const bases = [
+        const bases: string[] = [
           ...new Set(
             (fallback ?? [])
               .map((r: { home_base_iata?: string | null }) => (r.home_base_iata ?? '').trim().toUpperCase())
-              .filter(Boolean),
+              .filter((value: string): value is string => Boolean(value)),
           ),
         ];
         setViewedCrewHomeBases(bases);
       } else {
-        const bases = [
+        const bases: string[] = [
           ...new Set(
-            (baseRows ?? [])
+            ((baseRows ?? []) as Array<{ home_base_iata?: string | null }>)
               .map((r: { home_base_iata?: string | null }) => (r.home_base_iata ?? '').trim().toUpperCase())
-              .filter(Boolean),
+              .filter((value: string): value is string => Boolean(value)),
           ),
         ];
         setViewedCrewHomeBases(bases);
@@ -1958,11 +2611,29 @@ export default function Roster({
     } catch {
       setViewedCrewHomeBases([]);
     }
-    const minFlightDate = getLocalDateStringPlusDays(-getRosterMinDaysAgo(exemptLandedAutoPurge, isCrew));
-    const flightIds = await fetchFlightIdsForFamily(supabase, crewIds, minFlightDate);
-    console.log('[FamilyRoster] flightIds for family:', flightIds.length, 'minFlightDate:', minFlightDate);
+    const archiveMinDate = getLocalDateStringPlusDays(-getRosterArchiveMinDaysAgo(exemptLandedAutoPurge, isCrew));
+    const commitFamilyMerged = async (liveList: Flight[]) => {
+      const archived = await fetchArchivedRosterCardFlights(supabase, crewIds, archiveMinDate);
+      const merged = mergeLiveAndArchivedRoster(liveList, archived);
+      const normalized = await normalizeFutureLandedInDb(merged as any[]);
+      const { kept } = await removeFlightsLandedOver6hAgo(normalized as any, {
+        adminSkipLandedPurge: exemptLandedAutoPurge,
+      });
+      if (kept.length > 0 || flightsRef.current.length === 0) setFlights(kept as Flight[]);
+      setRosterLastSyncedAt();
+      setRosterOffline(false);
+      setSyncError(false);
+      persistRosterCache(kept as Flight[]);
+    };
+    const flightIds = await fetchFlightIdsForFamily(supabase, crewIds, archiveMinDate);
+    console.log('[FamilyRoster] flightIds for family:', flightIds.length, 'displayMinDate:', archiveMinDate);
     if (flightIds.length === 0) {
-      if (flightsRef.current.length === 0) setFlights([]);
+      const online = await probeSupabaseReachable();
+      if (!online) {
+        await keepRosterFromCacheOnNetworkFail();
+        return;
+      }
+      await commitFamilyMerged([]);
       return;
     }
     // Aile/peer listesi: kolon yoksa (aircraft_type vb.) düşürüp yeniden dene.
@@ -2045,12 +2716,7 @@ export default function Roster({
         .order('flight_date', { ascending: true });
       if (!retryErr && retry) {
         const list = retry.map((row: any) => ({ ...row, api_refresh_phase: null, crew_profiles: null }));
-        const normalized = await normalizeFutureLandedInDb(list);
-        const { kept } = await removeFlightsLandedOver6hAgo(normalized as any, {
-          adminSkipLandedPurge: exemptLandedAutoPurge,
-        });
-        if (kept.length > 0 || flightsRef.current.length === 0) setFlights(kept);
-        setRosterLastSyncedAt();
+        await commitFamilyMerged(list as Flight[]);
         return;
       }
     }
@@ -2076,30 +2742,33 @@ export default function Roster({
         diverted_to: row.diverted_to ?? null,
         crew_profiles: null,
       }));
-      const normalizedFallback = await normalizeFutureLandedInDb(fallbackList);
-      const { kept: fallbackKept } = await removeFlightsLandedOver6hAgo(normalizedFallback as any, {
-        adminSkipLandedPurge: exemptLandedAutoPurge,
-      });
-      if (fallbackKept.length > 0 || flightsRef.current.length === 0) setFlights(fallbackKept);
-      setRosterLastSyncedAt();
+      await commitFamilyMerged(fallbackList as Flight[]);
       return;
     }
 
     if (error) {
       console.log('[FamilyRoster] flights select failed', error.message);
+      await keepRosterFromCacheOnNetworkFail();
+      return;
     }
     const list = (data ?? []).map((row: any) => ({
       ...row,
       crew_profiles: null,
     }));
-    const normalized = await normalizeFutureLandedInDb(list);
-    const { kept } = await removeFlightsLandedOver6hAgo(normalized as any, {
-      adminSkipLandedPurge: exemptLandedAutoPurge,
-    });
-    console.log('[FamilyRoster] flights fetched', (data ?? []).length, 'after landed filter', kept.length);
-    if (kept.length > 0 || flightsRef.current.length === 0) setFlights(kept);
-    setRosterLastSyncedAt();
-  }, [isCrew, profile?.id, normalizeFutureLandedInDb, exemptLandedAutoPurge, effectivePeerView?.peerCrewId, effectivePeerView?.peerName, t]);
+    console.log('[FamilyRoster] flights fetched', (data ?? []).length);
+    await commitFamilyMerged(list as Flight[]);
+  }, [
+    isCrew,
+    profile?.id,
+    normalizeFutureLandedInDb,
+    exemptLandedAutoPurge,
+    effectivePeerView?.peerCrewId,
+    effectivePeerView?.peerName,
+    t,
+    persistRosterCache,
+    hydrateRosterFromCache,
+    keepRosterFromCacheOnNetworkFail,
+  ]);
 
   /** Family: API’den güncelle (öncelik). Crew uçarken offline; family tek başına bilgi alır. */
   const refreshFamilyListFromApi = useCallback(async (silent = false, listOverride?: Flight[]) => {
@@ -2137,6 +2806,9 @@ export default function Roster({
         const chunk = list.slice(i, i + FAMILY_UPDATE_CONCURRENCY);
         const results = await Promise.all(
           chunk.map(async (flight) => {
+            if (flight._archived) {
+              return { flight, info: null };
+            }
             if (flight.roster_entry_kind === 'duty_off' || flight.roster_entry_kind === 'sim') {
               return { flight, info: null };
             }
@@ -2241,7 +2913,7 @@ export default function Roster({
     setRefreshingList(false);
   }, [isCrew, profile?.id, refreshFamilyListFromDb]);
 
-  /** Pull-to-refresh + “Az önce güncellendi” dokunuşu — ekstra header butonu yok. */
+  /** Sağ üst sync ikonu — pull-to-refresh yok (liste scroll / geçmiş expand). */
   const runUserRefresh = useCallback(
     async (opts?: { silent?: boolean }) => {
       if (isCrew && !crewProfile?.id) return;
@@ -2306,10 +2978,6 @@ export default function Roster({
     ],
   );
 
-  const handlePullToRefresh = useCallback(async () => {
-    await runUserRefresh();
-  }, [runUserRefresh]);
-
   const insets = useSafeAreaInsets();
 
   useLayoutEffect(() => {
@@ -2355,19 +3023,38 @@ export default function Roster({
   useFocusEffect(
     React.useCallback(() => {
       const addedDate = route?.params?.addedFlightDate as string | undefined;
-      liveAnchorYmdPrevRef.current = undefined;
+      itemHeightsRef.current = [];
+      const todayNow = rosterTodayYmdRef.current;
+      setListEnsureEmptyYmd(null);
+      setListPastDaysBack(LIST_INITIAL_PAST_DAYS);
+      setShowPastFab(false);
+      pastFabNeedsLeaveTopRef.current = false;
+      setListMvpEnabled(false);
+      scrollTargetDateRef.current = null;
+      pendingListScrollDateRef.current = null;
+      // Pending’i open effect doldurur — erken pin + stale jump yok.
+      pendingRosterAnchorRef.current = null;
       if (addedDate && /^\d{4}-\d{2}-\d{2}$/.test(addedDate)) {
         openRosterAnchorRef.current = { kind: 'added', ymd: addedDate };
+        setSelectedDate(addedDate);
+        setShowTodayFab(addedDate !== todayNow);
+        setCalendarMonth(addedDate.slice(0, 7));
       } else {
         openRosterAnchorRef.current = { kind: 'auto' };
+        // Sekme dönüşü: bugün + FlatList remount (offset 0). Geçmiş chip kapalı.
+        setSelectedDate(todayNow);
+        setShowTodayFab(false);
+        setCalendarMonth(todayNow.slice(0, 7));
+        setListSessionKey((k) => k + 1);
       }
       programmaticListScrollRef.current = true;
+      listScrollPinUntilRef.current = Date.now() + 400;
       lastCalendarWeekIdxRef.current = -1;
       setRosterAnchorNonce((n) => n + 1);
     }, [route?.params?.addedFlightDate]),
   );
 
-  /** Roster açılınca: canlı uçuş → o gün tepeye; yoksa / inince → bugün. */
+  /** Roster açılınca / focus: yalnız bu path + Bugün FAB bugüne pin eder. */
   useEffect(() => {
     const req = openRosterAnchorRef.current;
     if (!req) return;
@@ -2377,35 +3064,25 @@ export default function Roster({
     let anchor = todayLocal;
     if (req.kind === 'added') {
       anchor = req.ymd;
-    } else {
-      const liveYmd = findLiveRosterAnchorYmd(flights, crewUtcView, familyRosterTz);
-      anchor = liveYmd ?? todayLocal;
     }
     openRosterAnchorRef.current = null;
+    // Açılış anchuru geçmişteyse liste penceresini o güne kadar aç.
+    if (anchor < todayLocal) {
+      const need = calendarDayDiff(anchor, todayLocal);
+      if (need > 0) {
+        setListPastDaysBack((prev) => Math.max(prev, Math.min(listPastDaysCap, need)));
+      }
+    }
     setSelectedDate(anchor);
+    setListEnsureEmptyYmd(anchor === todayLocal ? null : anchor);
+    setShowTodayFab(anchor !== todayLocal);
     setCalendarMonth(anchor.slice(0, 7));
     pendingRosterAnchorRef.current = anchor;
     programmaticListScrollRef.current = true;
+    listScrollPinUntilRef.current = Date.now() + 400;
+    itemHeightsRef.current = [];
     setRosterAnchorNonce((n) => n + 1);
-  }, [flights, loading, rosterAnchorNonce, crewUtcView, familyRosterTz]);
-
-  /** Sayfa açıkken canlı uçuş inerse bugüne dön. */
-  useEffect(() => {
-    if (loading) return;
-    if (openRosterAnchorRef.current) return;
-    const liveYmd = findLiveRosterAnchorYmd(flights, crewUtcView, familyRosterTz);
-    const prev = liveAnchorYmdPrevRef.current;
-    liveAnchorYmdPrevRef.current = liveYmd;
-    if (prev === undefined) return; // ilk ölçüm
-    if (prev && !liveYmd) {
-      const todayLocal = resolveRosterTodayYmd(crewUtcView, familyRosterTz);
-      setSelectedDate(todayLocal);
-      setCalendarMonth(todayLocal.slice(0, 7));
-      pendingRosterAnchorRef.current = todayLocal;
-      programmaticListScrollRef.current = true;
-      setRosterAnchorNonce((n) => n + 1);
-    }
-  }, [flights, loading, crewUtcView, familyRosterTz]);
+  }, [flights, loading, rosterAnchorNonce, crewUtcView, familyRosterTz, listPastDaysCap]);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -2432,55 +3109,67 @@ export default function Roster({
         }
       };
 
-      if (isCrew && crewProfile?.id) {
-        const minFlightDate = getLocalDateStringPlusDays(-getRosterMinDaysAgo(exemptLandedAutoPurge, isCrew));
-        // Önce listeyi çek ve göster; silme işlemini sonra yap (yoksa silme fetch’ten önce biterse liste eksik görünüyor)
-        fetchFlightIdsForCrew(supabase, crewProfile.id, minFlightDate)
-          .then(async (flightIds) => {
-            if (cancelled) return;
-            if (flightIds.length === 0) {
-              setFlights([]);
-              done();
-              return;
-            }
-            const { data, error } = await fetchCrewRosterFlightsByIds(supabase, flightIds);
-            if (error) {
-              console.log('[Roster] flights select failed', error.message);
-              done();
-              return;
-            }
-            const list = mapCrewRosterFetchedRows(data ?? []);
-            console.log('[Roster] flights fetched', list.length);
-            const { kept, dbPurgeIds } = await removeFlightsLandedOver6hAgo(list, {
-              adminSkipLandedPurge: exemptLandedAutoPurge,
-            });
-            scheduleLandedFlightsDbPurge(supabase, crewProfile?.id, dbPurgeIds);
-            if (!cancelled && (kept.length > 0 || flightsRef.current.length === 0)) setFlights(kept);
-            maybeAutoRefresh(kept as any);
+      void (async () => {
+        // Offline cold start: show last known roster before network.
+        if (!cancelled && flightsRef.current.length === 0) {
+          await hydrateRosterFromCache();
+        }
+        if (cancelled) return;
+
+        const forceNet =
+          !!route?.params?.forceApiRefresh ||
+          (typeof route?.params?.refresh === 'number' && route.params.refresh > 0);
+
+        if (isCrew && crewProfile?.id) {
+          // Hızlı sekme dönüşü: ağ yok; past reset diğer focus effect’te.
+          if (
+            !forceNet &&
+            flightsRef.current.length > 0 &&
+            lastFocusLoadMsRef.current > 0 &&
+            Date.now() - lastFocusLoadMsRef.current < ROSTER_FOCUS_REFETCH_THROTTLE_MS
+          ) {
             done();
-            // Listeyi gösterdikten sonra pencere dışı eski uçuşları temizle (admin rosterda tarih penceresi geniş; silme yok).
-            if (!cancelled && crewProfile?.id && !exemptLandedAutoPurge) {
-              supabase.from('flight_crew').select('flight_id').eq('crew_id', crewProfile.id).then(({ data: fcRows }) => {
-                if (fcRows?.length) {
-                  const ids = fcRows.map((r: { flight_id: string }) => r.flight_id);
-                  supabase.from('flights').select('id').in('id', ids).lt('flight_date', minFlightDate).then(({ data: oldFlights }) => {
-                    (oldFlights ?? []).forEach((f: { id: string }) => {
-                      supabase.rpc('remove_me_from_flight', { p_flight_id: f.id }).then(() => {});
-                    });
-                  });
-                }
-              });
+            return;
+          }
+          try {
+            await refreshCrewLiveOnlyFromDb();
+            if (cancelled) return;
+            if (flightsRef.current.length === 0) {
+              const online = await probeSupabaseReachable();
+              if (!online) {
+                await keepRosterFromCacheOnNetworkFail();
+              }
             }
-          })
-          .catch(() => done());
-      } else if (!isCrew && profile?.id) {
-        // Use shared DB loader (handles missing columns + consistent filters)
-        refreshFamilyListFromDb()
-          .catch(() => {})
-          .finally(() => done());
-      } else {
-        done();
-      }
+            maybeAutoRefresh(flightsRef.current);
+            done();
+          } catch (e) {
+            console.log('[Roster] focus load failed', e);
+            await keepRosterFromCacheOnNetworkFail();
+            done();
+          }
+        } else if (!isCrew && profile?.id) {
+          if (
+            !forceNet &&
+            flightsRef.current.length > 0 &&
+            lastFocusLoadMsRef.current > 0 &&
+            Date.now() - lastFocusLoadMsRef.current < ROSTER_FOCUS_REFETCH_THROTTLE_MS
+          ) {
+            done();
+            return;
+          }
+          refreshFamilyListFromDb()
+            .then(() => {
+              lastFocusLoadMsRef.current = Date.now();
+            })
+            .catch(async () => {
+              await keepRosterFromCacheOnNetworkFail();
+            })
+            .finally(() => done());
+        } else {
+          done();
+        }
+      })();
+
       return () => { cancelled = true; };
     }, [
       profile?.id,
@@ -2489,13 +3178,32 @@ export default function Roster({
       crewUtcView,
       familyRosterTz,
       route.params?.refresh,
+      route.params?.forceApiRefresh,
       refreshTimesFromApi,
       refreshFamilyListFromDb,
+      refreshCrewLiveOnlyFromDb,
       getAutoRefreshList,
       exemptLandedAutoPurge,
       effectivePeerView?.peerCrewId,
+      hydrateRosterFromCache,
+      keepRosterFromCacheOnNetworkFail,
+      persistRosterCache,
+      navigation,
     ])
   );
+
+  /** Takvim nokta/yatı için slim arşiv — Geçmişi Göster beklemeden her zaman yükle. */
+  useEffect(() => {
+    if (!isCrew || !crewProfile?.id) return;
+    void ensureArchivedRosterLoaded();
+  }, [isCrew, crewProfile?.id, ensureArchivedRosterLoaded]);
+
+  /** Crew / peer değişince arşiv belleğini sıfırla. */
+  useEffect(() => {
+    archivedFlightsRef.current = [];
+    archiveHydratedAtMsRef.current = 0;
+    lastFocusLoadMsRef.current = 0;
+  }, [crewProfile?.id, effectivePeerView?.peerCrewId]);
 
   // Keep live GS/ALT updated while staying on Roster screen (crew). For family, periodically refresh list from DB (Android & iOS).
   const FAMILY_REFRESH_INTERVAL_MS = 30_000; // 30 s – cron 5 dk'da DB günceller; ekran en geç 30 sn'de yansır
@@ -2514,7 +3222,7 @@ export default function Roster({
         let apiId: ReturnType<typeof setInterval> | undefined;
 
         const dbTick = () => {
-          if (!cancelled) refreshCrewListFromDb().catch(() => {});
+          if (!cancelled) refreshCrewLiveOnlyFromDb().catch(() => {});
         };
 
         const tick = async () => {
@@ -2602,7 +3310,7 @@ export default function Roster({
       }
 
       return () => { cancelled = true; };
-    }, [isCrew, crewProfile?.id, profile?.id, getAutoRefreshList, refreshTimesFromApi, refreshFamilyListFromDb, refreshCrewListFromDb, runUserRefresh])
+    }, [isCrew, crewProfile?.id, profile?.id, getAutoRefreshList, refreshTimesFromApi, refreshFamilyListFromDb, refreshCrewLiveOnlyFromDb, runUserRefresh])
   );
 
   const formatDate = formatFlightDateTr;
@@ -2747,6 +3455,19 @@ export default function Roster({
     const rest = mins % 60;
     if (hours > 0) return t('roster.durationShort', { hours, mins: rest });
     return t('roster.durationMinsOnly', { mins: rest });
+  };
+
+  /** Yatı süresi: 24 saatten fazlaysa gün + saat + dk. */
+  const formatLayoverDurationFromMs = (msRaw: number): string => {
+    const mins = Math.max(0, Math.round(msRaw / 60000));
+    if (mins > 24 * 60) {
+      const days = Math.floor(mins / (24 * 60));
+      const afterDays = mins % (24 * 60);
+      const hours = Math.floor(afterDays / 60);
+      const rest = afterDays % 60;
+      return t('roster.durationDaysShort', { days, hours, mins: rest });
+    }
+    return formatShortDurationFromMs(msRaw);
   };
 
   const getFlightProgress = (f: Flight): number | null => {
@@ -2935,6 +3656,11 @@ export default function Roster({
 
     // Product rule: passive_future + semi_active always render scheduled.
     if (refreshPhase === 'passive_future' || refreshPhase === 'passive_upcoming' || refreshPhase === 'semi_active') return 'scheduled';
+    // Hard guard: never show İndi before roster STD (wrong-day / stale internal_status).
+    {
+      const depMsGuard = parseUtcMsStatic(f.scheduled_departure);
+      if (depMsGuard > Date.now() + 120_000) return 'scheduled';
+    }
     // Product rule: passive_past always renders landed.
     if (refreshPhase === 'passive_past') return 'landed';
     const todayLocal = getLocalDateStringPlusDays(0);
@@ -2946,6 +3672,7 @@ export default function Roster({
           internal_status: f.internal_status,
           actual_arrival: f.actual_arrival,
           fr24_datetime_landed_utc: f.fr24_datetime_landed_utc,
+          scheduled_departure: f.scheduled_departure,
         })
       ) {
         fromApi = 'landed';
@@ -2976,6 +3703,7 @@ export default function Roster({
     departed: { label: t('roster.statusDeparted') },
     en_route: { label: t('roster.statusEnRoute') },
     landed: { label: t('roster.statusLanded') },
+    parked: { label: t('roster.statusLanded') },
     cancelled: { label: t('roster.statusCancelled') },
     diverted: { label: t('roster.statusDiverted') },
     incident: { label: t('roster.statusIncident') },
@@ -3170,7 +3898,213 @@ export default function Roster({
     navigation.navigate('AddFlight');
   }, [navigation]);
 
-  const navigateToImportPicker = useCallback(() => {
+  const importPickerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const runRosterPdfImportPipeline = useCallback(
+    async (pickUri: string) => {
+      if (!crewProfile?.id) return;
+      if (!crewProfile.airline_icao?.trim()) {
+        Alert.alert(t('common.error'), t('addFlight.importFlightsAirlineRequired'));
+        return;
+      }
+      if (!isRosterPdfImportSupportedForCrewAirline(crewProfile.airline_icao)) {
+        const mailto = 'mailto:support@flyfamapp.com?subject=FlyFam%20PDF%20Roster%20Talebi';
+        const title = t('addFlight.importFlightsAirlineImportNotSupportedTitle');
+        const message = t('addFlight.importFlightsAirlineImportNotSupportedMessage');
+        alertWithCopy(title, message, {
+          copyText: buildPdfImportReport({
+            title,
+            message,
+            crewAirlineIcao: crewProfile.airline_icao ?? null,
+            crewAirlineIata: AIRLINES.find((a) => a.icao === crewProfile.airline_icao)?.iata ?? null,
+          }),
+          extraButtons: [
+            { text: t('addFlight.importFlightsAirlineImportNotSupportedCancel'), style: 'cancel' },
+            {
+              text: t('addFlight.importFlightsAirlineImportNotSupportedSendRoster'),
+              onPress: () => {
+                void Linking.openURL(mailto);
+              },
+            },
+          ],
+        });
+        return;
+      }
+
+      const airline = AIRLINES.find((a) => a.icao === crewProfile.airline_icao);
+      const pdfReportBase = {
+        crewAirlineIcao: crewProfile.airline_icao ?? null,
+        crewAirlineIata: airline?.iata ?? null,
+      };
+
+      let uri = pickUri;
+      try {
+        if (
+          pickUri.startsWith('content://') ||
+          pickUri.startsWith('file://') ||
+          /shareddata|\/inbox\//i.test(pickUri)
+        ) {
+          uri = await materializeSharedPdfToCache(pickUri);
+        }
+        setFlightOpBusyMessage(t('common.flightOpReadingPdf'));
+        const { flights, rawText, source, edgeFailureHint } = await parseRosterPdfFromDevice(uri, {
+          crewAirlineIcao: crewProfile.airline_icao,
+        });
+        let normalizedFlights = flights;
+        let normalizedRawText = rawText ?? null;
+        const canDeviceExtract =
+          isAvailable() && (crewProfile.airline_icao ?? '').toUpperCase() !== 'SXS';
+        if (canDeviceExtract) {
+          try {
+            const deviceText = await extractText(uri);
+            if (deviceText && deviceText.trim().length > 0) {
+              normalizedFlights = mergePdfRowsFromTextParse(normalizedFlights, deviceText);
+              if (!normalizedRawText) normalizedRawText = deviceText;
+            }
+          } catch {
+            /* best-effort merge only */
+          }
+        }
+        if (__DEV__) {
+          console.log('[PDF import]', pdfParseSourceDevLabel(source), '→', flights.length, 'satır');
+          if (edgeFailureHint) console.warn('[PDF import] Edge hatası:', edgeFailureHint);
+        }
+        if (!normalizedFlights.length) {
+          setFlightOpBusyMessage(null);
+          if (!isAvailable()) {
+            showPdfImportAlert(
+              t('common.error'),
+              'PDF okunamadı veya uçuş yok. Supabase’te `parse-roster-pdf` edge function deploy edin; alternatif olarak geliştirme derlemesi (yerel metin) gerekir.',
+              {
+                ...pdfReportBase,
+                parseSource: pdfParseSourceDevLabel(source),
+                edgeFailureHint,
+                rowCount: 0,
+              },
+            );
+          } else {
+            const devHint = __DEV__
+              ? `\n\n[Dev] Kaynak: ${pdfParseSourceDevLabel(source)}${edgeFailureHint ? `\n[Edge] ${edgeFailureHint}` : ''}`
+              : '';
+            showPdfImportAlert(
+              t('common.info') || 'Bilgi',
+              `${t('addFlight.importFlightsNoFlights')}${devHint}`,
+              {
+                ...pdfReportBase,
+                parseSource: pdfParseSourceDevLabel(source),
+                edgeFailureHint,
+                rowCount: 0,
+              },
+            );
+          }
+          return;
+        }
+        if (source === 'local_extract') {
+          setFlightOpBusyMessage(null);
+          showPdfImportAlert(
+            t('common.error'),
+            'PDF import için güvenli parse alınamadı (Edge auth hatası). Lütfen çıkış-giriş yapıp tekrar deneyin; local_extract ile import engellendi.',
+            {
+              ...pdfReportBase,
+              parseSource: pdfParseSourceDevLabel(source),
+              edgeFailureHint,
+              rowCount: normalizedFlights.length,
+            },
+          );
+          return;
+        }
+
+        setFlightOpBusyMessage(t('common.flightOpImportingFlights'));
+        const { ok: added, failed, skippedNonFlights, skippedWrongAirline } =
+          await importPdfFlightsViaRpc(supabase, normalizedFlights, {
+            rawText: normalizedRawText,
+            crewAirlineIcao: crewProfile.airline_icao ?? null,
+            crewAirlineIata: airline?.iata ?? null,
+            crewHomeBaseIata: crewProfile.home_base_iata ?? null,
+          });
+        const skipSnippet =
+          skippedNonFlights > 0
+            ? `\n\n${t('addFlight.importFlightsSkippedNonFlight', { count: skippedNonFlights })}`
+            : '';
+        const wrongAirlineSnippet =
+          skippedWrongAirline > 0
+            ? `\n\n${t('addFlight.importFlightsSkippedWrongAirline', { count: skippedWrongAirline })}`
+            : '';
+
+        if (added > 0) {
+          if (crewProfile.id && crewProfile.user_id) {
+            await maybePromptHomeBaseAfterRosterImport({
+              userId: crewProfile.user_id,
+              crewProfileId: crewProfile.id,
+              currentHomeBaseIata: crewProfile.home_base_iata,
+              importedRows: normalizedFlights,
+              supabase,
+              refreshProfile,
+              copy: {
+                title: t('addFlight.homeBaseChangeTitle'),
+                message: (iata, city) =>
+                  city
+                    ? t('addFlight.homeBaseChangeMessageCity', { iata, city })
+                    : t('addFlight.homeBaseChangeMessage', { iata }),
+                yes: t('addFlight.homeBaseChangeYes'),
+                no: t('addFlight.homeBaseChangeNo'),
+              },
+            });
+          }
+          await refreshCrewListFromDb();
+          setRosterLastSyncedAt();
+          setFlightOpBusyMessage(null);
+          Alert.alert(t('addFlight.importFlightsSuccessTitle'), t('addFlight.importFlightsSuccess'));
+        } else if (failed.length > 0) {
+          setFlightOpBusyMessage(null);
+          const failSnippet = `\n\n${failed
+            .slice(0, 2)
+            .map((e) => `${e.flight_number}: ${e.message}`)
+            .join('\n')}${failed.length > 2 ? `\n… +${failed.length - 2}` : ''}`;
+          showPdfImportAlert(
+            t('common.error'),
+            `${t('addFlight.importFlightsSomeFailed')}${failSnippet}${skipSnippet}${wrongAirlineSnippet}`,
+            { ...pdfReportBase, rowCount: normalizedFlights.length, failed },
+          );
+        } else if (skippedWrongAirline === normalizedFlights.length && normalizedFlights.length > 0) {
+          setFlightOpBusyMessage(null);
+          showPdfImportAlert(
+            t('common.info') || 'Bilgi',
+            t('addFlight.importFlightsAllSkippedWrongAirline'),
+            { ...pdfReportBase, rowCount: normalizedFlights.length },
+          );
+        } else if (skippedNonFlights > 0 && normalizedFlights.length > 0) {
+          setFlightOpBusyMessage(null);
+          showPdfImportAlert(
+            t('common.info') || 'Bilgi',
+            `${t('addFlight.importFlightsOnlyNonFlights')}${skipSnippet}${wrongAirlineSnippet}`,
+            { ...pdfReportBase, rowCount: normalizedFlights.length },
+          );
+        } else {
+          setFlightOpBusyMessage(null);
+          showPdfImportAlert(
+            t('common.error'),
+            `${t('addFlight.importFlightsError')}${wrongAirlineSnippet}`,
+            { ...pdfReportBase, rowCount: normalizedFlights.length },
+          );
+        }
+      } catch (e) {
+        setFlightOpBusyMessage(null);
+        const msg = e instanceof Error ? e.message : String(e);
+        if (__DEV__) console.error('[PDF import]', e);
+        showPdfImportAlert(
+          t('addFlight.importFlightsError'),
+          __DEV__
+            ? `${t('addFlight.importFlightsErrorHint')}\n\n${msg}`
+            : t('addFlight.importFlightsErrorHint'),
+          { ...pdfReportBase, extra: { exception: msg } },
+        );
+      }
+    },
+    [crewProfile, refreshCrewListFromDb, refreshProfile, t],
+  );
+
+  const pickRosterPdfThenImport = useCallback(async () => {
     if (!isRosterPdfImportSupportedForCrewAirline(crewProfile?.airline_icao)) {
       Alert.alert(
         t('addFlight.importFlightsAirlineImportNotSupportedTitle'),
@@ -3178,13 +4112,30 @@ export default function Roster({
       );
       return;
     }
-    navigation.navigate('AddFlight', { openImportPicker: true });
-  }, [crewProfile?.airline_icao, navigation, t]);
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: 'application/pdf',
+        copyToCacheDirectory: true,
+      });
+      if (result.canceled) return;
+      const uri = result.assets?.[0]?.uri;
+      if (!uri) return;
+      await runRosterPdfImportPipeline(uri);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      Alert.alert(t('common.error'), msg || t('addFlight.importFlightsErrorHint'));
+    }
+  }, [crewProfile?.airline_icao, runRosterPdfImportPipeline, t]);
 
   const openAddFlightImport = useCallback(() => {
     setAddFlightMenuVisible(false);
-    navigateToImportPicker();
-  }, [navigateToImportPicker]);
+    // Sheet kapanırken picker açılırsa iOS ikinci pencereyi iptal eder.
+    if (importPickerTimerRef.current) clearTimeout(importPickerTimerRef.current);
+    importPickerTimerRef.current = setTimeout(() => {
+      importPickerTimerRef.current = null;
+      void pickRosterPdfThenImport();
+    }, Platform.OS === 'ios' ? 420 : 80);
+  }, [pickRosterPdfThenImport]);
 
   const openAddFlightMenu = useCallback(() => {
     setAddFlightMenuVisible(true);
@@ -3327,6 +4278,8 @@ export default function Roster({
     if (dateRollerDates.length === 0) return [];
     return weeksCoveringRange(dateRollerDates[0], dateRollerDates[dateRollerDates.length - 1]);
   }, [dateRollerDates]);
+  const calendarWeeksRef = useRef(calendarWeeks);
+  calendarWeeksRef.current = calendarWeeks;
 
   const focusMonthYm = selectedDate.slice(0, 7);
   const monthCalendarWeeks = useMemo(() => weeksCoveringMonth(focusMonthYm), [focusMonthYm]);
@@ -3336,13 +4289,22 @@ export default function Roster({
   const calendarGridHeight = calendarEffectiveExpanded
     ? Math.max(1, monthCalendarWeeks.length) * CALENDAR_COL_H
     : CALENDAR_COL_H;
+  /** Collapsed hafta şeridi: açılışta bugün/seçili haftaya initial index (offset 0 = 120g önce kalmasın). */
+  const calendarWeekIndexForYmd = useCallback(
+    (ymd: string) => {
+      if (!ymd || calendarWeeks.length === 0) return 0;
+      const idx = calendarWeeks.findIndex((w) => w.some((c) => c.ymd === ymd));
+      if (idx < 0) return 0;
+      return Math.min(idx, Math.max(0, calendarWeeks.length - 1));
+    },
+    [calendarWeeks],
+  );
+  const calendarInitialWeekIndex = calendarEffectiveExpanded
+    ? 0
+    : calendarWeekIndexForYmd(selectedDate || rosterTodayYmd);
   const listRef = useRef<FlatList>(null);
   const listDataRef = useRef(listData);
   listDataRef.current = listData;
-  /** Ölçülen satır yükseklikleri — doğru güne kaydırmak için. */
-  const itemHeightsRef = useRef<number[]>([]);
-  /** Takvimden basılan hedef gün; viewability bunu doğrulayana kadar seçimi ezme. */
-  const scrollTargetDateRef = useRef<string | null>(null);
   const scrollCorrectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const calendarWeekListRef = useRef<FlatList<CalendarDayCell[]>>(null);
   const calendarWasExpandedRef = useRef(false);
@@ -3425,26 +4387,29 @@ export default function Roster({
       const idx = indexForRosterDateIn(data, dateStr);
       if (idx < 0) return;
       programmaticListScrollRef.current = true;
-      const measured = offsetForListIndex(idx, true);
-      const offset = measured ?? offsetForListIndex(idx, false) ?? 0;
-      try {
-        listRef.current?.scrollToOffset({ offset: Math.max(0, offset), animated });
-      } catch {
-        /* ignore */
-      }
-      // Ölçüm yoksa index ile de dene (getItemLayout yok → fail handler ortalama kullanır).
-      if (measured == null) {
+      // Gün başlığını viewport ortasına değil listenin en üstüne al.
+      // scrollToIndex(viewPosition:0) getItemLayout yokken sıkça ortalar → yalnız offset.
+      if (idx === 0) {
         try {
-          listRef.current?.scrollToIndex({ index: idx, animated, viewPosition: 0 });
+          listRef.current?.scrollToOffset({ offset: 0, animated });
         } catch {
           /* ignore */
         }
+        return;
+      }
+      const measured = offsetForListIndex(idx, true);
+      const estimated = offsetForListIndex(idx, false) ?? 0;
+      const offset = Math.max(0, measured ?? estimated);
+      try {
+        listRef.current?.scrollToOffset({ offset, animated });
+      } catch {
+        /* FlatList henüz hazır değil */
       }
     },
     [indexForRosterDateIn, offsetForListIndex],
   );
 
-  /** Takvim günü → roster aynı ymd dayHeader. Ölçüm gelince düzelt. */
+  /** Takvim günü → roster aynı ymd dayHeader (üst hiza). Az retry — fazla düzeltme sıçratır. */
   const scrollListToDate = useCallback(
     (dateStr: string, animated = true) => {
       if (pendingListScrollClearTimerRef.current) {
@@ -3455,24 +4420,24 @@ export default function Roster({
         clearTimeout(scrollCorrectTimerRef.current);
         scrollCorrectTimerRef.current = null;
       }
+      listScrollPinUntilRef.current = Math.max(
+        listScrollPinUntilRef.current,
+        Date.now() + (animated ? 280 : 180),
+      );
       scrollTargetDateRef.current = dateStr;
       pendingListScrollDateRef.current = dateStr;
+      programmaticListScrollRef.current = true;
       applyScrollToDate(dateStr, animated);
-      // Layout / virtualization sonrası ölçümle aynı güne kilitle.
-      const retries = animated ? [80, 200, 400, 700] : [40, 120, 280];
-      retries.forEach((ms) => {
-        setTimeout(() => {
-          if (scrollTargetDateRef.current !== dateStr) return;
-          applyScrollToDate(dateStr, false);
-        }, ms);
-      });
+      setTimeout(() => {
+        if (scrollTargetDateRef.current !== dateStr) return;
+        applyScrollToDate(dateStr, false);
+      }, animated ? 90 : 48);
       pendingListScrollClearTimerRef.current = setTimeout(() => {
-        // Doğrulanamadıysa bile seçili günü takvimde bırak; viewability ezmesin.
         programmaticListScrollRef.current = false;
         scrollTargetDateRef.current = null;
         pendingListScrollDateRef.current = null;
         pendingListScrollClearTimerRef.current = null;
-      }, animated ? 900 : 500);
+      }, animated ? 320 : 220);
     },
     [applyScrollToDate],
   );
@@ -3483,7 +4448,11 @@ export default function Roster({
       if (itemHeightsRef.current[index] === height) return;
       itemHeightsRef.current[index] = height;
       const target = scrollTargetDateRef.current;
-      if (!target) return;
+      // Pin + hedef yoksa (serbest scroll) düzeltme yapma; hedef varken tepeye kilitle.
+      if (!target) {
+        if (Date.now() < listScrollPinUntilRef.current) return;
+        return;
+      }
       const idx = indexForRosterDateIn(listDataRef.current, target);
       if (idx < 0 || index > idx) return;
       const measured = offsetForListIndex(idx, true);
@@ -3498,66 +4467,86 @@ export default function Roster({
     [indexForRosterDateIn, offsetForListIndex],
   );
 
-  /** Scroll'da görünen ilk öğeye göre tarihi senkronize et. Programatik / hedef kaydırmayı ezme. */
+  /** Scroll'da Bugün FAB — anında aç/kapa (debounce yok). */
   const viewabilityConfig = useRef({
-    itemVisiblePercentThreshold: 10,
+    itemVisiblePercentThreshold: 12,
     waitForInteraction: false,
+    minimumViewTime: 0,
   }).current;
+  const listEntryDateYmd = useCallback(
+    (item: ListEntry | undefined | null): string | null => {
+      if (!item) return null;
+      if (item.type === 'dayHeader') return item.dateYmd;
+      if (item.type === 'flight') return listGroupDate(item.flight);
+      if (item.type === 'layover') return item.dateYmd;
+      return null;
+    },
+    [listGroupDate],
+  );
   const onViewableItemsChanged = useCallback(
     (info: { viewableItems: Array<{ item: ListEntry; key: string; index: number | null; isViewable: boolean }> }) => {
-      const target = scrollTargetDateRef.current;
-      const firstVisible =
-        info.viewableItems.find((v) => v.item?.type === 'dayHeader')?.item ??
-        info.viewableItems.find((v) => v.item?.type === 'flight')?.item ??
-        info.viewableItems.find((v) => v.item?.type === 'layover')?.item;
-      let visibleDate: string | null = null;
-      if (firstVisible?.type === 'dayHeader') visibleDate = firstVisible.dateYmd;
-      else if (firstVisible?.type === 'flight') visibleDate = listGroupDate(firstVisible.flight);
-      else if (firstVisible?.type === 'layover') visibleDate = firstVisible.dateYmd;
-
-      if (target) {
-        // Hedef güne oturduysa kilidi bırak; seçim zaten target.
-        if (visibleDate === target) {
-          scrollTargetDateRef.current = null;
-          pendingListScrollDateRef.current = null;
-          programmaticListScrollRef.current = false;
-          if (pendingListScrollClearTimerRef.current) {
-            clearTimeout(pendingListScrollClearTimerRef.current);
-            pendingListScrollClearTimerRef.current = null;
-          }
-        } else if (visibleDate) {
-          // Yanlış gündeyiz — ölçümle tekrar hedefe çek.
-          applyScrollToDate(target, false);
-        }
-        return;
+      const today = rosterTodayYmdRef.current;
+      const viewable = info.viewableItems.filter((v) => v.isViewable && v.item);
+      const todayInView = viewable.some((v) => listEntryDateYmd(v.item) === today);
+      if (showTodayFabTimerRef.current) {
+        clearTimeout(showTodayFabTimerRef.current);
+        showTodayFabTimerRef.current = null;
+      }
+      if (todayInView) {
+        setShowTodayFab(false);
+      } else if (viewable.length > 0) {
+        setShowTodayFab(true);
       }
 
-      if (programmaticListScrollRef.current || pendingRosterAnchorRef.current) return;
-      if (!visibleDate) return;
-      setSelectedDate(visibleDate);
-      if (!calendarExpandedRef.current) {
-        const monday = mondayYmdOf(visibleDate);
-        setCalendarMonth(
-          monday
-            ? dominantMonthFromWeeks([weekCellsFromMonday(monday)], visibleDate.slice(0, 7))
-            : visibleDate.slice(0, 7),
-        );
+      // Liste → takvim: tepedeki görünür günün haftasını/ayını takip et (collapsed + expanded).
+      if (programmaticListScrollRef.current) return;
+      if (Date.now() < listScrollPinUntilRef.current) return;
+      if (scrollTargetDateRef.current) return;
+      const ranked = viewable
+        .filter((v) => v.index != null)
+        .sort((a, b) => (a.index ?? 0) - (b.index ?? 0));
+      if (ranked.length === 0) return;
+      const ymd = listEntryDateYmd(ranked[0].item);
+      if (!ymd || ymd === selectedDateRef.current) return;
+      selectedDateRef.current = ymd;
+      calendarSyncFromListRef.current = true;
+      setSelectedDate(ymd);
+      const ym = ymd.slice(0, 7);
+      if (ym !== calendarMonthRef.current) {
+        calendarMonthRef.current = ym;
+        setCalendarMonth(ym);
       }
     },
-    [listGroupDate, applyScrollToDate],
+    [listEntryDateYmd],
   );
 
-  /** Ekran odağında / uçuş listesi gelince yerel bugüne (veya eklenen uçuş gününe) hizala. */
+  /** Ekran odağında / açılışta bir kez hizala — past/listData değişince tekrar bugüne çekme. */
   React.useEffect(() => {
     const target = pendingRosterAnchorRef.current;
     if (!target || loading) return;
+    if (listData.length === 0) return;
+    const hasHeader = listData.some((e) => e.type === 'dayHeader' && e.dateYmd === target);
+    if (!hasHeader) return;
+    const today = rosterTodayYmdRef.current;
+    const pinTodayTop = target === today;
+    if (pinTodayTop && listMinYmd !== today) return;
+    if (
+      pinTodayTop &&
+      !(listData[0]?.type === 'dayHeader' && listData[0].dateYmd === today)
+    ) {
+      return;
+    }
+
+    // Hedefi hemen tüket — sonraki listData/past değişiminde tekrar pin olmasın.
+    pendingRosterAnchorRef.current = null;
     setSelectedDate(target);
+    setShowTodayFab(false);
     setCalendarMonth(target.slice(0, 7));
 
     const syncCalendarToTarget = () => {
       const weekIdx = calendarWeeks.findIndex((w) => w.some((c) => c.ymd === target));
       if (weekIdx < 0) return;
-      lastCalendarWeekIdxRef.current = -1;
+      lastCalendarWeekIdxRef.current = weekIdx;
       calendarProgrammaticRef.current = true;
       try {
         calendarWeekListRef.current?.scrollToOffset({
@@ -3567,33 +4556,43 @@ export default function Roster({
       } catch {
         /* layout not ready */
       }
-      lastCalendarWeekIdxRef.current = weekIdx;
       setTimeout(() => {
         calendarProgrammaticRef.current = false;
-      }, 80);
+      }, 40);
+    };
+
+    programmaticListScrollRef.current = true;
+    scrollTargetDateRef.current = target;
+    const pinOnce = () => {
+      if (pinTodayTop) {
+        try {
+          listRef.current?.scrollToOffset({ offset: 0, animated: false });
+        } catch {
+          /* ignore */
+        }
+      } else {
+        applyScrollToDate(target, false);
+      }
+      syncCalendarToTarget();
     };
 
     const handle = InteractionManager.runAfterInteractions(() => {
-      pendingListScrollDateRef.current = null;
-      if (listData.length > 0) {
-        scrollListToDate(target, false);
-      } else {
-        programmaticListScrollRef.current = false;
-      }
-      // Takvim haftasını da aynı güne kilitle (liste scroll’undan bağımsız).
-      syncCalendarToTarget();
-      // İlk layout sonrası tekrar dene (FlatList henüz mount olmamış olabilir).
+      pinOnce();
+      setTimeout(pinOnce, 40);
       setTimeout(() => {
-        if (listData.length > 0) scrollListToDate(target, false);
-        syncCalendarToTarget();
+        if (scrollTargetDateRef.current === target) scrollTargetDateRef.current = null;
+        programmaticListScrollRef.current = false;
       }, 120);
-      pendingRosterAnchorRef.current = null;
       if (route?.params?.addedFlightDate) {
-        try { navigation.setParams({ addedFlightDate: undefined }); } catch {}
+        try {
+          navigation.setParams({ addedFlightDate: undefined });
+        } catch {
+          /* ignore */
+        }
       }
     });
     return () => handle.cancel();
-  }, [listData, loading, scrollListToDate, navigation, route?.params?.addedFlightDate, rosterAnchorNonce, calendarWeeks]);
+  }, [rosterAnchorNonce, loading, listData, listMinYmd, applyScrollToDate, calendarWeeks, navigation, route?.params?.addedFlightDate]);
 
   /** Nöbet → görev tebliği: ilgili günleri kalıcı kırmızı (uçuş) işaretle. */
   React.useEffect(() => {
@@ -3622,8 +4621,11 @@ export default function Roster({
 
   const onDateRollerChipPress = useCallback(
     (dateStr: string) => {
+      ensureListPastCoversYmd(dateStr);
       scrollTargetDateRef.current = dateStr;
       pendingListScrollDateRef.current = dateStr;
+      listScrollPinUntilRef.current = Date.now() + 650;
+      setListEnsureEmptyYmd(dateStr);
       setSelectedDate(dateStr);
       const ym = dateStr.slice(0, 7);
       calendarMonthRef.current = ym;
@@ -3631,23 +4633,25 @@ export default function Roster({
       // listData (boş gün başlığı) güncellenince effect + ölçüm aynı ymd'ye kilitler.
       scrollListToDate(dateStr, true);
     },
-    [scrollListToDate],
+    [scrollListToDate, ensureListPastCoversYmd],
   );
 
   /** Boş güne basınca dayHeader listData'ya selectedDate ile eklenir — o zaman kaydır. */
   React.useEffect(() => {
     const target = pendingListScrollDateRef.current ?? scrollTargetDateRef.current;
     if (!target || loading || listData.length === 0) return;
+    if (Date.now() < listScrollPinUntilRef.current) return;
     if (selectedDate !== target) return;
     const hasExact = listData.some((e) => e.type === 'dayHeader' && e.dateYmd === target);
     if (!hasExact) return;
+    // Past prepend / MVP sırasında stale hedefle bugüne çekme.
+    if (listMvpEnabled && !pendingListScrollDateRef.current) return;
     const handle = InteractionManager.runAfterInteractions(() => {
       if ((pendingListScrollDateRef.current ?? scrollTargetDateRef.current) !== target) return;
       applyScrollToDate(target, false);
-      setTimeout(() => applyScrollToDate(target, false), 100);
     });
     return () => handle.cancel();
-  }, [listData, selectedDate, loading, applyScrollToDate]);
+  }, [listData, selectedDate, loading, applyScrollToDate, listMvpEnabled]);
 
   const dayKindByDate = useMemo(() => {
     const map = new Map<string, CalendarDayKind>();
@@ -3671,7 +4675,7 @@ export default function Roster({
       if (!kind || kind === 'empty') continue;
       if (flightsOnly && kind !== 'flight') continue;
       if (ymd >= todayAnchor) {
-        // Bugün/gelecek: canlı veri öncelikli; yalnızca kalıcı "uçuş" (görev tebliği sonrası) turuncu nöbeti kırmızıya yükseltir.
+        // Bugün/gelecek: canlı veri öncelikli; kalıcı "uçuş" (görev tebliği) günü yükseltir.
         if (kind === 'flight') {
           map.set(ymd, mergeCalendarDayKind(map.get(ymd), 'flight'));
         }
@@ -3690,7 +4694,7 @@ export default function Roster({
     rosterListPrefs.flights_only,
   ]);
 
-  /** Hibrit takvim: dolgu yok; nokta (uçuş) + çizgi (yatı/nöbet) ayrı katman. */
+  /** Hibrit takvim: nokta (uçuş) + çizgi (yatı / nöbet / off). Uçuş olan günde nöbet çizgisi yok. */
   const calendarMarkSets = useMemo(() => {
     const flightCount = new Map<string, number>();
     const standby = new Set<string>();
@@ -3712,8 +4716,13 @@ export default function Roster({
     for (const [ymd, kind] of Object.entries(persistedDayKinds)) {
       if (ymd >= rosterTodayYmd) continue;
       if (kind === 'flight' && !flightCount.has(ymd)) flightCount.set(ymd, 1);
-      if (!flightsOnly && kind === 'standby') standby.add(ymd);
+      // Uçuşa dönmüş günlerde turuncu kalmasın; yalnız uçuşsuz nöbet geçmişi.
+      if (!flightsOnly && kind === 'standby' && !flightCount.has(ymd)) standby.add(ymd);
       if (!flightsOnly && kind === 'duty_off') dutyOff.add(ymd);
+    }
+    // Aynı günde uçuş varsa nöbet çizgisini bastır (görev tebliği sonrası).
+    for (const ymd of [...standby]) {
+      if ((flightCount.get(ymd) ?? 0) > 0) standby.delete(ymd);
     }
     return { flightCount, standby, dutyOff };
   }, [flights, listGroupDate, persistedDayKinds, rosterTodayYmd, rosterListPrefs.flights_only]);
@@ -3797,10 +4806,12 @@ export default function Roster({
       LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
       calendarMonthRef.current = nextYm;
       setCalendarMonth(nextYm);
+      ensureListPastCoversYmd(nextDay);
+      setListEnsureEmptyYmd(nextDay);
       setSelectedDate(nextDay);
       scrollListToDate(nextDay);
     },
-    [selectedDate, scrollListToDate],
+    [selectedDate, scrollListToDate, ensureListPastCoversYmd],
   );
 
   const calendarLocale = i18n.language === 'tr' ? 'tr-TR' : 'en-US';
@@ -3849,11 +4860,16 @@ export default function Roster({
   const scrollCalendarToWeekOf = useCallback(
     (ymd: string, animated: boolean) => {
       if (calendarExpandedRef.current) {
-        // Ay grid’i scroll etmez; ay zaten selectedDate ile seçilir.
+        // Ay grid: ay selectedDate ile değişir; offset’i sıfırla (eski hafta kayması kalmasın).
         const ym = ymd.slice(0, 7);
         if (ym !== calendarMonthRef.current) {
           calendarMonthRef.current = ym;
           setCalendarMonth(ym);
+        }
+        try {
+          calendarWeekListRef.current?.scrollToOffset({ offset: 0, animated: false });
+        } catch {
+          /* layout not ready */
         }
         return;
       }
@@ -3867,25 +4883,79 @@ export default function Roster({
       const useAnim = animated && lastCalendarWeekIdxRef.current >= 0;
       lastCalendarWeekIdxRef.current = clamped;
       calendarProgrammaticRef.current = true;
-      try {
-        calendarWeekListRef.current?.scrollToOffset({
-          offset: clamped * CALENDAR_COL_H,
-          animated: useAnim,
-        });
-      } catch {
-        /* layout not ready */
+      const offset = clamped * CALENDAR_COL_H;
+      const apply = () => {
+        try {
+          calendarWeekListRef.current?.scrollToOffset({
+            offset,
+            animated: useAnim,
+          });
+        } catch {
+          /* layout not ready */
+        }
+      };
+      apply();
+      // Açılışta FlatList henüz layout almamış olabilir — sessiz fail → eski haftada kalır.
+      if (!useAnim) {
+        requestAnimationFrame(apply);
+        setTimeout(apply, 48);
+        setTimeout(apply, 140);
       }
       applyVisibleWeeksMonth(clamped);
       setTimeout(() => {
         calendarProgrammaticRef.current = false;
-      }, useAnim ? 420 : 80);
+      }, useAnim ? 420 : 180);
     },
     [calendarWeeks, applyVisibleWeeksMonth],
   );
 
+  const goToToday = useCallback(() => {
+    const today = rosterTodayYmd;
+    if (pendingListScrollClearTimerRef.current) {
+      clearTimeout(pendingListScrollClearTimerRef.current);
+      pendingListScrollClearTimerRef.current = null;
+    }
+    setListMvpEnabled(false);
+    setShowPastFab(false);
+    pastFabNeedsLeaveTopRef.current = false;
+    openRosterAnchorRef.current = null;
+    itemHeightsRef.current = [];
+    // Geçmiş açıksa kapat → remount bugünden.
+    if (listPastDaysBack > 0) {
+      setListPastDaysBack(LIST_INITIAL_PAST_DAYS);
+      setListSessionKey((k) => k + 1);
+    }
+    listScrollPinUntilRef.current = Date.now() + 280;
+    calendarProgrammaticRef.current = true;
+    programmaticListScrollRef.current = true;
+    scrollTargetDateRef.current = today;
+    pendingListScrollDateRef.current = null;
+    pendingRosterAnchorRef.current = today;
+    setListEnsureEmptyYmd(null);
+    setSelectedDate(today);
+    setShowTodayFab(false);
+    const ym = today.slice(0, 7);
+    calendarMonthRef.current = ym;
+    setCalendarMonth(ym);
+    scrollCalendarToWeekOf(today, false);
+    setRosterAnchorNonce((n) => n + 1);
+    requestAnimationFrame(() => {
+      applyScrollToDate(today, false);
+      setTimeout(() => {
+        if (scrollTargetDateRef.current === today) {
+          scrollTargetDateRef.current = null;
+          programmaticListScrollRef.current = false;
+          calendarProgrammaticRef.current = false;
+        }
+      }, 200);
+    });
+  }, [rosterTodayYmd, listPastDaysBack, scrollCalendarToWeekOf, applyScrollToDate]);
+
   useEffect(() => {
-    if (calendarEffectiveExpanded) return;
-    scrollCalendarToWeekOf(selectedDate, rosterAnchorNonce > 0 ? false : true);
+    const fromList = calendarSyncFromListRef.current;
+    calendarSyncFromListRef.current = false;
+    // Liste kaydırınca hafta animasyonlu takip; açılış/FAB anında hizala.
+    scrollCalendarToWeekOf(selectedDate, fromList);
   }, [selectedDate, calendarEffectiveExpanded, scrollCalendarToWeekOf, rosterAnchorNonce]);
 
   useEffect(() => {
@@ -3939,6 +5009,7 @@ export default function Roster({
           flightN === 0;
         const isSharedOff =
           !rosterListPrefs.flights_only && sharedOffSet.has(cell.ymd);
+        // Öncelik: yatı > nöbet (uçuşsuz) > off. Uçuş varsa kırmızı nokta; nöbet çizgisi yok.
         const barKind: 'layover' | 'standby' | 'duty_off' | null = hasLayover
           ? 'layover'
           : hasStandby
@@ -4122,7 +5193,8 @@ export default function Roster({
     void refreshFamilyListFromDb();
   };
 
-  // Yapı değişince (yeni boş gün başlığı vb.) indeksler kayar → yükseklikleri sıfırla.
+  // Yapı değişince (yeni boş gün başlığı / past chunk) indeksler kayar → yükseklikleri sıfırla.
+  // Programatik pin sırasında sıfırlama + yükseklik düzeltmesi savaşmasın.
   const listStructureKey = useMemo(
     () =>
       listData
@@ -4137,6 +5209,7 @@ export default function Roster({
     [listData],
   );
   useEffect(() => {
+    if (Date.now() < listScrollPinUntilRef.current) return;
     itemHeightsRef.current = [];
   }, [listStructureKey]);
 
@@ -4148,8 +5221,12 @@ export default function Roster({
     }
     const minFlightDate = getLocalDateStringPlusDays(-getRosterMinDaysAgo(exemptLandedAutoPurge, true));
     const collectOffDates = async (crewId: string): Promise<Set<string>> => {
-      const flightIds = await fetchFlightIdsForCrew(supabase, crewId, minFlightDate);
-      if (flightIds.length === 0) return new Set();
+      const { ids: flightIds, networkFailed } = await fetchFlightIdsForCrew(
+        supabase,
+        crewId,
+        minFlightDate,
+      );
+      if (networkFailed || flightIds.length === 0) return new Set();
       const { data } = await supabase
         .from('flights')
         .select('flight_date, roster_entry_kind, flight_number, duty_occupation_code')
@@ -4244,6 +5321,21 @@ export default function Roster({
         </View>
       ) : null}
 
+      {rosterOffline ? (
+        <View
+          style={[
+            styles.offlineBanner,
+            { backgroundColor: '#FFF7ED', borderColor: '#FDBA74' },
+          ]}
+          accessibilityRole="text"
+        >
+          <Ionicons name="cloud-offline-outline" size={16} color="#C2410C" style={{ marginRight: 8 }} />
+          <Text style={styles.offlineBannerText} numberOfLines={2}>
+            {t('roster.offlineBanner', { when: rosterSyncMetaText })}
+          </Text>
+        </View>
+      ) : null}
+
       {isOwnCrewAccount && comparePeerCrewId && sharedOffThisMonth.length > 0 ? (
         <TouchableOpacity
           style={[
@@ -4324,7 +5416,7 @@ export default function Roster({
           )}
         <View style={styles.inlineCalendar}>
           <View style={styles.inlineCalendarHeader}>
-            {calendarViewEnabled ? (
+            {calendarViewEnabled || calendarExpanded ? (
               <View style={styles.inlineCalendarTitleBtn}>
                 <TouchableOpacity
                   onPress={() => shiftCalendarMonth(-1)}
@@ -4345,53 +5437,66 @@ export default function Roster({
                 >
                   <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
                 </TouchableOpacity>
+                {!calendarViewEnabled ? (
+                  <TouchableOpacity
+                    onPress={toggleCalendarExpanded}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('roster.calendarCollapse')}
+                    style={{ marginLeft: 4 }}
+                  >
+                    <Ionicons name="chevron-up" size={16} color={colors.textMuted} />
+                  </TouchableOpacity>
+                ) : null}
               </View>
             ) : (
               <TouchableOpacity
                 style={styles.inlineCalendarTitleBtn}
                 onPress={toggleCalendarExpanded}
-                accessibilityLabel={
-                  calendarEffectiveExpanded ? t('roster.calendarCollapse') : t('roster.calendarExpand')
-                }
+                accessibilityLabel={t('roster.calendarExpand')}
               >
                 <Text style={[styles.inlineCalendarTitle, { color: colors.text }]} numberOfLines={1}>
                   {calendarMonthLabel}
                 </Text>
-                <Ionicons
-                  name={calendarEffectiveExpanded ? 'chevron-up' : 'chevron-down'}
-                  size={16}
-                  color={colors.textMuted}
-                />
+                <Ionicons name="chevron-down" size={16} color={colors.textMuted} />
               </TouchableOpacity>
             )}
-            <TouchableOpacity
-              style={styles.syncMetaBesideMonthBtn}
-              onPress={() => {
-                if (isSyncingMeta) return;
-                void runUserRefresh();
-              }}
-              disabled={isSyncingMeta}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              accessibilityRole="button"
-              accessibilityLabel={t('roster.sync')}
-            >
-              <View style={styles.syncMetaBesideMonthRow}>
+            <View style={styles.syncMetaBesideMonthRow}>
+              <Text
+                style={[
+                  styles.syncMetaBesideMonth,
+                  {
+                    color: syncMetaColor,
+                  },
+                ]}
+                numberOfLines={1}
+              >
+                {syncMetaLabel}
+              </Text>
+              <TouchableOpacity
+                style={[
+                  styles.syncIconBtn,
+                  {
+                    borderColor: themeMode === 'dark' ? 'rgba(148,163,184,0.35)' : 'rgba(15,27,61,0.12)',
+                    backgroundColor: themeMode === 'dark' ? 'rgba(148,163,184,0.12)' : 'rgba(15,27,61,0.06)',
+                  },
+                ]}
+                onPress={() => {
+                  if (isSyncingMeta) return;
+                  void runUserRefresh();
+                }}
+                disabled={isSyncingMeta}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                accessibilityRole="button"
+                accessibilityLabel={t('roster.sync')}
+              >
                 {isSyncingMeta ? (
-                  <ActivityIndicator size="small" color={colors.primary} style={{ marginRight: 4 }} />
-                ) : null}
-                <Text
-                  style={[
-                    styles.syncMetaBesideMonth,
-                    {
-                      color: syncMetaColor,
-                    },
-                  ]}
-                  numberOfLines={1}
-                >
-                  {syncMetaLabel}
-                </Text>
-              </View>
-            </TouchableOpacity>
+                  <ActivityIndicator size="small" color={colors.primary} />
+                ) : (
+                  <Ionicons name="refresh" size={16} color={syncMetaIconColor} />
+                )}
+              </TouchableOpacity>
+            </View>
           </View>
           <View style={styles.calendarWeekRow}>
             {(() => {
@@ -4424,6 +5529,11 @@ export default function Roster({
             })()}
           </View>
           <FlatList
+            key={
+              calendarEffectiveExpanded
+                ? `cal-month-${focusMonthYm}`
+                : `cal-weeks-${listSessionKey}`
+            }
             ref={calendarWeekListRef}
             data={calendarGridWeeks}
             keyExtractor={(week) => week[0]?.ymd ?? 'week'}
@@ -4435,11 +5545,29 @@ export default function Roster({
             disableIntervalMomentum={!calendarEffectiveExpanded}
             decelerationRate={calendarEffectiveExpanded ? 'normal' : 'fast'}
             style={{ height: calendarGridHeight }}
+            initialScrollIndex={
+              calendarEffectiveExpanded
+                ? 0
+                : Math.min(
+                    calendarInitialWeekIndex,
+                    Math.max(0, calendarGridWeeks.length - 1),
+                  )
+            }
             getItemLayout={(_d, index) => ({
               length: CALENDAR_COL_H,
               offset: CALENDAR_COL_H * index,
               index,
             })}
+            onScrollToIndexFailed={({ index }) => {
+              try {
+                calendarWeekListRef.current?.scrollToOffset({
+                  offset: Math.max(0, index) * CALENDAR_COL_H,
+                  animated: false,
+                });
+              } catch {
+                /* ignore */
+              }
+            }}
             extraData={`${calendarLayoverDateSet.size}|${dayKindByDate.size}|${calendarEffectiveExpanded}|${calendarMonth}|${rosterTodayYmd}|${selectedDate}|${rosterListPrefs.flights_only}|${monthCalendarWeeks.length}`}
             scrollEventThrottle={16}
             onScroll={(e) => {
@@ -4451,21 +5579,39 @@ export default function Roster({
             }}
             onMomentumScrollEnd={(e) => {
               if (calendarProgrammaticRef.current || calendarEffectiveExpanded) return;
+              if (scrollTargetDateRef.current) return;
               const y = e.nativeEvent.contentOffset.y;
               const idx = Math.max(0, Math.round(y / CALENDAR_COL_H));
               const week = calendarWeeks[idx];
               if (!week) return;
-              if (week.some((c) => c.ymd === selectedDate)) return;
+              const currentSelected = selectedDateRef.current;
+              if (week.some((c) => c.ymd === currentSelected)) return;
               const pick =
                 week.find((c) => calendarRangeSet.has(c.ymd))?.ymd ?? week[0]?.ymd;
               if (!pick) return;
+              ensureListPastCoversYmd(pick);
+              setListEnsureEmptyYmd(pick);
               setSelectedDate(pick);
               const ym = pick.slice(0, 7);
               calendarMonthRef.current = ym;
               setCalendarMonth(ym);
+              // Açılış today-pin sırasında listeyi çekme; takvim roll serbest.
+              if (Date.now() < listScrollPinUntilRef.current) return;
               scrollListToDate(pick);
             }}
             renderItem={({ item: week, index }) => renderCalendarWeek(week, `w-${index}`)}
+          />
+          {/* Takvim bloğunun en altı — liste ile net hard ayırıcı. */}
+          <View
+            style={[
+              styles.calendarRosterSep,
+              {
+                borderTopColor: themeMode === 'dark' ? 'rgba(148,163,184,0.5)' : 'rgba(15,27,61,0.16)',
+                backgroundColor: themeMode === 'dark' ? 'rgba(148,163,184,0.08)' : 'rgba(15,27,61,0.04)',
+              },
+            ]}
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
           />
         </View>
         </>
@@ -4478,7 +5624,11 @@ export default function Roster({
           </View>
         ) : null}
 
-        {!isCrew && !subscriptionAccessLoading && subscriptionAccess && !subscriptionAccess.has_access ? (
+        {!isCrew &&
+        !subscriptionAccessLoading &&
+        subscriptionAccess &&
+        !subscriptionAccess.has_access &&
+        !(rosterOffline && flights.length > 0) ? (
           <View style={{ marginHorizontal: 16, padding: 16, borderRadius: 12, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface }}>
             <Text style={{ color: colors.text, fontSize: 18, fontWeight: '700', marginBottom: 6 }}>
               {t('paywall.title')}
@@ -4531,48 +5681,59 @@ export default function Roster({
           </View>
         ) : (
           <View style={styles.listAndClearContainer}>
+          {showPastFab && canRevealMorePast ? (
+            <TouchableOpacity
+              style={[
+                styles.pastFab,
+                {
+                  backgroundColor: colors.surface,
+                  borderColor: colors.primary,
+                },
+              ]}
+              onPress={revealListPastWeek}
+              accessibilityRole="button"
+              accessibilityLabel={t('roster.showPast')}
+              activeOpacity={0.88}
+            >
+              <Text style={[styles.pastFabText, { color: colors.primary }]} numberOfLines={1}>
+                {t('roster.showPast')}
+              </Text>
+            </TouchableOpacity>
+          ) : null}
           <FlatList
+            key={`roster-list-${listSessionKey}`}
             ref={listRef}
             data={listData}
-            extraData={`${themeMode}|${listFontScale}|${crewUtcView ? 'u' : 'l'}|${selectedDate}`}
+            extraData={`${themeMode}|${listFontScale}|${crewUtcView ? 'u' : 'l'}|${listPastDaysBack}|${listSessionKey}|${listMvpEnabled ? 'm' : ''}`}
             keyExtractor={(item, index) => listEntryKey(item, index)}
             contentContainerStyle={styles.list}
             style={styles.listFlex}
             scrollIndicatorInsets={{ right: 0 }}
-            initialNumToRender={20}
-            maxToRenderPerBatch={16}
-            windowSize={27}
-            updateCellsBatchingPeriod={40}
+            initialNumToRender={14}
+            maxToRenderPerBatch={10}
+            windowSize={9}
+            updateCellsBatchingPeriod={16}
             removeClippedSubviews={false}
+            maintainVisibleContentPosition={
+              // Reveal öncesi listMvpEnabled=true → prepend yerinde kalsın.
+              listMvpEnabled ? { minIndexForVisible: 0 } : undefined
+            }
+            onScroll={onListScrollMaybeShowPastFab}
+            scrollEventThrottle={16}
             onViewableItemsChanged={onViewableItemsChanged}
             viewabilityConfig={viewabilityConfig}
-            onScrollToIndexFailed={({ index, averageItemLength }) => {
-              const avg = Math.max(averageItemLength || 160, 80);
+            onScrollToIndexFailed={({ index }) => {
+              const measured = offsetForListIndex(index, false) ?? Math.max(0, index * 120);
               try {
-                listRef.current?.scrollToOffset({ offset: Math.max(0, index * avg), animated: false });
+                listRef.current?.scrollToOffset({ offset: measured, animated: false });
               } catch {
                 /* ignore */
               }
               setTimeout(() => {
-                const target = scrollTargetDateRef.current;
+                const target = scrollTargetDateRef.current ?? pendingRosterAnchorRef.current;
                 if (target) applyScrollToDate(target, false);
-                else {
-                  try {
-                    listRef.current?.scrollToIndex({ index, animated: false, viewPosition: 0 });
-                  } catch {
-                    /* ignore */
-                  }
-                }
-              }, 60);
+              }, 40);
             }}
-            refreshControl={
-              <RefreshControl
-                refreshing={refreshingList}
-                onRefresh={handlePullToRefresh}
-                colors={[colors.primary]}
-                tintColor={colors.primary}
-              />
-            }
             renderItem={({ item: entry, index }) => {
             const onRowLayout = (h: number) => {
               recordListItemHeight(index, h);
@@ -4642,17 +5803,27 @@ export default function Roster({
                 city: city,
               }).trim();
               const inbound = flights.find((f) => f.id === entry.inboundId);
+              const outbound = flights.find((f) => f.id === entry.outboundId);
+              // Yatı süresi = meydana iniş → oradan kalkış (takvim gün span'i değil).
               const arrIso =
+                inbound?.fr24_datetime_landed_utc ||
+                inbound?.actual_arrival ||
                 inbound?.estimated_arrival ||
                 inbound?.scheduled_arrival ||
                 null;
-              const arrDisplay = arrIso
-                ? crewUtcView
-                  ? formatTimeUTC(arrIso)
-                  : isCrew
-                    ? formatTimeCrewAtDest(arrIso, inbound?.destination_airport)
-                    : formatTimeFamilyLocal(arrIso)
-                : null;
+              const nextDepIso =
+                (outbound ? fr24TakeoffUtcByFlightId[outbound.id] : null) ||
+                outbound?.fr24_datetime_takeoff_utc ||
+                outbound?.actual_departure ||
+                outbound?.estimated_departure ||
+                outbound?.scheduled_departure ||
+                null;
+              const arrMs = parseUtcMs(arrIso);
+              const nextDepMs = parseUtcMs(nextDepIso);
+              const layoverDurationLabel =
+                arrMs > 0 && nextDepMs > arrMs
+                  ? formatLayoverDurationFromMs(nextDepMs - arrMs)
+                  : null;
               return (
                 <View
                   style={styles.itemWrapper}
@@ -4664,7 +5835,7 @@ export default function Roster({
                       originIata: st || '—',
                       destIata: st || '—',
                       depTime: '',
-                      arrTime: arrDisplay || '',
+                      arrTime: layoverDurationLabel || '',
                       durationLabel: '',
                       compactKind: 'layover',
                       isNonFlightBlock: true,
@@ -4740,12 +5911,15 @@ export default function Roster({
             const isUnpaidLeaveCode = isUnpaidLeaveOccupationCode(blockCode);
             const isGroundDutyCode = isGroundDutyOccupationCode(blockCode);
             const isOfficeDutyCode = isOfficeDutyOccupationCode(blockCode);
+            const isHomeDutyCode = isHomeDutyOccupationCode(blockCode);
             const isDutyOffBlock =
               !isSimBlock &&
               !isGroundDutyCode &&
-              (item.roster_entry_kind === 'duty_off' || isOffDayDutyCode);
+              (item.roster_entry_kind === 'duty_off' || isOffDayDutyCode || isHomeDutyCode);
             const isGroundDutyBlock = !isSimBlock && isGroundDutyCode;
-            const isNonFlightBlock = isDutyOffBlock || isSimBlock || isGroundDutyBlock;
+            const isHomeDutyBlock = !isSimBlock && isHomeDutyCode;
+            const isNonFlightBlock =
+              isDutyOffBlock || isSimBlock || isGroundDutyBlock || isHomeDutyBlock;
             const isStandbyDutyCode = isStandbyOccupationCode(blockCode);
             const isReserveDutyCode =
               blockCode === 'RSV' || blockCode === 'RZV' || blockCode === 'RZVM';
@@ -4758,8 +5932,16 @@ export default function Roster({
             });
             const indigoDutyTr = indigoDutyBlockTitleTr(blockCode);
             const indigoDutyEn = indigoDutyBlockTitleEn(blockCode);
+            const catalogDutyLabel = isTr
+              ? rosterOccupationLabelTr(item.flight_number, crewProfile?.airline_icao)
+              : rosterOccupationLabelEn(item.flight_number, crewProfile?.airline_icao);
+            // Yayınlanan / yerel katalog etiketi her zaman generic bucket'lardan önce (COTD→Çevrimiçi Eğitim).
             const blockLabel =
-              indigoLabels && isDutyOffBlock && indigoDutyTr && indigoDutyEn
+              (catalogDutyLabel &&
+              catalogDutyLabel.replace(/\s/g, '').toUpperCase() !== blockCode
+                ? catalogDutyLabel
+                : null) ||
+              (indigoLabels && isDutyOffBlock && indigoDutyTr && indigoDutyEn
                 ? (isTr ? indigoDutyTr : indigoDutyEn)
                 : isReserveDutyCode
                   ? (isTr ? 'Rezerve' : 'Reserve')
@@ -4777,9 +5959,7 @@ export default function Roster({
                         ? (isTr ? 'Ofis' : 'Office Duty')
                         : isOffDayDutyCode
                           ? (isTr ? 'Boş Gün' : 'Off Day')
-                          : (isTr
-                              ? rosterOccupationLabelTr(item.flight_number)
-                              : rosterOccupationLabelEn(item.flight_number)) ?? item.flight_number;
+                          : catalogDutyLabel ?? item.flight_number);
             const blockTitle =
               isDutyOffBlock
                 ? blockLabel
@@ -5011,30 +6191,36 @@ export default function Roster({
                 : isStandbyBlock
                   ? undefined
                   : isNonFlightBlock
-                    ? isAnnualLeaveCode ||
-                        isUnpaidLeaveCode ||
-                        isGroundDutyBlock ||
-                        isOfficeDutyCode ||
-                        isTrainingOccupationCode(blockCode)
-                      ? blockTitle
-                      : t('roster.restDay')
+                    ? blockTitle
                     : undefined,
-              compactKind: (isStandbyBlock
+              compactKind: (isStandbyBlock || isHomeDutyBlock
                 ? 'standby'
-                : isNonFlightBlock
-                  ? 'off'
-                  : null) as 'standby' | 'off' | null,
-              /** Nöbet: base IATA — aksi yoksa herkes base’te nöbettedir. */
-              layoverStationLabel: isStandbyBlock ? dutyStationIata : undefined,
+                : isGroundDutyBlock
+                  ? 'training'
+                  : isNonFlightBlock
+                    ? 'off'
+                    : null) as 'standby' | 'off' | 'layover' | 'training' | null,
+              /** Nöbet: base IATA. Ev görevi (COTD): etiket istasyon yerine. */
+              layoverStationLabel: isStandbyBlock
+                ? dutyStationIata
+                : isHomeDutyBlock
+                  ? blockTitle
+                  : undefined,
               standbyScheduleLine: isStandbyBlock
                 ? `${formatStandbyDayMonth(item.flight_date)} · ${depTime} – ${arrTime}`
-                : undefined,
+                : isHomeDutyBlock && depTime !== '—' && arrTime !== '—'
+                  ? `${depTime} – ${arrTime}`
+                  : isGroundDutyBlock && depTime !== '—' && arrTime !== '—'
+                    ? `${depTime} – ${arrTime}`
+                    : undefined,
               progress,
               progressRemainLabel,
               progressNearingArrival,
               showLiveTrack,
               footerHint: null,
               showAssignAction: isStandbyBlock && isCrew,
+              /** Ev görevi: nöbet rozeti yerine «Görev». */
+              homeDutyLike: isHomeDutyBlock,
               showSuggestOccupation:
                 isCrew &&
                 isNonFlightBlock &&
@@ -5109,6 +6295,28 @@ export default function Roster({
         </View>
         )}
       </View>
+
+      {showTodayFab ? (
+        <TouchableOpacity
+          style={[
+            styles.todayFab,
+            {
+              backgroundColor: colors.primary,
+              bottom: Math.max(insets.bottom, 12) + 76,
+              right: 14,
+              shadowColor: themeMode === 'dark' ? '#000' : colors.primary,
+            },
+          ]}
+          onPress={goToToday}
+          accessibilityRole="button"
+          accessibilityLabel={t('roster.today')}
+          activeOpacity={0.88}
+        >
+          <Text style={[styles.todayFabText, { color: colors.onPrimary }]} numberOfLines={1}>
+            {t('roster.today')}
+          </Text>
+        </TouchableOpacity>
+      ) : null}
 
       {shareToastMessage ? (
         <View
@@ -5363,6 +6571,22 @@ function createRosterStyles(fs: (n: number) => number, themeMode: 'light' | 'dar
     borderWidth: StyleSheet.hairlineWidth,
     justifyContent: 'center',
   },
+  offlineBanner: {
+    marginHorizontal: 12,
+    marginBottom: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: radius.button,
+    borderWidth: StyleSheet.hairlineWidth,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  offlineBannerText: {
+    flex: 1,
+    fontSize: fs(12),
+    fontWeight: '600',
+    color: '#9A3412',
+  },
   sharedOffBannerText: {
     fontSize: fs(13),
     fontWeight: '700',
@@ -5412,6 +6636,53 @@ function createRosterStyles(fs: (n: number) => number, themeMode: 'light' | 'dar
     paddingTop: 0,
     paddingBottom: 0,
     backgroundColor: colors.background,
+    zIndex: 3,
+    overflow: 'hidden',
+  },
+  /** Takvim bölümünün en alt kenarı — full-bleed ayırıcı. */
+  calendarRosterSep: {
+    marginTop: 8,
+    marginHorizontal: -12,
+    height: 12,
+    borderTopWidth: 2,
+    zIndex: 3,
+  },
+  /** In-flow üst bar — absolute olursa bugün kartını örter. */
+  pastFab: {
+    marginHorizontal: 0,
+    marginBottom: 8,
+    minHeight: 44,
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 2,
+  },
+  pastFabText: {
+    fontSize: fs(14),
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+  /** Sağ alt floating — yuvarlak “Bugün”. */
+  todayFab: {
+    position: 'absolute',
+    zIndex: 30,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 5,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+  },
+  todayFabText: {
+    fontSize: fs(13),
+    fontWeight: '800',
+    textAlign: 'center',
   },
   inlineCalendarHeader: {
     flexDirection: 'row',
@@ -5436,22 +6707,29 @@ function createRosterStyles(fs: (n: number) => number, themeMode: 'light' | 'dar
     fontWeight: '800',
     textTransform: 'capitalize',
   },
-  syncMetaBesideMonthBtn: {
-    flexShrink: 1,
-    maxWidth: '52%',
-    minHeight: 28,
-    justifyContent: 'center',
-    alignItems: 'flex-end',
-  },
   syncMetaBesideMonthRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'flex-end',
+    flexShrink: 1,
+    gap: 8,
+    marginLeft: 'auto',
   },
   syncMetaBesideMonth: {
     fontSize: fs(11),
     fontWeight: '500',
     textAlign: 'right',
+    flexShrink: 1,
+    maxWidth: 160,
+  },
+  syncIconBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: StyleSheet.hairlineWidth,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
   },
   addMenuRoot: {
     flex: 1,
@@ -5613,7 +6891,7 @@ function createRosterStyles(fs: (n: number) => number, themeMode: 'light' | 'dar
     fontStyle: 'italic',
     textAlign: 'center',
   },
-  rosterContentWrap: { flex: 1, minHeight: 0 },
+  rosterContentWrap: { flex: 1, minHeight: 0, paddingTop: 10 },
   rosterActionsRow: {
     flexDirection: 'row',
     gap: 8,

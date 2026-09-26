@@ -20,6 +20,8 @@ import {
   StyleSheet,
   ImageBackground,
   Platform,
+  AppState,
+  type AppStateStatus,
 } from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets, initialWindowMetrics } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -84,11 +86,35 @@ function RosterTabScreen() {
   );
 }
 
-function PeerRosterTabScreen() {
+function PeerRosterTabScreen({
+  route,
+}: {
+  route: { params?: { peerCrewId?: string; peerName?: string } };
+}) {
   const { profile } = useSession();
-  const peer = demoPeersForUser(profile?.id)[0] ?? null;
-  if (!peer) return null;
-  return <Roster peerView={{ peerCrewId: peer.peerCrewId, peerName: peer.name }} />;
+  const peerCrewId = route?.params?.peerCrewId;
+  const peerNameParam = route?.params?.peerName ?? '';
+  const peer =
+    demoPeersForUser(profile?.id).find((p) => p.peerCrewId === peerCrewId) ?? null;
+  const resolvedCrewId = peer?.peerCrewId ?? peerCrewId;
+  if (!resolvedCrewId) return null;
+  return (
+    <Roster
+      peerView={{
+        peerCrewId: resolvedCrewId,
+        peerName: peer?.name ?? peerNameParam,
+      }}
+    />
+  );
+}
+
+function peerTabRouteName(peerCrewId: string): string {
+  // Stable per-crew screen id (UUID without dashes keeps navigator names tidy).
+  return `PeerRoster_${peerCrewId.replace(/-/g, '')}`;
+}
+
+function isPeerRosterRoute(name: string): boolean {
+  return name === 'PeerRoster' || name.startsWith('PeerRoster_');
 }
 
 const TAB_SF: Record<string, string> = {
@@ -129,9 +155,6 @@ function useMainTabMeta() {
     return subscribeCrewPeers(() => setPeerTick((n) => n + 1));
   }, [profile?.id]);
   const peers = React.useMemo(() => demoPeersForUser(profile?.id), [profile?.id, peerTick]);
-  const hasPeerFollow = peers.length > 0;
-  const peerName = peers[0]?.name ?? '';
-  const peerTabTitle = peerName ? peerTabShortLabel(peerName) : 'Crew';
   const insets = useSafeAreaInsets();
   const mode = useThemeMode();
   const isDark = mode === 'dark';
@@ -150,7 +173,7 @@ function useMainTabMeta() {
     }),
     [insets.top],
   );
-  return { t, hasPeerFollow, peerTabTitle, isDark, screenOptions };
+  return { t, peers, isDark, screenOptions };
 }
 
 function MainTabs() {
@@ -161,7 +184,7 @@ function MainTabs() {
 }
 
 function NativeMainTabs() {
-  const { t, hasPeerFollow, peerTabTitle, isDark } = useMainTabMeta();
+  const { t, peers, isDark } = useMainTabMeta();
   return (
     <NativeTab.Navigator
       labeled
@@ -186,20 +209,25 @@ function NativeMainTabs() {
               : TAB_ANDROID_ICON.Roster,
         }}
       />
-      {hasPeerFollow ? (
-        <NativeTab.Screen
-          name="PeerRoster"
-          component={PeerRosterTabScreen}
-          options={{
-            title: peerTabTitle,
-            tabBarLabel: peerTabTitle,
-            tabBarIcon: () =>
-              Platform.OS === 'ios'
-                ? { sfSymbol: TAB_SF.PeerRoster as any }
-                : TAB_ANDROID_ICON.PeerRoster,
-          }}
-        />
-      ) : null}
+      {peers.map((peer) => {
+        const title = peerTabShortLabel(peer.name);
+        return (
+          <NativeTab.Screen
+            key={peer.peerCrewId}
+            name={peerTabRouteName(peer.peerCrewId)}
+            component={PeerRosterTabScreen}
+            initialParams={{ peerCrewId: peer.peerCrewId, peerName: peer.name }}
+            options={{
+              title,
+              tabBarLabel: title,
+              tabBarIcon: () =>
+                Platform.OS === 'ios'
+                  ? { sfSymbol: TAB_SF.PeerRoster as any }
+                  : TAB_ANDROID_ICON.PeerRoster,
+            }}
+          />
+        );
+      })}
       <NativeTab.Screen
         name="Family"
         component={Family}
@@ -229,7 +257,7 @@ function NativeMainTabs() {
 }
 
 function WebMainTabs() {
-  const { t, hasPeerFollow, peerTabTitle, isDark, screenOptions } = useMainTabMeta();
+  const { t, peers, isDark, screenOptions } = useMainTabMeta();
   return (
     <WebTab.Navigator
       screenOptions={({ route }) => ({
@@ -243,7 +271,8 @@ function WebMainTabs() {
         },
         sceneStyle: { backgroundColor: colors.background },
         tabBarIcon: ({ focused, color, size }) => {
-          const set = TAB_WEB_ICONS[route.name] ?? { active: 'ellipse' as const, inactive: 'ellipse-outline' as const };
+          const key = isPeerRosterRoute(route.name) ? 'PeerRoster' : route.name;
+          const set = TAB_WEB_ICONS[key] ?? { active: 'ellipse' as const, inactive: 'ellipse-outline' as const };
           return <Ionicons name={focused ? set.active : set.inactive} size={size} color={color} />;
         },
       })}
@@ -257,17 +286,22 @@ function WebMainTabs() {
           headerShown: false,
         }}
       />
-      {hasPeerFollow ? (
-        <WebTab.Screen
-          name="PeerRoster"
-          component={PeerRosterTabScreen}
-          options={{
-            headerShown: false,
-            title: peerTabTitle,
-            tabBarAccessibilityLabel: peerTabTitle,
-          }}
-        />
-      ) : null}
+      {peers.map((peer) => {
+        const title = peerTabShortLabel(peer.name);
+        return (
+          <WebTab.Screen
+            key={peer.peerCrewId}
+            name={peerTabRouteName(peer.peerCrewId)}
+            component={PeerRosterTabScreen}
+            initialParams={{ peerCrewId: peer.peerCrewId, peerName: peer.name }}
+            options={{
+              headerShown: false,
+              title,
+              tabBarAccessibilityLabel: title,
+            }}
+          />
+        );
+      })}
       <WebTab.Screen
         name="Family"
         component={Family}
@@ -349,7 +383,8 @@ function RootNavigator() {
       try {
         await hydrateOccupationCatalogFromStorage();
         await hydrateLocalOccupationOverrides();
-        void refreshOccupationCatalog();
+        // Await so Deploy labels land before ForceUpdate gate; UI also subscribes.
+        await refreshOccupationCatalog(true);
         const policy = await fetchAppReleasePolicy();
         if (!cancelled) setReleasePolicy(policy);
       } catch {
@@ -362,6 +397,18 @@ function RootNavigator() {
       cancelled = true;
     };
   }, [isLoading]);
+
+  // Auth hazır olunca + öne gelince katalog (COTD vb. Deploy) yeniden çekilsin.
+  useEffect(() => {
+    if (Platform.OS === 'web') return;
+    if (!session?.user?.id) return;
+    void refreshOccupationCatalog(true);
+    const onAppState = (next: AppStateStatus) => {
+      if (next === 'active') void refreshOccupationCatalog();
+    };
+    const sub = AppState.addEventListener('change', onAppState);
+    return () => sub.remove();
+  }, [session?.user?.id]);
 
   useEffect(() => {
     let cancelled = false;

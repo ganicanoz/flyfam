@@ -4,7 +4,6 @@
  * (ilk sağlıklı cevapta durur). FR24 yok.
  * active → FR24 (bacak seçimi); canlı değilse veya flight_ended ise timetable şelalesi; iptal/divert/actual* öncelikleri Edge ile uyumlu.
  */
-import Constants from 'expo-constants';
 import {
   applyFlightProviderCooldownFromResponse,
   FLIGHT_PROVIDER_AERODATABOX,
@@ -72,14 +71,11 @@ export const FR24_FLIGHT_SUMMARY_LIGHT_URL = 'https://fr24api.flightradar24.com/
 
 const FR24_URL = FR24_FLIGHT_SUMMARY_LIGHT_URL;
 
-const FR24_TOKEN =
-  Constants.expoConfig?.extra?.flightradar24Token ?? process.env.EXPO_PUBLIC_FLIGHTRADAR24_API_TOKEN;
-const AIRLABS_KEY =
-  Constants.expoConfig?.extra?.airlabsKey ?? process.env.EXPO_PUBLIC_AIRLABS_API_KEY;
-const AEROAPI_KEY =
-  Constants.expoConfig?.extra?.aeroApiKey ??
-  process.env.EXPO_PUBLIC_AEROAPI_API_KEY ??
-  process.env.EXPO_PUBLIC_FLIGHTAWARE_AEROAPI_KEY;
+// Provider credentials live only in Supabase Edge Function secrets.
+// The local waterfall is intentionally inert in production mobile bundles.
+const FR24_TOKEN = '';
+const AIRLABS_KEY = '';
+const AEROAPI_KEY = '';
 const IATA_TO_ICAO: Record<string, string> = { PC: 'PGT', TK: 'THY', XQ: 'SXS', '6E': 'IGO' };
 
 function flightNumberVariants(flightNumber: string): string[] {
@@ -403,6 +399,7 @@ type PollTimetableRow = {
   delayArrMin: number | null;
   progressPercent: number | null;
   aircraftRegistration?: string | null;
+  aircraftType?: string | null;
   actualOut?: string | null;
   actualIn?: string | null;
 };
@@ -418,6 +415,8 @@ function flightInfoToPollTimetableRow(info: FlightInfo): PollTimetableRow {
     delayDepMin: info.delayDepMin ?? null,
     delayArrMin: info.delayArrMin ?? null,
     progressPercent: info.airlabsProgressPercent ?? null,
+    aircraftRegistration: info.aircraftRegistration ?? null,
+    aircraftType: info.aircraftType ?? null,
   };
 }
 
@@ -432,6 +431,8 @@ function mergePollWithBoardCache(merged: PollTimetableRow | null, board: PollTim
     delayDepMin: merged.delayDepMin ?? board.delayDepMin,
     delayArrMin: merged.delayArrMin ?? board.delayArrMin,
     progressPercent: merged.progressPercent ?? board.progressPercent,
+    aircraftRegistration: merged.aircraftRegistration ?? board.aircraftRegistration,
+    aircraftType: merged.aircraftType ?? board.aircraftType,
     actualOut: merged.actualOut ?? board.actualOut,
     actualIn: merged.actualIn ?? board.actualIn,
   };
@@ -570,7 +571,7 @@ async function fetchAirLabsFlight(
       source: 'AirLabs',
       request: `${AIRLABS_BASE}/flight`,
       outcome: 'skipped',
-      lines: ['EXPO_PUBLIC_AIRLABS_API_KEY yok'],
+      lines: ['Mobil doğrudan AirLabs erişimi güvenlik nedeniyle kapalı'],
     });
     return null;
   }
@@ -658,9 +659,12 @@ async function fetchAirLabsFlight(
       const regRaw = o.reg_number ?? o.reg_num;
       const aircraftRegistration =
         typeof regRaw === 'string' && regRaw.trim() ? regRaw.trim().toUpperCase() : null;
+      const typeRaw = o.aircraft_icao ?? o.ac_icao ?? o.aircraft_iata;
+      const aircraftType =
+        typeof typeRaw === 'string' && typeRaw.trim() ? typeRaw.trim().toUpperCase() : null;
       if (
         !depIso && !arrIso && !st && delayDepMin == null && delayArrMin == null && progressPercent == null &&
-        !aircraftRegistration
+        !aircraftRegistration && !aircraftType
       ) {
         pushTrace(trace, {
           source: 'AirLabs',
@@ -684,6 +688,7 @@ async function fetchAirLabsFlight(
           `progressPercent: ${progressPercent ?? '—'}`,
           `divertedTo: ${divertedTo ?? '—'}`,
           `reg: ${aircraftRegistration ?? '—'}`,
+          `type: ${aircraftType ?? '—'}`,
         ],
       });
       return {
@@ -695,6 +700,7 @@ async function fetchAirLabsFlight(
         delayArrMin,
         progressPercent,
         aircraftRegistration,
+        aircraftType,
         actualOut: null,
         actualIn: null,
       };
@@ -1033,7 +1039,7 @@ export async function fetchFr24LightForAdminDebug(
       source: 'Flightradar24 (admin · doğrudan)',
       request: [
         `GET ${exampleUrl}`,
-        'Authorization: Bearer <YOK — EXPO_PUBLIC_FLIGHTRADAR24_API_TOKEN veya expo.extra.flightradar24Token>',
+        'Authorization: Bearer <MOBİLDE KAPALI — Edge Function kullanılır>',
         'Accept: application/json',
         'Accept-Version: v1',
       ].join('\n'),
@@ -1243,23 +1249,34 @@ function attachAirLabsTimingFields(
     delayArrMin?: number | null;
     progressPercent?: number | null;
     aircraftRegistration?: string | null;
+    aircraftType?: string | null;
   },
 ): void {
   if (al.delayDepMin != null) info.delayDepMin = al.delayDepMin;
   if (al.delayArrMin != null) info.delayArrMin = al.delayArrMin;
   if (al.progressPercent != null) info.airlabsProgressPercent = al.progressPercent;
   if (al.aircraftRegistration) info.aircraftRegistration = al.aircraftRegistration;
+  if (al.aircraftType) info.aircraftType = al.aircraftType;
 }
 
 function coalescePollAircraftRegistration(info: FlightInfo): FlightInfo {
   if (info.aircraftRegistration?.trim()) {
     info.aircraftRegistration = info.aircraftRegistration.trim().toUpperCase();
-    return info;
+  } else {
+    const raw = info as unknown as Record<string, unknown>;
+    const snake = raw.aircraft_registration;
+    if (typeof snake === 'string' && snake.trim()) {
+      info.aircraftRegistration = snake.trim().toUpperCase();
+    }
   }
-  const raw = info as unknown as Record<string, unknown>;
-  const snake = raw.aircraft_registration;
-  if (typeof snake === 'string' && snake.trim()) {
-    info.aircraftRegistration = snake.trim().toUpperCase();
+  if (info.aircraftType?.trim()) {
+    info.aircraftType = info.aircraftType.trim().toUpperCase();
+  } else {
+    const raw = info as unknown as Record<string, unknown>;
+    const snake = raw.aircraft_type;
+    if (typeof snake === 'string' && snake.trim()) {
+      info.aircraftType = snake.trim().toUpperCase();
+    }
   }
   return info;
 }
@@ -1274,22 +1291,25 @@ async function enrichPollInfoAircraftRegistration(
   options?: PollProviderOptions,
 ): Promise<FlightInfo> {
   coalescePollAircraftRegistration(info);
-  if (info.aircraftRegistration?.trim()) return info;
+  if (info.aircraftRegistration?.trim() && info.aircraftType?.trim()) return info;
 
-  if (FR24_TOKEN) {
+  if (FR24_TOKEN && !info.aircraftRegistration?.trim()) {
     const f = await selectFr24Flight(flightNumber, flightDate, FR24_TOKEN, trace, options);
     if (f) {
       const bar = fr24ProgressAnchorsFromFr24(f);
       if (bar.aircraftRegistration) {
-        return { ...info, aircraftRegistration: bar.aircraftRegistration };
+        info = { ...info, aircraftRegistration: bar.aircraftRegistration };
       }
     }
   }
 
-  if (phase === 'semi_active' || !info.aircraftRegistration) {
+  if (phase === 'semi_active' || !info.aircraftRegistration?.trim() || !info.aircraftType?.trim()) {
     const al = await fetchAirLabsFlight(flightNumber, flightDate, trace, options);
-    if (al?.aircraftRegistration) {
-      return { ...info, aircraftRegistration: al.aircraftRegistration };
+    if (al?.aircraftRegistration && !info.aircraftRegistration?.trim()) {
+      info = { ...info, aircraftRegistration: al.aircraftRegistration };
+    }
+    if (al?.aircraftType && !info.aircraftType?.trim()) {
+      info = { ...info, aircraftType: al.aircraftType };
     }
   }
 

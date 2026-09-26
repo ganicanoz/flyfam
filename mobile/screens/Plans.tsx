@@ -12,6 +12,8 @@ import {
 } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { fetchMySubscriptionAccess, type SubscriptionAccess } from '../lib/subscriptionAccess';
 import { purchaseBaseSubscriptionIos, restorePurchases } from '../lib/iapRestore';
 import { isIosMonthlyPromoOfferConfigured } from '../lib/applePromotionalOffer';
@@ -21,7 +23,9 @@ import {
 } from '../lib/iapStorePrices';
 import { SUBSCRIPTION_TIERS, type PackageCode, getTierByCode } from '../constants/iapProducts';
 import { SubscriptionLegalDisclosure } from '../components/SubscriptionLegalDisclosure';
+import { ScreenPageHeader } from '../components/ScreenPageHeader';
 import { colors, useThemeMode } from '../theme/colors';
+import { radius, shadow } from '../theme/tokens';
 
 function fmtDate(iso: string | null): string {
   if (!iso) return '-';
@@ -37,21 +41,33 @@ function planTitleKey(code: PackageCode): string {
   return `plans.tier.${code}.title`;
 }
 
+function yearlySavingsPct(tier: (typeof SUBSCRIPTION_TIERS)[number]): number | null {
+  const monthlyYear = tier.listPriceMonthlyTry * 12;
+  if (monthlyYear <= 0 || tier.listPriceYearlyTry <= 0) return null;
+  const pct = Math.round(((monthlyYear - tier.listPriceYearlyTry) / monthlyYear) * 100);
+  return pct > 0 ? pct : null;
+}
+
+type BillingPeriod = 'monthly' | 'yearly';
+
 export default function Plans() {
   const { t } = useTranslation();
   const navigation = useNavigation();
   const themeMode = useThemeMode();
+  const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
-  const styles = useMemo(() => createPlansStyles(), [themeMode]);
+  const styles = useMemo(() => createPlansStyles(themeMode), [themeMode]);
   const [access, setAccess] = useState<SubscriptionAccess | null>(null);
   const [loading, setLoading] = useState(true);
   const [buyingCode, setBuyingCode] = useState<PackageCode | null>(null);
   const [restoring, setRestoring] = useState(false);
+  const [billing, setBilling] = useState<BillingPeriod>('monthly');
   const [storePrices, setStorePrices] = useState<Record<PackageCode, TierStorePrices> | null>(null);
 
-  const gap = 10;
-  const horizontalPad = 20;
-  const cardWidth = Math.max(148, (width - horizontalPad * 2 - gap) / 2);
+  const gap = 8;
+  const horizontalPad = 16;
+  const cardWidth = Math.max(140, (width - horizontalPad * 2 - gap) / 2);
+  const fieldFill = themeMode === 'dark' ? '#1A2740' : '#F0F1F5';
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -91,6 +107,7 @@ export default function Plans() {
   const currentTier = getTierByCode(currentCode ?? undefined);
   const isSubActive =
     access?.subscription_status === 'trialing' || access?.subscription_status === 'active';
+  const isTrialing = access?.subscription_status === 'trialing';
   const currentPlanLabel =
     currentTier && isSubActive
       ? t(planTitleKey(currentTier.code))
@@ -100,6 +117,8 @@ export default function Plans() {
 
   const used = access?.used_family_approved ?? 0;
   const max = access?.max_family_members ?? 0;
+  const remaining = Math.max(0, max - used);
+  const seatRatio = max > 0 ? Math.min(1, used / max) : 0;
 
   const onBuyTier = async (code: PackageCode) => {
     const tier = getTierByCode(code);
@@ -107,7 +126,9 @@ export default function Plans() {
     try {
       setBuyingCode(code);
       if (Platform.OS === 'ios') {
-        await purchaseBaseSubscriptionIos(tier.iosMonthlyProductId);
+        const productId =
+          billing === 'yearly' ? tier.iosYearlyProductId : tier.iosMonthlyProductId;
+        await purchaseBaseSubscriptionIos(productId);
       } else {
         Alert.alert(t('common.error'), t('plans.storeIosOnly'));
         return;
@@ -135,342 +156,372 @@ export default function Plans() {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.title}>{t('plans.title')}</Text>
-      <Text style={styles.subtitle}>{t('plans.subtitleTiers')}</Text>
-
-      {loading ? (
-        <ActivityIndicator color={colors.primary} />
-      ) : (
-        <>
-          <View style={styles.statusBox}>
-            <Text style={styles.statusPlanLine}>
-              {t('plans.currentPlan')}: {currentPlanLabel}
-              {statusKey ? ` · ${t(statusKey)}` : ''}
-            </Text>
-
-            <View style={styles.seatsHero}>
-              <Text style={styles.seatsHeroLabel}>{t('plans.connectedFamily')}</Text>
-              <Text style={styles.seatsHeroCount}>
-                {used}
-                <Text style={styles.seatsHeroMax}> / {max}</Text>
-              </Text>
-              <Text style={styles.seatsHeroHint}>{t('plans.seatsHeroHint')}</Text>
+    <View style={[styles.screen, { backgroundColor: colors.background }]}>
+      <ScreenPageHeader title={t('nav.plans')} />
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={[styles.content, { paddingBottom: 40 + Math.max(insets.bottom, 8) }]}
+      >
+        {loading ? (
+          <ActivityIndicator color={colors.primary} />
+        ) : (
+          <>
+            <View style={[styles.statusCard, shadow.card]}>
+              <View style={styles.statusBody}>
+                <Text style={styles.statusLabel}>{t('plans.currentPlan')}</Text>
+                <Text style={styles.statusPlanLine} numberOfLines={1}>
+                  {currentPlanLabel}
+                  {statusKey ? ` · ${t(statusKey)}` : ''}
+                </Text>
+                <View style={[styles.seatsBox, { backgroundColor: fieldFill }]}>
+                  <Text style={styles.seatsHint}>{t('plans.connectedFollowers')}</Text>
+                  <Text style={styles.seatsCount}>
+                    <Text style={styles.seatsUsed}>{used}</Text>
+                    <Text style={styles.seatsMax}>/{max}</Text>
+                  </Text>
+                  {max > 0 ? (
+                    <View style={styles.seatProgressWrap}>
+                      <View style={styles.seatProgressTrack}>
+                        <View
+                          style={[
+                            styles.seatProgressFill,
+                            { width: `${Math.round(seatRatio * 1000) / 10}%` },
+                          ]}
+                        />
+                      </View>
+                      <Text style={styles.seatProgressLabel}>
+                        {t('plans.followersRemaining', { count: remaining })}
+                      </Text>
+                    </View>
+                  ) : null}
+                </View>
+                {isTrialing && access?.trial_ends_at ? (
+                  <Text style={styles.statusMeta}>
+                    {t('plans.trialEnds')}: {fmtDate(access.trial_ends_at)}
+                  </Text>
+                ) : null}
+              </View>
             </View>
 
-            {access?.trial_ends_at ? (
-              <Text style={styles.statusMeta}>
-                {t('plans.trialEnds')}: {fmtDate(access.trial_ends_at)}
-              </Text>
-            ) : null}
-          </View>
+            <View style={[styles.segment, { backgroundColor: fieldFill }]}>
+              <TouchableOpacity
+                style={[styles.segmentItem, billing === 'monthly' && styles.segmentItemActive]}
+                onPress={() => setBilling('monthly')}
+              >
+                <Text style={[styles.segmentText, billing === 'monthly' && styles.segmentTextActive]}>
+                  {t('plans.billingMonthly')}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.segmentItem, billing === 'yearly' && styles.segmentItemActive]}
+                onPress={() => setBilling('yearly')}
+              >
+                <Text style={[styles.segmentText, billing === 'yearly' && styles.segmentTextActive]}>
+                  {t('plans.billingYearly')}
+                </Text>
+              </TouchableOpacity>
+            </View>
 
-          <Text style={styles.sectionLabel}>{t('plans.choosePackage')}</Text>
+            <View style={[styles.grid, { gap }]}>
+              {SUBSCRIPTION_TIERS.map((tier) => {
+                const selected = isSubActive && currentCode === tier.code;
+                const showPromo =
+                  Platform.OS === 'ios' &&
+                  tier.code === 'duo' &&
+                  isIosMonthlyPromoOfferConfigured() &&
+                  !isSubActive &&
+                  billing === 'monthly';
+                const busy = buyingCode === tier.code;
+                const prices = storePrices?.[tier.code] ?? {
+                  monthly: '—',
+                  yearly: '—',
+                  source: 'list' as const,
+                };
+                const price = billing === 'yearly' ? prices.yearly : prices.monthly;
+                const period = billing === 'yearly' ? t('plans.perYear') : t('plans.perMonth');
+                const savePct = billing === 'yearly' ? yearlySavingsPct(tier) : null;
+                const isTrialCta = tier.code === 'duo' || showPromo;
 
-          <View style={[styles.grid, { gap }]}>
-            {SUBSCRIPTION_TIERS.map((tier) => {
-              const selected = isSubActive && currentCode === tier.code;
-              const showPromo =
-                Platform.OS === 'ios' &&
-                tier.code === 'duo' &&
-                isIosMonthlyPromoOfferConfigured() &&
-                !isSubActive;
-              const busy = buyingCode === tier.code;
-              const prices = storePrices?.[tier.code] ?? {
-                monthly: '—',
-                yearly: '—',
-                source: 'list' as const,
-              };
-
-              return (
-                <View
-                  key={tier.code}
-                  style={[
-                    styles.card,
-                    { width: cardWidth },
-                    selected && styles.cardSelected,
-                  ]}
-                >
-                  <View style={styles.cardHeader}>
-                    <Text style={styles.cardTitle} numberOfLines={2}>
-                      {t(planTitleKey(tier.code))}
-                    </Text>
-                  </View>
-
-                  <View style={styles.seatCompose}>
-                    <Text style={styles.seatYou}>{t('plans.youLabel')}</Text>
-                    <Text style={styles.seatPlus}>+</Text>
-                    <Text style={styles.cardSeatCount}>{tier.maxFamilyMembers}</Text>
-                  </View>
-                  <Text style={styles.cardSeatLabel}>
-                    {tier.maxFamilyMembers === 1
-                      ? t('plans.familyMemberSingular')
-                      : t('plans.familyMembersShort')}
-                  </Text>
-
-                  <View style={styles.priceBlock}>
-                    <Text style={styles.priceMonthly}>
-                      {prices.monthly}
-                      <Text style={styles.pricePeriodInline}>{t('plans.perMonth')}</Text>
-                    </Text>
-                    <Text style={styles.priceYearly}>
-                      {prices.yearly}
-                      <Text style={styles.pricePeriodInline}>{t('plans.perYear')}</Text>
-                    </Text>
-                  </View>
-
-                  {selected ? (
-                    <View style={styles.activeBadge}>
-                      <Text style={styles.activeBadgeText}>{t('plans.currentTierBadge')}</Text>
-                    </View>
-                  ) : (
-                    <TouchableOpacity
-                      style={[styles.btn, tier.code === 'duo' ? styles.btnTrial : styles.btnDefault]}
-                      onPress={() => onBuyTier(tier.code)}
-                      disabled={!!buyingCode}
-                    >
-                      {busy ? (
-                        <ActivityIndicator color="#fff" size="small" />
+                return (
+                  <View
+                    key={tier.code}
+                    style={[styles.card, shadow.card, { width: cardWidth }, selected && styles.cardSelected]}
+                  >
+                    <View style={styles.cardInner}>
+                      <Text style={styles.cardTitle} numberOfLines={2}>
+                        {t(planTitleKey(tier.code))}
+                      </Text>
+                      <Text style={styles.cardSeats} numberOfLines={2}>
+                        {t('plans.familySeats', { count: tier.maxFamilyMembers })}
+                      </Text>
+                      <Text style={styles.priceMain} numberOfLines={1}>
+                        {price}
+                        <Text style={styles.pricePeriod}>{period}</Text>
+                      </Text>
+                      {savePct != null ? (
+                        <Text style={styles.saveBadge}>{t('plans.savePercent', { pct: savePct })}</Text>
                       ) : (
-                        <Text style={styles.btnText}>
-                          {tier.code === 'duo' || showPromo
-                            ? t('plans.selectPlanWithTrial')
-                            : t('plans.selectPlan')}
-                        </Text>
+                        <View style={styles.saveBadgeSpacer} />
                       )}
-                    </TouchableOpacity>
+
+                      {selected ? (
+                        <View style={styles.activeBadge}>
+                          <Ionicons name="checkmark" size={14} color={colors.primary} />
+                          <Text style={styles.activeBadgeText}>{t('plans.currentTierBadge')}</Text>
+                        </View>
+                      ) : (
+                        <TouchableOpacity
+                          style={[styles.btn, isTrialCta ? styles.btnChip : styles.btnFilled]}
+                          onPress={() => onBuyTier(tier.code)}
+                          disabled={!!buyingCode}
+                        >
+                          {busy ? (
+                            <ActivityIndicator
+                              color={isTrialCta ? colors.primary : colors.onPrimary}
+                              size="small"
+                            />
+                          ) : (
+                            <Text
+                              style={[styles.btnText, isTrialCta && styles.btnChipText]}
+                              numberOfLines={1}
+                            >
+                              {isTrialCta ? t('plans.selectPlanWithTrial') : t('plans.selectPlan')}
+                            </Text>
+                          )}
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+
+            <SubscriptionLegalDisclosure
+              compact
+              onOpenPrivacy={() => {
+                (navigation as { navigate: (name: string) => void }).navigate('PrivacyNotice');
+              }}
+              onOpenTerms={() => {
+                (navigation as { navigate: (name: string) => void }).navigate('TermsDisclaimer');
+              }}
+              footer={(
+                <TouchableOpacity
+                  onPress={onRestorePurchases}
+                  disabled={restoring}
+                  style={styles.restoreLink}
+                >
+                  {restoring ? (
+                    <ActivityIndicator color={colors.textMuted} size="small" />
+                  ) : (
+                    <Text style={styles.restoreLinkText}>{t('plans.restorePurchases')}</Text>
                   )}
-                </View>
-              );
-            })}
-          </View>
-
-          <TouchableOpacity
-            style={[styles.restoreBtn, restoring && styles.restoreBtnDisabled]}
-            onPress={onRestorePurchases}
-            disabled={restoring}
-          >
-            {restoring ? (
-              <ActivityIndicator color={colors.primary} size="small" />
-            ) : (
-              <Text style={styles.restoreBtnText}>{t('plans.restorePurchases')}</Text>
-            )}
-          </TouchableOpacity>
-
-          <SubscriptionLegalDisclosure
-            onOpenPrivacy={() => {
-              (navigation as { navigate: (name: string) => void }).navigate('PrivacyNotice');
-            }}
-            onOpenTerms={() => {
-              (navigation as { navigate: (name: string) => void }).navigate('TermsDisclaimer');
-            }}
-          />
-        </>
-      )}
-    </ScrollView>
+                </TouchableOpacity>
+              )}
+            />
+          </>
+        )}
+      </ScrollView>
+    </View>
   );
 }
 
-/** FlyFam uçuş günü pembesi — Plans şerit ve takvim vurgusu. */
-const BRAND_PINK = '#E57373';
-function createPlansStyles() {
+function createPlansStyles(themeMode: 'light' | 'dark') {
+  void themeMode;
   return StyleSheet.create({
-    container: { flex: 1, backgroundColor: colors.background },
-    content: { padding: 20, paddingBottom: 48 },
-    title: { fontSize: 22, fontWeight: '700', color: colors.text, marginBottom: 6 },
-    subtitle: { fontSize: 14, color: colors.textSecondary, marginBottom: 16, lineHeight: 20 },
-    statusBox: {
-      backgroundColor: colors.surfaceAlt,
-      borderRadius: 16,
-      borderWidth: 1,
+    screen: { flex: 1 },
+    container: { flex: 1 },
+    content: { paddingHorizontal: 16, paddingTop: 4 },
+    statusCard: {
+      backgroundColor: colors.surface,
+      borderRadius: radius.card,
+      borderWidth: StyleSheet.hairlineWidth,
       borderColor: colors.border,
-      padding: 16,
-      marginBottom: 18,
+      overflow: 'hidden',
+      marginBottom: 12,
+    },
+    statusBody: { padding: 14 },
+    statusLabel: {
+      color: colors.text,
+      fontSize: 13,
+      fontWeight: '800',
+      marginBottom: 4,
     },
     statusPlanLine: {
       color: colors.textSecondary,
       fontSize: 13,
       fontWeight: '600',
-      marginBottom: 12,
+      marginBottom: 10,
     },
-    seatsHero: {
+    seatsBox: {
+      borderRadius: 12,
+      padding: 12,
       alignItems: 'center',
-      paddingVertical: 8,
-      backgroundColor: colors.surface,
-      borderRadius: 14,
-      borderWidth: 1,
-      borderColor: colors.border,
-      paddingHorizontal: 12,
     },
-    seatsHeroLabel: {
-      fontSize: 13,
-      fontWeight: '600',
+    seatsHint: {
+      fontSize: 11,
+      fontWeight: '700',
       color: colors.textMuted,
       textTransform: 'uppercase',
-      letterSpacing: 0.4,
+      letterSpacing: 0.3,
     },
-    seatsHeroCount: {
-      marginTop: 4,
-      fontSize: 44,
+    seatsCount: {
+      marginTop: 2,
+      fontVariant: ['tabular-nums'],
+    },
+    seatsUsed: {
+      fontSize: 36,
       fontWeight: '800',
-      color: colors.accent,
+      color: colors.primary,
       letterSpacing: -1,
-      lineHeight: 50,
     },
-    seatsHeroMax: {
-      fontSize: 28,
+    seatsMax: {
+      fontSize: 22,
       fontWeight: '600',
       color: colors.textMuted,
     },
-    seatsHeroHint: {
-      marginTop: 2,
-      marginBottom: 4,
-      fontSize: 13,
-      color: colors.textSecondary,
+    seatProgressWrap: { alignSelf: 'stretch', marginTop: 8, gap: 4 },
+    seatProgressTrack: {
+      height: 5,
+      borderRadius: 999,
+      backgroundColor: colors.border,
+      overflow: 'hidden',
     },
-    statusMeta: {
-      marginTop: 10,
+    seatProgressFill: {
+      height: 5,
+      borderRadius: 999,
+      backgroundColor: colors.primary,
+    },
+    seatProgressLabel: {
+      fontSize: 11,
+      fontWeight: '600',
       color: colors.textMuted,
-      fontSize: 12,
       textAlign: 'center',
     },
-    sectionLabel: {
-      fontSize: 16,
-      fontWeight: '700',
-      color: colors.text,
+    statusMeta: {
+      marginTop: 8,
+      color: colors.textMuted,
+      fontSize: 11,
+      textAlign: 'center',
+    },
+    segment: {
+      flexDirection: 'row',
+      borderRadius: 12,
+      padding: 3,
       marginBottom: 12,
+    },
+    segmentItem: {
+      flex: 1,
+      minHeight: 36,
+      borderRadius: 10,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    segmentItemActive: {
+      backgroundColor: colors.primary,
+    },
+    segmentText: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.textMuted,
+    },
+    segmentTextActive: {
+      color: colors.onPrimary,
+      fontWeight: '700',
     },
     grid: {
       flexDirection: 'row',
       flexWrap: 'wrap',
       justifyContent: 'space-between',
-      marginBottom: 8,
+      marginBottom: 4,
     },
     card: {
       backgroundColor: colors.surface,
-      borderRadius: 14,
-      borderWidth: 1,
+      borderRadius: radius.card,
+      borderWidth: StyleSheet.hairlineWidth,
       borderColor: colors.border,
-      padding: 12,
-      marginBottom: 10,
-      minHeight: 220,
-      justifyContent: 'flex-start',
       overflow: 'hidden',
-      position: 'relative',
+      marginBottom: 8,
+      minHeight: 156,
     },
     cardSelected: {
       borderColor: colors.primary,
-      borderWidth: 2,
-      backgroundColor: colors.primaryLight,
+      borderWidth: 1.5,
     },
-    cardHeader: {
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: colors.border,
-      paddingBottom: 10,
-      marginBottom: 10,
-      minHeight: 48,
-      justifyContent: 'center',
+    cardInner: {
+      padding: 10,
     },
     cardTitle: {
-      fontSize: 18,
+      fontSize: 13,
       fontWeight: '800',
       color: colors.text,
-      lineHeight: 22,
-      textAlign: 'center',
-      paddingHorizontal: 2,
+      lineHeight: 16,
+      minHeight: 32,
     },
-    seatCompose: {
+    cardSeats: {
       marginTop: 4,
-      flexDirection: 'row',
-      alignItems: 'baseline',
-      justifyContent: 'center',
-      flexWrap: 'wrap',
-      gap: 4,
+      fontSize: 11,
+      fontWeight: '600',
+      color: colors.textMuted,
+      lineHeight: 14,
     },
-    seatYou: {
+    priceMain: {
+      marginTop: 6,
       fontSize: 18,
       fontWeight: '800',
       color: colors.text,
-      letterSpacing: -0.3,
+      fontVariant: ['tabular-nums'],
     },
-    seatPlus: {
-      fontSize: 18,
+    pricePeriod: {
+      fontSize: 11,
+      fontWeight: '600',
+      color: colors.textMuted,
+    },
+    saveBadge: {
+      marginTop: 4,
+      fontSize: 11,
       fontWeight: '700',
-      color: colors.textMuted,
+      color: colors.primary,
+      minHeight: 16,
     },
-    cardSeatCount: {
-      fontSize: 40,
-      fontWeight: '800',
-      color: colors.accent,
-      letterSpacing: -1,
-      lineHeight: 44,
-      textAlign: 'center',
-    },
-    cardSeatLabel: {
-      fontSize: 12,
-      fontWeight: '600',
-      color: colors.textMuted,
-      textAlign: 'center',
-      marginBottom: 10,
-      marginTop: 2,
-    },
-    priceBlock: {
-      alignItems: 'center',
-      marginBottom: 10,
-      minHeight: 48,
-    },
-    priceMonthly: {
-      fontSize: 16,
-      fontWeight: '800',
-      color: colors.text,
-      textAlign: 'center',
-    },
-    priceYearly: {
-      marginTop: 4,
-      fontSize: 12,
-      fontWeight: '600',
-      color: colors.textSecondary,
-      textAlign: 'center',
-    },
-    pricePeriodInline: {
-      fontSize: 12,
-      fontWeight: '600',
-      color: colors.textMuted,
-    },
+    saveBadgeSpacer: { minHeight: 16, marginTop: 4 },
     activeBadge: {
-      marginTop: 4,
-      paddingVertical: 10,
-      borderRadius: 10,
-      backgroundColor: colors.surface,
+      marginTop: 'auto',
+      minHeight: 36,
+      borderRadius: radius.pill,
       borderWidth: 1,
-      borderColor: colors.success,
+      borderColor: colors.primary,
+      backgroundColor: colors.primaryLight,
       alignItems: 'center',
+      justifyContent: 'center',
+      flexDirection: 'row',
+      gap: 4,
+      paddingHorizontal: 6,
     },
     activeBadgeText: {
-      color: colors.success,
+      color: colors.primary,
       fontWeight: '700',
-      fontSize: 12,
-      textAlign: 'center',
+      fontSize: 11,
     },
     btn: {
-      marginTop: 4,
-      paddingVertical: 10,
-      borderRadius: 10,
+      marginTop: 'auto',
+      minHeight: 36,
+      borderRadius: radius.pill,
       alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: 8,
     },
-    btnDefault: { backgroundColor: colors.primary },
-    btnTrial: { backgroundColor: BRAND_PINK },
-    btnText: { color: colors.onPrimary, fontWeight: '700', fontSize: 13 },
-    restoreBtn: {
-      marginTop: 8,
-      marginBottom: 8,
-      paddingVertical: 12,
-      borderRadius: 10,
-      borderWidth: 1,
-      borderColor: colors.border,
-      alignItems: 'center',
+    btnFilled: { backgroundColor: colors.primary },
+    btnChip: {
+      backgroundColor: colors.primaryLight,
     },
-    restoreBtnDisabled: { opacity: 0.6 },
-    restoreBtnText: { color: colors.primary, fontWeight: '700' },
+    btnText: { color: colors.onPrimary, fontWeight: '700', fontSize: 11 },
+    btnChipText: { color: colors.primary },
+    restoreLink: { marginTop: 6, paddingVertical: 4 },
+    restoreLinkText: {
+      color: colors.textMuted,
+      fontSize: 12,
+      fontWeight: '600',
+      textDecorationLine: 'underline',
+    },
   });
 }

@@ -1,4 +1,4 @@
-import { StackActions, type NavigationProp, type ParamListBase } from '@react-navigation/native';
+import { CommonActions, StackActions, type NavigationProp, type ParamListBase } from '@react-navigation/native';
 
 /**
  * Tab ekranından root native stack’e güvenli push (navigate yerine).
@@ -19,5 +19,5 @@ export function pushRootScreen(
     }
     nav = nav.getParent?.() as NavigationProp<ParamListBase> | undefined;
   }
-  navigation.navigate(name as never, params as never);
+  navigation.dispatch(CommonActions.navigate({ name, params }));
 }

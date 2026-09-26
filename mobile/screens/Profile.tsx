@@ -14,7 +14,6 @@ import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useSession } from '../contexts/SessionContext';
-import { useAdminRoster } from '../contexts/AdminRosterContext';
 import { colors, setThemePreference, useThemeMode, useThemePreference, type ThemePreference } from '../theme/colors';
 import { AIRLINES } from '../constants/airlines';
 import { normalizeCrewAirlineIcaoTypo } from '../lib/pdfRosterImport';
@@ -37,7 +36,6 @@ export default function Profile() {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const { profile, crewProfile, session, signOut } = useSession();
-  const { onProfileSecretTap } = useAdminRoster();
   const themeMode = useThemeMode();
   const themePreference = useThemePreference();
   const [deletingAccount, setDeletingAccount] = useState(false);
@@ -64,10 +62,6 @@ export default function Profile() {
   }, [loadAccess]);
 
   const openEditProfile = () => {
-    if (onProfileSecretTap()) {
-      (navigation as { navigate: (name: string) => void }).navigate('Roster');
-      return;
-    }
     pushRootScreen(navigation as never, 'EditProfile');
   };
 

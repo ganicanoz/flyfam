@@ -1,36 +1,19 @@
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useTranslation } from 'react-i18next';
-import { privacyNoticeText, termsDisclaimerText } from '../lib/legalTexts';
-import { colors } from '../theme/colors';
-
-export type LegalDocumentKind = 'privacy' | 'terms';
+import { LegalTextView, type LegalDocumentKind } from './LegalTextView';
 
 type Props = {
   kind: LegalDocumentKind;
-  /** When false, rely on navigation header for the title (App.tsx stack). */
+  /** Ignored — title comes from ScreenPageHeader inside LegalTextView. */
   showTitle?: boolean;
+  showAccept?: boolean;
+  onAccept?: () => void;
+  onBack?: () => void;
 };
 
-export function LegalDocumentView({ kind, showTitle = true }: Props) {
-  const { i18n, t } = useTranslation();
-  const body =
-    kind === 'privacy' ? privacyNoticeText(i18n.language ?? 'en') : termsDisclaimerText(i18n.language ?? 'en');
-  const title = kind === 'privacy' ? t('legal.privacyTitle') : t('legal.termsTitle');
-
+/** Compatibility wrapper for older imports / expo-router screens. */
+export function LegalDocumentView({ kind, showAccept, onAccept, onBack }: Props) {
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
-        {showTitle ? <Text style={[styles.title, { color: colors.text }]}>{title}</Text> : null}
-        <Text style={[styles.body, { color: colors.textSecondary }]}>{body}</Text>
-      </ScrollView>
-    </View>
+    <LegalTextView kind={kind} showAccept={showAccept ?? false} onAccept={onAccept} onBack={onBack} />
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1 },
-  scroll: { flex: 1 },
-  content: { padding: 20, paddingBottom: 32 },
-  title: { fontSize: 22, fontWeight: '700', marginBottom: 12 },
-  body: { fontSize: 14, lineHeight: 22 },
-});
+export type { LegalDocumentKind };

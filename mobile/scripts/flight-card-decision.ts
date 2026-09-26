@@ -53,10 +53,8 @@ const AEROAPI_KEY =
 const AEROAPI_BASE = 'https://aeroapi.flightaware.com/aeroapi';
 const AVIATIONSTACK_KEY = process.env.AVIATIONSTACK_API_KEY ?? process.env.EXPO_PUBLIC_AVIATIONSTACK_API_KEY ?? '';
 const AVIATIONSTACK_BASE = 'https://api.aviationstack.com/v1';
-const AERODATABOX_RAPIDAPI_FALLBACK = '15e502192bmsh69e44f588a1f748p1f3145jsnb8957fc1856c';
 const AERODATABOX_RAPIDAPI_KEY =
-  (process.env.AERODATABOX_RAPIDAPI_KEY ?? process.env.EXPO_PUBLIC_AERODATABOX_RAPIDAPI_KEY ?? '').trim() ||
-  AERODATABOX_RAPIDAPI_FALLBACK;
+  (process.env.AERODATABOX_RAPIDAPI_KEY ?? process.env.EXPO_PUBLIC_AERODATABOX_RAPIDAPI_KEY ?? '').trim();
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL ?? '';
 const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '';
 const IATA_TO_ICAO: Record<string, string> = { PC: 'PGT', TK: 'THY', XQ: 'SXS', VF: 'TKJ' };
@@ -900,13 +898,16 @@ function getDelay(f: FlightCardInput, status: Exclude<FlightStatus, 'parked'>): 
     if (depCached && depCached > 0) return { minutes: depCached, source: 'dep' };
     return { minutes: null, source: null };
   }
-  // Landed: prefer ATA−STA over stale AirLabs/ETA delay_arr_min.
+  // Landed: ATA−STA; 1–14 dk geç normal, ≥15 dk gecikme.
   if (status === 'landed') {
     const landMs = parseUtcMs(f.fr24_datetime_landed_utc ?? f.actual_arrival ?? null);
     const staMs = parseUtcMs(f.scheduled_arrival ?? null);
     if (landMs > 0 && staMs > 0) {
       const actualArrDelay = Math.round((landMs - staMs) / 60_000);
-      return { minutes: actualArrDelay > 0 ? actualArrDelay : null, source: 'arr' };
+      return {
+        minutes: actualArrDelay >= 15 ? actualArrDelay : null,
+        source: 'arr',
+      };
     }
   }
   if (status === 'en_route' || status === 'departed' || status === 'taxi_out' || status === 'landed') {

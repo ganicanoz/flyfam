@@ -31,6 +31,9 @@ type CatalogCache = {
 let memory: CatalogCache | null = null;
 /** code (upper) → preferred row (airline-specific preferred later via lookup with airline). */
 let byCode = new Map<string, RosterOccupationPublishedRow[]>();
+const listeners = new Set<() => void>();
+let lastFetchAttemptAt = 0;
+const MIN_REFRESH_GAP_MS = 15_000;
 
 function rebuildIndex(rows: RosterOccupationPublishedRow[]) {
   byCode = new Map();
@@ -45,9 +48,30 @@ function rebuildIndex(rows: RosterOccupationPublishedRow[]) {
   }
 }
 
+function notify() {
+  for (const l of listeners) {
+    try {
+      l();
+    } catch {
+      /* ignore */
+    }
+  }
+}
+
 function applyCache(cache: CatalogCache) {
+  const prevVersion = memory?.version ?? -1;
+  const prevLen = memory?.rows?.length ?? -1;
   memory = cache;
   rebuildIndex(cache.rows);
+  if (cache.version !== prevVersion || cache.rows.length !== prevLen) {
+    notify();
+  }
+}
+
+/** Roster / EditDuty re-render when Deploy snapshot lands in memory. */
+export function subscribeOccupationCatalog(listener: () => void): () => void {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
 }
 
 export function getOccupationCatalogVersion(): number {
@@ -90,6 +114,11 @@ export async function hydrateOccupationCatalogFromStorage(): Promise<void> {
 }
 
 export async function refreshOccupationCatalog(force = false): Promise<CatalogCache | null> {
+  const now = Date.now();
+  if (!force && now - lastFetchAttemptAt < MIN_REFRESH_GAP_MS && memory?.rows?.length) {
+    return memory;
+  }
+  lastFetchAttemptAt = now;
   try {
     const { data, error } = await supabase
       .from('roster_occupation_catalog_meta')

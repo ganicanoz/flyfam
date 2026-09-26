@@ -1,14 +1,28 @@
-# Let EAS run prebuild on the server so app.config.js / plugins are applied.
-# Uploading local ios/ can cause build mismatches. android/ is included so
-# android/app/google-services.json is available for :app:processReleaseGoogleServices.
-ios/
-# Shrink upload
+# Prefer committed native ios/; Pods regenerated on EAS.
+# Do NOT ignore mobile/docs — airlines dataset is imported by Metro.
 .git/
 node_modules/
-docs/
 support/
 wireframe samples/
 *.pkg
 hs_err_pid*.log
 *.log
 node_modules/.cache
+dist/
+ios/Pods/
+ios/build/
+# Design masters / push JPEG sources are hosted via Supabase Storage — not needed in the binary.
+assets/notification-artwork/
+
+# Secrets must come from EAS environment/credentials, never from the upload.
+.env
+.env.*
+*.p8
+*.p12
+*.pem
+*.key
+*.jks
+*.keystore
+*.mobileprovision
+*firebase-adminsdk*.json
+*service-account*.json

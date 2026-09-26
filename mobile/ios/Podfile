@@ -59,6 +59,26 @@ target 'FlyFam' do
       :mac_catalyst_enabled => false,
       :ccache_enabled => ccache_enabled?(podfile_properties),
     )
+
+    # Xcode 26.x + fmt consteval build issue workaround.
+    installer.pods_project.targets.each do |target|
+      if target.name == 'fmt'
+        target.build_configurations.each do |config|
+          config.build_settings['CLANG_CXX_LANGUAGE_STANDARD'] = 'c++17'
+        end
+      end
+    end
+    fmt_base = File.join(installer.sandbox.root.to_s, 'fmt/include/fmt/base.h')
+    if File.exist?(fmt_base)
+      raw = File.read(fmt_base)
+      unless raw.include?('FLYFAM_FMT_CONSTEVAL_OFF')
+        patched = raw.gsub(/#\s*define FMT_USE_CONSTEVAL 1/, '#  define FMT_USE_CONSTEVAL 0 // FLYFAM_FMT_CONSTEVAL_OFF')
+        if patched != raw
+          File.chmod(File.stat(fmt_base).mode | 0o200, fmt_base) rescue nil
+          File.write(fmt_base, patched)
+        end
+      end
+    end
 # @generated begin post-install-build-settings - expo prebuild (DO NOT MODIFY) sync-f4e2a1acf7da60b403fcf5c1d5d9517cb9953853
     installer.pods_project.targets.each do |target|
       unless target.name == 'Sentry'
@@ -68,23 +88,6 @@ target 'FlyFam' do
       end
     end
 # @generated end post-install-build-settings
-
-    # Xcode 26.x + fmt consteval build issue workaround.
-    fmt_base = File.join(installer.sandbox.root.to_s, 'fmt/include/fmt/base.h')
-    if File.exist?(fmt_base)
-      raw = File.read(fmt_base)
-      unless raw.include?('FLYFAM_FMT_CONSTEVAL_OFF')
-        raw = raw.gsub(
-          "#elif defined(__cpp_consteval)\n# define FMT_USE_CONSTEVAL 1",
-          "#elif defined(__cpp_consteval) && 0 // FLYFAM_FMT_CONSTEVAL_OFF\n# define FMT_USE_CONSTEVAL 1",
-        ).gsub(
-          "#elif FMT_GCC_VERSION >= 1002 || FMT_CLANG_VERSION >= 1101\n# define FMT_USE_CONSTEVAL 1",
-          "#elif (FMT_GCC_VERSION >= 1002 || FMT_CLANG_VERSION >= 1101) && 0 // FLYFAM_FMT_CONSTEVAL_OFF\n# define FMT_USE_CONSTEVAL 1",
-        )
-        File.chmod(File.stat(fmt_base).mode | 0o200, fmt_base) rescue nil
-        File.write(fmt_base, raw)
-      end
-    end
   end
 end
 
@@ -96,7 +99,10 @@ target 'FlyFamShareExtension' do
     config_command = ['node', '-e', "process.argv=['', '', 'config'];require('@react-native-community/cli').run()"];
   else
     config_command = [
-      'npx',
+      'node',
+      '--no-warnings',
+      '--eval',
+      'require(\'expo/bin/autolinking\')',
       'expo-modules-autolinking',
       'react-native-config',
       '--json',

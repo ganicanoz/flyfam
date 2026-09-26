@@ -33,14 +33,14 @@ export function resolveFlightStatusToken(args: {
   isStandbyDutyCode?: boolean;
   delayMins?: number | null;
 }): FlightStatusToken {
+  const status = String(args.flightStatus ?? '').toLowerCase();
+  if (status === 'cancelled') return 'cancelled';
   const visual = resolveRosterCardVisualKind(args);
   if (visual === 'duty_off') return 'completed';
   if (visual === 'standby') return 'scheduled';
   if (visual === 'landed') return 'completed';
   if (visual === 'in_flight') return 'inFlight';
   if (args.delayMins != null && args.delayMins > 0) return 'delayed';
-  const status = String(args.flightStatus ?? '').toLowerCase();
-  if (status === 'cancelled') return 'cancelled';
   if (status === 'scheduled') return 'scheduled';
   return 'onTime';
 }

@@ -94,6 +94,10 @@ function isTkFlightCode(code: string): boolean {
   return /^TK\d{3,4}$/.test(code);
 }
 
+function isVfFlightCode(code: string): boolean {
+  return /^VF\d{2,4}$/.test(code);
+}
+
 function isXqFlightCode(code: string): boolean {
   return /^XQ\d{2,4}$/.test(code);
 }
@@ -114,6 +118,7 @@ function isRosterFlightCode(code: string): boolean {
   return (
     isPcFlightCode(code) ||
     isTkFlightCode(code) ||
+    isVfFlightCode(code) ||
     isXqFlightCode(code) ||
     isFhFlightCode(code) ||
     is6eFlightCode(code)
@@ -348,11 +353,21 @@ function prepareImportRows(
     const code = normalizeCode(r.flight_number);
     if (isPcFlightCode(code)) pcEntries.push({ idx, row: r, code });
   });
+  // Aynı DUTY gününde gidiş→dönüş sırası: parse sırası PC2677/PC2678 gibi ters gelebilir.
+  const pcEntriesChrono = [...pcEntries].sort((a, b) => {
+    const da = a.row.flight_date || '';
+    const db = b.row.flight_date || '';
+    if (da !== db) return da.localeCompare(db);
+    const ma = depMinutesForPcOvernightHeuristic(a.row) ?? 0;
+    const mb = depMinutesForPcOvernightHeuristic(b.row) ?? 0;
+    if (ma !== mb) return ma - mb;
+    return (pcNumber(a.code) ?? 0) - (pcNumber(b.code) ?? 0);
+  });
 
   const restDateByIdx = new Map<number, string>();
-  for (let i = 1; i < pcEntries.length; i += 1) {
-    const prev = pcEntries[i - 1]!;
-    const e = pcEntries[i]!;
+  for (let i = 1; i < pcEntriesChrono.length; i += 1) {
+    const prev = pcEntriesChrono[i - 1]!;
+    const e = pcEntriesChrono[i]!;
     // Aynı DUTY günü: dönüş kalkışı gidişten erkense resting-end işletme günü (dutyTable.ts ile aynı).
     if (prev.row.flight_date !== e.row.flight_date) continue;
     const dep = depMinutesForPcOvernightHeuristic(e.row);
@@ -378,7 +393,13 @@ function prepareImportRows(
     }
     const dep = timeToMinutes(e.row.dep_time_local);
     const dutyStart = timeToMinutes(e.row.duty_start_time_local);
-    dutyFixByIdx.set(e.idx, dep != null && dutyStart != null && dutyStart > dep);
+    // Gece yarısı sonrası kalkış + akşam duty start: PDF flight_date zaten işletme sabahı (ör. 01.10 00:15) — +1 yapma.
+    const midnightOutbound =
+      dep != null && dutyStart != null && dep < 4 * 60 && dutyStart >= 20 * 60;
+    dutyFixByIdx.set(
+      e.idx,
+      !midnightOutbound && dep != null && dutyStart != null && dutyStart > dep,
+    );
   }
 
   const baseDateByIdx = new Map<number, string>();
@@ -392,18 +413,21 @@ function prepareImportRows(
   }
 
   const overnightByIdx = new Map<number, boolean>();
-  for (let i = 0; i < pcEntries.length - 1; i += 1) {
-    const a = pcEntries[i];
-    const b = pcEntries[i + 1];
+  for (let i = 0; i < pcEntriesChrono.length - 1; i += 1) {
+    const a = pcEntriesChrono[i]!;
+    const b = pcEntriesChrono[i + 1]!;
     if (restDateByIdx.has(b.idx)) continue;
     if (baseDateByIdx.get(a.idx) !== baseDateByIdx.get(b.idx)) continue;
     const an = pcNumber(a.code);
     const bn = pcNumber(b.code);
-    if (an == null || bn == null || bn !== an + 1) continue;
+    // Ardışık PC veya aynı DUTY bloğunda gidiş→dönüş (saat sırası).
+    const consecutivePc = an != null && bn != null && bn === an + 1;
     const aDep = depMinutesForPcOvernightHeuristic(a.row);
     const bDep = depMinutesForPcOvernightHeuristic(b.row);
     if (aDep == null || bDep == null) continue;
-    if (bDep < aDep) overnightByIdx.set(b.idx, true);
+    if (bDep < aDep && (consecutivePc || a.row.flight_date === b.row.flight_date)) {
+      overnightByIdx.set(b.idx, true);
+    }
   }
 
   const finalDateByIdx = new Map<number, string>();
@@ -745,26 +769,32 @@ export async function importPdfFlightsViaRpc(
     }
   }
 
-  // Keep roster window clean: remove memberships older than yesterday.
+  // Drop memberships older than this import’s earliest date — not “yesterday”.
+  // Yesterday floor wiped in-plan past duties (ör. PC398 20 Eyl when today is 24 Eyl).
   try {
-    const { data: me } = await supabase.from('crew_profiles').select('id').single();
-    const crewId = (me as { id?: string } | null)?.id ?? null;
-    if (crewId) {
-      const now = new Date();
-      const y = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
-      const yyyy = String(y.getFullYear());
-      const mm = String(y.getMonth() + 1).padStart(2, '0');
-      const dd = String(y.getDate()).padStart(2, '0');
-      const minDate = `${yyyy}-${mm}-${dd}`;
-      const { data: fcRows } = await supabase.from('flight_crew').select('flight_id').eq('crew_id', crewId);
-      if (fcRows?.length) {
-        const ids = fcRows.map((r: { flight_id: string }) => r.flight_id);
-        const { data: oldFlights } = await supabase.from('flights').select('id').in('id', ids).lt('flight_date', minDate);
-        await Promise.all(
-          (oldFlights ?? []).map((f) =>
-            supabase.rpc('remove_me_from_flight', { p_flight_id: (f as { id: string }).id }),
-          ),
-        );
+    let importFloor: string | null = null;
+    for (const p of preparedExpanded) {
+      const d = (p.effectiveDate || '').trim();
+      if (d && (!importFloor || d < importFloor)) importFloor = d;
+    }
+    if (ok > 0 && importFloor) {
+      const { data: me } = await supabase.from('crew_profiles').select('id').single();
+      const crewId = (me as { id?: string } | null)?.id ?? null;
+      if (crewId) {
+        const { data: fcRows } = await supabase.from('flight_crew').select('flight_id').eq('crew_id', crewId);
+        if (fcRows?.length) {
+          const ids = fcRows.map((r: { flight_id: string }) => r.flight_id);
+          const { data: oldFlights } = await supabase
+            .from('flights')
+            .select('id')
+            .in('id', ids)
+            .lt('flight_date', importFloor);
+          await Promise.all(
+            (oldFlights ?? []).map((f) =>
+              supabase.rpc('remove_me_from_flight', { p_flight_id: (f as { id: string }).id }),
+            ),
+          );
+        }
       }
     }
   } catch {

@@ -11,6 +11,8 @@ type ThemeColors = {
   background: string;
   surface: string;
   surfaceAlt: string;
+  /** Form input fill (borderless gray field). */
+  inputFill: string;
   primary: string;
   primaryLight: string;
   secondary: string;
@@ -24,6 +26,10 @@ type ThemeColors = {
   white: string;
   /** Primary buton / header üzerindeki yazı-ikon rengi. */
   onPrimary: string;
+  /** Legal “ÖNEMLİ” callout */
+  warningBg: string;
+  warningBorder: string;
+  warningText: string;
 };
 
 const STORAGE_KEY = 'flyfam_theme_mode';
@@ -33,6 +39,7 @@ const lightColors: ThemeColors = {
   background: '#F4F6FA',
   surface: '#FFFFFF',
   surfaceAlt: '#E8F0FE',
+  inputFill: '#F0F1F5',
   primary: '#1A5CF5',
   primaryLight: '#E8F0FE',
   secondary: '#0F1B3D',
@@ -45,6 +52,9 @@ const lightColors: ThemeColors = {
   error: '#B42318',
   white: '#FFFFFF',
   onPrimary: '#FFFFFF',
+  warningBg: '#FFF8EB',
+  warningBorder: '#F0D9A8',
+  warningText: '#8A5A12',
 };
 
 /**
@@ -54,6 +64,7 @@ const darkColors: ThemeColors = {
   background: '#0B1220',
   surface: '#141C2E',
   surfaceAlt: '#1A2740',
+  inputFill: '#1A2740',
   primary: '#4D7FFF',
   primaryLight: '#1A2740',
   secondary: '#F3F6FB',
@@ -66,6 +77,9 @@ const darkColors: ThemeColors = {
   error: '#F07171',
   white: '#FFFFFF',
   onPrimary: '#0B1220',
+  warningBg: '#2A2214',
+  warningBorder: '#5C4A24',
+  warningText: '#F0B060',
 };
 
 let themePreference: ThemePreference = 'system';

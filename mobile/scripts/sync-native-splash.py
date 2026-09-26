@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Native splash = #B4CCFB + app icon + FlyFam wordmark stacked (same width, ~26% screen)."""
+"""Native splash = #F0F1F5 + app icon + FlyFam wordmark stacked (same width, ~26% screen)."""
 from __future__ import annotations
 
 from pathlib import Path
@@ -9,7 +9,8 @@ from PIL import Image
 ROOT = Path(__file__).resolve().parents[1]
 ICON = ROOT / "assets" / "splash-logo-ios-default-1024.png"
 WORDMARK = ROOT / "assets" / "splash-wordmark.png"
-BG = (180, 204, 251)  # #B4CCFB
+BG = (240, 241, 245)  # #F0F1F5 — matches app light background
+
 # splashBrand.ts: min(130pt, round(screenWidth * 0.26))
 LOGO_FRACTION = 0.26
 LOGO_MAX_PT = 130

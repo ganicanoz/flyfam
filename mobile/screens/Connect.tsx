@@ -59,7 +59,14 @@ export default function Connect() {
         console.error(qErr);
         setInvitations([]);
       } else {
-        setInvitations((rows ?? []) as Invitation[]);
+        setInvitations(
+          (rows ?? []).map((row) => ({
+            ...row,
+            crew_profiles: Array.isArray(row.crew_profiles)
+              ? (row.crew_profiles[0] ?? null)
+              : row.crew_profiles,
+          })) as Invitation[],
+        );
       }
       setLoading(false);
     };

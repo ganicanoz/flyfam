@@ -1,17 +1,17 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { isAdminEmail } from '../lib/isAdminUser';
+import { supabase } from '../lib/supabase';
 
 type AdminRosterContextValue = {
   adminRosterMode: boolean;
   setAdminRosterMode: (v: boolean) => void;
   isAdminUser: boolean;
-  /** Profil gizli dokunuşu; 5 seri dokunuşta modu toggle eder, true dönerse Roster sekmesine geç. */
-  onProfileSecretTap: () => boolean;
+  /** Aile başlığı gizli dokunuşu; 5 seri dokunuşta (3 sn) modu toggle eder, true → Roster’a geç. */
+  onAdminSecretTap: () => boolean;
 };
 
 const AdminRosterContext = createContext<AdminRosterContextValue | null>(null);
 
-const SECRET_TAP_WINDOW_MS = 2600;
+const SECRET_TAP_WINDOW_MS = 3000;
 const SECRET_TAPS_REQUIRED = 5;
 
 export function AdminRosterProvider({
@@ -22,11 +22,26 @@ export function AdminRosterProvider({
   userEmail: string | null | undefined;
 }) {
   const [adminRosterMode, setAdminRosterMode] = useState(false);
-  const isAdminUser = useMemo(() => isAdminEmail(userEmail), [userEmail]);
+  const [isAdminUser, setIsAdminUser] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    setIsAdminUser(false);
+    if (!userEmail) return () => { active = false; };
+    void supabase.functions
+      .invoke('admin-dashboard', { body: { action: 'check_access' } })
+      .then(({ data, error }) => {
+        if (active) setIsAdminUser(!error && data?.ok === true);
+      })
+      .catch(() => {
+        if (active) setIsAdminUser(false);
+      });
+    return () => { active = false; };
+  }, [userEmail]);
 
   const tapRef = useRef({ count: 0, timeout: null as ReturnType<typeof setTimeout> | null });
 
-  const onProfileSecretTap = useCallback(() => {
+  const onAdminSecretTap = useCallback(() => {
     if (!isAdminUser) return false;
     tapRef.current.count += 1;
     if (tapRef.current.timeout) clearTimeout(tapRef.current.timeout);
@@ -55,9 +70,9 @@ export function AdminRosterProvider({
       adminRosterMode,
       setAdminRosterMode,
       isAdminUser,
-      onProfileSecretTap,
+      onAdminSecretTap,
     }),
-    [adminRosterMode, isAdminUser, onProfileSecretTap]
+    [adminRosterMode, isAdminUser, onAdminSecretTap]
   );
 
   return <AdminRosterContext.Provider value={value}>{children}</AdminRosterContext.Provider>;

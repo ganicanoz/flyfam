@@ -1,5 +1,5 @@
-import { LegalDocumentView } from '../components/LegalDocumentView';
+import { LegalTextView } from '../components/LegalTextView';
 
 export default function TermsDisclaimer() {
-  return <LegalDocumentView kind="terms" showTitle={false} />;
+  return <LegalTextView kind="terms" showAccept={false} />;
 }

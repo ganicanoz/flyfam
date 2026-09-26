@@ -1,13 +1,10 @@
 /**
  * AeroDataBox — RapidAPI + API.Market (doc: openapi-apimarket-v1.yaml).
  */
-import Constants from 'expo-constants';
 
 export const AERODATABOX_RAPIDAPI_BASE = 'https://aerodatabox.p.rapidapi.com';
 export const AERODATABOX_APIMARKET_DEFAULT_BASE =
   'https://prod.api.market/api/v1/aedbx/aerodatabox';
-
-const AERODATABOX_RAPIDAPI_FALLBACK = '15e502192bmsh69e44f588a1f748p1f3145jsnb8957fc1856c';
 
 export type AerodataboxProviderKind = 'rapidapi' | 'apimarket';
 
@@ -42,12 +39,10 @@ export function rapidApiAuthHeaders(key: string): Record<string, string> {
 }
 
 export function readAerodataboxProvidersFromEnv(): AerodataboxProvider[] {
-  const apiMarketKey = (
-    Constants.expoConfig?.extra?.aerodataboxApiMarketKey ??
-    envTrim('EXPO_PUBLIC_AERODATABOX_APIMARKET_KEY')
-  ).trim();
+  // Mobile must not contact paid providers directly. Provider access is routed
+  // through Supabase Edge Functions, whose credentials are stored as secrets.
+  const apiMarketKey = '';
   let apiMarketBase = (
-    Constants.expoConfig?.extra?.aerodataboxApiMarketBase ??
     envTrim('EXPO_PUBLIC_AERODATABOX_APIMARKET_BASE')
   )
     .trim()
@@ -56,11 +51,7 @@ export function readAerodataboxProvidersFromEnv(): AerodataboxProvider[] {
     apiMarketBase = AERODATABOX_APIMARKET_DEFAULT_BASE;
   }
 
-  const rapidKey = (
-    Constants.expoConfig?.extra?.aerodataboxRapidApiKey ??
-    envTrim('EXPO_PUBLIC_AERODATABOX_RAPIDAPI_KEY') ??
-    envTrim('EXPO_PUBLIC_RAPIDAPI_KEY')
-  ).trim() || AERODATABOX_RAPIDAPI_FALLBACK;
+  const rapidKey = '';
 
   const skipRapid =
     envTrim('EXPO_PUBLIC_AERODATABOX_SKIP_RAPIDAPI') === '1' ||

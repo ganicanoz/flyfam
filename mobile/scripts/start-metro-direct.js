@@ -42,26 +42,22 @@ console.log('Metro başlatılıyor (polling modu)...');
 function logWhenMetroReady(port = 8081, timeoutMs = 90000) {
   const deadline = Date.now() + timeoutMs;
   const tick = () => {
-    const req = http.get(`http://127.0.0.1:${port}/status`, (res) => {
+    // /status her Metro sürümünde yok; herhangi bir HTTP yanıtı = dinliyor.
+    const req = http.get(`http://127.0.0.1:${port}/`, (res) => {
       res.resume();
-      if (res.statusCode === 200) {
-        console.log(
-          `Metro ayakta: http://127.0.0.1:${port} — Simülatör / dev client bu porta bağlanır. İlk yüklemede BUNDLE satırları görünür.`
-        );
-        return;
-      }
-      retry();
+      console.log(
+        `Metro ayakta: http://127.0.0.1:${port} (HTTP ${res.statusCode}) — Simülatör Reload (⌘R).`
+      );
     });
-    req.on('error', retry);
-    function retry() {
+    req.on('error', () => {
       if (Date.now() >= deadline) {
         console.warn(
-          'Metro /status yanıt vermedi (süre doldu). Port çakışması veya başlatma hatası olabilir; süreç çıktısına bakın.'
+          'Metro yanıt vermedi (süre doldu). Port çakışması veya başlatma hatası olabilir; süreç çıktısına bakın.'
         );
         return;
       }
       setTimeout(tick, 400);
-    }
+    });
   };
   setTimeout(tick, 300);
 }
@@ -69,7 +65,7 @@ logWhenMetroReady();
 
 const child = spawn(
   process.execPath,
-  [metroCli, 'start', '--config', metroConfig, '--reset-cache'],
+  [metroCli, 'start', '--config', metroConfig, '--host', '127.0.0.1', '--reset-cache'],
   {
     cwd: projectRoot,
     stdio: 'inherit',

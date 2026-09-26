@@ -30,11 +30,11 @@ import { getAirportDisplay, getAirportTimezone } from '../constants/airports';
 import { colors, useThemeMode } from '../theme/colors';
 import { radius, shadow } from '../theme/tokens';
 import * as DocumentPicker from 'expo-document-picker';
-import { cacheDirectory as fsCacheDirectory, copyAsync } from 'expo-file-system/legacy';
 import { extractText, isAvailable } from 'expo-pdf-text-extract';
 import { importPdfFlightsViaRpc, isRosterPdfImportSupportedForCrewAirline } from '../lib/pdfRosterImport';
 import { mergePdfRowsFromTextParse } from '../lib/pdfRowMerge';
 import { parseRosterPdfFromDevice, pdfParseSourceDevLabel } from '../lib/rosterPdfParse';
+import { materializeSharedPdfToCache } from '../lib/sharedPdfImport';
 import type { PdfFlightRow } from '../lib/pdfRosterImport';
 import { maybePromptHomeBaseAfterRosterImport } from '../lib/homeBaseFromRoster';
 import { triggerAirportBoardCacheRefreshIfDue } from '../lib/airportBoardCache';
@@ -297,7 +297,7 @@ export default function AddFlight() {
   );
 
   const showPdfImportNotSupportedAlert = useCallback(() => {
-    const mailto = 'mailto:flyfamapp@gmail.com?subject=FlyFam%20PDF%20Roster%20Talebi';
+    const mailto = 'mailto:support@flyfamapp.com?subject=FlyFam%20PDF%20Roster%20Talebi';
     const title = t('addFlight.importFlightsAirlineImportNotSupportedTitle');
     const message = t('addFlight.importFlightsAirlineImportNotSupportedMessage');
     alertWithCopy(title, message, {
@@ -470,12 +470,13 @@ export default function AddFlight() {
     }
     let uri = pickUri;
     try {
-      if (pickUri.startsWith('content://')) {
-        const cacheDir = fsCacheDirectory;
-        if (!cacheDir) throw new Error('cacheDirectory unavailable');
-        const dest = `${cacheDir}shared-roster-${Date.now()}.pdf`;
-        await copyAsync({ from: pickUri, to: dest });
-        uri = dest;
+      // Deeplink / Share / content://: geçici URI yerine app cache kopyası (DocumentPicker zaten cache’te).
+      if (
+        pickUri.startsWith('content://') ||
+        pickUri.startsWith('file://') ||
+        /shareddata|\/inbox\//i.test(pickUri)
+      ) {
+        uri = await materializeSharedPdfToCache(pickUri);
       }
       setLoadingMessage(t('common.flightOpReadingPdf'));
       setLoading(true);
@@ -951,7 +952,7 @@ export default function AddFlight() {
       if (firstFlightId && firstRow.flightInfo) {
         const updatePayload = patchFlightFromInfo(firstRow.flightInfo);
         if (Object.keys(updatePayload).length > 0) {
-          parallel.push(supabase.from('flights').update(updatePayload).eq('id', firstFlightId));
+          parallel.push(Promise.resolve(supabase.from('flights').update(updatePayload).eq('id', firstFlightId)));
         }
       }
       if (validRows.length > 1) {

@@ -3,7 +3,7 @@
 const { spawn, execFileSync } = require('node:child_process');
 
 const SCHEME = process.env.IOS_DEV_CLIENT_SCHEME || 'com.flyfam.app';
-const PORT = process.env.EXPO_DEV_PORT || '8082';
+const PORT = process.env.EXPO_DEV_PORT || '8081';
 const HOST = process.env.EXPO_DEV_HOST || '127.0.0.1';
 const METRO_URL = `http://${HOST}:${PORT}`;
 const DEEP_LINK = `${SCHEME}://expo-development-client/?url=${encodeURIComponent(METRO_URL)}`;

@@ -1,10 +1,12 @@
 import { useEffect, useRef, useCallback } from 'react';
+import { Alert } from 'react-native';
 import * as Linking from 'expo-linking';
 import { useSession } from '../contexts/SessionContext';
 import { navigationRef } from '../navigationRef';
 import {
   extractPdfUriFromFlyFamImportUrl,
   isLikelyPdfIncomingUrl,
+  materializeSharedPdfToCache,
   savePendingSharedPdfUri,
   takePendingSharedPdfUri,
 } from '../lib/sharedPdfImport';
@@ -14,6 +16,9 @@ type Props = { navigationReady: boolean };
 /**
  * Dosyalar / “FlyFam’da Aç” ve Android PDF VIEW → Linking URL.
  * Oturum yok veya profil tamamlanmamışsa URI kuyrukta kalır; mürettebat hazır olunca AddFlight’a düşer.
+ *
+ * Deeplink URI’leri (Share Extension / Inbox / content://) hemen app cache’e
+ * kopyalanır — geçici dosya silinmeden önce kalıcı kopya alınır.
  */
 export function PdfImportLinkingListener({ navigationReady }: Props) {
   const { session, profile, crewProfile, isLoading } = useSession();
@@ -32,6 +37,19 @@ export function PdfImportLinkingListener({ navigationReady }: Props) {
 
     let mounted = true;
 
+    const resolveDurableUri = async (rawUri: string): Promise<string | null> => {
+      try {
+        return await materializeSharedPdfToCache(rawUri);
+      } catch (e) {
+        if (__DEV__) console.warn('[PDF deeplink] materialize failed', e);
+        Alert.alert(
+          'PDF aktarılamadı',
+          'Paylaşılan dosya okunamadı. Lütfen uygulamadan “PDF’den içe aktar” ile tekrar deneyin.',
+        );
+        return null;
+      }
+    };
+
     const handleUrl = async (url: string | null) => {
       if (!url) return;
       const sharedFile = extractPdfUriFromFlyFamImportUrl(url);
@@ -39,12 +57,15 @@ export function PdfImportLinkingListener({ navigationReady }: Props) {
       if (!target) return;
       if (profile?.role === 'family') return;
 
+      const durable = await resolveDurableUri(target);
+      if (!durable || !mounted) return;
+
       if (!crewImportReady) {
-        await savePendingSharedPdfUri(target);
+        await savePendingSharedPdfUri(durable);
         return;
       }
-      if (!openAddFlightImport(target)) {
-        await savePendingSharedPdfUri(target);
+      if (!openAddFlightImport(durable)) {
+        await savePendingSharedPdfUri(durable);
       }
     };
 
@@ -52,11 +73,10 @@ export function PdfImportLinkingListener({ navigationReady }: Props) {
       if (!mounted || !crewImportReady || !navigationRef.isReady()) return;
       if (profile?.role === 'family') return;
       const pending = await takePendingSharedPdfUri();
-      if (pending) {
-        const resolved =
-          extractPdfUriFromFlyFamImportUrl(pending) ?? (isLikelyPdfIncomingUrl(pending) ? pending : null);
-        if (resolved) openAddFlightImport(resolved);
-      }
+      if (!pending) return;
+      // Pending çoğu zaman zaten cache URI; yine de doğrula / gerekirse kopyala.
+      const durable = await resolveDurableUri(pending);
+      if (durable) openAddFlightImport(durable);
     };
 
     const sub = Linking.addEventListener('url', ({ url }) => {

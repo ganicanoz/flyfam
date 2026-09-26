@@ -514,7 +514,9 @@ export default function EditDuty() {
 
         {!isStandby && code ? (
           <Text style={styles.codeHint}>
-            {(isTr ? rosterOccupationLabelTr(code) : rosterOccupationLabelEn(code)) || code}
+            {(isTr
+              ? rosterOccupationLabelTr(code, crewProfile?.airline_icao)
+              : rosterOccupationLabelEn(code, crewProfile?.airline_icao)) || code}
           </Text>
         ) : null}
       </KeyboardSafeScroll>

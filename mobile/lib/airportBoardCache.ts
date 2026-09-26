@@ -3,7 +3,6 @@
  * taze ise önce oradan hydrate edilir, ADB çağrısı atlanır. Gün/slot: Europe/Istanbul (Edge ile aynı).
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import Constants from 'expo-constants';
 import {
   AERODATABOX_RAPIDAPI_BASE,
   fetchAerodataboxBoardMulti,
@@ -22,14 +21,9 @@ const REQUEST_GAP_MS = 2400;
 /** Dep+Arr tahtaları en az bu kadar sürede bir yeniden yazılır (wall-clock). */
 const MIN_REFRESH_INTERVAL_MS = 12 * 60 * 60 * 1000;
 
-const AERODATABOX_RAPIDAPI_FALLBACK = '15e502192bmsh69e44f588a1f748p1f3145jsnb8957fc1856c';
-const AERODATABOX_RAPIDAPI_KEY =
-  (
-    Constants.expoConfig?.extra?.aerodataboxRapidApiKey ??
-    process.env.EXPO_PUBLIC_AERODATABOX_RAPIDAPI_KEY ??
-    process.env.EXPO_PUBLIC_RAPIDAPI_KEY ??
-    ''
-  ).trim() || AERODATABOX_RAPIDAPI_FALLBACK;
+// Boards are refreshed by sync-hub-airport-boards on the server. The mobile
+// app only hydrates the already-sanitized cache from Supabase.
+const AERODATABOX_RAPIDAPI_KEY = '';
 const BASE = AERODATABOX_RAPIDAPI_BASE;
 const COMMON =
   'withLeg=true&withCancelled=true&withCodeshared=true&withCargo=false&withPrivate=false&withLocation=false';

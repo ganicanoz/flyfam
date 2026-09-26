@@ -10,8 +10,9 @@ export function formatRelativeSyncedAt(
     return t('nav.lastUpdatedPending');
   }
   const diffSec = Math.max(0, Math.floor((nowMs - syncedAtMs) / 1000));
-  if (diffSec < 45) return t('nav.lastUpdatedJustNow');
-  const mins = Math.floor(diffSec / 60);
+  // Under 1 minute → "just now"; from 1 min onward always show "N dk önce".
+  if (diffSec < 60) return t('nav.lastUpdatedJustNow');
+  const mins = Math.max(1, Math.floor(diffSec / 60));
   if (mins < 60) return t('nav.lastUpdatedMinutesAgo', { count: mins });
   const hours = Math.floor(mins / 60);
   if (hours < 24) return t('nav.lastUpdatedHoursAgo', { count: hours });

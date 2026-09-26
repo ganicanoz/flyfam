@@ -36,9 +36,16 @@ export function landedFromRow(args: {
   fr24_datetime_landed_utc?: string | null | undefined;
   /** Ignore: iniş sinyali sayılmaz. */
   last_seen_utc?: string | null | undefined;
+  /** Roster STD — henüz gelmemişse yanlış internal/provider landed yok sayılır. */
+  scheduled_departure?: string | null | undefined;
 }): boolean {
+  const stdMs = parseUtcMs(args.scheduled_departure);
+  const beforeStd = stdMs > 0 && Date.now() < stdMs - 2 * 60 * 1000;
+
   const st = (args.flight_status ?? '').toLowerCase();
   const internal = (args.internal_status ?? '').toLowerCase();
+  // Wrong-day FR24/provider can leave internal_status=landed while STD is still ahead.
+  if (beforeStd) return false;
   if (st === 'landed' || st === 'arrived' || internal === 'landed' || internal === 'arrived') return true;
 
   const fr24LandedMs = parseUtcMs(args.fr24_datetime_landed_utc);

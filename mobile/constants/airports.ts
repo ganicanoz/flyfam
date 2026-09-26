@@ -8,6 +8,7 @@
  */
 import i18n from '../lib/i18n';
 import { resolveCityNameTr } from './cityNamesTr';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 export type AirportDisplay = {
   iata: string;
@@ -45,20 +46,12 @@ export function setAirportDisplayCache(rows: AirportCacheRow[]): void {
   airportDisplayCache = next;
 }
 
-type AirportSelectBuilder = {
-  select: (cols: string) => {
-    not: (col: string, op: string, val: null) => {
-      range: (from: number, to: number) => Promise<{ data: unknown[] | null }>;
-    };
-  };
-};
-
 const AIRPORT_DISPLAY_PAGE = 1000;
 
 /** Supabase public.airports tablosunu çeker ve cache'i doldurur (kaynak: airport-codes.csv). */
-export async function loadAirportDisplayFromSupabase(supabase: {
-  from: (table: string) => AirportSelectBuilder;
-}): Promise<void> {
+export async function loadAirportDisplayFromSupabase(
+  supabase: Pick<SupabaseClient, 'from'>,
+): Promise<void> {
   try {
     const rows: AirportCacheRow[] = [];
     let from = 0;
@@ -713,7 +706,7 @@ const AIRPORT_TIMEZONES: Record<string, string> = {
   LTAT: 'Europe/Istanbul', MLX: 'Europe/Istanbul', LTCR: 'Europe/Istanbul', MQM: 'Europe/Istanbul', LTCK: 'Europe/Istanbul', MSR: 'Europe/Istanbul',
   LTCB: 'Europe/Istanbul', OGU: 'Europe/Istanbul', OGZ: 'Europe/Istanbul', LTFU: 'Europe/Istanbul', ISE: 'Europe/Istanbul', LTFV: 'Europe/Istanbul', RZV: 'Europe/Istanbul', LTFH: 'Europe/Istanbul', SZF: 'Europe/Istanbul',
   LTCS: 'Europe/Istanbul', GNY: 'Europe/Istanbul', LTCP: 'Europe/Istanbul', ADF: 'Europe/Istanbul', LTCQ: 'Europe/Istanbul', NOP: 'Europe/Istanbul', SIC: 'Europe/Istanbul', LTAR: 'Europe/Istanbul', VAS: 'Europe/Istanbul',
-  LTFC: 'Europe/Istanbul', TEQ: 'Europe/Istanbul', LTCI: 'Europe/Istanbul', VAN: 'Europe/Istanbul',
+  LTFC: 'Europe/Istanbul', TEQ: 'Europe/Istanbul', VAN: 'Europe/Istanbul',
   LTBY: 'Europe/Istanbul', AFY: 'Europe/Istanbul', LTCO: 'Europe/Istanbul', AJI: 'Europe/Istanbul', AOE: 'Europe/Istanbul', LTBH: 'Europe/Istanbul', CKZ: 'Europe/Istanbul', LTAL: 'Europe/Istanbul', KFS: 'Europe/Istanbul', LTBQ: 'Europe/Istanbul', KCO: 'Europe/Istanbul',
   GUCY: 'Africa/Conakry', CKY: 'Africa/Conakry',
   DFFD: 'Africa/Ouagadougou', OUA: 'Africa/Ouagadougou',

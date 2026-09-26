@@ -17,7 +17,7 @@ const STROKE = 2.5;
 
 /**
  * Header geri — Ionicons glifi em-box’ta kayık olduğu için
- * border ile çizilen geometrik “‹” kullanılıyor; daire içinde tam orta.
+ * border ile çizilen geometrik “‹” kullanılıyor (daire yok).
  */
 export function StackScreenBackButton({ onPress, color }: Props) {
   const { t } = useTranslation();

@@ -37,7 +37,7 @@ export function promptResendConfirmationEmail(knownEmail?: string): void {
         { text: i18n.t('common.cancel'), style: 'cancel' },
         {
           text: i18n.t('signIn.resendConfirmation'),
-          onPress: (text) => {
+          onPress: (text?: string) => {
             const address = text?.trim();
             if (!address) {
               Alert.alert(i18n.t('common.error'), i18n.t('signIn.resendConfirmationNeedEmail'));

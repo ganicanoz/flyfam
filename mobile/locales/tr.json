@@ -24,7 +24,7 @@
   },
   "forceUpdate": {
     "title": "Yeni sürüm gerekli",
-    "body": "Yeni özellikler için güncel FlyFam sürümünü kullanın. Eski sürüm yakında kullanıma kapatılacaktır. iOS: TestFlight veya App Store’dan güncelleyin. Android: Play Store closed testing üzerinden güncelleyin; listede değilseniz flyfamapp@gmail.com adresine yazarak davet isteyin.",
+    "body": "Yeni özellikler için güncel FlyFam sürümünü kullanın. Eski sürüm yakında kullanıma kapatılacaktır. iOS: TestFlight veya App Store’dan güncelleyin. Android: Play Store closed testing üzerinden güncelleyin; listede değilseniz support@flyfamapp.com adresine yazarak davet isteyin.",
     "openStoreIos": "App Store / TestFlight’ı aç",
     "openStoreAndroid": "Play Store’u aç",
     "requestInvite": "Closed testing daveti iste (e-posta)"
@@ -258,7 +258,14 @@
     "deleteFlight": "Uçuşu sil",
     "deleteFlightConfirm": "{{number}} silinsin mi?",
     "sync": "Güncelle",
+    "offlineBanner": "Çevrimdışı — son kayıt gösteriliyor ({{when}}). Canlı durum güncellenmez.",
     "today": "Bugün",
+    "showPast": "Geçmişi Göster",
+    "showPastWeek": "Geçmişi Göster",
+    "hidePast": "Geçmişi gizle",
+    "backToToday": "Bugüne dön",
+    "backToTodayLine1": "Bugüne",
+    "backToTodayLine2": "dön",
     "tomorrow": "Yarın",
     "yesterday": "Dün",
     "calendarTitle": "Takvim",
@@ -374,6 +381,7 @@
     "comparing": "Karşılaştırma açık",
     "legendMyFlight": "Benim uçuşum",
     "offBadge": "Boş",
+    "trainingBadge": "Görev",
     "restDay": "Boş gün",
     "sharedOffDaysMonth": "Bu ay {{count}} ortak boş gün: {{days}}",
     "noDutiesToday": "Bugün planlanmış görev yok",
@@ -414,6 +422,7 @@
     "legendOff": "Boş",
     "legendStandby": "Nöbet",
     "legendLayover": "Yatı",
+    "layoverDurationParen": "(Yatı Süresi: {{duration}})",
     "legendOrderHint": "Nokta = uçuş, çizgi = yatı / nöbet",
     "dayHeader": "{{date}} · {{count}} uçuş{{block}}",
     "dayHeaderBlock": " · Toplam blok {{hours}}s {{mins}}dk",
@@ -435,6 +444,7 @@
     "importRosterFileHint": "PDF veya roster dosyası seç",
     "durationShort": "{{hours}}sa {{mins}}dk",
     "durationMinsOnly": "{{mins}}dk",
+    "durationDaysShort": "{{days}}g {{hours}}sa {{mins}}dk",
     "departInMins": "Kalkışa {{mins}} dk",
     "departInHours": "Kalkışa {{hours}}s {{mins}}dk",
     "departInDays": "Kalkışa {{days}}g {{hours}}s",
@@ -530,7 +540,7 @@
     "errorNumberShort": "Uçuş numarası girin (örn. 614 veya 1234)",
     "errorFullNumber": "Tam uçuş numarası girin (örn. PC614) veya Profil'de havayolunuzu ayarlayın",
     "errorDuplicate": "Bu uçuş bu tarihte zaten kayıtlı.",
-    "apiHint": "Otomatik arama için: mobile/.env dosyasına EXPO_PUBLIC_FLIGHTRADAR24_API_TOKEN ekleyin, sonra: npx expo start --clear"
+    "apiHint": "Otomatik uçuş araması geçici olarak kullanılamıyor. Lütfen daha sonra tekrar deneyin veya bilgileri manuel girin."
   },
   "editFlight": {
     "title": "Uçuşu Düzenle",

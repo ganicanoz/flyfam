@@ -6,7 +6,7 @@
  * Supabase Dashboard → Redirect URLs listesine bu HTTPS adres de eklenmeli.
  */
 export const AUTH_EMAIL_BRIDGE_URL =
-  'https://ganicanoz.github.io/flyfam/auth-callback.html';
+  'https://app.flyfamapp.com/auth-callback.html';
 
 /** @deprecated Prefer AUTH_EMAIL_BRIDGE_URL — kept for deep-link matching docs. */
 export const AUTH_EMAIL_REDIRECT_URL = AUTH_EMAIL_BRIDGE_URL;
@@ -16,7 +16,15 @@ export function authEmailRedirectTo(): string {
 }
 
 /** Mail şablonlarında token_hash linki (PKCE code verifier gerektirmez). */
-export function authEmailTokenHashHref(type: 'signup' | 'recovery' | 'email'): string {
+export type AuthEmailTokenType =
+  | 'signup'
+  | 'recovery'
+  | 'email'
+  | 'invite'
+  | 'magiclink'
+  | 'email_change';
+
+export function authEmailTokenHashHref(type: AuthEmailTokenType): string {
   // Go template placeholders for Supabase Email Templates (paste as-is).
   return `${AUTH_EMAIL_BRIDGE_URL}?token_hash={{ .TokenHash }}&type=${type}`;
 }

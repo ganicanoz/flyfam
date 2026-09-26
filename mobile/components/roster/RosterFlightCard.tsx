@@ -32,7 +32,7 @@ import {
 } from '../../theme/tokens';
 import { scaleListBodyText } from '../../theme/fontScale';
 
-export type RosterCompactKind = 'standby' | 'off' | 'layover';
+export type RosterCompactKind = 'standby' | 'off' | 'layover' | 'training';
 
 export type RosterFlightCardModel = {
   flightNumber: string;
@@ -68,6 +68,8 @@ export type RosterFlightCardModel = {
   showLiveTrack?: boolean;
   footerHint?: string | null;
   showAssignAction?: boolean;
+  /** COTD vb. — standby chrome, rozet «Görev». */
+  homeDutyLike?: boolean;
   showSuggestOccupation?: boolean;
   aircraftReg?: string | null;
   aircraftType?: string | null;
@@ -116,6 +118,7 @@ export function RosterFlightCard({
   const isStandby = compactKind === 'standby';
   const isOffCompact = compactKind === 'off';
   const isLayover = compactKind === 'layover';
+  const isTraining = compactKind === 'training';
   const inFlight = visual === 'in_flight';
   const isLanded = visual === 'landed' || (!!model.isPast && !inFlight);
   const rawSkew =
@@ -166,11 +169,13 @@ export function RosterFlightCard({
   const accent =
     isLayover
       ? cardAccent('layover', themeMode)
-      : isOffCompact
-        ? cardAccent('duty_off', themeMode)
-        : isStandby
-          ? cardAccent('standby', themeMode)
-          : chrome.accentColor;
+      : isTraining
+        ? cardAccent('training', themeMode)
+        : isOffCompact
+          ? cardAccent('duty_off', themeMode)
+          : isStandby
+            ? cardAccent('standby', themeMode)
+            : chrome.accentColor;
 
   const [reduceMotion, setReduceMotion] = useState(false);
   useEffect(() => {
@@ -207,26 +212,42 @@ export function RosterFlightCard({
   const badgeCompact = windowWidth < 360;
 
   // —— Kompakt: nöbet / off / yatı ——
-  if (isStandby || isOffCompact || isLayover) {
+  if (isStandby || isOffCompact || isLayover || isTraining) {
     const kindBadge = isStandby
       ? { bg: marks.standbyBadgeBg, text: marks.standbyBadgeText }
       : isLayover
         ? { bg: marks.layoverBadgeBg, text: marks.layoverBadgeText }
-        : { bg: marks.offBadgeBg, text: marks.offBadgeText };
+        : isTraining
+          ? { bg: marks.trainingBadgeBg, text: marks.trainingBadgeText }
+          : { bg: marks.offBadgeBg, text: marks.offBadgeText };
     const kindLabel = isStandby
-      ? t('roster.statusStandby')
+      ? model.homeDutyLike
+        ? t('roster.trainingBadge')
+        : t('roster.statusStandby')
       : isLayover
         ? t('roster.legendLayover')
-        : t('roster.offBadge');
+        : isTraining
+          ? t('roster.trainingBadge')
+          : t('roster.offBadge');
     const station = model.layoverStationLabel?.trim() || null;
     const standbySchedule =
       model.standbyScheduleLine?.trim() ||
       `${model.depTime} – ${model.arrTime}`;
+    const trainingSchedule =
+      model.standbyScheduleLine?.trim() ||
+      (model.depTime && model.arrTime && model.depTime !== '—' && model.arrTime !== '—'
+        ? `${model.depTime} – ${model.arrTime}`
+        : null);
     const offDetailLine = isLayover
-      ? [station, kindLabel, model.arrTime || null]
+      ? [
+          station,
+          model.arrTime?.trim()
+            ? t('roster.layoverDurationParen', { duration: model.arrTime.trim() })
+            : null,
+        ]
           .filter((x) => !!(x && String(x).trim()))
           .join(' · ')
-      : t('roster.restDay');
+      : model.blockTitle?.trim() || t('roster.restDay');
 
     return (
       <TouchableOpacity
@@ -290,6 +311,62 @@ export function RosterFlightCard({
                   <Ionicons name="airplane" size={16} color="#FFFFFF" />
                   <Text style={[styles.assignTextBtnLabel, { fontSize: chip(10) }]} numberOfLines={2}>
                     {t('roster.assignFlights')}
+                  </Text>
+                </Pressable>
+              ) : (
+                <Ionicons name="chevron-forward" size={16} color={ink.muted} style={styles.assignChevron} />
+              )}
+            </View>
+          ) : isTraining ? (
+            <View style={styles.standbyColumns}>
+              <View style={styles.standbyLeft}>
+                <View style={styles.standbyRow}>
+                  <View style={[styles.kindBadge, { backgroundColor: kindBadge.bg }]}>
+                    <Text style={[styles.kindBadgeText, { color: kindBadge.text, fontSize: chip(12) }]}>
+                      {kindLabel}
+                    </Text>
+                  </View>
+                  <Text
+                    style={[styles.standbyStation, { color: ink.primary, fontSize: fs(15) }]}
+                    numberOfLines={1}
+                  >
+                    {model.blockTitle?.trim() || model.flightNumber || '—'}
+                  </Text>
+                </View>
+                {trainingSchedule ? (
+                  <Text
+                    style={[
+                      styles.standbySchedule,
+                      typography.tabularNums,
+                      { color: ink.primary, fontSize: fs(14) },
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {trainingSchedule}
+                  </Text>
+                ) : null}
+                {model.showSuggestOccupation && onSuggestOccupation ? (
+                  <Text style={[styles.suggestHint, { color: ink.muted, fontSize: chip(11) }]} numberOfLines={1}>
+                    {t('roster.suggestOccupationHint')}
+                  </Text>
+                ) : null}
+              </View>
+              {model.showSuggestOccupation && onSuggestOccupation ? (
+                <Pressable
+                  onPress={onSuggestOccupation}
+                  hitSlop={6}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('roster.suggestOccupationA11y')}
+                  style={[
+                    styles.suggestTextBtn,
+                    { borderColor: marks.flightDot, backgroundColor: marks.trainingBadgeBg },
+                  ]}
+                >
+                  <Text
+                    style={[styles.suggestTextBtnLabel, { color: marks.trainingBadgeText, fontSize: chip(11) }]}
+                    numberOfLines={2}
+                  >
+                    {t('roster.suggestOccupation')}
                   </Text>
                 </Pressable>
               ) : (

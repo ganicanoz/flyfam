@@ -1,182 +1,237 @@
-import { View, Text, TouchableOpacity, StyleSheet, ImageBackground, Image } from 'react-native';
+import { View, Text, StyleSheet, Image, Alert, Pressable } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useNavigation } from '@react-navigation/native';
-import { changeAppLocale, LOCALE_LABELS, type Locale } from '../lib/i18n';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { changeAppLocale } from '../lib/i18n';
+import { PrimaryButton } from '../components/PrimaryButton';
+import { SecondaryButton } from '../components/SecondaryButton';
+import { splashIconAsset, splashWordmarkAsset } from '../constants/splashBrand';
+import { colors } from '../theme/colors';
+import { spacing } from '../theme/tokens';
+
+const GRADIENT = ['#B8CCF5', '#D6E2F8', '#F5F6FA'] as const;
 
 export default function Welcome() {
   const { t, i18n } = useTranslation();
   const navigation = useNavigation<any>();
+  const insets = useSafeAreaInsets();
   const isTr = String(i18n.language ?? '').toLowerCase().startsWith('tr');
 
+  const openLanguageMenu = () => {
+    Alert.alert(t('profile.language'), undefined, [
+      {
+        text: '🇹🇷 Türkçe',
+        onPress: () => {
+          void changeAppLocale('tr');
+        },
+      },
+      {
+        text: '🇬🇧 English',
+        onPress: () => {
+          void changeAppLocale('en');
+        },
+      },
+      { text: t('common.cancel'), style: 'cancel' },
+    ]);
+  };
+
   return (
-    <ImageBackground
-      source={require('../assets/welcome-hero.png')}
-      style={styles.background}
-      resizeMode="cover"
-      imageStyle={styles.backgroundImage}
-    >
-      <View style={styles.overlay}>
-        <View style={styles.card}>
-          <View style={styles.actions}>
-            <TouchableOpacity
-              style={styles.button}
-              onPress={() => navigation.navigate('SignIn')}
-            >
-              <Text style={styles.buttonText}>{t('welcome.signIn')}</Text>
-            </TouchableOpacity>
+    <View style={styles.root}>
+      <LinearGradient colors={[...GRADIENT]} locations={[0, 0.45, 1]} style={StyleSheet.absoluteFill} />
 
-            <TouchableOpacity
-              style={[styles.button, styles.buttonOutline]}
-              onPress={() => navigation.navigate('SignUp')}
-            >
-              <Text style={styles.buttonOutlineText}>{t('welcome.signUp')}</Text>
-            </TouchableOpacity>
+      {/* Soft vector décor — not stock photography */}
+      <View pointerEvents="none" style={styles.decorLayer}>
+        <View style={[styles.cloud, styles.cloudA]} />
+        <View style={[styles.cloud, styles.cloudB]} />
+        <View style={[styles.cloud, styles.cloudC]} />
+        <View style={styles.routeWrap}>
+          <View style={styles.routeDashRow}>
+            {Array.from({ length: 14 }).map((_, i) => (
+              <View key={i} style={[styles.routeDash, i % 2 === 1 && styles.routeDashGap]} />
+            ))}
           </View>
-
-          <View style={styles.languageRow}>
-            <TouchableOpacity
-              style={[styles.langButton, styles.langButtonTr, isTr && styles.langButtonActive]}
-              onPress={() => changeAppLocale('tr')}
-            >
-              <Text
-                style={[styles.langButtonText, styles.langButtonTextTr, isTr && styles.langButtonTextActive]}
-                numberOfLines={1}
-                adjustsFontSizeToFit
-              >
-                {LOCALE_LABELS.tr}
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.langButton, styles.langButtonEn, !isTr && styles.langButtonActive]}
-              onPress={() => changeAppLocale('en')}
-            >
-              <Text
-                style={[styles.langButtonText, styles.langButtonTextEn, !isTr && styles.langButtonTextActive]}
-                numberOfLines={1}
-                adjustsFontSizeToFit
-              >
-                {LOCALE_LABELS.en}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-        <View style={styles.bottomIconWrap}>
-          <Image
-            source={require('../assets/icon-1024.png')}
-            style={styles.bottomIcon}
-            resizeMode="contain"
-            accessibilityLabel="FlyFam icon"
-          />
         </View>
       </View>
-    </ImageBackground>
+
+      <View
+        style={[
+          styles.content,
+          {
+            paddingTop: Math.max(insets.top, 12) + 8,
+            paddingBottom: Math.max(insets.bottom, 16) + 8,
+          },
+        ]}
+      >
+        <View style={styles.topBar}>
+          <View style={styles.topBarSpacer} />
+          <Pressable
+            onPress={openLanguageMenu}
+            style={styles.langPill}
+            accessibilityRole="button"
+            accessibilityLabel={t('profile.language')}
+          >
+            <Text style={styles.langPillText}>{isTr ? '🇹🇷 TR ▾' : '🇬🇧 EN ▾'}</Text>
+          </Pressable>
+        </View>
+
+        <View style={styles.hero}>
+          <Image
+            source={splashIconAsset}
+            style={styles.logo}
+            resizeMode="contain"
+            accessibilityLabel="FlyFam"
+          />
+          <Image
+            source={splashWordmarkAsset}
+            style={styles.wordmark}
+            resizeMode="contain"
+            accessibilityIgnoresInvertColors
+          />
+          <Text style={styles.tagline}>{t('splash.tagline')}</Text>
+        </View>
+
+        <View style={styles.flexGrow} />
+
+        <View style={styles.actions}>
+          <PrimaryButton title={t('welcome.signIn')} onPress={() => navigation.navigate('SignIn')} />
+          <SecondaryButton
+            title={t('welcome.signUp')}
+            onPress={() => navigation.navigate('SignUp')}
+            style={styles.secondaryGap}
+          />
+        </View>
+
+        <Text style={styles.legal}>
+          {t('welcome.legalBefore')}
+          <Text
+            style={styles.legalLink}
+            onPress={() => navigation.navigate('TermsDisclaimer')}
+          >
+            {t('welcome.termsLink')}
+          </Text>
+          {t('welcome.legalAnd')}
+          <Text
+            style={styles.legalLink}
+            onPress={() => navigation.navigate('PrivacyNotice')}
+          >
+            {t('welcome.privacyLink')}
+          </Text>
+          {t('welcome.legalAfter')}
+        </Text>
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  background: {
+  root: {
     flex: 1,
+    backgroundColor: '#F5F6FA',
   },
-  backgroundImage: {
-    width: '100%',
-    height: '100%',
-    alignSelf: 'flex-end', // sağ kenarı sabit tut
+  decorLayer: {
+    ...StyleSheet.absoluteFillObject,
   },
-  overlay: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    paddingHorizontal: 24,
-    paddingTop: 40,
-    paddingBottom: 200,
-    backgroundColor: 'rgba(0,0,0,0)',
+  cloud: {
+    position: 'absolute',
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderRadius: 999,
   },
-  card: {
-    backgroundColor: 'transparent',
-    borderRadius: 0,
-    paddingVertical: 16,
-    paddingHorizontal: 18,
+  cloudA: { width: 160, height: 52, top: '18%', left: -40 },
+  cloudB: { width: 120, height: 40, top: '28%', right: -20 },
+  cloudC: { width: 90, height: 32, top: '42%', left: '22%' },
+  routeWrap: {
+    position: 'absolute',
+    top: '36%',
+    left: '12%',
+    right: '12%',
+    transform: [{ rotate: '-8deg' }],
+    opacity: 0.14,
   },
-  actions: {
-    marginTop: 0,
-  },
-  button: {
-    width: '100%',
-    padding: 16,
-    backgroundColor: 'rgba(255,255,255,0.96)',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#111111',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  buttonText: {
-    color: '#111111',
-    fontSize: 17,
-    fontWeight: '700',
-    fontFamily: 'SF Pro Rounded',
-  },
-  buttonOutline: {
-    backgroundColor: 'rgba(255,255,255,0.96)',
-  },
-  buttonOutlineText: {
-    color: '#111111',
-    fontSize: 17,
-    fontWeight: '700',
-    fontFamily: 'SF Pro Rounded',
-  },
-  languageRow: {
+  routeDashRow: {
     flexDirection: 'row',
+    alignItems: 'center',
+  },
+  routeDash: {
+    height: 2,
+    width: 10,
+    borderRadius: 1,
+    backgroundColor: '#FFFFFF',
+  },
+  routeDashGap: {
+    width: 6,
+    backgroundColor: 'transparent',
+  },
+  content: {
+    flex: 1,
+    paddingHorizontal: spacing.xl,
+  },
+  topBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  topBarSpacer: { flex: 1 },
+  langPill: {
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderWidth: StyleSheet.hairlineWidth * 2,
+    borderColor: colors.border,
+    minHeight: 36,
     justifyContent: 'center',
+  },
+  langPillText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  hero: {
+    alignItems: 'center',
+    marginTop: 28,
+    paddingHorizontal: 8,
+  },
+  logo: {
+    width: 104,
+    height: 104,
+    borderRadius: 24,
+  },
+  wordmark: {
+    marginTop: 16,
+    width: 168,
+    height: 44,
+  },
+  tagline: {
+    marginTop: 10,
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.textMuted,
+    textAlign: 'center',
+    lineHeight: 20,
+    maxWidth: 280,
+  },
+  flexGrow: { flex: 1, minHeight: 24 },
+  actions: {
     width: '100%',
+    marginBottom: 16,
+  },
+  secondaryGap: {
     marginTop: 12,
   },
-  langButton: {
-    flex: 1,
-    height: 48,
-    marginHorizontal: 6,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#111111',
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
+  legal: {
+    fontSize: 12,
+    lineHeight: 17,
+    color: colors.textMuted,
+    textAlign: 'center',
+    paddingHorizontal: 8,
+    marginBottom: 4,
   },
-  langButtonTr: {
-    backgroundColor: 'rgba(255,255,255,0.96)',
-  },
-  langButtonEn: {
-    backgroundColor: 'rgba(255,255,255,0.96)',
-  },
-  langButtonActive: {
-    borderColor: '#111111',
-    borderWidth: 2,
-  },
-  langButtonText: {
-    fontSize: 16,
-    fontWeight: '700',
-    fontFamily: 'Inter',
-    color: '#111111',
-  },
-  langButtonTextTr: {
-    color: '#111111',
-  },
-  langButtonTextEn: {
-    color: '#111111',
-  },
-  langButtonTextActive: {
-    color: '#111111',
-    fontWeight: '700',
-  },
-  bottomIconWrap: {
-    position: 'absolute',
-    bottom: 40,
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-  },
-  bottomIcon: {
-    width: 58,
-    height: 58,
-    borderRadius: 12,
+  legalLink: {
+    fontSize: 12,
+    lineHeight: 17,
+    color: colors.primary,
+    fontWeight: '600',
+    textDecorationLine: 'underline',
   },
 });

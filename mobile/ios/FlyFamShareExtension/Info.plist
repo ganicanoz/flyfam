@@ -55,17 +55,17 @@
 		<string>$(PRODUCT_MODULE_NAME).ShareExtensionViewController</string>
 	</dict>
 	<key>RCTNewArchEnabled</key>
-	<false/>
+	<true/>
 	<key>ShareExtensionBackgroundColor</key>
 	<dict>
 		<key>alpha</key>
 		<integer>255</integer>
 		<key>blue</key>
-		<integer>226</integer>
+		<integer>251</integer>
 		<key>green</key>
-		<integer>144</integer>
+		<integer>204</integer>
 		<key>red</key>
-		<integer>74</integer>
+		<integer>180</integer>
 	</dict>
 	<key>ShareExtensionHeight</key>
 	<integer>180</integer>

@@ -8,6 +8,14 @@ import { applyStoredOrProfileLocale, getStoredLocale, type Locale } from '@/lib/
 import { registerPasswordRecoveryHandler } from '@/lib/passwordRecoveryBridge';
 import type { RosterListShowPrefs } from '@/lib/rosterListPreferences';
 import { trackAppOpenThrottled } from '@/lib/userActivity';
+import { clearConsentOkCache } from '@/lib/consents';
+import {
+  clearSessionProfileCache,
+  loadSessionProfileCache,
+  saveSessionProfileCache,
+} from '@/lib/sessionProfileCache';
+import { clearRosterLocalCacheForUser } from '@/lib/rosterLocalCache';
+import { clearRosterAccessCacheForUser } from '@/lib/rosterAccessCache';
 
 export type Profile = {
   id: string;
@@ -36,9 +44,13 @@ type SessionContextType = {
   profile: Profile | null;
   crewProfile: CrewProfile | null;
   isLoading: boolean;
+  /** True when profile came from disk because network profile fetch failed/pending. */
+  profileFromCache: boolean;
   needsPasswordUpdate: boolean;
   clearPasswordRecovery: () => void;
   refreshProfile: () => Promise<void>;
+  /** Optimistic local patch (e.g. roster_list_show) — avoids full profile refetch jank. */
+  patchCrewProfile: (partial: Partial<CrewProfile>) => void;
   signOut: () => Promise<void>;
 };
 
@@ -57,8 +69,28 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [crewProfile, setCrewProfile] = useState<CrewProfile | null>(null);
+  const [profileFromCache, setProfileFromCache] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [needsPasswordUpdate, setNeedsPasswordUpdate] = useState(false);
+  const profileRef = useRef<Profile | null>(null);
+  const crewProfileRef = useRef<CrewProfile | null>(null);
+
+  useEffect(() => {
+    profileRef.current = profile;
+  }, [profile]);
+  useEffect(() => {
+    crewProfileRef.current = crewProfile;
+  }, [crewProfile]);
+
+  const applyCachedProfile = async (userId: string): Promise<boolean> => {
+    const cached = await loadSessionProfileCache(userId);
+    if (!cached) return false;
+    setProfile(cached.profile as Profile);
+    setCrewProfile(cached.crewProfile as CrewProfile | null);
+    setProfileFromCache(true);
+    applyStoredOrProfileLocale((cached.profile as Profile).locale).catch(() => {});
+    return true;
+  };
 
   const fetchProfile = async (userId: string) => {
     const { data, error } = await supabase
@@ -68,8 +100,12 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       .single();
 
     if (error) {
-      setProfile(null);
-      setCrewProfile(null);
+      // Offline / transient: keep in-memory or disk cache — do not wipe to null.
+      if (profileRef.current?.id === userId) return;
+      const hadCache = await applyCachedProfile(userId);
+      if (!hadCache && !profileRef.current) {
+        // No cache at all — leave null (CompleteProfile / splash timeout handles).
+      }
       return;
     }
     const profileData = data as Profile;
@@ -90,11 +126,17 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         .select('id, user_id, company_name, airline_icao, home_base_iata, home_base_city, time_preference, roster_list_show')
         .eq('user_id', userId)
         .maybeSingle();
-      if (
-        full.error &&
-        (crewProfileSelectErrorMissingRosterShow(full.error.message) ||
-          crewProfileSelectErrorMissingHomeBase(full.error.message))
-      ) {
+      if (full.error && crewProfileSelectErrorMissingRosterShow(full.error.message)) {
+        // roster_list_show yoksa home_base’i null’lama — aksi halde SAW üs yatıları şişer.
+        const withHome = await supabase
+          .from('crew_profiles')
+          .select('id, user_id, company_name, airline_icao, home_base_iata, home_base_city, time_preference')
+          .eq('user_id', userId)
+          .maybeSingle();
+        crewRow = withHome.data
+          ? ({ ...withHome.data, roster_list_show: null } as CrewProfile)
+          : null;
+      } else if (full.error && crewProfileSelectErrorMissingHomeBase(full.error.message)) {
         const basic = await supabase
           .from('crew_profiles')
           .select('id, user_id, company_name, airline_icao, time_preference')
@@ -106,14 +148,24 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       } else if (!full.error) {
         crewRow = full.data as CrewProfile | null;
       } else {
-        crewRow = null;
+        // Crew fetch failed (offline): keep cached crew if same user.
+        if (crewProfileRef.current?.user_id === userId) {
+          crewRow = crewProfileRef.current;
+        } else {
+          const cached = await loadSessionProfileCache(userId);
+          crewRow = (cached?.crewProfile as CrewProfile | null) ?? null;
+        }
       }
       // Set crew + profile together to avoid transient CompleteProfile flicker.
       setCrewProfile(crewRow);
       setProfile(profileData);
+      setProfileFromCache(false);
+      void saveSessionProfileCache({ userId, profile: profileData, crewProfile: crewRow });
     } else {
       setCrewProfile(null);
       setProfile(profileData);
+      setProfileFromCache(false);
+      void saveSessionProfileCache({ userId, profile: profileData, crewProfile: null });
     }
   };
 
@@ -122,6 +174,17 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     if (s?.user?.id) {
       await fetchProfile(s.user.id);
     }
+  };
+
+  const patchCrewProfile = (partial: Partial<CrewProfile>) => {
+    setCrewProfile((prev) => {
+      if (!prev) return prev;
+      const next = { ...prev, ...partial };
+      const uid = session?.user?.id ?? prev.user_id;
+      const p = profileRef.current;
+      if (uid && p) void saveSessionProfileCache({ userId: uid, profile: p, crewProfile: next });
+      return next;
+    });
   };
 
   useEffect(() => {
@@ -133,45 +196,66 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session }, error }) => {
-      if (error) {
-        setSession(null);
-        setProfile(null);
-        setCrewProfile(null);
-        setIsLoading(false);
-        supabase.auth.signOut();
-        return;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const { data: { session: s }, error } = await supabase.auth.getSession();
+        if (cancelled) return;
+
+        if (error) {
+          // Transient storage/network glitch: do not signOut (that clears JWT and forces login).
+          // If AsyncStorage still has a session, getSession usually succeeds offline.
+          setIsLoading(false);
+          return;
+        }
+
+        setSession(s);
+        if (s?.user?.id) {
+          // Hydrate disk profile first so MainTabs can open offline.
+          await applyCachedProfile(s.user.id);
+          if (cancelled) return;
+          setIsLoading(false);
+          void fetchProfile(s.user.id);
+        } else {
+          setIsLoading(false);
+        }
+      } catch {
+        if (!cancelled) setIsLoading(false);
       }
-      setSession(session);
-      if (session?.user?.id) {
-        fetchProfile(session.user.id).finally(() => setIsLoading(false));
-      } else {
-        setIsLoading(false);
-      }
-    }).catch(() => {
-      setSession(null);
-      setProfile(null);
-      setCrewProfile(null);
-      setIsLoading(false);
-    });
+    })();
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
+    } = supabase.auth.onAuthStateChange((event, nextSession) => {
       if (event === 'PASSWORD_RECOVERY') {
         setNeedsPasswordUpdate(true);
       }
-      setSession(session);
-      if (session?.user?.id) {
-        fetchProfile(session.user.id).finally(() => setIsLoading(false));
-      } else {
+      if (nextSession?.user?.id) {
+        setSession(nextSession);
+        void (async () => {
+          await applyCachedProfile(nextSession.user!.id);
+          setIsLoading(false);
+          await fetchProfile(nextSession.user!.id);
+        })();
+      } else if (event === 'SIGNED_OUT') {
+        setSession(null);
         setProfile(null);
         setCrewProfile(null);
+        setProfileFromCache(false);
+        setIsLoading(false);
+        void clearSessionProfileCache();
+        void clearConsentOkCache();
+      } else {
+        // e.g. failed token refresh offline — keep existing session/profile.
         setIsLoading(false);
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      cancelled = true;
+      subscription.unsubscribe();
+    };
   }, []);
 
   // Safety net: if something goes wrong fetching session/profile (ör. ağ çok yavaş),
@@ -211,17 +295,27 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     registerPushTokenForUser(profile.id).then(() => {
       if (!cancelled) pushRegisteredRef.current = true;
     });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [profile?.id, profile?.role, session?.user]);
 
   const clearPasswordRecovery = () => setNeedsPasswordUpdate(false);
 
   const signOut = async () => {
+    const uid = session?.user?.id ?? profile?.id ?? null;
     await supabase.auth.signOut();
     setSession(null);
     setProfile(null);
     setCrewProfile(null);
+    setProfileFromCache(false);
     setNeedsPasswordUpdate(false);
+    void clearSessionProfileCache();
+    void clearConsentOkCache();
+    if (uid) {
+      void clearRosterLocalCacheForUser(uid);
+      void clearRosterAccessCacheForUser(uid);
+    }
   };
 
   return (
@@ -231,9 +325,11 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         profile,
         crewProfile,
         isLoading,
+        profileFromCache,
         needsPasswordUpdate,
         clearPasswordRecovery,
         refreshProfile,
+        patchCrewProfile,
         signOut,
       }}
     >

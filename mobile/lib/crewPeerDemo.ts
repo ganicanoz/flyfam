@@ -1,20 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from './supabase';
 
-/** Demo karşılıklı crew-crew bağı: Gani Can Öz ↔ Oben Öz. DB peer’lar hydrateCrewPeersFromServer ile gelir. */
-
-export const DEMO_PEER_LINK = {
-  ganiUserId: '58e63a65-999d-4bba-9885-e7df05ff5ef8',
-  ganiCrewId: 'd0373b44-0a20-4ad7-aea2-1fa6107bbca6',
-  ganiName: 'Gani Can Öz',
-  ganiAirline: 'Pegasus Airlines',
-  ganiIcao: 'PGT',
-  obenUserId: '1f800e84-d9dc-421c-b3bc-eea7c1033b3b',
-  obenCrewId: '3246ec2f-948c-4e25-a991-82afa77bc223',
-  obenName: 'Oben Öz',
-  obenAirline: 'Turkish Airlines',
-  obenIcao: 'THY',
-} as const;
+/** Approved crew-to-crew roster links hydrated from the server. */
 
 export type DemoCrewPeer = {
   id: string;
@@ -121,45 +108,13 @@ export async function dismissDemoPeer(peerId: string): Promise<void> {
   }
 }
 
-function allDemoPeersForUser(userId: string | null | undefined): DemoCrewPeer[] {
-  if (!userId) return [];
-  if (userId === DEMO_PEER_LINK.ganiUserId) {
-    return [
-      {
-        id: 'demo-peer-oben',
-        peerCrewId: DEMO_PEER_LINK.obenCrewId,
-        name: DEMO_PEER_LINK.obenName,
-        airline: DEMO_PEER_LINK.obenAirline,
-        icao: DEMO_PEER_LINK.obenIcao,
-      },
-    ];
-  }
-  if (userId === DEMO_PEER_LINK.obenUserId) {
-    return [
-      {
-        id: 'demo-peer-gani',
-        peerCrewId: DEMO_PEER_LINK.ganiCrewId,
-        name: DEMO_PEER_LINK.ganiName,
-        airline: DEMO_PEER_LINK.ganiAirline,
-        icao: DEMO_PEER_LINK.ganiIcao,
-      },
-    ];
-  }
-  return [];
-}
-
 export function demoPeersForUser(userId: string | null | undefined): DemoCrewPeer[] {
   if (!userId) return [];
   const fromDb = dbPeersByUserId.get(userId) ?? [];
-  const fromDemo = allDemoPeersForUser(userId);
-  const byCrew = new Map<string, DemoCrewPeer>();
-  // Demo first, DB overwrites same peerCrewId (real link wins).
-  for (const p of fromDemo) byCrew.set(p.peerCrewId, p);
-  for (const p of fromDb) byCrew.set(p.peerCrewId, p);
-  return [...byCrew.values()].filter((p) => !dismissedPeerIds.has(p.id));
+  return fromDb.filter((p) => !dismissedPeerIds.has(p.id));
 }
 
-/** Avatar / chip: "Oben Öz" → "OÖ". */
+/** Avatar/chip initials derived from the approved peer display name. */
 export function peerInitials(fullName: string): string {
   const parts = fullName.trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return '?';
@@ -167,7 +122,7 @@ export function peerInitials(fullName: string): string {
   return `${parts[0]!.charAt(0)}${parts[parts.length - 1]!.charAt(0)}`.toUpperCase();
 }
 
-/** Tab etiketi: "Oben Öz" → "Oben Ö." */
+/** Compact tab label derived from the approved peer display name. */
 export function peerTabShortLabel(fullName: string): string {
   const parts = fullName.trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return '?';

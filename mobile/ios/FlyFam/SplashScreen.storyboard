@@ -18,16 +18,16 @@
                         <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
                         <subviews>
                             <imageView id="EXPO-SplashScreen" userLabel="SplashScreenLogo" image="SplashScreenLogo" contentMode="scaleAspectFit" clipsSubviews="true" userInteractionEnabled="false" translatesAutoresizingMaskIntoConstraints="false">
-                                <rect key="frame" x="0" y="0" width="414" height="736"/>
+                                <rect key="frame" x="146.5" y="361" width="100" height="130"/>
                             </imageView>
                         </subviews>
                         <viewLayoutGuide key="safeArea" id="Rmq-lb-GrQ"/>
                         <constraints>
                             <constraint firstItem="EXPO-SplashScreen" firstAttribute="centerX" secondItem="EXPO-ContainerView" secondAttribute="centerX" id="splash-center-x"/>
                             <constraint firstItem="EXPO-SplashScreen" firstAttribute="centerY" secondItem="EXPO-ContainerView" secondAttribute="centerY" id="splash-center-y"/>
-                            <constraint firstItem="EXPO-SplashScreen" firstAttribute="width" secondItem="EXPO-ContainerView" secondAttribute="width" multiplier="0.26" id="splash-width-ratio"/>
+                            <constraint firstItem="EXPO-SplashScreen" firstAttribute="width" secondItem="EXPO-ContainerView" secondAttribute="width" multiplier="0.26" id="splash-width-frac"/>
                             <constraint firstItem="EXPO-SplashScreen" firstAttribute="width" relation="lessThanOrEqual" constant="130" id="splash-width-max"/>
-                            <constraint firstItem="EXPO-SplashScreen" firstAttribute="height" secondItem="EXPO-SplashScreen" secondAttribute="width" multiplier="1.396" id="splash-aspect"/>
+                            <constraint firstItem="EXPO-SplashScreen" firstAttribute="height" secondItem="EXPO-SplashScreen" secondAttribute="width" multiplier="1.4" id="splash-aspect"/>
                         </constraints>
                         <color key="backgroundColor" name="SplashScreenBackground"/>
                     </view>
@@ -38,12 +38,12 @@
         </scene>
     </scenes>
     <resources>
-        <image name="SplashScreenLogo" width="414" height="736"/>
+        <image name="SplashScreenLogo" width="101" height="141"/>
         <systemColor name="systemBackgroundColor">
             <color white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
         </systemColor>
         <namedColor name="SplashScreenBackground">
-            <color alpha="1.000" blue="0.886274509803922" green="0.564705882352941" red="0.290196078431373" customColorSpace="sRGB" colorSpace="custom"/>
+            <color alpha="1.000" blue="0.960784313725490" green="0.945098039215686" red="0.941176470588235" customColorSpace="sRGB" colorSpace="custom"/>
         </namedColor>
     </resources>
 </document>

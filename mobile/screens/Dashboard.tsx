@@ -74,7 +74,16 @@ export default function Dashboard() {
         .order('flight_date', { ascending: true })
         .limit(50);
       if (error) console.error(error);
-      else setFlights(data ?? []);
+      else {
+        setFlights(
+          (data ?? []).map((flight) => ({
+            ...flight,
+            crew_profiles: Array.isArray(flight.crew_profiles)
+              ? (flight.crew_profiles[0] ?? null)
+              : flight.crew_profiles,
+          })) as FlightWithCrew[],
+        );
+      }
       setLoading(false);
     };
     fetchFlights();

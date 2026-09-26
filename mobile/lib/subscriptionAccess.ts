@@ -23,6 +23,12 @@ export type SubscriptionAccess = {
   has_access: boolean;
 };
 
+export type CrewRosterAccess = {
+  has_access: boolean;
+  subscription_status: string | null;
+  plan_title: string | null;
+};
+
 const emptyAccess: SubscriptionAccess = {
   role: null,
   crew_id: null,
@@ -69,6 +75,21 @@ export async function fetchMySubscriptionAccess(): Promise<SubscriptionAccess> {
     available_family_slots: typeof row.available_family_slots === 'number' ? row.available_family_slots : 0,
     can_invite_more: !!row.can_invite_more,
     has_access: !!row.has_access,
+  };
+}
+
+/** Roster owner entitlement for viewers (family or crew peer followers). */
+export async function fetchCrewRosterAccess(crewId: string): Promise<CrewRosterAccess> {
+  const { data, error } = await supabase.rpc('get_crew_roster_access', { p_crew_id: crewId });
+  if (error) throw error;
+  if (!data || typeof data !== 'object') {
+    return { has_access: false, subscription_status: null, plan_title: null };
+  }
+  const row = data as Record<string, unknown>;
+  return {
+    has_access: !!row.has_access,
+    subscription_status: (row.subscription_status as string | null) ?? null,
+    plan_title: (row.plan_title as string | null) ?? null,
   };
 }
 

@@ -46,6 +46,8 @@ docs/sessions.ics
 docs/airport-codes.csv
 docs/android-users-email-list.json
 docs/android-users-emails.txt
+docs/android-closed-testers.csv
+docs/android-closed-testers-comma.txt
 docs/flyfam_logo_pack_downloader/
 docs/flyfam_node_logo_pack/
 docs/app-review-subscriptions.*
@@ -53,6 +55,20 @@ docs/app-review-subscriptions.*
 # Mobile tmp screenshots
 mobile/.tmp/
 
+# Local installers and one-off configuration backups
+node-v*.pkg
+*.eas-root-bak
+*.bak-[0-9]*
+*.synth-bak.wav
+
+# Local simulator evidence and raw store captures may contain personal data.
+# Only reviewed, anonymized final marketing folders should be committed.
+docs/sim-*.png
+docs/app-store-screenshots/source/
+docs/app-store-screenshots/marketing-v1/
+docs/app-store-screenshots/marketing-v2/
+
 # Android debug keystore (not signing key, but keep out of repo)
 mobile/android/app/debug.keystore
 FlyFam
+.local/

@@ -1,9 +1,9 @@
 /** Uygulama ikonu: iOS ve Android aynı 1024 kaynak (adaptive ön plan dahil). */
 const APP_ICON_1024 = './assets/icon-final-iOS-Default-1024x1024@1x.png';
-/** Native splash: #B4CCFB + app icon + wordmark (~26% genişlik). sync-native-splash.py */
+/** Native splash: app gray + icon + wordmark (~26% genişlik). sync-native-splash.py */
 const SPLASH_LOGO_IMAGE = './assets/splash-logo-expo-native.png';
-/** Intro poster `highressplash1.mp4.png` üst bölge (gök+bulut) ortalaması — videoyla uyumlu açık gök. */
-const SPLASH_BACKGROUND = '#B4CCFB';
+/** Matches in-app `colors.background` light — no sky-blue flash into roster. */
+const SPLASH_BACKGROUND = '#F0F1F5';
 
 export default {
   expo: {
@@ -28,7 +28,7 @@ export default {
       supportsTablet: true,
       bundleIdentifier: 'com.flyfam.app',
       /** Her App Store / TestFlight yüklemesinde bir öncekinden büyük olmalı (CFBundleVersion). */
-      buildNumber: '32',
+      buildNumber: '49',
       jsEngine: 'hermes',
       infoPlist: {
         /** expo-share-extension ana uygulama + uzantı için App Group */
@@ -47,13 +47,13 @@ export default {
       },
     },
     android: {
-      versionCode: 33,
+      versionCode: 49,
       jsEngine: 'hermes',
       /** Play + adaptive foreground: iOS App Store ikonu ile aynı 1024 kaynak. */
       icon: APP_ICON_1024,
       adaptiveIcon: {
         foregroundImage: APP_ICON_1024,
-        backgroundColor: SPLASH_BACKGROUND,
+        backgroundColor: '#E8F0FE',
       },
       package: 'com.flyfam.app',
       googleServicesFile: './google-services.json',
@@ -78,6 +78,8 @@ export default {
     plugins: [
       'expo-localization',
       'expo-secure-store',
+      'react-native-bottom-tabs',
+      '@react-native-community/datetimepicker',
       [
         'expo-build-properties',
         {
@@ -85,6 +87,10 @@ export default {
             compileSdkVersion: 36,
             targetSdkVersion: 36,
             buildToolsVersion: '36.0.0',
+            newArchEnabled: true,
+          },
+          ios: {
+            newArchEnabled: true,
           },
         },
       ],
@@ -93,7 +99,11 @@ export default {
         {
           icon: APP_ICON_1024,
           color: '#0369A1',
-          sounds: [],
+          sounds: [
+            './assets/sounds/flyfam_took_off.wav',
+            './assets/sounds/flyfam_landed.wav',
+            './assets/sounds/flyfam_roster_share.wav',
+          ],
           defaultChannel: 'default',
         },
       ],
@@ -113,10 +123,6 @@ export default {
       supabaseAnonKey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
       iosMonthlyPromoOfferId: process.env.EXPO_PUBLIC_IOS_MONTHLY_PROMO_OFFER_ID,
       iosFamilyAddonProductId: process.env.EXPO_PUBLIC_IOS_FAMILY_ADDON_PRODUCT_ID,
-      flightradar24Token: process.env.EXPO_PUBLIC_FLIGHTRADAR24_API_TOKEN,
-      airlabsKey: process.env.EXPO_PUBLIC_AIRLABS_API_KEY,
-      aerodataboxApiMarketBase: process.env.EXPO_PUBLIC_AERODATABOX_APIMARKET_BASE,
-      aerodataboxApiMarketKey: process.env.EXPO_PUBLIC_AERODATABOX_APIMARKET_KEY,
       eas: {
         projectId: process.env.EXPO_PUBLIC_EAS_PROJECT_ID ?? '5c9f4f99-9766-4d38-bfe0-6b1cd6a7e83f',
       },

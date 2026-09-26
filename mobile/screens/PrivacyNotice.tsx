@@ -1,5 +1,5 @@
-import { LegalDocumentView } from '../components/LegalDocumentView';
+import { LegalTextView } from '../components/LegalTextView';
 
 export default function PrivacyNotice() {
-  return <LegalDocumentView kind="privacy" showTitle={false} />;
+  return <LegalTextView kind="privacy" showAccept={false} />;
 }

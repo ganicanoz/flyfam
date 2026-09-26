@@ -33,6 +33,7 @@ import {
   subscribeRosterLastSharedAt,
 } from '../lib/rosterShareMeta';
 import { pushRootScreen } from '../lib/pushRootScreen';
+import { useAdminRoster } from '../contexts/AdminRosterContext';
 
 /** Aile üye kartı ile Kaldır butonu aynı yükseklik (padding 16+16 + avatar 40). */
 const FAMILY_MEMBER_ROW_HEIGHT = 72;
@@ -84,6 +85,7 @@ export default function Family() {
   const { t, i18n } = useTranslation();
   const navigation = useNavigation<any>();
   const { profile, crewProfile } = useSession();
+  const { onAdminSecretTap } = useAdminRoster();
   const themeMode = useThemeMode();
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createFamilyStyles(), [themeMode]);
@@ -460,7 +462,17 @@ export default function Family() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.pageHeader}>
-          <Text style={[styles.pageTitle, { color: colors.text }]}>{t('nav.family')}</Text>
+          <Pressable
+            onPress={() => {
+              if (onAdminSecretTap()) {
+                navigation.navigate('Roster');
+              }
+            }}
+            accessibilityRole="header"
+            hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+          >
+            <Text style={[styles.pageTitle, { color: colors.text }]}>{t('nav.family')}</Text>
+          </Pressable>
           <Text style={[styles.pageSubtitle, { color: colors.textMuted }]}>{t('family.pageSubtitle')}</Text>
           {lastSharedLabel ? (
             <Text style={[styles.lastShared, { color: colors.textSecondary }]}>{lastSharedLabel}</Text>

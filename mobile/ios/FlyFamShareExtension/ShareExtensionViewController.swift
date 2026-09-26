@@ -271,6 +271,51 @@ class ShareExtensionViewController: UIViewController {
     let alpha = dict["alpha"] ?? 1
     return UIColor(red: red / 255.0, green: green / 255.0, blue: blue / 255.0, alpha: alpha)
   }
+
+  /// Copy into App Group with UUID name so re-sharing the same PDF does not fail.
+  /// Must run while the source URL is still valid (esp. loadFileRepresentation temp URLs).
+  private static func copySharedFile(from sharedURL: URL, isImage: Bool, fileManager: FileManager) -> String? {
+    guard let appGroup = Bundle.main.object(forInfoDictionaryKey: "AppGroup") as? String else {
+      print("Could not find AppGroup in info.plist")
+      return nil
+    }
+    guard let containerUrl = fileManager.containerURL(forSecurityApplicationGroupIdentifier: appGroup) else {
+      print("Could not set up file manager container URL for app group")
+      return nil
+    }
+    let ext = sharedURL.pathExtension.isEmpty ? (isImage ? "jpg" : "pdf") : sharedURL.pathExtension
+    let fileName = UUID().uuidString + "." + ext
+    let sharedDataUrl = containerUrl.appendingPathComponent("sharedData")
+    if !fileManager.fileExists(atPath: sharedDataUrl.path) {
+      do {
+        try fileManager.createDirectory(at: sharedDataUrl, withIntermediateDirectories: true)
+      } catch {
+        print("Failed to create sharedData directory: \(error)")
+        return nil
+      }
+    }
+    let persistentURL = sharedDataUrl.appendingPathComponent(fileName)
+    do {
+      if fileManager.fileExists(atPath: persistentURL.path) {
+        try fileManager.removeItem(at: persistentURL)
+      }
+      try fileManager.copyItem(at: sharedURL, to: persistentURL)
+      return persistentURL.absoluteString
+    } catch {
+      print("Failed to copy file: \(error)")
+      return nil
+    }
+  }
+
+  private func appendSharedPath(_ path: String, key: String, into sharedItems: inout [String: Any]) {
+    if sharedItems[key] == nil {
+      sharedItems[key] = [String]()
+    }
+    if var array = sharedItems[key] as? [String] {
+      array.append(path)
+      sharedItems[key] = array
+    }
+  }
   
   private func getShareData(completion: @escaping ([String: Any]?) -> Void) {
     guard let extensionItems = extensionContext?.inputItems as? [NSExtensionItem] else {
@@ -289,84 +334,75 @@ class ShareExtensionViewController: UIViewController {
         if provider.hasItemConformingToTypeIdentifier(UTType.url.identifier) {
           group.enter()
           provider.loadItem(forTypeIdentifier: UTType.url.identifier, options: nil) { (urlItem, error) in
-            DispatchQueue.main.async {
-              if let sharedURL = urlItem as? URL {
-                if sharedURL.isFileURL {
-                  // Screenshot overlay sends public.url (file URLs) instead of public.image
-                  let fileExtension = sharedURL.pathExtension.lowercased()
-                  let imageExtensions = ["jpg", "jpeg", "png", "gif", "bmp", "tiff", "tif", "heic", "heif", "webp"]
-                  var isImage = imageExtensions.contains(fileExtension)
-                  
-                  if !isImage, let resourceValues = try? sharedURL.resourceValues(forKeys: [.typeIdentifierKey]),
-                     let typeIdentifier = resourceValues.typeIdentifier {
-                    isImage = UTType(typeIdentifier)?.conforms(to: .image) ?? false
-                  }
-                  
-                  guard let appGroup = Bundle.main.object(forInfoDictionaryKey: "AppGroup") as? String else {
-                    print("Could not find AppGroup in info.plist")
-                    group.leave()
-                    return
-                  }
-                  
-                  guard let containerUrl = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroup) else {
-                    print("Could not set up file manager container URL for app group")
-                    group.leave()
-                    return
-                  }
-                  
-                  let tempFilePath = sharedURL.path
-                  // Aynı dosya adı ile hızlı tekrar paylaşımda copyItem çakışmasın:
-                  // UUID + orijinal ad (veya var olanı silip yaz).
-                  let originalName = sharedURL.lastPathComponent
-                  let uniquePrefix = UUID().uuidString
-                  let fileName = "\(uniquePrefix)-\(originalName)"
-                  
-                  let sharedDataUrl = containerUrl.appendingPathComponent("sharedData")
-                  
-                  if !fileManager.fileExists(atPath: sharedDataUrl.path) {
-                    do {
-                      try fileManager.createDirectory(at: sharedDataUrl, withIntermediateDirectories: true)
-                    } catch {
-                      print("Failed to create sharedData directory: \(error)")
-                    }
-                  }
-                  
-                  let persistentURL = sharedDataUrl.appendingPathComponent(fileName)
-                  
-                  do {
-                    if fileManager.fileExists(atPath: persistentURL.path) {
-                      try fileManager.removeItem(at: persistentURL)
-                    }
-                    try fileManager.copyItem(atPath: tempFilePath, toPath: persistentURL.path)
-                    let key = isImage ? "images" : "files"
-                    if sharedItems[key] == nil {
-                      sharedItems[key] = [String]()
-                    }
-                    if var array = sharedItems[key] as? [String] {
-                      array.append(persistentURL.absoluteString)
-                      sharedItems[key] = array
-                    }
-                  } catch {
-                    print("Failed to copy file: \(error)")
-                    // Fallback: önceki kopya / orijinal ada sahip dosya varsa yine kullan
-                    let legacyURL = sharedDataUrl.appendingPathComponent(originalName)
-                    let fallback = fileManager.fileExists(atPath: persistentURL.path)
-                      ? persistentURL
-                      : (fileManager.fileExists(atPath: legacyURL.path) ? legacyURL : nil)
-                    if let fallback {
-                      let key = isImage ? "images" : "files"
-                      if sharedItems[key] == nil {
-                        sharedItems[key] = [String]()
-                      }
-                      if var array = sharedItems[key] as? [String] {
-                        array.append(fallback.absoluteString)
-                        sharedItems[key] = array
-                      }
-                    }
-                  }
-                } else {
-                  sharedItems["url"] = sharedURL.absoluteString
+            var copiedPath: String? = nil
+            var remoteUrl: String? = nil
+            if let sharedURL = urlItem as? URL {
+              if sharedURL.isFileURL {
+                let fileExtension = sharedURL.pathExtension.lowercased()
+                let imageExtensions = ["jpg", "jpeg", "png", "gif", "bmp", "tiff", "tif", "heic", "heif", "webp"]
+                var isImage = imageExtensions.contains(fileExtension)
+                if !isImage, let resourceValues = try? sharedURL.resourceValues(forKeys: [.typeIdentifierKey]),
+                   let typeIdentifier = resourceValues.typeIdentifier {
+                  isImage = UTType(typeIdentifier)?.conforms(to: .image) ?? false
                 }
+                copiedPath = Self.copySharedFile(from: sharedURL, isImage: isImage, fileManager: fileManager)
+                if let copiedPath = copiedPath {
+                  // stash key via suffix so main can append — use isImage from above
+                  DispatchQueue.main.async {
+                    self.appendSharedPath(copiedPath, key: isImage ? "images" : "files", into: &sharedItems)
+                    group.leave()
+                  }
+                  return
+                }
+              } else {
+                remoteUrl = sharedURL.absoluteString
+              }
+            }
+            DispatchQueue.main.async {
+              if let remoteUrl = remoteUrl {
+                sharedItems["url"] = remoteUrl
+              }
+              group.leave()
+            }
+          }
+        }
+
+        // Files / Mail: PDF as public.pdf (temp URL valid only until this callback returns)
+        if provider.hasItemConformingToTypeIdentifier(UTType.pdf.identifier) {
+          group.enter()
+          provider.loadFileRepresentation(forTypeIdentifier: UTType.pdf.identifier) { (url, error) in
+            let copiedPath = url.flatMap {
+              Self.copySharedFile(from: $0, isImage: false, fileManager: fileManager)
+            }
+            if url == nil, let error = error {
+              print("Failed to load PDF representation: \(error)")
+            }
+            DispatchQueue.main.async {
+              if let copiedPath = copiedPath {
+                self.appendSharedPath(copiedPath, key: "files", into: &sharedItems)
+              }
+              group.leave()
+            }
+          }
+        } else if provider.hasItemConformingToTypeIdentifier("public.data")
+                    && !provider.hasItemConformingToTypeIdentifier(UTType.url.identifier)
+                    && !provider.hasItemConformingToTypeIdentifier(UTType.image.identifier) {
+          // Some share sources only expose public.data (no .pdf UTI)
+          group.enter()
+          provider.loadFileRepresentation(forTypeIdentifier: "public.data") { (url, error) in
+            var copiedPath: String? = nil
+            if let url = url {
+              let ext = url.pathExtension.lowercased()
+              let looksPdf = ext == "pdf" || ext.isEmpty
+              if looksPdf {
+                copiedPath = Self.copySharedFile(from: url, isImage: false, fileManager: fileManager)
+              }
+            } else if let error = error {
+              print("Failed to load public.data representation: \(error)")
+            }
+            DispatchQueue.main.async {
+              if let copiedPath = copiedPath {
+                self.appendSharedPath(copiedPath, key: "files", into: &sharedItems)
               }
               group.leave()
             }
@@ -411,11 +447,13 @@ class ShareExtensionViewController: UIViewController {
               
               guard let appGroup = Bundle.main.object(forInfoDictionaryKey: "AppGroup") as? String else {
                 print("Could not find AppGroup in info.plist")
+                group.leave()
                 return
               }
               
               guard let containerUrl = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroup) else {
                 print("Could not set up file manager container URL for app group")
+                group.leave()
                 return
               }
               
@@ -517,11 +555,13 @@ class ShareExtensionViewController: UIViewController {
               
               guard let appGroup = Bundle.main.object(forInfoDictionaryKey: "AppGroup") as? String else {
                 print("Could not find AppGroup in info.plist")
+                group.leave()
                 return
               }
               
               guard let containerUrl = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroup) else {
                 print("Could not set up file manager container URL for app group")
+                group.leave()
                 return
               }
               

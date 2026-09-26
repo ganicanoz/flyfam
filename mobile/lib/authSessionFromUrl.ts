@@ -103,12 +103,20 @@ function isSignupOrEmailVerificationUrl(url: string): boolean {
   if (
     lower.includes('type=signup') ||
     lower.includes('type=email') ||
-    lower.includes('type=magiclink')
+    lower.includes('type=magiclink') ||
+    lower.includes('type=invite') ||
+    lower.includes('type=email_change')
   ) {
     return true;
   }
   const { type } = parseAuthParams(url);
-  return type === 'signup' || type === 'email' || type === 'magiclink';
+  return (
+    type === 'signup' ||
+    type === 'email' ||
+    type === 'magiclink' ||
+    type === 'invite' ||
+    type === 'email_change'
+  );
 }
 
 function isFlyFamAuthCallbackUrl(url: string): boolean {
@@ -123,11 +131,17 @@ function isFlyFamAuthCallbackUrl(url: string): boolean {
     lower.includes('token_hash') ||
     lower.includes('type=recovery') ||
     lower.includes('type=signup') ||
-    lower.includes('type=email')
+    lower.includes('type=email') ||
+    lower.includes('type=magiclink') ||
+    lower.includes('type=invite') ||
+    lower.includes('type=email_change')
   );
 }
 
-function classifyAuthError(error?: string, errorCode?: string): string | undefined {
+function classifyAuthError(
+  error?: string,
+  errorCode?: string,
+): 'pkce' | 'expired' | 'provider_error' | undefined {
   const blob = `${errorCode ?? ''} ${error ?? ''}`.toLowerCase();
   if (
     blob.includes('pkce') ||
