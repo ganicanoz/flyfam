@@ -973,3 +973,11 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - `20260920194500_protect_premature_landed_trigger.sql` içindeki tek kullanıcı/uçuşa özel düzeltme kaldırıldı; migration artık yalnız genel şema davranışını değiştiriyor. Daha önce uygulanmış `20260824111000_crew_home_base_fields.sql` içindeki kişisel test hesabı seed'i, yeni ortamların kişisel kimlik üretmemesi için kaldırıldı.
 - Dokümanlarda kalan kişisel ad, özel posta kutusu ve kişisel yayın URL kayıtları anonimleştirildi. Bilinen kişisel kimlik dizileri için kaynak taraması sıfır eşleşme verdi.
 - Production'a henüz migration uygulanmadı. Sıradaki işlem, kullanıcıdan açık production onayı alındıktan sonra önce public şema yedeği almak ve ardından `--include-all` ile 8 migrationı uygulamaktır. Cursor bu onay olmadan production push yapmamalıdır.
+
+## 2026-09-26 — Bekleyen production migrationlar uygulandı
+
+- Kullanıcının açık production onayı alındı. Supabase CLI yedeği Docker bulunmadığı için başlayamadı; migration uygulanmadan duruldu. Bunun üzerine yalnız PostgreSQL istemci araçları kuruldu ve production `public` şeması `/tmp/flyfam-pre-migration-20260926.sql` dosyasına alındı.
+- Yedek 217092 bayt ve SHA-256 `8248a6f34daee8dbea763ea36e29b32578bfe140d02873cbbe2f242e635df423` olarak doğrulandı. `/tmp` geçici alandır; kalıcı felaket kurtarma kopyası olarak kabul edilmemelidir.
+- Önceden denetlenen 8 migration `supabase db push --include-all` ile başarıyla uygulandı. `supabase migration list` çıktısında sekiz sürümün tamamı Local/Remote eşleşiyor.
+- Yeni `roster_occupation_catalog_meta_select_anon` davranışı, mobil uygulamanın gerçek anonim Supabase yapılandırmasıyla REST üzerinden test edildi; HTTP 200 ve bir katalog satırı döndü.
+- Ön denetimde silme ve geri yükleme adayı sıfırdı. Push sırasında hata oluşmadı; arşiv üzerinde beklenmeyen veri işlemi raporlanmadı. Route to Live `migrations-prod` maddesi OK yapıldı.
