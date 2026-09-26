@@ -947,3 +947,13 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - Supabase ilişki sonuçlarının dizi/tekil farkları `Connect` ve `Dashboard` ekranlarında normalize edildi. Havaalanı cache istemci tipi, auth hata kodları, root navigation fallback'i, native-stack header seçenekleri, paralel flight update thenable'ı, roster Supabase istemci tipleri/home-base dizisi/parked durumu ve Freebird görev saati null güvenliği düzeltildi.
 - `npx tsc --noEmit --pretty false` sıfır hatayla tamamlandı. `npm run test:capacity`, `npm run verify:android:icon` ve ilgili dosyalarda `git diff --check` başarılı.
 - Cursor `app/` ağacını yeniden production router olarak etkinleştirmeden TypeScript kapsamına geri eklememeli. CLI scriptleri için ileride ayrı Node/tsx tsconfig veya script bazlı test kapısı kullanılmalıdır.
+
+## 2026-09-26 — Birikmiş çalışma ağacı düzenli checkpoint commitlerine ayrıldı
+
+- Değişiklikler silinmeden önce `docs/WORKTREE_RELEASE_INVENTORY.md` oluşturuldu; mobil/native, backend/migration ve yayın dokümanı/anonim medya olarak üç ana grup tanımlandı.
+- `4b23081 Stabilize mobile release candidate`: aktif mobil kod, native projeler, notification extension, üretim ses/ikonları ve TypeScript temizliği.
+- `f012557 Checkpoint backend release changes`: Edge Functions, parserlar, migrationlar, admin backend ve Auth e-posta şablonları. Bu commit migration deploy edildiği anlamına gelmez.
+- `a09ed4e Organize release documentation and assets`: Route to Live, Cursor handoff, yayın scriptleri ve yalnız anonimliği onaylanmış mağaza görselleri.
+- `069663d Ignore local release preview artifacts`: ham/kişisel medya, simülatör kanıtı, yerel yedek, installer, ses denemesi ve Supabase CLI geçici dosyaları için ignore koruması.
+- Her staged grup Gitleaks taramasında sıfır bulgu verdi. Format kontrolleri temizlendi ve işlem sonunda `git status --short` boş döndü.
+- Cursor bu checkpointleri yeniden tek dev diff'e dönüştürmemeli; sonraki değişiklikleri aynı işlevsel sınırlar içinde küçük commitlerle sürdürmelidir.
