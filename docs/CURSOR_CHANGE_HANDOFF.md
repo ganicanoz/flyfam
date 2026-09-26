@@ -957,3 +957,11 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - `069663d Ignore local release preview artifacts`: ham/kişisel medya, simülatör kanıtı, yerel yedek, installer, ses denemesi ve Supabase CLI geçici dosyaları için ignore koruması.
 - Her staged grup Gitleaks taramasında sıfır bulgu verdi. Format kontrolleri temizlendi ve işlem sonunda `git status --short` boş döndü.
 - Cursor bu checkpointleri yeniden tek dev diff'e dönüştürmemeli; sonraki değişiklikleri aynı işlevsel sınırlar içinde küçük commitlerle sürdürmelidir.
+
+## 2026-09-26 — Tek komutluk yayın doğrulama kapısı eklendi
+
+- Kök `package.json` içine `npm run verify:release` komutu ve `scripts/verify-release.mjs` denetleyicisi eklendi.
+- Kapı Expo config, Xcode project ve Gradle içindeki sürüm/build değerlerini karşılaştırır; aktif strict TypeScript, aile kapasitesi, Android ikon, `git diff --check`, son commit + bekleyen değişiklik Gitleaks kontrollerini çalıştırır.
+- Ardından iOS ve Android için production Expo exportu üretir; çıktı yalnız sistem geçici klasöründe tutulur ve başarı/hata sonunda temizlenir. Hızlı yerel tur gerekirse script doğrudan `--skip-export` kabul eder; gerçek release öncesinde export atlanmamalıdır.
+- Tam kapı 1.3.0 (49) için çalıştırıldı: bütün kontroller, iOS Hermes bundle ve Android Hermes bundle başarıyla tamamlandı.
+- Route to Live sürüm eşleme maddesi 45'ten güncel 49'a düzeltildi. Eski 45 EAS build kaydı tarihsel kanıt olarak korundu ancak güncel 49 store build alınmadığı için `eas-builds` maddesi yeniden açık duruma getirildi.

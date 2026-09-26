@@ -5,6 +5,7 @@
     "start": "cd mobile && npm run start",
     "start:go": "cd mobile && npm run start:go",
     "start:clear": "cd mobile && npm run start:clear",
+    "verify:release": "node scripts/verify-release.mjs",
     "airports:import-csv": "node scripts/import-airport-codes-csv.js",
     "airports:fetch-ourairports": "node scripts/fetch-ourairports-csv.js",
     "airports:import-world": "node scripts/fetch-ourairports-csv.js && CSV_PATH=scripts/data/airports-ourairports.csv node scripts/import-airport-codes-csv.js",

@@ -97,14 +97,14 @@
         ['support-identity','Destek ve hukuki iletişim adreslerini markala','OK — Cloudflare Email Routing üzerinde support@flyfamapp.com etkin ve ganicanoz@gmail.com hedefine yönleniyor; catch-all kapalı tutuluyor. Destek, gizlilik, kullanım şartları, roster talebi ve sürüm güncelleme iletişimleri markalı adrese taşındı. Production app_release_policy için mevcut satırı ve varsayılanı güncelleyen ileri yönlü migration eklendi; eski uygulanmış migration değiştirilmedi.','done,privacy,backend']
       ]},
       {title:'3 · Kod ve repo yayın hazırlığı', subtitle:'Tekrarlanabilir ve temiz sürüm', tasks:[
-        ['version-44','Sürüm numaraları eşlendi','Güvenlik temizliği sonrası iOS ve Android sürümü 1.3.0, build/versionCode 45 olarak eşlendi.','done,build'],
+        ['version-44','Sürüm numaraları eşlendi','iOS ve Android sürümü 1.3.0, build/versionCode 49 olarak Expo config, Xcode project ve Gradle içinde eşlendi; otomatik yayın kapısı bu üç kaynağın ayrışması halinde duruyor.','done,build'],
         ['ios-export','iOS üretim export kontrolü','Expo iOS export yerel kontrolde başarılı.','done,build'],
         ['android-export','Android üretim export kontrolü','Expo Android export yerel kontrolde başarılı.','done,build'],
         ['android-icon','Android ikon kontrolü','Android ikon doğrulaması yerel kontrolde başarılı.','done,build'],
         ['family-capacity','Aile kapasite testi','Paket/aile kapasite testi yerel kontrolde başarılı.','done,test'],
         ['typescript-clean','Aktif TypeScript hatalarını temizle','OK — Üretim giriş noktası index.js → App.tsx olarak doğrulandı. Kullanılmayan eski Expo Router app/ ağacı ve bağımsız CLI scriptleri uygulama TypeScript kapsamından ayrıldı; aktif mobil kod ile ortak roster parser bağımlılıkları strict kontrolde sıfır hata veriyor. Supabase ilişki sonuçları güvenli biçimde tekil kayda normalize edildi; auth, navigation, havaalanı cache, roster durumları ve Freebird görev saatlerindeki tip sorunları giderildi. Kapasite testi ve Android ikon doğrulaması tekrar geçti.','done,critical,code'],
         ['worktree-clean','Yayın değişikliklerini düzenli commitlere ayır','OK — 124 izlenen dosya ve yeni varlıklar envanterlendi; kullanıcı çalışması silinmeden mobil, backend/migration ve yayın dokümanı/anonim medya olarak ayrı commitlere ayrıldı. Her grup staged Gitleaks taramasında sıfır bulgu verdi. Ham mağaza kaynakları, simülatör kanıtları, yerel yedekler, kurulum paketi ve bildirim sesi denemeleri ignore altında tutuldu. Supabase CLI geçici durum dosyası commit kapsamından çıkarıldı; çalışma ağacı temiz doğrulandı.','done,critical,code'],
-        ['ci-gate','Yayın öncesi otomatik kontrol kapısı','Export, tip kontrolü, test, secret scan ve sürüm eşleme kontrolleri tek yayın komutunda başarısızlıkta durmalı.','code']
+        ['ci-gate','Yayın öncesi otomatik kontrol kapısı','OK — npm run verify:release tek komutta Expo/Xcode/Gradle sürüm eşleşmesi, strict TypeScript, aile kapasite testi, Android ikon doğrulaması, diff kontrolü, son commit ve bekleyen değişiklik secret taraması ile iOS/Android production exportlarını çalıştırıyor. 1.3.0 (49) üzerinde bütün kapılar ve iki export başarıyla geçti; geçici exportlar işlem sonunda temizleniyor.','done,code,build,security,test']
       ]},
       {title:'4 · Backend ve üretim verisi', subtitle:'Supabase uzaktaki durum yerelle aynı olmalı', tasks:[
         ['migrations-prod','Tüm migrationları üretimde doğrula','Yerel migration listesi ile uzak veritabanı eşleştirilmeli; eksik fonksiyon ve şema önbelleği hataları sıfır olmalı.','critical,backend'],
@@ -142,7 +142,7 @@
       ]},
       {title:'9 · Build, beta ve submission', subtitle:'Geri dönüşü olan kontrollü yayın', tasks:[
         ['release-number','Yeni benzersiz build numarasını seç','44 yalnız yerel hedefse mağazadaki son kullanılan numara kontrol edilmeli ve iki platformda benzersiz sonraki numara seçilmeli.','critical,build'],
-        ['eas-builds','Temiz iOS ve Android store build','Anahtarsız 1.3.0 (45) production buildleri tamamlandı: iOS c5d67330-54b0-49b7-b342-209d747aff4a, Android 9580ecff-cc6c-410d-bd4e-2502dc18b8c4. Submit edilmedi; gerçek cihaz QA ve sunucu anahtar rotasyonu bekleniyor.','done,critical,build'],
+        ['eas-builds','Temiz iOS ve Android store build','Önceki anahtarsız 1.3.0 (45) production buildleri tamamlandı: iOS c5d67330-54b0-49b7-b342-209d747aff4a, Android 9580ecff-cc6c-410d-bd4e-2502dc18b8c4. Güncel yerel sürüm 1.3.0 (49); yayın öncesi yeni 49 store buildleri ve gerçek cihaz QA henüz gerekli. Submit edilmedi.','critical,build'],
         ['beta-test','TestFlight ve Play Internal testi','En az bir crew ve bir family hesabıyla satın alma, restore, push ve deep link test edilmeli.','critical,test'],
         ['submit-products','Binary ve ürünleri birlikte gönder','Abonelik ürünleri review’a eklenmeden binary gönderilmemeli. Review Notes’a adım adım demo akışı yazılmalı.','critical,review'],
         ['review-response','Review kanıt paketi','Giriş bilgileri, kısa ekran kaydı, hukuki bağlantıların yeri ve IAP adımları tek cevap paketinde hazırlanmalı.','review']
