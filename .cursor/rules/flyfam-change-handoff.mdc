@@ -1,0 +1,19 @@
+---
+description: FlyFam değişikliklerini korur ve Cursor devir günlüğünü zorunlu tutar
+alwaysApply: true
+---
+
+# FlyFam Change Safety
+
+- Her işe başlamadan önce `docs/CURSOR_CHANGE_HANDOFF.md` dosyasını tamamen oku.
+- Çalışma ağacının kirli olabileceğini varsay; önce ilgili dosyaların diff'ini incele.
+- Kullanıcıya ait mevcut değişiklikleri geri alma, ezme, yeniden biçimlendirme veya kapsam dışı temizleme yapma.
+- Bir davranışı değiştirmeden önce mevcut akışı ve çağıranları ara; geriye uyumluluğu koru.
+- Route to Live kontrol merkezindeki tamamlanmış maddeleri kanıtsız biçimde geri açma veya değiştirme.
+- `.env`, servis rolü anahtarı, API anahtarı, `.p8`, keystore ve benzeri sırları repoya, loga, dokümana veya mobil pakete yazma.
+- Kişisel ad/e-posta/kişisel GitHub kullanıcı adı; uygulama, mağaza medyası, destek sayfası, hukuki link veya herkese açık dosyada bulunmamalı.
+- `google-services.json` bir istemci yapılandırmasıdır; build'den rastgele çıkarma. Güvenliği paket/SHA/API kısıtlarıyla sağla.
+- Kod veya dosya tarafında tamamlanan her anlamlı değişiklikten sonra `docs/CURSOR_CHANGE_HANDOFF.md` dosyasına tarih, dosya, amaç, doğrulama ve korunacak davranışı ekle.
+- Bir maddeyi yalnız ilgili doğrulama gerçekten başarılıysa `OK` olarak kaydet.
+- Riskli migration, ürün kimliği, sürüm numarası, ödeme, auth veya mağaza ayarını varsayımla değiştirme.
+- İş sonunda ilgili testleri çalıştır, `git diff --check` yap ve kalan riskleri açıkça yaz.

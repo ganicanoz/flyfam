@@ -17,15 +17,15 @@ So: **do not host these two HTML files on Supabase Storage or Edge Functions** i
 
 Base44 uygulamasında **gizli admin sayfası** için GitHub Pages’teki tam ekran sarmalayıcıyı kullanın:
 
-`https://ganicanoz.github.io/flyfam/BASE44_ADMIN_LIVE.html`
+`https://app.flyfamapp.com/BASE44_ADMIN_LIVE.html`
 
 Base44 editör → AI chat’e yapıştırın:
 
 ```
-Create a hidden admin page at route /AdminPanel. Full viewport height iframe embedding https://ganicanoz.github.io/flyfam/BASE44_ADMIN_LIVE.html. Hide from public navigation and sitemap. Do not add links in the main marketing menu. Page title: FlyFam Admin.
+Create a hidden admin page at route /AdminPanel. Full viewport height iframe embedding https://app.flyfamapp.com/BASE44_ADMIN_LIVE.html. Hide from public navigation and sitemap. Do not add links in the main marketing menu. Page title: FlyFam Admin.
 ```
 
-Alternatif (yeni sekme, iframe yok): menüde yalnızca sizin göreceğiniz bir link → `https://ganicanoz.github.io/flyfam/ADMIN_STATUS_DASHBOARD.html?ui=44`
+Alternatif (yeni sekme, iframe yok): menüde yalnızca sizin göreceğiniz bir link → `https://app.flyfamapp.com/ADMIN_STATUS_DASHBOARD.html?ui=44`
 
 ## Recommended: GitHub Pages (free, HTTPS)
 

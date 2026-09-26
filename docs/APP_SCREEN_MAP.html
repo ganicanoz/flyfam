@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>FlyFam — Uygulama Ekran Haritası</title>
+  <style>
+    :root {
+      --bg: #f4f6fb;
+      --surface: #ffffff;
+      --ink: #0f1b3d;
+      --muted: #5b6b8c;
+      --line: #d7deee;
+      --primary: #2f5bea;
+      --primary-soft: #e8eefe;
+      --auth: #7c3aed;
+      --auth-soft: #f3e8ff;
+      --main: #0d9488;
+      --main-soft: #ccfbf1;
+      --modal: #ea580c;
+      --modal-soft: #ffedd5;
+      --admin: #dc2626;
+      --admin-soft: #fee2e2;
+      --shadow: 0 10px 30px rgba(15, 27, 61, 0.08);
+      --radius: 16px;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      --sans: "Segoe UI", system-ui, -apple-system, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: var(--sans);
+      color: var(--ink);
+      background:
+        radial-gradient(1200px 500px at 10% -10%, #dbe7ff 0%, transparent 55%),
+        radial-gradient(900px 400px at 100% 0%, #e7fff8 0%, transparent 50%),
+        var(--bg);
+      line-height: 1.45;
+    }
+    .wrap { max-width: 1180px; margin: 0 auto; padding: 28px 18px 64px; }
+    header.hero {
+      background: linear-gradient(135deg, #0f1b3d 0%, #1e3a8a 55%, #0f766e 100%);
+      color: #fff;
+      border-radius: 24px;
+      padding: 28px 28px 24px;
+      box-shadow: var(--shadow);
+      margin-bottom: 22px;
+    }
+    header.hero h1 { margin: 0 0 8px; font-size: 28px; letter-spacing: -0.02em; }
+    header.hero p { margin: 0; opacity: 0.9; max-width: 70ch; }
+    .meta {
+      display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px;
+    }
+    .chip {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: rgba(255,255,255,0.14);
+      border: 1px solid rgba(255,255,255,0.22);
+      border-radius: 999px;
+      padding: 6px 12px;
+      font-size: 13px;
+    }
+    h2 {
+      margin: 28px 0 12px;
+      font-size: 20px;
+      letter-spacing: -0.01em;
+    }
+    h3 { margin: 0 0 8px; font-size: 16px; }
+    .note {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      color: var(--muted);
+      font-size: 14px;
+      box-shadow: var(--shadow);
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 14px;
+    }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      overflow: hidden;
+      box-shadow: var(--shadow);
+      display: flex;
+      flex-direction: column;
+    }
+    .card .body { padding: 14px 14px 16px; flex: 1; }
+    .card .tag {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      padding: 3px 8px;
+      border-radius: 999px;
+      margin-bottom: 8px;
+    }
+    .tag.auth { background: var(--auth-soft); color: var(--auth); }
+    .tag.gate { background: #fef3c7; color: #b45309; }
+    .tag.tab { background: var(--main-soft); color: #0f766e; }
+    .tag.stack { background: var(--primary-soft); color: var(--primary); }
+    .tag.admin { background: var(--admin-soft); color: var(--admin); }
+    .tag.legacy { background: #f1f5f9; color: #64748b; }
+    .card h3 { font-size: 15px; }
+    .card p { margin: 0; font-size: 13px; color: var(--muted); }
+    .card .route {
+      margin-top: 10px;
+      font-family: var(--mono);
+      font-size: 11px;
+      color: #334155;
+      background: #f8fafc;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 6px 8px;
+      word-break: break-all;
+    }
+    .shot {
+      aspect-ratio: 9 / 16;
+      background: #0b1224;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+    .shot img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: top center;
+      display: block;
+    }
+    .shot .ph {
+      color: rgba(255,255,255,0.55);
+      font-size: 12px;
+      text-align: center;
+      padding: 16px;
+    }
+    .flow {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 18px;
+      box-shadow: var(--shadow);
+      overflow-x: auto;
+    }
+    .flow svg { min-width: 920px; width: 100%; height: auto; display: block; }
+    .legend {
+      display: flex; flex-wrap: wrap; gap: 10px; margin: 12px 0 0;
+      font-size: 12px; color: var(--muted);
+    }
+    .legend span {
+      display: inline-flex; align-items: center; gap: 6px;
+    }
+    .swatch {
+      width: 12px; height: 12px; border-radius: 3px; display: inline-block;
+    }
+    table.map {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--surface);
+      border-radius: var(--radius);
+      overflow: hidden;
+      box-shadow: var(--shadow);
+      border: 1px solid var(--line);
+      font-size: 13px;
+    }
+    table.map th, table.map td {
+      text-align: left;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--line);
+      vertical-align: top;
+    }
+    table.map th { background: #f8fafc; color: var(--muted); font-weight: 700; }
+    table.map tr:last-child td { border-bottom: 0; }
+    code { font-family: var(--mono); font-size: 0.92em; }
+    .cols-2 {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 14px;
+    }
+    @media (max-width: 860px) {
+      .cols-2 { grid-template-columns: 1fr; }
+      header.hero h1 { font-size: 22px; }
+    }
+    footer {
+      margin-top: 28px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    a { color: var(--primary); }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="hero">
+      <h1>FlyFam uygulama ekran haritası</h1>
+      <p>
+        Ana navigasyon kaynağı: <code>mobile/App.tsx</code> (React Navigation).
+        Crew ve aile aynı ana sekmeleri paylaşır; ek stack ekranları Program / Aile / Profil üzerinden açılır.
+      </p>
+      <div class="meta">
+        <span class="chip">~22 farklı ekran (App stack)</span>
+        <span class="chip">4 ana sekme (+ peer sekmeleri)</span>
+        <span class="chip">Auth → kurulum → Main</span>
+        <span class="chip">Görseller: marketing-v3 (varsa)</span>
+      </div>
+    </header>
+
+    <div class="note">
+      <strong>Kaç ekran?</strong>
+      Çalıştığımız ana uygulama yolunda kabaca <strong>22 ekran</strong> var:
+      5 auth, 3 kapı (şifre / profil tamamlama / onay), 4+ ana sekme (Program, peer Program’lar, Aile, Profil),
+      ~10 stack (uçuş ekle/düzenle, planlar, bağlan, admin…).
+      Expo Router altındaki <code>app/(app)/…</code> dosyaları paralel/eski yüzey; canlı native akış <code>App.tsx</code>.
+    </div>
+
+    <h2>1) Nereden nereye? (akış)</h2>
+    <div class="flow">
+      <svg viewBox="0 0 1100 520" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="FlyFam navigasyon akışı">
+        <defs>
+          <marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+            <path d="M0,0 L6,3 L0,6 Z" fill="#64748b" />
+          </marker>
+        </defs>
+
+        <!-- Auth -->
+        <rect x="20" y="20" width="260" height="200" rx="14" fill="#f3e8ff" stroke="#c4b5fd" />
+        <text x="40" y="48" font-size="14" font-weight="700" fill="#6d28d9">Auth (oturum yok)</text>
+        <rect x="40" y="64" width="220" height="28" rx="8" fill="#fff" stroke="#ddd6fe" />
+        <text x="52" y="83" font-size="12" fill="#0f1b3d">Welcome</text>
+        <rect x="40" y="100" width="100" height="28" rx="8" fill="#fff" stroke="#ddd6fe" />
+        <text x="52" y="119" font-size="12" fill="#0f1b3d">SignIn</text>
+        <rect x="150" y="100" width="110" height="28" rx="8" fill="#fff" stroke="#ddd6fe" />
+        <text x="162" y="119" font-size="12" fill="#0f1b3d">SignUp</text>
+        <rect x="40" y="140" width="100" height="28" rx="8" fill="#fff" stroke="#ddd6fe" />
+        <text x="48" y="159" font-size="11" fill="#0f1b3d">PrivacyNotice</text>
+        <rect x="150" y="140" width="110" height="28" rx="8" fill="#fff" stroke="#ddd6fe" />
+        <text x="158" y="159" font-size="11" fill="#0f1b3d">TermsDisclaimer</text>
+        <text x="40" y="198" font-size="11" fill="#7c3aed">Giriş / Kayıt → session</text>
+
+        <!-- Gates -->
+        <rect x="320" y="20" width="240" height="200" rx="14" fill="#fef3c7" stroke="#fcd34d" />
+        <text x="340" y="48" font-size="14" font-weight="700" fill="#b45309">Kapılar (session var)</text>
+        <rect x="340" y="64" width="200" height="28" rx="8" fill="#fff" stroke="#fde68a" />
+        <text x="352" y="83" font-size="12" fill="#0f1b3d">ResetPassword</text>
+        <rect x="340" y="100" width="200" height="28" rx="8" fill="#fff" stroke="#fde68a" />
+        <text x="352" y="119" font-size="12" fill="#0f1b3d">CompleteProfile (crew)</text>
+        <rect x="340" y="136" width="200" height="28" rx="8" fill="#fff" stroke="#fde68a" />
+        <text x="352" y="155" font-size="12" fill="#0f1b3d">Consent</text>
+        <text x="340" y="198" font-size="11" fill="#b45309">Sırayla; eksik varsa Main yok</text>
+
+        <!-- Main tabs -->
+        <rect x="600" y="20" width="480" height="200" rx="14" fill="#ccfbf1" stroke="#5eead4" />
+        <text x="620" y="48" font-size="14" font-weight="700" fill="#0f766e">Main sekmeler</text>
+        <rect x="620" y="64" width="100" height="36" rx="8" fill="#fff" stroke="#99f6e4" />
+        <text x="640" y="87" font-size="12" fill="#0f1b3d">Program</text>
+        <rect x="730" y="64" width="120" height="36" rx="8" fill="#fff" stroke="#99f6e4" />
+        <text x="744" y="87" font-size="12" fill="#0f1b3d">Peer Program</text>
+        <rect x="860" y="64" width="90" height="36" rx="8" fill="#fff" stroke="#99f6e4" />
+        <text x="882" y="87" font-size="12" fill="#0f1b3d">Aile</text>
+        <rect x="960" y="64" width="90" height="36" rx="8" fill="#fff" stroke="#99f6e4" />
+        <text x="980" y="87" font-size="12" fill="#0f1b3d">Profil</text>
+        <text x="620" y="130" font-size="12" fill="#0f766e">Roster · PeerRoster_* · Family · Profile</text>
+        <text x="620" y="158" font-size="11" fill="#115e59">Peer sekmeleri takip edilen crew kadar dinamik</text>
+        <text x="620" y="198" font-size="11" fill="#0f766e">Aile üyesi de Program’da bağlı crew roster’ını görür</text>
+
+        <!-- Arrows top -->
+        <line x1="280" y1="120" x2="318" y2="120" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)" />
+        <line x1="560" y1="120" x2="598" y2="120" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)" />
+
+        <!-- Stack from Roster -->
+        <rect x="20" y="260" width="340" height="230" rx="14" fill="#e8eefe" stroke="#93b4ff" />
+        <text x="40" y="288" font-size="14" font-weight="700" fill="#2f5bea">Program’dan açılanlar</text>
+        <text x="40" y="318" font-size="12" fill="#0f1b3d">+ menü → AddFlight (manuel / PDF)</text>
+        <text x="40" y="342" font-size="12" fill="#0f1b3d">Kart → EditFlight / EditDuty</text>
+        <text x="40" y="366" font-size="12" fill="#0f1b3d">Admin gizli → AdminPanel / FR24 debug</text>
+        <text x="40" y="400" font-size="11" fill="#2f5bea">Stack: AddFlight, EditFlight, EditDuty,</text>
+        <text x="40" y="418" font-size="11" fill="#2f5bea">AdminPanel, AdminFlightApiDebug</text>
+
+        <!-- Family / Profile stacks -->
+        <rect x="390" y="260" width="320" height="230" rx="14" fill="#ffedd5" stroke="#fdba74" />
+        <text x="410" y="288" font-size="14" font-weight="700" fill="#c2410c">Aile / Profil’den açılanlar</text>
+        <text x="410" y="318" font-size="12" fill="#0f1b3d">Aile → Plans, PartnerRoster, Connect*</text>
+        <text x="410" y="342" font-size="12" fill="#0f1b3d">Profil → EditProfile, ConsentHistory</text>
+        <text x="410" y="366" font-size="12" fill="#0f1b3d">Profil → PrivacyNotice, TermsDisclaimer</text>
+        <text x="410" y="390" font-size="12" fill="#0f1b3d">Profil → Plans (abonelik)</text>
+        <text x="410" y="424" font-size="11" fill="#c2410c">*Connect: davet / bağlanma akışı</text>
+        <text x="410" y="452" font-size="11" fill="#c2410c">PartnerRoster: bağlı crew salt okunur</text>
+
+        <!-- Entry map -->
+        <rect x="740" y="260" width="340" height="230" rx="14" fill="#f8fafc" stroke="#cbd5e1" />
+        <text x="760" y="288" font-size="14" font-weight="700" fill="#334155">Kısa giriş özeti</text>
+        <text x="760" y="320" font-size="12" fill="#0f1b3d">1. Welcome → SignIn / SignUp</text>
+        <text x="760" y="344" font-size="12" fill="#0f1b3d">2. Crew ise CompleteProfile</text>
+        <text x="760" y="368" font-size="12" fill="#0f1b3d">3. Consent (gerekirse)</text>
+        <text x="760" y="392" font-size="12" fill="#0f1b3d">4. Main → Program (bugün listesi)</text>
+        <text x="760" y="416" font-size="12" fill="#0f1b3d">5. Aile bağla / Profil ayarları</text>
+        <text x="760" y="452" font-size="11" fill="#64748b">Kaynak: App.tsx session dalları</text>
+
+        <line x1="200" y1="220" x2="200" y2="258" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)" />
+        <line x1="820" y1="220" x2="820" y2="258" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)" />
+        <line x1="900" y1="220" x2="560" y2="258" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)" />
+      </svg>
+      <div class="legend">
+        <span><i class="swatch" style="background:#f3e8ff"></i> Auth</span>
+        <span><i class="swatch" style="background:#fef3c7"></i> Kapı</span>
+        <span><i class="swatch" style="background:#ccfbf1"></i> Sekmeler</span>
+        <span><i class="swatch" style="background:#e8eefe"></i> Program stack</span>
+        <span><i class="swatch" style="background:#ffedd5"></i> Aile/Profil stack</span>
+      </div>
+    </div>
+
+    <h2>2) Giriş matrisi (kim → nereye)</h2>
+    <table class="map">
+      <thead>
+        <tr>
+          <th>Başlangıç</th>
+          <th>Koşul</th>
+          <th>Sonraki</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Uygulama açılışı</td>
+          <td>Session yok</td>
+          <td>Welcome → SignIn / SignUp</td>
+        </tr>
+        <tr>
+          <td>Giriş sonrası</td>
+          <td>Şifre güncellemesi gerekli</td>
+          <td>ResetPassword (tek ekran)</td>
+        </tr>
+        <tr>
+          <td>Giriş sonrası</td>
+          <td>role=crew, crew_profile yok</td>
+          <td>CompleteProfile</td>
+        </tr>
+        <tr>
+          <td>Profil hazır</td>
+          <td>Zorunlu onaylar eksik</td>
+          <td>Consent (+ gizlilik / şartlar)</td>
+        </tr>
+        <tr>
+          <td>Hazır kullanıcı</td>
+          <td>consent OK</td>
+          <td>Main: Program / Peer / Aile / Profil</td>
+        </tr>
+        <tr>
+          <td>Program</td>
+          <td>+ FAB / menü</td>
+          <td>AddFlight (manuel veya dosya import)</td>
+        </tr>
+        <tr>
+          <td>Program kartı</td>
+          <td>Düzenle</td>
+          <td>EditFlight veya EditDuty</td>
+        </tr>
+        <tr>
+          <td>Aile</td>
+          <td>Üye / peer satırı</td>
+          <td>PartnerRoster veya Plans</td>
+        </tr>
+        <tr>
+          <td>Profil</td>
+          <td>Düzenle / yasal / plan</td>
+          <td>EditProfile, Privacy, Terms, Plans, ConsentHistory</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>3) Ekran kataloğu + görseller</h2>
+    <p class="note" style="margin-bottom:14px">
+      Görseller <code>docs/app-store-screenshots/marketing-v3/iphone-6.9-tr/</code> altından göreli bağlandı.
+      Bu HTML’i dosya olarak açınca görseller yüklenir. Eşleşmeyen ekranlarda gri yer tutucu var.
+    </p>
+
+    <h3 style="margin:18px 0 10px">Auth</h3>
+    <div class="grid">
+      <article class="card">
+        <div class="shot"><div class="ph">Welcome<br/>görsel yok</div></div>
+        <div class="body">
+          <span class="tag auth">Auth</span>
+          <h3>Welcome</h3>
+          <p>Marka karşılama; dil seçimi; Giriş / Kayıt CTA.</p>
+          <div class="route">Welcome</div>
+        </div>
+      </article>
+      <article class="card">
+        <div class="shot"><div class="ph">SignIn<br/>görsel yok</div></div>
+        <div class="body">
+          <span class="tag auth">Auth</span>
+          <h3>SignIn</h3>
+          <p>E-posta / şifre ile oturum açma.</p>
+          <div class="route">SignIn</div>
+        </div>
+      </article>
+      <article class="card">
+        <div class="shot"><div class="ph">SignUp<br/>görsel yok</div></div>
+        <div class="body">
+          <span class="tag auth">Auth</span>
+          <h3>SignUp</h3>
+          <p>Yeni hesap; crew veya aile rolü seçimi.</p>
+          <div class="route">SignUp</div>
+        </div>
+      </article>
+      <article class="card">
+        <div class="shot"><img src="app-store-screenshots/marketing-v3/iphone-6.9-tr/12-privacy.png" alt="Gizlilik" /></div>
+        <div class="body">
+          <span class="tag auth">Auth / ortak</span>
+          <h3>PrivacyNotice</h3>
+          <p>Gizlilik metni; auth ve profilden açılır.</p>
+          <div class="route">PrivacyNotice</div>
+        </div>
+      </article>
+      <article class="card">
+        <div class="shot"><img src="app-store-screenshots/marketing-v3/iphone-6.9-tr/11-terms.png" alt="Şartlar" /></div>
+        <div class="body">
+          <span class="tag auth">Auth / ortak</span>
+          <h3>TermsDisclaimer</h3>
+          <p>Kullanım şartları / sorumluluk reddi.</p>
+          <div class="route">TermsDisclaimer</div>
+        </div>
+      </article>
+    </div>
+
+    <h3 style="margin:22px 0 10px">Kapılar</h3>
+    <div class="grid">
+      <article class="card">
+        <div class="shot"><div class="ph">ResetPassword</div></div>
+        <div class="body">
+          <span class="tag gate">Kapı</span>
+          <h3>ResetPassword</h3>
+          <p>Zorunlu şifre yenileme; geri yok.</p>
+          <div class="route">ResetPassword</div>
+        </div>
+      </article>
+      <article class="card">
+        <div class="shot"><div class="ph">CompleteProfile</div></div>
+        <div class="body">
+          <span class="tag gate">Kapı</span>
+          <h3>CompleteProfile</h3>
+          <p>Crew: havayolu / base vb. ilk kurulum.</p>
+          <div class="route">CompleteProfile</div>
+        </div>
+      </article>
+      <article class="card">
+        <div class="shot"><div class="ph">Consent</div></div>
+        <div class="body">
+          <span class="tag gate">Kapı</span>
+          <h3>Consent</h3>
+          <p>Zorunlu onaylar; tamamlanınca Main.</p>
+          <div class="route">Consent</div>
+        </div>
+      </article>
+    </div>
+
+    <h3 style="margin:22px 0 10px">Ana sekmeler</h3>
+    <div class="grid">
+      <article class="card">
+        <div class="shot"><img src="app-store-screenshots/marketing-v3/iphone-6.9-tr/01-program.png" alt="Program" /></div>
+        <div class="body">
+          <span class="tag tab">Sekme</span>
+          <h3>Program (Roster)</h3>
+          <p>Ana roster: takvim + liste, sync, uçuş kartları, geçmiş lazy.</p>
+          <div class="route">Main → Roster</div>
+        </div>
+      </article>
+      <article class="card">
+        <div class="shot"><img src="app-store-screenshots/marketing-v3/iphone-6.9-tr/10-calendar.png" alt="Takvim" /></div>
+        <div class="body">
+          <span class="tag tab">Program içi</span>
+          <h3>Takvim / liste görünümü</h3>
+          <p>Aynı Roster ekranı; ay şeridi ve gün seçimi.</p>
+          <div class="route">Roster (prefs)</div>
+        </div>
+      </article>
+      <article class="card">
+        <div class="shot"><img src="app-store-screenshots/marketing-v3/iphone-6.9-tr/13-family-roster.png" alt="Peer roster" /></div>
+        <div class="body">
+          <span class="tag tab">Sekme</span>
+          <h3>Peer Program</h3>
+          <p>Takip edilen crew’ın salt okunur programı; dinamik sekme.</p>
+          <div class="route">Main → PeerRoster_*</div>
+        </div>
+      </article>
+      <article class="card">
+        <div class="shot"><img src="app-store-screenshots/marketing-v3/iphone-6.9-tr/14-family-notification.png" alt="Aile" /></div>
+        <div class="body">
+          <span class="tag tab">Sekme</span>
+          <h3>Aile (Family)</h3>
+          <p>Bağlantılar, davetler, üye yönetimi, plan / peer.</p>
+          <div class="route">Main → Family</div>
+        </div>
+      </article>
+      <article class="card">
+        <div class="shot"><img src="app-store-screenshots/marketing-v3/iphone-6.9-tr/04-settings-live.png" alt="Profil" /></div>
+        <div class="body">
+          <span class="tag tab">Sekme</span>
+          <h3>Profil</h3>
+          <p>Hesap, dil, tema, plan, yasal linkler, çıkış.</p>
+          <div class="route">Main → Profile</div>
+        </div>
+      </article>
+    </div>
+
+    <h3 style="margin:22px 0 10px">Stack — uçuş / görev</h3>
+    <div class="grid">
+      <article class="card">
+        <div class="shot"><img src="app-store-screenshots/marketing-v3/iphone-6.9-tr/05-add-options.png" alt="Ekle menü" /></div>
+        <div class="body">
+          <span class="tag stack">Program</span>
+          <h3>Ekle seçenekleri</h3>
+          <p>Roster sheet: manuel ekle / dosyadan içe aktar.</p>
+          <div class="route">Roster modal → AddFlight</div>
+        </div>
+      </article>
+      <article class="card">
+        <div class="shot"><img src="app-store-screenshots/marketing-v3/iphone-6.9-tr/06-manual-flight.png" alt="Manuel uçuş" /></div>
+        <div class="body">
+          <span class="tag stack">Stack</span>
+          <h3>AddFlight</h3>
+          <p>Manuel uçuş / görev formu; PDF import pipeline.</p>
+          <div class="route">AddFlight</div>
+        </div>
+      </article>
+      <article class="card">
+        <div class="shot"><img src="app-store-screenshots/marketing-v3/iphone-6.9-tr/07-roster-import.png" alt="Import" /></div>
+        <div class="body">
+          <span class="tag stack">Akış</span>
+          <h3>Dosyadan içe aktar</h3>
+          <p>PDF seçimi; artık Roster üzerinde çalışır (manuel sayfa şart değil).</p>
+          <div class="route">Roster import / AddFlight sharedPdf</div>
+        </div>
+      </article>
+      <article class="card">
+        <div class="shot"><div class="ph">EditFlight</div></div>
+        <div class="body">
+          <span class="tag stack">Stack</span>
+          <h3>EditFlight</h3>
+          <p>Mevcut uçuş satırını düzenleme.</p>
+          <div class="route">EditFlight</div>
+        </div>
+      </article>
+      <article class="card">
+        <div class="shot"><div class="ph">EditDuty</div></div>
+        <div class="body">
+          <span class="tag stack">Stack</span>
+          <h3>EditDuty</h3>
+          <p>Nöbet / off / sim vb. görev düzenleme.</p>
+          <div class="route">EditDuty</div>
+        </div>
+      </article>
+    </div>
+
+    <h3 style="margin:22px 0 10px">Stack — aile / hesap / admin</h3>
+    <div class="grid">
+      <article class="card">
+        <div class="shot"><div class="ph">Connect</div></div>
+        <div class="body">
+          <span class="tag stack">Stack</span>
+          <h3>Connect</h3>
+          <p>Crew–aile bağlantı / davet kodu akışı.</p>
+          <div class="route">Connect</div>
+        </div>
+      </article>
+      <article class="card">
+        <div class="shot"><div class="ph">PartnerRoster</div></div>
+        <div class="body">
+          <span class="tag stack">Stack</span>
+          <h3>PartnerRoster</h3>
+          <p>Bağlı partner/crew programına push ile gitme.</p>
+          <div class="route">PartnerRoster</div>
+        </div>
+      </article>
+      <article class="card">
+        <div class="shot"><div class="ph">Plans</div></div>
+        <div class="body">
+          <span class="tag stack">Stack</span>
+          <h3>Plans</h3>
+          <p>Abonelik / plan seçimi ve IAP yüzeyi.</p>
+          <div class="route">Plans</div>
+        </div>
+      </article>
+      <article class="card">
+        <div class="shot"><div class="ph">EditProfile</div></div>
+        <div class="body">
+          <span class="tag stack">Stack</span>
+          <h3>EditProfile</h3>
+          <p>İsim, havayolu, base, TZ vb. profil alanları.</p>
+          <div class="route">EditProfile</div>
+        </div>
+      </article>
+      <article class="card">
+        <div class="shot"><div class="ph">ConsentHistory</div></div>
+        <div class="body">
+          <span class="tag stack">Stack</span>
+          <h3>ConsentHistory</h3>
+          <p>Verilmiş onayların geçmişi.</p>
+          <div class="route">ConsentHistory</div>
+        </div>
+      </article>
+      <article class="card">
+        <div class="shot"><div class="ph">AdminPanel</div></div>
+        <div class="body">
+          <span class="tag admin">Admin</span>
+          <h3>AdminPanel</h3>
+          <p>Gizli dokunuşla açılan ops konsol / admin araçları.</p>
+          <div class="route">AdminPanel</div>
+        </div>
+      </article>
+      <article class="card">
+        <div class="shot"><div class="ph">AdminFlightApiDebug</div></div>
+        <div class="body">
+          <span class="tag admin">Admin</span>
+          <h3>AdminFlightApiDebug</h3>
+          <p>FR24 / uçuş API debug ekranı.</p>
+          <div class="route">AdminFlightApiDebug</div>
+        </div>
+      </article>
+      <article class="card">
+        <div class="shot"><div class="ph">Dashboard (legacy)</div></div>
+        <div class="body">
+          <span class="tag legacy">Legacy</span>
+          <h3>Dashboard</h3>
+          <p><code>screens/Dashboard.tsx</code> dosyası var; ana <code>App.tsx</code> stack’te değil. Expo Router family dalında benzer yüzey olabilir.</p>
+          <div class="route">— (App.tsx dışı)</div>
+        </div>
+      </article>
+    </div>
+
+    <h2>4) Dosya ↔ ekran</h2>
+    <div class="cols-2">
+      <table class="map">
+        <thead><tr><th>Ekran</th><th>Kaynak</th></tr></thead>
+        <tbody>
+          <tr><td>Welcome … Terms</td><td><code>mobile/screens/*.tsx</code></td></tr>
+          <tr><td>Main sekmeler</td><td><code>App.tsx</code> → Roster / Family / Profile</td></tr>
+          <tr><td>Peer sekmeler</td><td><code>demoPeersForUser</code> + <code>PeerRoster_*</code></td></tr>
+          <tr><td>Stack ekranlar</td><td><code>App.tsx</code> Stack.Screen listesi</td></tr>
+        </tbody>
+      </table>
+      <div class="note">
+        <strong>Not:</strong> Mağaza görselleri ürün anlık görüntüsüdür; bazı ekranlar (SignIn, Admin)
+        bu sette yok. Haritayı güncel tutmak için yeni screenshot’ları
+        <code>marketing-v3</code> altına ekleyip bu HTML’deki <code>&lt;img src&gt;</code> yollarını bağlayın.
+      </div>
+    </div>
+
+    <footer>
+      Üretildi: FlyFam ekran haritası · navigasyon gerçeği <code>mobile/App.tsx</code> ·
+      görseller <code>docs/app-store-screenshots/marketing-v3/iphone-6.9-tr/</code>
+    </footer>
+  </div>
+</body>
+</html>

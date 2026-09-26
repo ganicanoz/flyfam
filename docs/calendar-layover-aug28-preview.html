@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>FlyFam — Ağustos 28-29 yatı takvimi</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f3f4f6;
+      color: #111;
+      padding: 20px 16px 40px;
+    }
+    h1 { font-size: 1.15rem; margin: 0 0 4px; }
+    p { color: #555; font-size: 0.88rem; line-height: 1.45; margin: 0 0 18px; }
+    .row { display: flex; gap: 14px; flex-wrap: wrap; }
+    .card {
+      flex: 1;
+      min-width: 280px;
+      background: #fff;
+      border-radius: 14px;
+      border: 1px solid #e5e7eb;
+      padding: 14px;
+    }
+    .card h2 { font-size: 0.95rem; margin: 0 0 10px; }
+    .month { text-align: center; font-weight: 700; margin-bottom: 8px; font-size: 0.9rem; }
+    .week { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+    .dow { text-align: center; font-size: 0.65rem; color: #888; margin-bottom: 4px; }
+    .cell-wrap { display: flex; flex-direction: column; align-items: center; }
+    .cell {
+      width: 32px;
+      height: 32px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 700;
+      border: 1px solid #e5e7eb;
+      background: #fff;
+      color: #6b7280;
+    }
+    .cell.flight, .cell.layover {
+      background: #ffebee;
+      border-color: #ef9a9a;
+      color: #111;
+    }
+    .cell.today {
+      border: 3px solid #000 !important;
+    }
+    .cell.merge-l { border-top-left-radius: 0; border-bottom-left-radius: 0; }
+    .cell.merge-r { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+    .cell.round { border-radius: 15px; }
+    .note { margin-top: 12px; font-size: 0.78rem; color: #666; }
+    .ok { color: #047857; font-weight: 600; }
+    .bad { color: #b91c1c; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <h1>Demo Crew — DLM yatı (28–29 Ağustos 2026)</h1>
+  <p>PC2292 SAW→DLM (28/17:20) → PC2281 DLM→SAW (29/09:55). Takvimde iki gün tek yatı bloğu olmalı.</p>
+  <div class="row">
+    <div class="card">
+      <h2 class="bad">Önce (bugün birleşmiyordu)</h2>
+      <div class="month">Ağustos 2026</div>
+      <div class="week">
+        <div class="dow">Pzt</div><div class="dow">Sal</div><div class="dow">Çar</div><div class="dow">Per</div><div class="dow">Cum</div><div class="dow">Cmt</div><div class="dow">Paz</div>
+      </div>
+      <div class="week">
+        <div class="cell-wrap"><div class="cell round">24</div></div>
+        <div class="cell-wrap"><div class="cell round">25</div></div>
+        <div class="cell-wrap"><div class="cell round flight">26</div></div>
+        <div class="cell-wrap"><div class="cell round">27</div></div>
+        <div class="cell-wrap"><div class="cell round layover today">28</div></div>
+        <div class="cell-wrap"><div class="cell round layover">29</div></div>
+        <div class="cell-wrap"><div class="cell round layover">30</div></div>
+      </div>
+      <p class="note">28 (bugün) ayrı yuvarlak; 29 ile blok birleşmiyor.</p>
+    </div>
+    <div class="card">
+      <h2 class="ok">Sonra (düzeltme)</h2>
+      <div class="month">Ağustos 2026</div>
+      <div class="week">
+        <div class="dow">Pzt</div><div class="dow">Sal</div><div class="dow">Çar</div><div class="dow">Per</div><div class="dow">Cum</div><div class="dow">Cmt</div><div class="dow">Paz</div>
+      </div>
+      <div class="week">
+        <div class="cell-wrap"><div class="cell round">24</div></div>
+        <div class="cell-wrap"><div class="cell round">25</div></div>
+        <div class="cell-wrap"><div class="cell round flight">26</div></div>
+        <div class="cell-wrap"><div class="cell round">27</div></div>
+        <div class="cell-wrap"><div class="cell round layover today merge-r">28</div></div>
+        <div class="cell-wrap"><div class="cell round layover merge-l">29</div></div>
+        <div class="cell-wrap"><div class="cell round layover">30</div></div>
+      </div>
+      <p class="note">28–29 tek pembe yatı bloğu; bugün siyah çerçeve kalır.</p>
+    </div>
+  </div>
+</body>
+</html>

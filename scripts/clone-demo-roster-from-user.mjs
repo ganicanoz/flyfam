@@ -1,12 +1,19 @@
 #!/usr/bin/env node
 /**
- * Replace App Review demo crew roster with another user's next N days.
+ * Replace target crew roster with another user's next N days.
  *
- * Default: ganicanoz@gmail.com → crewtestuser@flyfam.com, 5 days from today (UTC date).
+ * Also copies the source crew's home base (and city) onto the target so layover
+ * detection matches the copied schedule.
  *
  * Usage:
- *   node scripts/clone-demo-roster-from-user.mjs
  *   node scripts/clone-demo-roster-from-user.mjs --dry-run
+ *   CLONE_SOURCE_EMAIL=source@example.com DEMO_CREW_EMAIL=demo@example.com \
+ *     DEMO_CREW_PASSWORD='...' node scripts/clone-demo-roster-from-user.mjs
+ *
+ * Env:
+ *   CLONE_SOURCE_EMAIL / DEMO_CREW_EMAIL (or CLONE_TARGET_EMAIL) / DEMO_CREW_PASSWORD
+ *   CLONE_ROSTER_DAYS (default 5)
+ *   CLONE_COPY_HOME_BASE=0  → skip copying home_base_iata / home_base_city
  */
 
 import fs from 'fs';
@@ -15,12 +22,6 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(__dirname, '..');
-
-const SOURCE_EMAIL = (process.env.CLONE_SOURCE_EMAIL ?? 'ganicanoz@gmail.com').trim().toLowerCase();
-const DEMO_EMAIL = (process.env.DEMO_CREW_EMAIL ?? 'crewtestuser@flyfam.com').trim().toLowerCase();
-const DEMO_PASSWORD = process.env.DEMO_CREW_PASSWORD ?? 'crewtest';
-const DAYS = Number(process.env.CLONE_ROSTER_DAYS ?? '5');
-const dryRun = process.argv.includes('--dry-run');
 
 function loadOneDotEnv(envPath) {
   if (!fs.existsSync(envPath)) return;
@@ -43,6 +44,21 @@ function loadOneDotEnv(envPath) {
 
 loadOneDotEnv(path.join(root, '.env'));
 loadOneDotEnv(path.join(root, 'mobile', '.env'));
+
+const SOURCE_EMAIL = (process.env.CLONE_SOURCE_EMAIL ?? '').trim().toLowerCase();
+const DEMO_EMAIL = (process.env.CLONE_TARGET_EMAIL ?? process.env.DEMO_CREW_EMAIL ?? '')
+  .trim()
+  .toLowerCase();
+const DEMO_PASSWORD = process.env.DEMO_CREW_PASSWORD ?? '';
+const DAYS = Number(process.env.CLONE_ROSTER_DAYS ?? '5');
+const COPY_HOME_BASE = process.env.CLONE_COPY_HOME_BASE !== '0';
+const dryRun = process.argv.includes('--dry-run');
+
+if (!SOURCE_EMAIL || !DEMO_EMAIL || !DEMO_PASSWORD) {
+  throw new Error(
+    'CLONE_SOURCE_EMAIL, DEMO_CREW_EMAIL (or CLONE_TARGET_EMAIL), and DEMO_CREW_PASSWORD are required.',
+  );
+}
 
 const baseUrl = (process.env.SUPABASE_URL ?? process.env.EXPO_PUBLIC_SUPABASE_URL ?? '').replace(
   /\/$/,
@@ -91,10 +107,39 @@ async function findUserByEmail(email) {
   return null;
 }
 
-async function crewProfileIdForUser(userId) {
-  const { res, json } = await rest(`/rest/v1/crew_profiles?user_id=eq.${userId}&select=id`);
+async function crewProfileForUser(userId) {
+  const { res, json } = await rest(
+    `/rest/v1/crew_profiles?user_id=eq.${userId}&select=id,home_base_iata,home_base_city,airline_icao`
+  );
   if (!res.ok) throw new Error(json?.message ?? 'crew_profiles lookup failed');
-  return json?.[0]?.id ?? null;
+  return json?.[0] ?? null;
+}
+
+async function copyHomeBaseToTarget(sourceCrew, targetCrewId) {
+  if (!COPY_HOME_BASE) {
+    console.log('Skip home base copy (CLONE_COPY_HOME_BASE=0)');
+    return;
+  }
+  const base = (sourceCrew.home_base_iata ?? '').trim().toUpperCase() || null;
+  const city = (sourceCrew.home_base_city ?? '').trim() || null;
+  if (!base) {
+    console.log('Source has no home_base_iata — leave target base unchanged');
+    return;
+  }
+  const patch = {
+    home_base_iata: base,
+    home_base_city: city,
+  };
+  if (dryRun) {
+    console.log(`Would set target home base → ${base}${city ? ` (${city})` : ''}`);
+    return;
+  }
+  const { res, json } = await rest(`/rest/v1/crew_profiles?id=eq.${targetCrewId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(patch),
+  });
+  if (!res.ok) throw new Error(json?.message ?? 'crew_profiles home base patch failed');
+  console.log(`Target home base → ${base}${city ? ` (${city})` : ''}`);
 }
 
 function dateRangeUtc(days) {
@@ -220,23 +265,30 @@ async function main() {
   const { from, to } = dateRangeUtc(DAYS);
   console.log('Clone roster');
   console.log('  Source:', SOURCE_EMAIL);
-  console.log('  Demo:', DEMO_EMAIL);
+  console.log('  Target:', DEMO_EMAIL);
   console.log('  Range:', from, '→', to, `(${DAYS} days)`);
+  console.log('  Copy home base:', COPY_HOME_BASE ? 'yes' : 'no');
   if (dryRun) console.log('  --dry-run');
 
   const sourceUser = await findUserByEmail(SOURCE_EMAIL);
   if (!sourceUser) throw new Error(`Source user not found: ${SOURCE_EMAIL}`);
   const demoUser = await findUserByEmail(DEMO_EMAIL);
-  if (!demoUser) throw new Error(`Demo user not found: ${DEMO_EMAIL}`);
+  if (!demoUser) throw new Error(`Target user not found: ${DEMO_EMAIL}`);
 
-  const sourceCrewId = await crewProfileIdForUser(sourceUser.id);
-  const demoCrewId = await crewProfileIdForUser(demoUser.id);
-  if (!sourceCrewId || !demoCrewId) throw new Error('Missing crew_profiles');
+  const sourceCrew = await crewProfileForUser(sourceUser.id);
+  const demoCrew = await crewProfileForUser(demoUser.id);
+  if (!sourceCrew?.id || !demoCrew?.id) throw new Error('Missing crew_profiles');
 
-  const sourceFlights = await listCrewFlightsInRange(sourceCrewId, from, to);
+  console.log(
+    `  Source base: ${sourceCrew.home_base_iata ?? '—'} | Target base (before): ${demoCrew.home_base_iata ?? '—'}`
+  );
+
+  await copyHomeBaseToTarget(sourceCrew, demoCrew.id);
+
+  const sourceFlights = await listCrewFlightsInRange(sourceCrew.id, from, to);
   console.log(`Source has ${sourceFlights.length} roster row(s)`);
 
-  await clearDemoCrewRoster(demoCrewId, from, to);
+  await clearDemoCrewRoster(demoCrew.id, from, to);
 
   const token = dryRun ? null : await signInDemo();
   for (const f of sourceFlights) {

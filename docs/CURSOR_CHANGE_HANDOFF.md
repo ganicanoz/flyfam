@@ -12,6 +12,85 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+### 2026-09-26 — Offline peer/aile: «Plan gerekli» yerine cache roster
+
+- **Dosyalar:** `mobile/lib/rosterAccessCache.ts`, `mobile/screens/Roster.tsx`, `mobile/contexts/SessionContext.tsx`
+- **Kök neden:** Peer sekmesinde `isCrew=false`; access RPC offline fail → `has_access:false` → paywall; cache roster olsa bile «Plan gerekli».
+- **Uygulama:** Son başarılı `get_crew_roster_access` / `get_my_subscription_access` diske; fail’de cache; yoksa local roster varsa geçici `has_access`; paywall offline+flights iken gizlenir; sign-out temizler.
+- **Doğrulama:** Online peer sekmesini bir kez aç → uçak modu → peer sekmesi son program + çevrimdışı (Plan gerekli yok).
+- **Koruma:** Sunucunun gerçek `has_access:false` yanıtı (online) paywall’ı korur.
+
+### 2026-09-26 — Roster offline: boş network yanıtı cache’i siliyordu
+
+- **Dosyalar:** `mobile/screens/Roster.tsx`
+- **Kök neden:** `fetchCrewLiveRosterRows` / `fetchFlightIdsForCrew` ağ hatasında throw etmeden `[]` dönüyordu; `refreshCrewLiveOnlyFromDb` yine de `persistRosterCache([])` + `setRosterOffline(false)` çağırıyordu → disk cache siliniyor, cold start boş.
+- **Uygulama:** network fail bayrağı; fail’de hydrate + offline bayrak, persist yok; `persistRosterCache` boş listeyi yazmaz; aile `flightIds===0` için probe.
+- **Doğrulama:** Metro ⌘R — online bir kez roster aç (cache yaz), uçak modu + kill/reopen → son program + çevrimdışı banner. (Cihazda doğrulanacak.)
+- **Koruma:** Başarılı online boş roster disk’i temizlemez (nadir); offline öncelikli.
+
+### 2026-09-26 — Kemal Saygılı Eki PDF roster sync + app parse kök neden
+
+- **Dosyalar:** (veri) Kemal `crew_id` `19c3f4f2…`; parser fix önceki kayıtta
+- **Kök neden (uygulama yanlış parse):**
+  1. THY lokal parser yalnız `TK###` arıyordu → `VF###` (AJet) hiç üretilmiyordu.
+  2. VF’li blokta uçuş bulunamayınca duty fallback `BUS`’u görev sanıyordu.
+  3. THY `filterPdfRowsForCrewAirline` da yalnız TK kabul ediyordu (VF drop).
+  - Kanıt: import sonrası DB’de TK+CFR/off + BUS, **0 VF**.
+- **Sync:** Düzeltilmiş 36 satır `add_me_to_flight` ile yazıldı; BUS silindi; yanlış `TK775@10-25` kaldırıldı; 11 VF eklendi.
+- **Doğrulama:** Canlı Oct roster = 36 (parse ile aynı). Pull-to-refresh / uygulamayı açınca görünür.
+- **Koruma:** Edge `parse-roster-pdf` VF fix deploy’lu; yeni PDF import doğru.
+
+### 2026-09-26 — THY PDF: VF (AJet) uçuş + BUS yok say + CFR/off
+
+- **Dosyalar:** `supabase/functions/_shared/roster-pdf/airlines/thy/lineScan.ts`, `crewAirlineFilter.ts`, `thy/README.md`, `mobile/lib/pdfRosterImport.ts`; Edge `parse-roster-pdf` deploy
+- **Amaç:** THY ekip PDF’de AJet `VF###` uçuş olarak; `BUS`/`BUS-01` import edilmez; CFR + IBI/IBB/IBE boş günleri lokal programdan gelir.
+- **Uygulama:** Lokal/GMT parser TK|VF (+ opsiyonel `P`); THY filter `isVfFlightCode`; GMB tarih ataması BUS atlandıktan sonra sabah ayağı için.
+- **Doğrulama:** `Published_121130.pdf` → 36 satır (11 VF, 0 BUS, CFR×5, off günleri); Edge deploy OK.
+- **Koruma:** PGT/SXS/FHY/IGO filter aynı; TK path aynı.
+
+### 2026-09-24 — Store 1.3.0 (49) build + submit (iOS + Android)
+
+- **Dosyalar:** `mobile/app.config.js`, `mobile/android/app/build.gradle`, `mobile/ios/FlyFam.xcodeproj/project.pbxproj`
+- **Amaç:** Binary 48→49; COTD/katalog/expand takvim düzeltmeleri telefona; production EAS + auto-submit.
+- **Durum:** Build + submit tamamlandı (`exit 0`).
+  - Android `3752bcbe…` → https://expo.dev/accounts/ganicanoz/projects/flyfam/builds/3752bcbe-3d0d-4eff-909a-1cf0497e5729 — submit `0eacc07e…` (Play internal OK)
+  - iOS `e7947e27…` → https://expo.dev/accounts/ganicanoz/projects/flyfam/builds/e7947e27-0d29-4ee8-a2d3-3a7cda7fcc35 — submit `6749e6c8…` (ASC yüklendi; Apple işliyor)
+- **Doğrulama:** EAS her iki build finished; Android submission done; iOS «successfully uploaded to App Store Connect».
+- **Not:** Fingerprint ExpoConfigLoader uyarısı (non-fatal). Android track=internal.
+- **Koruma:** Marketing 1.3.0 / build 49.
+
+### 2026-09-24 — COTD ev görevi: turuncu çizgi, kırmızı nokta yok
+
+- **Dosyalar:** `occupationLabels.ts` (`isHomeDutyOccupationCode`), `public.ts`, `Roster.tsx`, `RosterFlightCard.tsx`
+- **Amaç:** Çevrimiçi eğitim evden — nöbet gibi turuncu; takvimde kırmızı nokta yok.
+- **Uygulama:** COTD training’den ayrıldı; takvim `standby`; kart standby chrome + «Görev» rozeti + saat.
+- **Doğrulama:** Metro ⌘R — COTD turuncu çizgi/kart; nokta yok; FSF yeşil; yer dersi kırmızı kalır.
+- **Koruma:** `isTrainingOccupationCode` yer dersi/ofis kırmızı yolu aynı.
+
+### 2026-09-24 — Eğitim kartı kırmızı+saat; expand takvim ay senkron
+
+- **Dosyalar:** `mobile/components/roster/RosterFlightCard.tsx`, `mobile/screens/Roster.tsx`, `mobile/theme/tokens.ts`, `mobile/locales/{tr,en}.json`
+- **Amaç:** COTD/yer dersi yeşil off değil kırmızı training; saat satırı; liste expand takvimde ‹ › ay + liste kaydırınca ay senkron.
+- **Uygulama:** `compactKind: 'training'` + `cardAccent('training')`=flightDot; schedule `dep–arr`; expand’da `shiftCalendarMonth`; list→calendar sync expanded’da da.
+- **Doğrulama:** Metro ⌘R — COTD kırmızı «Görev» + saat; expand ‹Ekim›; liste Ekim’e kayınca grid Ekim.
+- **Koruma:** FSF yeşil off; takvim görünümü ay okları aynı; collapsed hafta şeridi aynı.
+
+### 2026-09-24 — COTD kartı «Boş Gün» gösteriyordu (sim)
+
+- **Dosyalar:** `mobile/screens/Roster.tsx`, `mobile/components/roster/RosterFlightCard.tsx`, `supabase/functions/_shared/roster-pdf/occupationLabels.ts`
+- **Neden:** Compact off kartı `blockTitle` yok sayıp hep `roster.restDay` basıyordu; Roster da training/leave dışı duty_off’u restDay’e zorluyordu. COTD `isTrainingOccupationCode` listesinde değildi.
+- **Uygulama:** Off compact `model.blockTitle`; non-flight `blockTitle` olduğu gibi; COTD training kodu.
+- **Doğrulama:** Metro ⌘R — COTD «Çevrimiçi Eğitim» (katalog) veya en azından «Görev»; Boş Gün değil.
+- **Koruma:** FSF/FOF hâlâ Boş Gün (`blockLabel` / off kodları).
+
+### 2026-09-24 — Deploy görev kodu (COTD) uygulamada görünmüyor
+
+- **Dosyalar:** `mobile/lib/rosterOccupationCatalog.ts`, `mobile/App.tsx`, `mobile/screens/Roster.tsx`, `mobile/screens/EditDuty.tsx`, `supabase/migrations/20260924160000_roster_occupation_catalog_meta_anon_select.sql`
+- **Neden:** COTD yayınlanmıştı (v6, «Çevrimiçi Eğitim») ama (1) katalog AsyncStorage/hydrate sonrası asenkron `refresh` UI’yi yeniden çizmiyordu, (2) kart etiketi generic bucket’lara düşebiliyordu, (3) anon RLS yok → oturum öncesi/yenileme boş satır.
+- **Uygulama:** `subscribeOccupationCatalog` + Roster tick; oturum + AppState `active`’te katalog yenile; `blockLabel` önce yayınlanan/yerel etiket; airline_icao geçir; anon SELECT migration (henüz remote push edilmedi — authenticated yenileme yeterli).
+- **Doğrulama:** Canlı meta v6 + COTD satırı; kod yolu. Metro ⌘R / uygulamayı öne getir → COTD «Çevrimiçi Eğitim», öneri butonu kalkmalı.
+- **Koruma:** Baked fallback aynı; Deploy akışı aynı. Anon policy migration’ı ayrı `db push` (diğer pending migration’larla karıştırma).
+
 ### 2026-09-24 — Admin panel online ui=57 (ZeroDeploy)
 
 - **Dosyalar:** `docs/ADMIN_STATUS_DASHBOARD.html`, `support/index.html`, `support/admin/index.html`, `supabase/functions/admin-panel-ui`
@@ -832,3 +911,39 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - Hesabın doğrudan `flight_crew`, `crew_profiles` ve `profiles` kayıtları temizlendi; ardından Supabase Auth kullanıcısı kalıcı olarak silindi.
 - Silme sonrasında aynı tam e-posta yeniden arandı ve sıfır eşleşme doğrulandı. Başka kullanıcı hedeflenmedi.
 - Aynı kontrollü işlem için `scripts/delete-exact-test-user.mjs` eklendi. Script varsayılan çalışmada yalnız doğrulama yapar; kalıcı silme ancak açık `--confirm` parametresiyle gerçekleşir.
+
+## 2026-09-24 — Kamusal marka alanı geçişi tamamlandı
+
+- Aktif kaynaklar kişisel GitHub Pages adresi, kişisel e-posta ve bilinen şahsi ad varyasyonları için yeniden tarandı; çalışma kaynaklarında eşleşme bulunmadı.
+- `https://app.flyfamapp.com/`, `privacy-policy.html`, `terms-of-use.html` ve `auth-callback.html` dış ağdan ayrı ayrı HTTP 200 döndürdü.
+- Destek sayfası ayrı bir `support.html` değil, markalı alanın kök `/` sayfasıdır. Cursor mağaza veya uygulama desteği için var olmayan `/support.html` yolunu kullanmamalıdır.
+- Route to Live içindeki `public-domain` maddesi OK yapıldı. Markalı URL'ler kişisel GitHub adresine geri çevrilmemelidir.
+
+## 2026-09-24 — Auth e-postalarının Gmail CTA kapsamı tamamlandı
+
+- Kullanıcının önceki canlı denemelerinde davet ve e-posta değişikliği CTA'larının da FlyFam uygulamasını açtığı doğrulandı. Böylece Gmail üzerinde signup, recovery, invite, magic-link ve email-change akışlarının tamamı markalı callback ile çalışıyor.
+- Üretilen beş HTML şablonu tablo tabanlı yerleşim, inline stiller, 600 px içerik sınırı, açık HTTPS görselleri ve CTA çalışmazsa kullanılabilen yedek bağlantı içeriyor.
+- Kullanıcı, istemci bazında Apple Mail/Outlook kontrolünü zorunlu yayın koşulu olarak sürdürmemeyi seçti. Gmail canlı testleri ve istemci uyumlu HTML yapısı yeterli kabul edilerek `email-template-refresh` Route to Live maddesi OK yapıldı. Cursor canlı HTML'leri veya üretici scripti eski tasarıma çevirmemelidir.
+
+## 2026-09-24 — Mağaza medyası kişisel veri denetimi tamamlandı
+
+- `docs/app-store-screenshots/marketing-v3/iphone-6.9-tr` altındaki 12 final iPhone adayı ve `docs/app-store-screenshots/ipad-13-tr` altındaki 3 iPad adayı toplu ve yakın görünümde incelendi.
+- Final adaylarda görünür kişi adı, yüz veya e-posta bulunmuyor. Aile roster ve bildirim görsellerindeki kullanıcı adı bulanıklaştırılmıştır; uçuş verileri tanıtım örneği niteliğindedir.
+- Route to Live `media-privacy` maddesi OK yapıldı. Store yüklemesinde yalnız bu anonim final klasörleri kullanılmalı; `source`, `raw`, `marketing-v1` ve `marketing-v2` içerikleri yeniden denetlenmeden yüklenmemelidir.
+
+## 2026-09-24 — Markalı destek e-postası etkinleştirildi
+
+- Cloudflare Email Routing `flyfamapp.com` için etkinleştirildi. `support@flyfamapp.com` adresi aktif olarak özel hedef `ganicanoz@gmail.com` adresine yönleniyor; genel catch-all kapalı bırakıldı.
+- Kamusal sayfalar, gizlilik/kullanım şartları, mobil roster destek bağlantıları, zorunlu güncelleme metinleri ve yayın scripti markalı destek adresine taşındı. Özel hedef adres kullanıcıya açık yüzeylerde gösterilmemelidir.
+- Uygulanmış tarihsel migration geriye dönük değiştirilmedi. `20260924170000_brand_support_email.sql`, production `app_release_policy` satırını ve sütun varsayılanını ileri yönlü olarak günceller.
+- Production `app_release_policy` satırındaki `android_invite_email`, Türkçe gövde ve İngilizce gövde yalnız bu kayıt hedeflenerek doğrudan güncellendi; eski Gmail adresinin canlı politikada kalmadığı yanıt üzerinden doğrulandı. Diğer bekleyen migrationlar bu işlem için topluca gönderilmedi.
+- `support/` değişiklikleri yalnız ilgili dört dosyayı içeren `d0a0aee` commit'iyle `main` dalına gönderildi. GitHub Pages `Deploy support site` çalışması başarıyla tamamlandı; canlı ana sayfa, gizlilik politikası ve kullanım şartlarında `support@flyfamapp.com` ayrı ayrı doğrulandı.
+- Cursor bu adresleri `support@flyfam.app` veya `flyfamapp@gmail.com` değerlerine geri çevirmemeli; yeni kullanıcıya açık iletişim noktalarında `support@flyfamapp.com` kullanılmalıdır.
+
+## 2026-09-26 — Aktif mobil TypeScript kapsamı temizlendi
+
+- Gerçek production giriş zinciri `index.js → App.tsx` olarak doğrulandı. Paket tarafından kullanılmayan eski `app/` Expo Router ağacı ve bağımsız `scripts/` araçları mobil uygulamanın strict TypeScript kapsamından ayrıldı; bu dosyalar silinmedi.
+- `allowImportingTsExtensions` etkinleştirilerek mobilin doğrudan kullandığı ortak Supabase/Deno roster parser modülleri doğru biçimde denetlenmeye devam ediyor.
+- Supabase ilişki sonuçlarının dizi/tekil farkları `Connect` ve `Dashboard` ekranlarında normalize edildi. Havaalanı cache istemci tipi, auth hata kodları, root navigation fallback'i, native-stack header seçenekleri, paralel flight update thenable'ı, roster Supabase istemci tipleri/home-base dizisi/parked durumu ve Freebird görev saati null güvenliği düzeltildi.
+- `npx tsc --noEmit --pretty false` sıfır hatayla tamamlandı. `npm run test:capacity`, `npm run verify:android:icon` ve ilgili dosyalarda `git diff --check` başarılı.
+- Cursor `app/` ağacını yeniden production router olarak etkinleştirmeden TypeScript kapsamına geri eklememeli. CLI scriptleri için ileride ayrı Node/tsx tsconfig veya script bazlı test kapısı kullanılmalıdır.

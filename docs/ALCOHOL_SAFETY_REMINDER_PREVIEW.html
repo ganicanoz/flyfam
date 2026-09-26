@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>FlyFam - Alkol Emniyet Hatırlatıcısı</title>
+  <style>
+    :root {
+      --navy:#10253f; --navy-2:#173653; --blue:#2f7fa8; --sky:#dff3fb;
+      --paper:#f6f8fa; --white:#fff; --ink:#182433; --muted:#647386;
+      --line:#dce5ec; --green:#187455; --green-bg:#e8f7f1; --amber:#9a5b00;
+      --amber-bg:#fff4db; --red:#a23636; --shadow:0 18px 60px rgba(18,39,62,.13);
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:linear-gradient(145deg,#edf5f8 0,#f7f9fb 45%,#edf1f4 100%);color:var(--ink);font:15px/1.55 Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+    a{color:#176d98;text-underline-offset:3px}
+    .hero{background:radial-gradient(circle at 75% 15%,rgba(78,171,205,.35),transparent 28%),linear-gradient(135deg,var(--navy),#0e3f5a);color:#fff;padding:64px 24px 90px}
+    .hero-inner,.page{max-width:1120px;margin:auto}
+    .eyebrow{font-size:12px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#8fd4eb}
+    h1{font-size:clamp(34px,5vw,62px);line-height:1.06;letter-spacing:-.04em;margin:12px 0 18px;max-width:820px}
+    .hero p{font-size:18px;color:#d8e8ef;max-width:760px;margin:0}
+    .hero-tags{display:flex;gap:9px;flex-wrap:wrap;margin-top:28px}
+    .tag{border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.08);border-radius:999px;padding:7px 12px;font-size:13px}
+    .page{padding:0 24px 72px;margin-top:-52px}
+    .decision{background:#fff;border-radius:20px;box-shadow:var(--shadow);padding:26px;display:grid;grid-template-columns:1.4fr 1fr;gap:26px}
+    .decision h2,.section h2{margin:0 0 10px;font-size:25px;letter-spacing:-.02em}
+    .decision p{margin:0;color:var(--muted)}
+    .verdict{border-left:4px solid var(--green);padding:8px 0 8px 18px}
+    .verdict strong{display:block;color:var(--green);font-size:17px;margin-bottom:5px}
+    .grid{display:grid;grid-template-columns:390px 1fr;gap:32px;margin-top:34px;align-items:start}
+    .phone-wrap{position:sticky;top:20px}
+    .phone{background:#091420;border:8px solid #101b27;border-radius:42px;padding:12px;box-shadow:var(--shadow)}
+    .phone-screen{background:#f5f7f8;border-radius:29px;overflow:hidden;min-height:720px}
+    .status{height:30px;background:var(--navy);color:#fff;padding:7px 18px;font-size:11px;display:flex;justify-content:space-between}
+    .appbar{background:var(--navy);color:#fff;padding:15px 18px 21px}
+    .back{font-size:13px;color:#b8dce9}.appbar h3{font-size:21px;margin:8px 0 0}
+    .screen-body{padding:15px}
+    .card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:12px;box-shadow:0 5px 16px rgba(20,40,60,.05)}
+    .row{display:flex;justify-content:space-between;gap:12px;align-items:center}
+    .label{font-weight:750}.sub{font-size:12px;color:var(--muted);margin-top:3px}
+    .switch{width:49px;height:28px;border-radius:20px;background:#d1d8de;padding:3px;cursor:pointer;transition:.2s;border:0}
+    .switch span{display:block;width:22px;height:22px;border-radius:50%;background:white;box-shadow:0 2px 5px #85909a;transition:.2s}
+    .switch.on{background:var(--green)}.switch.on span{transform:translateX(21px)}
+    .choices{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:13px}
+    .choice{border:1px solid var(--line);background:#fff;border-radius:12px;padding:11px;text-align:left;cursor:pointer;color:var(--ink)}
+    .choice strong{display:block}.choice small{color:var(--muted)}
+    .choice.active{border-color:var(--blue);background:#edf8fc;box-shadow:inset 0 0 0 1px var(--blue)}
+    .next{background:linear-gradient(145deg,#123f59,#176580);color:#fff;border:0}
+    .next .sub{color:#c9e6f0}.time{font-size:23px;font-weight:850;margin:11px 0 2px}
+    .notice{background:var(--amber-bg);border-color:#f2d69a;color:#6e4508;font-size:12px}
+    .notification{background:#fff;border-radius:16px;padding:13px;box-shadow:0 10px 26px rgba(18,38,58,.14);margin:15px 5px}
+    .notification-head{display:flex;justify-content:space-between;font-size:11px;color:var(--muted)}
+    .notification strong{display:block;margin:4px 0 2px}.notification p{font-size:12px;margin:0;color:#455464}
+    .section{background:#fff;border:1px solid var(--line);border-radius:18px;padding:24px;margin-bottom:18px}
+    .section p{color:#526173}
+    .principles{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-top:16px}
+    .principle{border:1px solid var(--line);border-radius:14px;padding:15px}
+    .principle b{display:block;margin-bottom:4px}.principle span{font-size:13px;color:var(--muted)}
+    .good{background:var(--green-bg);border-color:#bee5d6}.bad{background:#fff3f1;border-color:#f0cfca}
+    .flow{display:grid;gap:10px;margin-top:16px}
+    .flow-item{display:grid;grid-template-columns:42px 1fr;gap:12px;align-items:start}
+    .n{height:36px;width:36px;border-radius:50%;display:grid;place-items:center;background:var(--sky);color:#0f658c;font-weight:850}
+    .flow-item b{display:block}.flow-item span{color:var(--muted);font-size:13px}
+    .source{border-top:1px solid var(--line);padding:15px 0}.source:first-of-type{border-top:0}
+    .source b{display:block}.source p{margin:5px 0;font-size:13px}
+    .pill{display:inline-block;border-radius:999px;padding:3px 8px;background:#edf2f6;color:#526173;font-size:11px;font-weight:750;margin-right:5px}
+    .footer{text-align:center;color:var(--muted);font-size:12px;padding-top:20px}
+    @media(max-width:850px){.decision,.grid{grid-template-columns:1fr}.phone-wrap{position:static;max-width:390px;margin:auto}.principles{grid-template-columns:1fr}.hero{padding-top:42px}}
+  </style>
+</head>
+<body>
+  <header class="hero">
+    <div class="hero-inner">
+      <div class="eyebrow">FlyFam · Gelecek özellik değerlendirmesi</div>
+      <h1>Görev Öncesi Alkol Emniyet Hatırlatıcısı</h1>
+      <p>İçki miktarı veya promil tahmini üretmeden, bir sonraki report saatine göre alkolsüz dönemin başlangıcını hatırlatan opsiyonel bir crew özelliği.</p>
+      <div class="hero-tags"><span class="tag">Varsayılan 12 saat</span><span class="tag">Opsiyonel 24 saat</span><span class="tag">Standby dahil</span><span class="tag">Sağlık verisi tutulmaz</span></div>
+    </div>
+  </header>
+
+  <main class="page">
+    <section class="decision">
+      <div><h2>Ürün kararı</h2><p>Özellik faydalı olabilir; ancak yalnızca emniyet penceresi hatırlatıcısı şeklinde sunulmalıdır. FlyFam hiçbir zaman kullanıcının ne kadar alkol tüketebileceğini veya ne zaman uçuşa uygun olacağını hesaplamamalıdır.</p></div>
+      <div class="verdict"><strong>Öneri: Kontrollü pilot uygulama</strong><span>İlk sürümde 12 ve 24 saat seçenekleri; şirket bazlı özel süreler doğrulanmış veri oluşana kadar kapsam dışında.</span></div>
+    </section>
+
+    <div class="grid">
+      <aside class="phone-wrap">
+        <div class="phone">
+          <div class="phone-screen">
+            <div class="status"><span>09:41</span><span>● ● ●</span></div>
+            <div class="appbar"><div class="back">‹ Profil</div><h3>Emniyet Hatırlatıcıları</h3></div>
+            <div class="screen-body">
+              <div class="card"><div class="row"><div><div class="label">Alkol emniyet hatırlatıcısı</div><div class="sub">İsteğe bağlıdır</div></div><button class="switch on" id="toggle" aria-label="Hatırlatıcıyı aç veya kapat"><span></span></button></div></div>
+              <div id="enabledArea">
+                <div class="card"><div class="label">Emniyet süresi</div><div class="sub">Report veya standby başlangıcından geriye doğru</div><div class="choices"><button class="choice active" data-hours="12"><strong>12 saat</strong><small>Standart</small></button><button class="choice" data-hours="24"><strong>24 saat</strong><small>Yüksek emniyet</small></button></div></div>
+                <div class="card next"><div class="label">Sonraki alkolsüz dönem</div><div class="time" id="periodTime">11 Eyl · 20.30</div><div class="sub" id="periodDetail">12 Eyl 08.30 report · AYT</div></div>
+                <div class="notification"><div class="notification-head"><span>FLYFAM</span><span>şimdi</span></div><strong>Alkolsüz döneminiz yaklaşıyor</strong><p id="notificationText">Yarın 08.30 reportlu göreviniz için alkolsüz döneminiz bugün 20.30'da başlayacak.</p></div>
+                <div class="card notice">FlyFam alkol düzeyinizi ölçmez veya tahmin etmez ve uçuşa elverişliliğinizi doğrulamaz. Şirket prosedürünüz her zaman önceliklidir.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <div>
+        <section class="section">
+          <h2>Neden böyle tasarlandı?</h2>
+          <div class="principles">
+            <div class="principle good"><b>✓ “Alkolsüz dönem başladı”</b><span>Report saatine bağlı, açık ve davranış yönlendiren emniyet mesajı.</span></div>
+            <div class="principle bad"><b>× “İki bira içebilirsiniz”</b><span>Kişisel metabolizma farklarını yok sayar ve yanlış güven oluşturabilir.</span></div>
+            <div class="principle good"><b>✓ 12/24 saat seçimi</b><span>8 saatlik asgari tabanın üzerinde daha muhafazakâr seçenekler.</span></div>
+            <div class="principle bad"><b>× Tahmini promil</b><span>Ölçüm değildir; uçuşa uygunluk kararı için kullanılamaz.</span></div>
+          </div>
+        </section>
+
+        <section class="section">
+          <h2>Önerilen kullanıcı akışı</h2>
+          <div class="flow">
+            <div class="flow-item"><div class="n">1</div><div><b>Kullanıcı özelliği açar</b><span>Tıbbi/operasyonel sınırlar ve FlyFam'in uygunluk kararı vermediği açıkça kabul edilir.</span></div></div>
+            <div class="flow-item"><div class="n">2</div><div><b>12 veya 24 saat seçilir</b><span>İlk sürümde 8 saat seçenek olarak sunulmaz; yalnızca mevzuat tabanı olarak açıklanır.</span></div></div>
+            <div class="flow-item"><div class="n">3</div><div><b>Report zamanı bulunur</b><span>Uçuş ve standby dahil edilir. Report yoksa sistem tahmin üretmez.</span></div></div>
+            <div class="flow-item"><div class="n">4</div><div><b>Bildirim planlanır</b><span>Dönemden 2 saat önce ve başlangıç anında bildirim gönderilir.</span></div></div>
+            <div class="flow-item"><div class="n">5</div><div><b>Roster değişikliği yönetilir</b><span>Report erkene alınırsa bildirim hemen yeniden hesaplanır ve kullanıcı uyarılır.</span></div></div>
+          </div>
+        </section>
+
+        <section class="section">
+          <h2>Referans temeli</h2>
+          <div class="source"><span class="pill">MEVZUAT</span><b>SHGM - 0,20 promil sınırı</b><p>Ticari hava taşımacılığında uçuş ve kabin ekiplerinin kan alkol düzeyi 0,20 promil ile sınırlandırılmıştır.</p><a href="https://web.shgm.gov.tr/tr/s/5999-shgm-yeni-duzenleme-kapsaminda-alkol-tarama-testlerine-basladi" target="_blank" rel="noopener">SHGM kaynağını aç ↗</a></div>
+          <div class="source"><span class="pill">MEVZUAT</span><b>EASA - report/standby öncesi asgari 8 saat</b><p>Alkol tüketilmemesi gereken dönem report veya standby başlangıcından en az 8 saat öncesidir; görev başlangıcındaki sınır ulusal gereklilik veya 0,2 promilden düşük olanıdır.</p><a href="https://www.easa.europa.eu/en/document-library/easy-access-rules/online-publications/easy-access-rules-air-operations" target="_blank" rel="noopener">EASA kurallarını aç ↗</a></div>
+          <div class="source"><span class="pill">HAVACILIK EMNİYETİ</span><b>FAA - 8 saat uygunluk garantisi değildir</b><p>FAA, sekiz saatin ardından dahi alkol veya hangover etkisinin sürebileceğini; daha muhafazakâr yaklaşım olarak 24 saatin düşünülmesini belirtir.</p><a href="https://www.faa.gov/pilots/safety/pilotsafetybrochures/media/alcohol.pdf" target="_blank" rel="noopener">FAA broşürünü aç ↗</a></div>
+          <div class="source"><span class="pill">SİSTEMATİK DERLEME</span><b>Ertesi gün bilişsel performans</b><p>19 çalışmayı ve 1.163 katılımcıyı kapsayan derleme, hangover sırasında sürekli dikkat, kısa/uzun süreli bellek ve psikomotor hızda bozulma bulmuştur.</p><a href="https://pubmed.ncbi.nlm.nih.gov/30144191/" target="_blank" rel="noopener">PubMed kaydını aç ↗</a></div>
+        </section>
+
+        <section class="section">
+          <h2>Gizlilik ve sınırlar</h2>
+          <p>İçki türü, miktarı, kilo, cinsiyet, sağlık durumu veya tahmini promil kaydedilmez. Sunucuda yalnızca özelliğin açık/kapalı oluşu, seçilen süre ve bildirim tercihi tutulur. Aile üyeleri bu ayarı göremez.</p>
+        </section>
+      </div>
+    </div>
+    <div class="footer">FlyFam ürün konsepti · Karar öncesi değerlendirme dokümanı · Eylül 2026</div>
+  </main>
+  <script>
+    const toggle=document.getElementById('toggle');
+    const area=document.getElementById('enabledArea');
+    toggle.addEventListener('click',()=>{toggle.classList.toggle('on');area.style.opacity=toggle.classList.contains('on')?'1':'.34';area.style.pointerEvents=toggle.classList.contains('on')?'auto':'none'});
+    document.querySelectorAll('.choice').forEach(btn=>btn.addEventListener('click',()=>{
+      document.querySelectorAll('.choice').forEach(x=>x.classList.remove('active'));btn.classList.add('active');
+      const h=Number(btn.dataset.hours);document.getElementById('periodTime').textContent=h===12?'11 Eyl · 20.30':'11 Eyl · 08.30';
+      document.getElementById('notificationText').textContent=`Yarın 08.30 reportlu göreviniz için ${h} saatlik alkolsüz döneminiz bugün ${h===12?'20.30':'08.30'}'da başlayacak.`;
+    }));
+  </script>
+</body>
+</html>

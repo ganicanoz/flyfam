@@ -208,6 +208,51 @@
     </section>
 
     <section class="card">
+      <h2>§0b — EAS otomatik submit (service account izinleri)</h2>
+      <p class="muted">
+        <code>eas submit --platform android</code> hata veriyorsa:
+        <code>SUBMISSION_SERVICE_ANDROID_SERVICE_ACCOUNT_IS_MISSING_PERMISSIONS</code>
+        — aşağıdaki hesaba Play Console’da uygulama izni verilmemiş demektir.
+      </p>
+      <div class="copy-block">firebase-adminsdk-fbsvc@flyfam-7a504.iam.gserviceaccount.com</div>
+      <ol class="steps">
+        <li>
+          <strong>Google Cloud — API açık olsun</strong>
+          <a href="https://console.cloud.google.com/apis/library/androidpublisher.googleapis.com?project=flyfam-7a504" target="_blank" rel="noopener">Google Play Android Developer API</a>
+          → <strong>Enable</strong> (proje: <code>flyfam-7a504</code>).
+        </li>
+        <li>
+          <strong>Play Console — kullanıcı davet et</strong>
+          <a href="https://play.google.com/console/users-and-permissions/invite" target="_blank" rel="noopener">Users and permissions → Invite new users</a>
+          → yukarıdaki service account e-postasını yapıştır.
+        </li>
+        <li>
+          <strong>App permissions</strong>
+          <code>FlyFam</code> (<code>com.flyfam.app</code>) seç → şu kutuları işaretle:
+          <ul>
+            <li><strong>View app information</strong> (read-only)</li>
+            <li><strong>Edit and delete draft apps</strong></li>
+            <li><strong>Release to production, exclude devices, and use Play App Signing</strong></li>
+            <li><strong>Release apps to testing tracks</strong></li>
+            <li><strong>Manage testing tracks and edit tester lists</strong></li>
+            <li><strong>Manage store presence</strong></li>
+          </ul>
+        </li>
+        <li>
+          <strong>Invite user</strong> → davet <em>Active</em> olana kadar bekle (birkaç dakika).
+        </li>
+        <li>
+          <strong>Submit tekrar</strong> (proje kökünde):
+          <div class="copy-block">cd mobile && npx eas-cli submit --platform android --latest --profile production --non-interactive</div>
+        </li>
+      </ol>
+      <div class="warn">
+        FCM push için aynı service account kullanılıyor olabilir; Play submit izinleri ayrıdır.
+        Yeni JSON key üretmene gerek yok — sadece Play Console’da bu e-postaya release izni ver.
+      </div>
+    </section>
+
+    <section class="card">
       <h2>§1 — Hazır e-posta listesi <span class="badge">KOPYALA</span></h2>
       <p class="muted">Play Console’a yapıştırılacak satırlar (virgülsüz, satır satır):</p>
       <div class="copy-block">aysenbalci@bilfen.k12.tr
@@ -335,6 +380,41 @@ nurtensaricayoz@hotmail.com</div>
     </section>
 
     <section class="card">
+      <h2>§3b — Internal’deki 36’yı Kapalı test’e taşı (promote)</h2>
+      <p class="muted">
+        EAS submit <code>internal</code> track’e gider. Aynı <code>versionCode</code> ikinci kez yüklenemez;
+        Kapalı test için Play Console’da <strong>zaten yüklenmiş AAB’yi</strong> seç.
+      </p>
+      <ol class="steps">
+        <li>
+          <strong>Play Console</strong>
+          <a href="https://play.google.com/console" target="_blank" rel="noopener">play.google.com/console</a>
+          → FlyFam → <strong>Test and release → Testing → Closed testing</strong>
+          (Kapalı test).
+        </li>
+        <li>
+          <strong>Create new release</strong> / Yeni sürüm oluştur.
+        </li>
+        <li>
+          <strong>App bundles</strong> → <strong>Add from library</strong> / Kütüphaneden ekle
+          → <strong>36 (1.3.0)</strong> sürümünü seç (Internal’e yüklenmiş olan).
+        </li>
+        <li>
+          Release notes yaz → <strong>Review release</strong> →
+          <strong>Start rollout to Closed testing</strong>.
+        </li>
+        <li>
+          <strong>Testers</strong> sekmesinde kapalı test grubuna e-posta listesini bağla →
+          <strong>Copy link</strong> (opt-in) ile ekibe gönder.
+        </li>
+      </ol>
+      <div class="warn">
+        Internal testing ile Closed testing <em>ayrı track</em>’lerdir.
+        36’yı Kapalı test’te göremiyorsan muhtemelen Internal’e bakıyorsundur — veya bu promote adımı yapılmamıştır.
+      </div>
+    </section>
+
+    <section class="card">
       <h2>§3 — Yeni sürümü Internal testing’e yükle</h2>
       <ol class="steps">
         <li>
@@ -422,18 +502,12 @@ nurtensaricayoz@hotmail.com</div>
 
     <section class="card">
       <h2>GPT2 için tek paragraf özet</h2>
-      <div class="copy-block">FlyFam Play Console’da Internal testing tester listesi oluştur.
+      <div class="copy-block">FlyFam Play Console’da Closed testing (alpha) tester e-posta listesi oluştur.
 Liste adı: FlyFam Android users 2026-08
-E-postalar:
-aysenbalci@bilfen.k12.tr
-canoz@flyfam.app
-dtmineoz@gmail.com
-familytestuser@flyfam.com
-hakan.tek3420@gmail.com
-isidemltdsti@gmail.com
-nurtensaricayoz@hotmail.com
-Listeyi Internal testing track’e bağla, opt-in linkini kopyala.
-Sonra yeni AAB’yi (versionCode ≥ 34) Internal’a yükle; doğrulama sonrası Production’da staged rollout yap.</div>
+Kaynak listeler yerel olarak üretilir ve kişisel e-posta içerdiği için Git'e eklenmez (Supabase auth kullanıcıları; test/@flyfam.com hariç).
+Yenilemek: cd mobile && node scripts/export-play-closed-testers.js --open
+Closed testing → Testers → Create email list / CSV yükle → listeyi kapalı test track’ine bağla → opt-in linkini kopyala.
+Not: Google Play Android Publisher API e-posta listesini programatik eklemez (yalnızca Google Groups).</div>
     </section>
   </div>
 </body>

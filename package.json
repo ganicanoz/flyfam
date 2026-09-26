@@ -11,6 +11,7 @@
     "airports:sync-weekly": "node scripts/fetch-ourairports-csv.js && CSV_PATH=scripts/data/airports-ourairports.csv AIRPORTS_IMPORT_NO_DELETE=1 node scripts/import-airport-codes-csv.js",
     "test-all-apis": "node scripts/test-all-apis.js",
     "flight-provider-snapshot": "node scripts/flight-provider-snapshot-report.js",
+    "flight-provider-future": "node scripts/flight-provider-snapshot-report.js --date",
     "airlabs:discover": "node scripts/airlabs-discover-fields.js",
     "fr24:discover": "node scripts/fr24-discover-fields.js",
     "saw:phase-sample": "node scripts/saw-flight-phase-sample.js",

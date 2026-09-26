@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="color-scheme" content="light dark" />
+  <title>FlyFam · Route to Live</title>
+  <style>
+    :root{--bg:#f4f7fb;--card:#fff;--ink:#13213a;--muted:#667085;--line:#dce4ef;--blue:#2257d6;--green:#087a55;--red:#bd2c3c;--amber:#a15c00;--soft:#edf3ff;--shadow:0 12px 30px rgba(28,45,80,.08)}
+    *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+    button,input,textarea,select{font:inherit}.wrap{max-width:1240px;margin:auto;padding:28px}.hero{padding:26px;border-radius:24px;background:linear-gradient(135deg,#11234b,#2257d6 62%,#37a4e8);color:#fff;box-shadow:var(--shadow)}
+    .hero-top,.toolbar,.row,.task-head,.stats{display:flex;align-items:center;gap:12px}.hero-top{justify-content:space-between}.eyebrow{text-transform:uppercase;letter-spacing:.12em;font-size:11px;font-weight:800;opacity:.72}h1{font-size:34px;line-height:1.1;margin:7px 0 9px}.hero p{max-width:780px;margin:0;opacity:.86}.save{white-space:nowrap;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.25);padding:9px 12px;border-radius:999px}
+    .stats{margin-top:20px;display:grid;grid-template-columns:repeat(4,1fr)}.stat{background:rgba(255,255,255,.11);border:1px solid rgba(255,255,255,.18);padding:14px;border-radius:16px}.stat b{display:block;font-size:24px}.stat span{font-size:12px;opacity:.78}.progress{height:8px;background:rgba(255,255,255,.18);border-radius:99px;overflow:hidden;margin-top:18px}.progress i{display:block;height:100%;background:#72f0b8;width:0;transition:.25s}
+    .warning{margin:18px 0;background:#fff8e8;border:1px solid #f1cf86;border-left:5px solid #d78a00;border-radius:14px;padding:16px}.warning b{color:#7c4700}.warning p{margin:5px 0}.audit{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:18px 0}.audit-card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px}.audit-card b{display:block;font-size:22px}.audit-card span{color:var(--muted);font-size:12px}.audit-card.danger{border-color:#e9a5ae}.audit-card.danger b{color:var(--red)}.toolbar{position:sticky;top:0;z-index:4;margin:18px 0;padding:12px;background:rgba(244,247,251,.92);backdrop-filter:blur(12px);border:1px solid var(--line);border-radius:16px}.toolbar input{min-width:220px;flex:1;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:10px;padding:10px 12px}.toolbar button,.toolbar select,.export{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:10px;padding:10px 12px;cursor:pointer}.toolbar button:hover{border-color:var(--blue)}
+    .phase{margin:18px 0}.phase-title{display:flex;justify-content:space-between;align-items:end;margin-bottom:9px}.phase-title h2{margin:0;font-size:20px}.phase-title span{color:var(--muted);font-size:12px}.task{background:var(--card);border:1px solid var(--line);border-radius:15px;padding:15px;margin:9px 0;box-shadow:0 3px 12px rgba(28,45,80,.035)}.task.done{border-color:#9bd8c2;background:#f5fffb}.task.blocked{border-left:5px solid var(--red)}.task-head{align-items:flex-start}.task input[type=checkbox]{width:21px;height:21px;accent-color:var(--green);margin-top:2px}.task-main{flex:1}.task-title{font-weight:800;font-size:15px}.task-no{display:inline-flex;align-items:center;justify-content:center;min-width:42px;margin-right:8px;padding:2px 7px;border-radius:7px;background:var(--soft);color:var(--blue);font-size:12px;font-weight:900}.task-desc{color:var(--muted);margin-top:3px}.tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}.tag{border-radius:999px;padding:3px 8px;font-size:11px;font-weight:800;background:var(--soft);color:var(--blue)}.tag.critical{background:#ffe9ec;color:var(--red)}.tag.ok{background:#dcf8ec;color:var(--green)}.tag.manual{background:#fff1d8;color:var(--amber)}.status{min-width:78px;text-align:center;border-radius:999px;padding:5px 9px;font-size:11px;font-weight:900;background:#fff0f2;color:var(--red)}.task.done .status{background:#dcf8ec;color:var(--green)}.note{width:100%;resize:vertical;min-height:42px;margin-top:11px;border:1px solid var(--line);border-radius:9px;padding:8px 10px;background:transparent;color:var(--ink)}
+    .refs{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px;margin-top:22px}.refs h2{margin-top:0}.refs a{color:var(--blue);font-weight:700}.refs li{margin:7px 0}.footer{text-align:center;color:var(--muted);padding:25px}.hidden{display:none!important}
+    @media(max-width:760px){.wrap{padding:12px}.hero{padding:20px}.hero-top{align-items:flex-start;flex-direction:column}.stats,.audit{grid-template-columns:1fr 1fr}.toolbar{flex-wrap:wrap}.toolbar input{min-width:100%}.status{display:none}h1{font-size:28px}}
+    @media(prefers-color-scheme:dark){:root{--bg:#0d1422;--card:#151f31;--ink:#edf3ff;--muted:#a9b5c7;--line:#293750;--soft:#1c315d;--shadow:none}.warning{background:#2c2515;border-color:#5e4b20}.warning b{color:#ffd276}.task.done{background:#12291f;border-color:#28684e}.toolbar{background:rgba(13,20,34,.92)}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="hero">
+      <div class="hero-top"><div><div class="eyebrow">Release control center</div><h1>Route to Live</h1><p>FlyFam'ın güvenli, yasal ve kesintisiz biçimde mağazalara çıkması için yaşayan kontrol listesi. Bir işi doğruladıktan sonra kutusunu işaretleyin; durum bu cihazda otomatik saklanır.</p></div><div class="save" id="savedAt">Henüz kaydedilmedi</div></div>
+      <div class="stats"><div class="stat"><b id="doneCount">0</b><span>OK</span></div><div class="stat"><b id="openCount">0</b><span>Açık</span></div><div class="stat"><b id="criticalCount">0</b><span>Kritik açık</span></div><div class="stat"><b id="percent">0%</b><span>Hazırlık</span></div></div>
+      <div class="progress"><i id="progressBar"></i></div>
+    </section>
+
+    <section class="warning">
+      <b>Finansal yapı için karar kapısı</b>
+      <p>Başka bir kişinin geliştirici hesabına farklı bir kişinin banka ve vergi bilgilerini yazmak, tek başına güvenli veya mevzuata uygun bir model oluşturmaz. Apple banka hesap sahibinin sözleşmedeki tüzel/gerçek kişiyle farklı olabilmesine teknik olarak izin verebilir; ancak sözleşme tarafı, gelir sahibinin kimliği ve vergi formları gerçeği doğru yansıtmalıdır.</p>
+      <p><strong>Yayına çıkmadan önce:</strong> yayıncı kimliği kararlaştırılmalı; Apple Finance'tan yazılı teyit ve Türkiye'de mali müşavir görüşü alınmalıdır. Bireysel hesapta kişisel satıcı adının mağazada görünmesi önlenemeyebilir; kişisel adın hiç görünmemesi hedefi için kuruluş hesabı en temiz seçenektir.</p>
+    </section>
+
+    <section class="refs">
+      <h2>Önerilen sahiplik mimarisi</h2>
+      <p><strong>Fikrî mülkiyet sahibi:</strong> Uygulamanın marka, fikir ve yazılım üzerindeki mülkiyetini sözleşmeyle elinde tutar.</p>
+      <p><strong>Ticari işletmeci / münhasır lisans alan:</strong> Marka adlı bir limited şirket olur; Apple ve Google sözleşmelerini imzalar, mağazalarda yayıncı olarak görünür ve gelirleri kendi şirket banka hesabına alır.</p>
+      <p><strong>Kurucular arası sözleşme:</strong> Münhasır yayınlama ve gelir elde etme lisansı, gelir hakkı, karar yetkileri, masraflar, fesih, kod/hesap erişimi ve devri açıkça düzenler.</p>
+      <p><strong>Neden bu model:</strong> Kişisel ad mağazada görünmez; mağaza sözleşmesi, vergi formu ve banka hesabı aynı ticari işletmecide birleşir. Yalnız banka hesabını farklı kişiye yönlendirmekten daha savunulabilir ve sürdürülebilirdir.</p>
+    </section>
+
+    <section class="audit" aria-label="Son güvenlik denetimi">
+      <div class="audit-card danger"><b>18</b><span>Kişisel kimlik, e-posta veya kişisel URL izi bulunan dosya</span></div>
+      <div class="audit-card"><b>0</b><span>Build ignore dosyasında eksik gizli ortam dosyası engeli</span></div>
+      <div class="audit-card danger"><b>2</b><span>Gerçek ortam dosyası yerel çalışma ağacında mevcut</span></div>
+      <div class="audit-card"><b>0</b><span>Bu denetimde repo içinde bulunan özel .p8 anahtar dosyası</span></div>
+    </section>
+
+    <div class="toolbar">
+      <input id="search" type="search" placeholder="Görev ara…" />
+      <select id="filter"><option value="all">Tümü</option><option value="open">Yalnız açık</option><option value="critical">Kritik açık</option><option value="done">Yalnız OK</option></select>
+      <button id="exportBtn" type="button">Durumu dışa aktar</button>
+      <button id="resetBtn" type="button">Yerel işaretleri sıfırla</button>
+    </div>
+
+    <main id="board"></main>
+
+    <section class="refs">
+      <h2>Resmî referanslar</h2>
+      <ul>
+        <li><a href="https://developer.apple.com/help/app-store-connect/transfer-an-app/overview-of-app-transfer" target="_blank" rel="noreferrer">Apple — App transfer overview</a></li>
+        <li><a href="https://developer.apple.com/help/app-store-connect/transfer-an-app/app-transfer-criteria" target="_blank" rel="noreferrer">Apple — App transfer criteria</a></li>
+        <li><a href="https://developer.apple.com/help/app-store-connect/reference/reporting/banking-information" target="_blank" rel="noreferrer">Apple — Banking information</a></li>
+        <li><a href="https://developer.apple.com/help/app-store-connect/manage-tax-information/provide-tax-information" target="_blank" rel="noreferrer">Apple — Tax information</a></li>
+        <li><a href="https://gib.gov.tr/mevzuat/kanun/433/ozelge/21327" target="_blank" rel="noreferrer">GİB — Mobil uygulama gelirleri ve GVK mükerrer 20/B</a></li>
+      </ul>
+    </section>
+    <div class="footer">Son denetim başlangıcı: 16 Eylül 2026 · Bu sayfa sır saklamaz; API anahtarı veya parola not alanlarına yazılmamalıdır.</div>
+  </div>
+  <script>
+    const phases = [
+      {title:'0 · Yayıncı ve finansal sahiplik', subtitle:'Koddan önce sözleşme ve gelir sahibini netleştir', tasks:[
+        ['ownership-scenario-research','Sahiplik ve doğrudan gelir senaryosu araştırıldı','Önerilen yapı: fikrî mülkiyet bir kişide kalırken münhasır ticari lisans marka adlı limited şirkete verilir; mağaza sözleşmeleri, vergi ve banka aynı şirkette tutulur.','done,legal'],
+        ['apple-support-question','Apple Finance destek talebi gönderildi','Bireysel Account Holder ile farklı banka hesap sahibi ve gelir hak sahibi senaryosu Apple Finance ekibine yazılı olarak iletildi. Resmî yanıt bekleniyor.','done,legal'],
+        ['identity-model','Yayıncı kimliği kararı','Bireysel hesap, kuruluş hesabı veya resmî transfer modeli yazılı olarak seçilmeli. Kişisel adın mağazada hiç görünmemesi için kuruluş hesabı değerlendirilmelidir.','critical,legal'],
+        ['apple-written','Apple Finance yazılı yanıtı','Gönderilen destek talebine gelecek resmî yanıt saklanmalı; izin verilen banka, vergi ve Account Holder yapısı bu yanıta göre belirlenmeli.','critical,legal'],
+        ['tax-advice','Türkiye mali müşavir teyidi','GVK mükerrer 20/B uygunluğu, gelir sahibi, özel banka hesabı ve %15 tevkifat süreci doğrulanmalı.','critical,legal'],
+        ['transfer-decision','Hesap taşıma stratejisi','Uygulama henüz yayında değilse App Transfer yapılamayabilir. Doğru hesapta yeni kayıt mı, ilk yayın sonrası transfer mi yapılacağı riskleriyle kararlaştırılmalı.','manual,legal']
+      ]},
+      {title:'1 · Güvenlik ve gizli bilgiler', subtitle:'Build ve repoda sır bırakma', tasks:[
+        ['eas-ignore','Gizli ortam dosyaları build paketinden çıkarıldı','Kök ve mobil build ignore dosyalarına .env, özel anahtar, sertifika, keystore ve servis hesabı kuralları eklendi. Sunucu anahtarları mobil build’e alınmıyor.','done,critical,security'],
+        ['rotate-secret','Daha önce paylaşılan Resend anahtarı yenilendi','Alan adıyla sınırlandırılmış Resend Primary anahtarı Supabase SMTP’ye bağlandı; gerçek şifre yenileme e-postası teslim edildi ve Resend kullanım kaydı doğrulandı. Eski/geçici üç anahtar kalıcı olarak silindi, yerel eski değer temizlendi. Supabase yönetim sırları devir planı olmadan değiştirilmemeli.','done,critical,security'],
+        ['public-provider-keys','Uçuş sağlayıcı tokenlarını mobil paketten çıkar','Mobil Expo yapılandırmasından FR24, AirLabs ve AeroDataBox kimlik bilgileri çıkarıldı; gömülü eski AeroDataBox yedeği tüm mobil/sunucu/tanı kaynaklarından temizlendi. Üç Edge Function üretimde, flight-lookup canlı yanıtı ve simülatör roster akışı doğrulandı; hub önbelleği 730 satırla yenilendi. RapidAPI hesabındaki varsayılan uygulama Authorization Keys (0) gösteriyor; iptal edilecek aktif anahtar yok. Anahtarsız yeni temiz binary alınıp gerçek cihazda uçuş arama/roster/pano testi geçince OK yapılmalı.','critical,security'],
+        ['rotate-flight-provider-secrets','Uçuş sağlayıcı sunucu anahtarlarını yenile','FR24 rotasyonu tamamlandı: yeni server token yalnız Supabase FR24_API_TOKEN sırrına kaydedildi, eski flyfam tokenı iptal edildi ve iptal sonrası production test HTTP 200 döndürdü. AviationStack eski anahtarı resetlendi ve yenisi yalnız Supabase AVIATIONSTACK_API_KEY sırrına kaydedildi; ancak ücretsiz aylık kota 100/100 dolu olduğu için canlı fallback testi kota yenilenince yapılmalı. Supabase envanterindeki eski EXPO_PUBLIC_AVIATION_EDGE_API_KEY güncel Edge kaynaklarında kullanılmıyor; sağlayıcı hesabı doğrulanıp gerekirse iptal edilmeden madde OK yapılmamalı. Anahtar değerleri dokümana/notlara yazılmamalı.','critical,security'],
+        ['secret-scan','Git geçmişi ve çalışma ağacı secret taraması','OK — Gitleaks ile 89 commitlik tüm Git geçmişi ve güncel eklenen satırlar tarandı. Geçmişte 22 eşleşme sınıflandırıldı: kaldırılmış RapidAPI sağlayıcı değerleri artık aktif değil; Firebase istemci anahtarları ayrı kısıtlama maddesine taşındı; Supabase anon JWT istemci anahtarı ve örnek/storage sabitleri gizli değil. Güncel eklenen satırlar sıfır sızıntı verdi. Kişiye özel demo seed, güvensiz storage politikaları ve tester listeleri de giderildi.','done,critical,security'],
+        ['firebase-restrict','Firebase istemci anahtar kısıtlarını doğrula','OK — Google Play üretim SHA-1 parmak izi Firebase Android uygulamasına eklendi. Firebase tarafından oluşturulan Android API anahtarı Google Cloud’da yalnızca com.flyfam.app + Google Play üretim imzasıyla çalışacak şekilde sınırlandırıldı; mevcut 25 API kısıtlaması korundu ve kayıt yeniden açılarak doğrulandı. Ayarların yayılması yaklaşık 5 dakika sürebilir.','done,security'],
+        ['admin-auth','Admin panel güvenlik modelini doğrula','OK — Admin e-posta varsayılanları mobil, panel ve Edge Function kaynaklarından kaldırıldı. Mobil gizli admin modu admin-dashboard check_access çağrısıyla sunucu allowlist üzerinden yetkilendiriliyor. Üretimde kimliksiz istek, sahte JWT ve yanlış panel parolası ayrı ayrı HTTP 401 ile reddedildi. Yetkili panel oturumu canlı operasyon verilerini başarıyla yeniledi ve OK sonucu verdi.','done,critical,security']
+      ]},
+      {title:'2 · Gizlilik ve kimlik temizliği', subtitle:'Kişisel ad, e-posta ve kişisel URL sıfır', tasks:[
+        ['public-domain','Tüm kamusal bağlantıları marka alan adına taşı','OK — Uygulamadaki gizlilik, kullanım şartları, destek, doğrulama, şifre sıfırlama ve admin yedek bağlantıları https://app.flyfamapp.com altında birleştirildi. Cloudflare CNAME, GitHub Pages özel alan adı, sertifika ve HTTPS zorlaması canlı. Destek ana sayfası, privacy-policy.html, terms-of-use.html ve auth-callback.html dış ağdan HTTP 200 verdi; aktif kaynaklarda kişisel GitHub/e-posta/ad izi bulunmadı.','done,critical,privacy'],
+        ['auth-callback-domain','Auth callback’i kişisel GitHub adresinden taşı','OK — Cloudflare’da app.flyfamapp.com → ganicanoz.github.io CNAME kaydı canlı. GitHub Pages özel alan adı ve HTTPS zorlaması etkin; sertifika approved, HTTPS callback HTTP 200 ve HTTP→HTTPS 301 doğrulandı. Supabase production Site URL ve redirect allowlist markalı callback’e taşındı; eski kişisel GitHub URL’si kaldırıldı, mobil deep-link kayıtları korundu. Production magic-link CTA telefonda FlyFam’i başarıyla açtı.','done,critical,privacy,backend'],
+        ['email-template-refresh','Tüm kullanıcı e-postalarını profesyonel biçimde yenile','OK — Kayıt doğrulama, şifre yenileme, kullanıcı daveti, magic link ve e-posta değişikliği şablonlarının tamamı production Supabase üzerinde yeni FlyFam TR/EN tasarımıyla canlı. Yönetim API’sinden konu, içerik ve callback hedefleri doğrulandı; Gmail üzerinde beş CTA akışının da uygulamayı açtığı doğrulandı. Geçici test hesabı kalıcı olarak silindi. Şablonlar tablo tabanlı, inline stilli, duyarlı ve güvenli yedek bağlantılıdır.','done,critical,privacy,backend'],
+        ['source-name-scan','Kaynak ve doküman kişisel kimlik taraması','OK — Bilinen şahsi ad, varyasyonları ve kişisel e-posta mobil uygulama, backend, admin paneli, script, seed ve dokümanlarda tarandı. Sabit demo arkadaş UUID/adları kaldırıldı; gerçek onaylı server peer akışı korundu. Admin yetkisi sunucu allowlist kontrolüne taşındı; örnek komut ve önizlemeler anonimleştirildi. Tester listeleri yerelde ignore altında tutuluyor.','done,critical,privacy'],
+        ['media-privacy','Tüm mağaza medyalarında kişisel veri kontrolü','OK — marketing-v3 iPhone adaylarının 12’si ve 13-inch iPad adaylarının 3’ü toplu ve yakın görünümde incelendi. Görünür kişi adı, yüz veya e-posta bulunmuyor; aile roster ve bildirim görsellerindeki kullanıcı adı bulanıklaştırılmış durumda. Yalnız bu anonimleştirilmiş final klasörleri yükleme adayıdır; source/raw ve eski marketing-v1/v2 dosyaları mağazaya yüklenmemelidir.','done,critical,privacy'],
+        ['store-identity','Mağaza satıcı/geliştirici adını doğrula','App Store ve Play’de görünen yasal yayıncı adı önizlenmeli. Kişisel ad hedefe aykırıysa yayın durdurulmalı ve kuruluş hesabına geçilmeli.','critical,privacy'],
+        ['support-identity','Destek ve hukuki iletişim adreslerini markala','OK — Cloudflare Email Routing üzerinde support@flyfamapp.com etkin ve ganicanoz@gmail.com hedefine yönleniyor; catch-all kapalı tutuluyor. Destek, gizlilik, kullanım şartları, roster talebi ve sürüm güncelleme iletişimleri markalı adrese taşındı. Production app_release_policy için mevcut satırı ve varsayılanı güncelleyen ileri yönlü migration eklendi; eski uygulanmış migration değiştirilmedi.','done,privacy,backend']
+      ]},
+      {title:'3 · Kod ve repo yayın hazırlığı', subtitle:'Tekrarlanabilir ve temiz sürüm', tasks:[
+        ['version-44','Sürüm numaraları eşlendi','Güvenlik temizliği sonrası iOS ve Android sürümü 1.3.0, build/versionCode 45 olarak eşlendi.','done,build'],
+        ['ios-export','iOS üretim export kontrolü','Expo iOS export yerel kontrolde başarılı.','done,build'],
+        ['android-export','Android üretim export kontrolü','Expo Android export yerel kontrolde başarılı.','done,build'],
+        ['android-icon','Android ikon kontrolü','Android ikon doğrulaması yerel kontrolde başarılı.','done,build'],
+        ['family-capacity','Aile kapasite testi','Paket/aile kapasite testi yerel kontrolde başarılı.','done,test'],
+        ['typescript-clean','Aktif TypeScript hatalarını temizle','OK — Üretim giriş noktası index.js → App.tsx olarak doğrulandı. Kullanılmayan eski Expo Router app/ ağacı ve bağımsız CLI scriptleri uygulama TypeScript kapsamından ayrıldı; aktif mobil kod ile ortak roster parser bağımlılıkları strict kontrolde sıfır hata veriyor. Supabase ilişki sonuçları güvenli biçimde tekil kayda normalize edildi; auth, navigation, havaalanı cache, roster durumları ve Freebird görev saatlerindeki tip sorunları giderildi. Kapasite testi ve Android ikon doğrulaması tekrar geçti.','done,critical,code'],
+        ['worktree-clean','Yayın değişikliklerini düzenli commitlere ayır','Çalışma ağacında çok sayıda karışık değişiklik var. Yayın kapsamı gözden geçirilmeli, yedeklenmeli ve izlenebilir commitlere ayrılmalı.','critical,code'],
+        ['ci-gate','Yayın öncesi otomatik kontrol kapısı','Export, tip kontrolü, test, secret scan ve sürüm eşleme kontrolleri tek yayın komutunda başarısızlıkta durmalı.','code']
+      ]},
+      {title:'4 · Backend ve üretim verisi', subtitle:'Supabase uzaktaki durum yerelle aynı olmalı', tasks:[
+        ['migrations-prod','Tüm migrationları üretimde doğrula','Yerel migration listesi ile uzak veritabanı eşleştirilmeli; eksik fonksiyon ve şema önbelleği hataları sıfır olmalı.','critical,backend'],
+        ['functions-prod','Edge Function sürümlerini doğrula','Admin, satın alma, roster, bildirim ve auth fonksiyonlarının doğru projeye güncel sürümle deploy edildiği kanıtlanmalı.','critical,backend'],
+        ['rls-review','RLS ve servis rolü denetimi','Crew, family, admin ve anonim rollerin yalnız gerekli verilere eriştiği test edilmeli.','critical,backend'],
+        ['auth-links','Auth callback uçtan uca testi','Doğrulama ve şifre yenileme bağlantıları marka alan adından uygulamaya dönmeli; Network Request Failed görünmemeli.','critical,backend'],
+        ['demo-account','Review demo hesapları','Crew ve bağlı aile demo hesapları giriş yapmalı, örnek roster içermeli ve review boyunca silinmemeli.','critical,review']
+      ]},
+      {title:'5 · iOS abonelik ve App Store', subtitle:'Ürünler, sözleşmeler ve metadata', tasks:[
+        ['ios-products','Tüm iOS abonelik ürünlerini doğrula','Paketlerin product ID, süre, fiyat, yerelleştirme, review screenshot ve Ready to Submit durumları tek tek doğrulanmalı.','critical,iap'],
+        ['ios-entitlements','RevenueCat/App Store ürün eşlemesi','Uygulamadaki entitlement, offering ve package kimlikleri App Store ürünleriyle bire bir eşleşmeli; SKU not found testi yapılmalı.','critical,iap'],
+        ['iap-review-attach','İlk abonelikleri sürüme bağla','İlk abonelikler sürümün In-App Purchases and Subscriptions alanına eklenip binary ile birlikte review’a gönderilmeli.','critical,review'],
+        ['ios-legal-flow','Satın alma ekranı yasal bilgileri','Başlık, süre, fiyat, gizlilik ve EULA bağlantıları satın alma akışında çalışmalı; metadata alanlarında da yer almalı.','critical,review'],
+        ['apple-contracts','Apple sözleşme/vergi/banka durumu','Paid Apps Agreement, banka ve vergi durumları aktif olmalı; seçilen yasal modele göre doldurulmalı.','critical,legal']
+      ]},
+      {title:'6 · Android ödeme ve Play Store', subtitle:'Android yalnız görüntüleme modunda kalmamalı', tasks:[
+        ['android-billing','Google Play Billing’i uygula','Mevcut incelemede Android satın alma akışı uygulanmamış ve iOS-only mesajı gösteriyor. Android’de premium satılacaksa bu yayın engelidir.','critical,iap'],
+        ['play-products','Play abonelik ürünleri ve base planlar','Aynı paketler Play Console’da ürün/base plan olarak kurulmalı; fiyatlar ve süreler uygulamayla eşleşmeli.','critical,iap'],
+        ['android-entitlements','Android entitlement eşlemesi','RevenueCat kullanılıyorsa Play ürünleri aynı entitlement/offering’e bağlanmalı ve gerçek cihazda sandbox satın alma yapılmalı.','critical,iap'],
+        ['play-console','Play Console yayın bilgileri','Data Safety, içerik derecelendirmesi, hesap silme URL’si, gizlilik, ekran görüntüleri ve test erişimi tamamlanmalı.','critical,review']
+      ]},
+      {title:'7 · QA ve cihaz matrisi', subtitle:'Review cihazı dahil gerçek akışlar', tasks:[
+        ['qa-ios','iPhone uçtan uca test','Kayıt, doğrulama, giriş, PDF import, roster, bildirim, satın alma, restore, aile daveti ve hesap silme test edilmeli.','critical,test'],
+        ['qa-ipad','iPad review cihazı testi','iPad Air/13-inch sınıfında gezinme, çift geri tuşu, modal, dark mode, klavye ve satın alma ekranı doğrulanmalı.','critical,test'],
+        ['qa-android','Android gerçek cihaz testi','Farklı ekran boyutlarında gezinme, bildirim, PDF, deep link ve satın alma/restore doğrulanmalı.','critical,test'],
+        ['api-time','Uçuş saat ve API regresyonu','UTC/lokal ayrımı, gece uçuşu, manuel saat düzenleme ve birden çok sağlayıcı fallback senaryoları test edilmeli.','test'],
+        ['roster-airlines','Havayolu parser regresyon seti','THY, Pegasus, SunExpress, Freebird ve desteklenen görev kodları gerçek anonim PDF fixture’larıyla karşılaştırılmalı.','test']
+      ]},
+      {title:'8 · Mağaza görselleri ve metinler', subtitle:'Markalı, anonim ve doğru boyut', tasks:[
+        ['screenshots-ready','Aday mağaza görselleri hazırlandı','Yerel klasörde iPhone ve iPad aday görselleri mevcut; son seçim ve yükleme bekliyor.','done,asset'],
+        ['screenshots-select','En fazla 10 iPhone görselini seç','Tek anlatı akışı oluşturulmalı: roster, aile farkındalığı, bildirim, canlı uçuş, PDF import ve gizlilik.','asset'],
+        ['screenshots-ipad','iPad görsellerini doğrula ve yükle','13-inch/iPad zorunlu alanı için doğru ölçü ve gerçek iPad yerleşimi kontrol edilmeli.','critical,asset'],
+        ['store-copy','TR/EN mağaza metinleri','Açıklama, anahtar kelime, destek URL’si, gizlilik URL’si, EULA ve review notes güncellenmeli; kişisel kimlik izi olmamalı.','critical,asset'],
+        ['privacy-labels','Privacy Nutrition / Data Safety doğruluğu','Toplanan veriler, takip, hesap silme ve saklama uygulamanın gerçek davranışıyla eşleşmeli.','critical,privacy']
+      ]},
+      {title:'9 · Build, beta ve submission', subtitle:'Geri dönüşü olan kontrollü yayın', tasks:[
+        ['release-number','Yeni benzersiz build numarasını seç','44 yalnız yerel hedefse mağazadaki son kullanılan numara kontrol edilmeli ve iki platformda benzersiz sonraki numara seçilmeli.','critical,build'],
+        ['eas-builds','Temiz iOS ve Android store build','Anahtarsız 1.3.0 (45) production buildleri tamamlandı: iOS c5d67330-54b0-49b7-b342-209d747aff4a, Android 9580ecff-cc6c-410d-bd4e-2502dc18b8c4. Submit edilmedi; gerçek cihaz QA ve sunucu anahtar rotasyonu bekleniyor.','done,critical,build'],
+        ['beta-test','TestFlight ve Play Internal testi','En az bir crew ve bir family hesabıyla satın alma, restore, push ve deep link test edilmeli.','critical,test'],
+        ['submit-products','Binary ve ürünleri birlikte gönder','Abonelik ürünleri review’a eklenmeden binary gönderilmemeli. Review Notes’a adım adım demo akışı yazılmalı.','critical,review'],
+        ['review-response','Review kanıt paketi','Giriş bilgileri, kısa ekran kaydı, hukuki bağlantıların yeri ve IAP adımları tek cevap paketinde hazırlanmalı.','review']
+      ]},
+      {title:'10 · Canlıya geçiş ve ilk 72 saat', subtitle:'Yayın sonrası kontrollü gözlem', tasks:[
+        ['rollout','Kademeli yayın kararı','Mümkünse kademeli yayın açılmalı; geri çekme ve acil düzeltme sorumlusu belirlenmeli.','ops'],
+        ['monitoring','Crash, auth, ödeme ve API izleme','Crash-free oranı, doğrulama, satın alma, restore, PDF import, push ve uçuş API hata oranları izlenmeli.','critical,ops'],
+        ['support-ready','Destek yanıtları hazır','Giriş, doğrulama, abonelik, restore, PDF ve hesap silme için kısa TR/EN cevaplar hazırlanmalı.','ops'],
+        ['postlaunch-audit','72 saat sonrası yayın denetimi','İlk kullanıcı geri bildirimleri, masraf/kota, abonelik dönüşümü ve kritik hata listesi değerlendirilip sonraki sürüme aktarılmalı.','ops']
+      ]}
+    ];
+    const checklistStorageId='flyfam_route_to_live_v1';
+    let state={checks:{},notes:{}};
+    try{state=Object.assign(state,JSON.parse(localStorage.getItem(checklistStorageId)||'{}'))}catch(_){ }
+    phases.flatMap(p=>p.tasks).forEach(t=>{if(t[3].includes('done') && state.checks[t[0]]===undefined)state.checks[t[0]]=true});
+    const esc=s=>String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    function save(){localStorage.setItem(checklistStorageId,JSON.stringify(state));document.getElementById('savedAt').textContent='Kaydedildi · '+new Date().toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'});updateStats()}
+    function render(){const q=document.getElementById('search').value.toLocaleLowerCase('tr');const f=document.getElementById('filter').value;const board=document.getElementById('board');board.innerHTML=phases.map((p,pi)=>{let rows=p.tasks.map((t,ti)=>{const [id,title,desc,tagsCsv]=t;const taskNo=pi+'.'+(ti+1);const done=!!state.checks[id];const tags=tagsCsv.split(',');const critical=tags.includes('critical');const text=(taskNo+' '+title+' '+desc+' '+tagsCsv).toLocaleLowerCase('tr');if(q&&!text.includes(q))return'';if(f==='open'&&done||f==='done'&&!done||f==='critical'&&(!critical||done))return'';return `<article class="task ${done?'done':''} ${critical&&!done?'blocked':''}" data-id="${id}"><div class="task-head"><input type="checkbox" ${done?'checked':''} aria-label="${esc(taskNo+' '+title)} tamamlandı"/><div class="task-main"><div class="task-title"><span class="task-no">${esc(taskNo)}</span>${esc(title)}</div><div class="task-desc">${esc(desc)}</div><div class="tags">${tags.filter(x=>x!=='done').map(x=>`<span class="tag ${x==='critical'?'critical':x==='manual'?'manual':''}">${esc(x)}</span>`).join('')}${done?'<span class="tag ok">doğrulandı</span>':''}</div><textarea class="note" placeholder="Kanıt / not (anahtar veya parola yazmayın)">${esc(state.notes[id]||'')}</textarea></div><span class="status">${done?'OK':'AÇIK'}</span></div></article>`}).join('');if(!rows)return'';const doneN=p.tasks.filter(t=>state.checks[t[0]]).length;return `<section class="phase"><div class="phase-title"><div><h2>${esc(p.title)}</h2><span>${esc(p.subtitle)}</span></div><span>${doneN}/${p.tasks.length} OK</span></div>${rows}</section>`}).join('');bind();updateStats()}
+    function bind(){document.querySelectorAll('.task').forEach(el=>{const id=el.dataset.id;el.querySelector('input').addEventListener('change',e=>{state.checks[id]=e.target.checked;save();render()});el.querySelector('.note').addEventListener('input',e=>{state.notes[id]=e.target.value;save()})})}
+    function updateStats(){const all=phases.flatMap(p=>p.tasks);const done=all.filter(t=>state.checks[t[0]]).length;const crit=all.filter(t=>t[3].includes('critical')&&!state.checks[t[0]]).length;const pct=Math.round(done/all.length*100);doneCount.textContent=done;openCount.textContent=all.length-done;criticalCount.textContent=crit;percent.textContent=pct+'%';progressBar.style.width=pct+'%'}
+    search.addEventListener('input',render);filter.addEventListener('change',render);
+    exportBtn.addEventListener('click',()=>{const blob=new Blob([JSON.stringify({exportedAt:new Date().toISOString(),state},null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='flyfam-route-to-live-status.json';a.click();URL.revokeObjectURL(a.href)});
+    resetBtn.addEventListener('click',()=>{if(confirm('Bu tarayıcıdaki işaret ve notlar sıfırlansın mı?')){localStorage.removeItem(storageKey);location.reload()}});
+    render();save();
+  </script>
+</body>
+</html>

@@ -59,7 +59,7 @@ node scripts/check-resend-dns.mjs
 ### 4. Test maili
 
 ```bash
-node scripts/check-resend-dns.mjs --send-test=ganicanoz@gmail.com
+node scripts/check-resend-dns.mjs --send-test=your-test-address@example.com
 ```
 
 Gelen kutusu + spam; gönderen `FlyFam <auth@flyfam.app>`.

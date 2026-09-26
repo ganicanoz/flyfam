@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Regenerate supabase/templates/confirmation.html and recovery.html with FlyFam logo + brand colors."""
+"""Regenerate FlyFam-branded Supabase authentication email templates."""
 
 from __future__ import annotations
 
@@ -17,19 +17,20 @@ LOGO_FALLBACK = ROOT / "mobile" / "assets" / "icon-final-iOS-Default-1024x1024@1
 EMAIL_ASSETS_BUCKET = os.environ.get("EMAIL_ASSETS_BUCKET", "admin-static").strip()
 
 BRAND = {
-    "bg_outer": "#EEF3F9",
+    "bg_outer": "#F4F6FA",
     "bg_card": "#FFFFFF",
-    "bg_footer": "#F1F6FF",
-    "bg_account": "#F1F6FF",
-    "border_card": "#E1EAF5",
-    "border_account": "#D6E4F7",
-    "text": "#0B1220",
-    "text_body": "#22324C",
-    "text_muted": "#6B7A90",
-    "accent": "#1D4FA3",
-    "primary": "#5AA6FF",
-    "gradient": "linear-gradient(165deg,#D8E8FD 0%,#B4CCFB 38%,#9BB8F5 68%,#7BA8EE 100%)",
-    "btn_shadow": "0 4px 16px rgba(29,79,163,0.32)",
+    "bg_footer": "#F8FAFD",
+    "bg_account": "#F4F7FF",
+    "border_card": "#E5E9F0",
+    "border_account": "#D9E4FF",
+    "text": "#0F1B3D",
+    "text_body": "#34405C",
+    "text_muted": "#6B7280",
+    "accent": "#1A5CF5",
+    "primary": "#1A5CF5",
+    "navy": "#0F1B3D",
+    "gradient": "linear-gradient(135deg,#0F1B3D 0%,#173E91 58%,#1A5CF5 100%)",
+    "btn_shadow": "0 8px 20px rgba(26,92,245,0.24)",
 }
 
 
@@ -71,6 +72,16 @@ def logo_public_url() -> str:
     return f"{base}/storage/v1/object/public/{EMAIL_ASSETS_BUCKET}/brand/flyfam-email-logo.png"
 
 
+def email_asset_public_url(filename: str) -> str:
+    base = (
+        os.environ.get("SUPABASE_URL", "").strip()
+        or os.environ.get("EXPO_PUBLIC_SUPABASE_URL", "").strip()
+    ).rstrip("/")
+    if not base:
+        return f"../email-assets/{filename}"
+    return f"{base}/storage/v1/object/public/{EMAIL_ASSETS_BUCKET}/brand/{filename}"
+
+
 def logo_img_src() -> str:
     """Prefer HTTPS (mail clients); fall back to base64 for local HTML preview only."""
     url = logo_public_url()
@@ -81,16 +92,17 @@ def logo_img_src() -> str:
 
 
 def logo_img_html(src: str) -> str:
-    return f"""<table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" style="margin:0 auto 18px;">
+    return f"""<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:0;">
                 <tr>
-                  <td align="center" style="background:#FFFFFF;border-radius:20px;border:3px solid rgba(255,255,255,0.85);padding:6px;line-height:0;">
-                    <img src="{src}" width="80" height="80" alt="FlyFam" style="display:block;border:0;border-radius:14px;outline:none;text-decoration:none;" />
+                  <td align="center" style="background:#FFFFFF;border-radius:14px;padding:5px;line-height:0;box-shadow:0 4px 14px rgba(5,16,48,0.18);">
+                    <img src="{src}" width="54" height="54" alt="FlyFam" style="display:block;border:0;border-radius:10px;outline:none;text-decoration:none;" />
                   </td>
                 </tr>
               </table>"""
 
 
 def render(
+    eyebrow: str,
     title_tr: str,
     title_en: str,
     preheader: str,
@@ -101,7 +113,9 @@ def render(
     footer_tr: str,
     footer_en: str,
     logo_html: str,
+    hero_url: str,
     cta_href: str,
+    account_html: str = "<strong style=\"color:#0F1B3D;font-size:14px;\">{{ .Email }}</strong>",
 ) -> str:
     return f"""<!DOCTYPE html>
 <html>
@@ -109,53 +123,69 @@ def render(
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta http-equiv="x-ua-compatible" content="ie=edge" />
+  <meta name="color-scheme" content="light only" />
   <title>{title_tr} / {title_en}</title>
 </head>
-<body style="margin:0;padding:0;background:{BRAND['bg_outer']};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;color:{BRAND['text']};-webkit-font-smoothing:antialiased;">
+<body style="margin:0;padding:0;background:#EEF2F7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;color:{BRAND['text']};-webkit-font-smoothing:antialiased;">
   <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">{preheader}</div>
-  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:{BRAND['bg_outer']};padding:36px 16px;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#EEF2F7;padding:32px 12px;">
     <tr>
       <td align="center">
-        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:560px;background:{BRAND['bg_card']};border-radius:22px;border:1px solid {BRAND['border_card']};box-shadow:0 10px 40px rgba(11,18,32,0.07);overflow:hidden;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:600px;background:#FFFFFF;border-radius:22px;border:1px solid #DEE5EF;box-shadow:0 18px 50px rgba(15,27,61,0.11);overflow:hidden;">
           <tr>
-            <td style="background:{BRAND['gradient']};padding:40px 28px 34px;text-align:center;">
-              {logo_html}
-              <div style="font-size:30px;font-weight:800;letter-spacing:-0.03em;color:{BRAND['text']};line-height:1.1;">FlyFam</div>
-              <motion.div lang="en" style="font-size:11px;font-weight:600;letter-spacing:0.14em;color:{BRAND['accent']};margin-top:10px;opacity:0.9;">CREW ROSTER &middot; FAMILY FLIGHT TRACKING</motion.div>
+            <td style="padding:18px 24px;background:#FFFFFF;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                <tr>
+                  <td width="58" valign="middle">{logo_html}</td>
+                  <td valign="middle" style="padding-left:12px;">
+                    <div style="font-size:24px;font-weight:850;letter-spacing:-0.025em;color:{BRAND['navy']};line-height:1;">FlyFam</div>
+                    <div style="font-size:9px;font-weight:800;letter-spacing:0.15em;color:#72809A;margin-top:7px;">ROSTER &middot; FAMILY &middot; TOGETHER</div>
+                  </td>
+                </tr>
+              </table>
             </td>
           </tr>
           <tr>
-            <td lang="tr" style="padding:32px 28px 8px;">
-              <span style="display:inline-block;background:{BRAND['bg_account']};color:{BRAND['accent']};font-size:11px;font-weight:700;letter-spacing:0.06em;padding:5px 11px;border-radius:6px;border:1px solid #BFD9FF;">T&#252;rk&#231;e</span>
-              <div style="font-size:22px;font-weight:700;line-height:1.3;color:{BRAND['text']};padding:18px 0 12px;">{title_tr}</div>
-              <div style="font-size:16px;line-height:1.65;color:{BRAND['text_body']};padding-bottom:16px;">{tr_body}</div>
-              <div style="font-size:14px;line-height:1.5;color:{BRAND['text_muted']};padding:14px 16px;background:{BRAND['bg_account']};border-radius:12px;border:1px solid {BRAND['border_account']};">
-                <span style="color:#93A8C6;">Hesap / Account</span><br />
-                <strong style="color:{BRAND['text']};font-size:15px;">{{{{ .Email }}}}</strong>
-              </div>
+            <td style="padding:0;line-height:0;background:{BRAND['navy']};">
+              <img src="{hero_url}" width="600" alt="" style="display:block;width:100%;max-width:600px;height:auto;border:0;outline:none;text-decoration:none;" />
             </td>
           </tr>
           <tr>
-            <td style="padding:10px 28px 26px;text-align:center;">
-              <a href="{cta_href}" style="display:inline-block;background:{BRAND['accent']};color:#ffffff !important;text-decoration:none;font-weight:700;font-size:16px;line-height:1.35;padding:16px 38px;border-radius:12px;box-shadow:{BRAND['btn_shadow']};">{cta_label}</a>
-              <div style="font-size:12px;color:{BRAND['text_muted']};margin-top:14px;line-height:1.45;">{cta_sub}</div>
+            <td lang="tr" style="padding:32px 32px 10px;">
+              <span style="display:inline-block;background:#EAF0FF;color:{BRAND['accent']};font-size:10px;font-weight:850;letter-spacing:0.09em;padding:7px 11px;border-radius:999px;">{eyebrow}</span>
+              <h1 style="margin:16px 0 12px;font-size:27px;line-height:1.22;letter-spacing:-0.025em;color:{BRAND['text']};">{title_tr}</h1>
+              <div style="font-size:15px;line-height:1.72;color:{BRAND['text_body']};">{tr_body}</div>
             </td>
           </tr>
           <tr>
-            <td style="padding:0 28px;"><div style="border-top:1px solid {BRAND['border_card']};height:1px;"></div></td>
-          </tr>
-          <tr>
-            <td lang="en" style="padding:26px 28px 8px;">
-              <span style="display:inline-block;background:#E8F8EF;color:#166534;font-size:11px;font-weight:700;letter-spacing:0.06em;padding:5px 11px;border-radius:6px;border:1px solid #BBF7D0;">ENGLISH</span>
-              <div style="font-size:22px;font-weight:700;line-height:1.3;color:{BRAND['text']};padding:18px 0 12px;">{title_en}</div>
-              <div style="font-size:16px;line-height:1.65;color:{BRAND['text_body']};">{en_body}</div>
+            <td style="padding:12px 32px 28px;">
+              <a href="{cta_href}" style="display:block;background:{BRAND['accent']};color:#FFFFFF !important;text-align:center;text-decoration:none;font-weight:850;font-size:16px;line-height:1.3;padding:17px 22px;border-radius:13px;box-shadow:{BRAND['btn_shadow']};">{cta_label}</a>
+              <div style="font-size:12px;color:{BRAND['text_muted']};margin-top:12px;line-height:1.55;text-align:center;">{cta_sub}</div>
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin-top:20px;background:#F5F8FF;border:1px solid #DCE6FA;border-radius:12px;">
+                <tr>
+                  <td style="padding:13px 15px;font-size:13px;line-height:1.5;color:{BRAND['text_muted']};word-break:break-word;">
+                    <span style="font-size:10px;font-weight:850;letter-spacing:0.07em;color:{BRAND['accent']};">HESAP / ACCOUNT</span><br />
+                    {account_html}
+                  </td>
+                </tr>
+              </table>
             </td>
           </tr>
           <tr>
-            <td style="padding:22px 28px 30px;background:{BRAND['bg_footer']};border-top:1px solid {BRAND['border_card']};">
-              <p style="margin:0 0 10px;font-size:12px;line-height:1.55;color:{BRAND['text_muted']};"><strong style="color:{BRAND['accent']};">TR:</strong> {footer_tr}</p>
-              <p style="margin:0 0 14px;font-size:12px;line-height:1.55;color:{BRAND['text_muted']};"><strong style="color:{BRAND['accent']};">EN:</strong> {footer_en}</p>
-              <p style="margin:22px 0 0;font-size:11px;color:#93A8C6;text-align:center;">© FlyFam</p>
+            <td style="padding:0 32px;"><div style="border-top:1px solid #E5E9F0;height:1px;"></div></td>
+          </tr>
+          <tr>
+            <td lang="en" style="padding:25px 32px 28px;">
+              <span style="font-size:10px;font-weight:850;letter-spacing:0.10em;color:#718096;">ENGLISH</span>
+              <div style="font-size:20px;font-weight:800;line-height:1.3;color:{BRAND['text']};padding:11px 0 8px;">{title_en}</div>
+              <div style="font-size:14px;line-height:1.68;color:{BRAND['text_body']};">{en_body}</div>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:20px 32px 25px;background:#F8FAFD;border-top:1px solid #E5E9F0;">
+              <p style="margin:0 0 9px;font-size:12px;line-height:1.55;color:{BRAND['text_muted']};"><strong style="color:{BRAND['accent']};">TR</strong>&nbsp; {footer_tr}</p>
+              <p style="margin:0;font-size:12px;line-height:1.55;color:{BRAND['text_muted']};"><strong style="color:{BRAND['accent']};">EN</strong>&nbsp; {footer_en}</p>
+              <p style="margin:20px 0 0;font-size:11px;color:#98A2B3;text-align:center;">FlyFam &middot; U&#231;u&#351; program&#305;n&#305;z, ailenize daha yak&#305;n.<br />Your roster, closer to family.</p>
             </td>
           </tr>
         </table>
@@ -164,7 +194,7 @@ def render(
   </table>
 </body>
 </html>
-""".replace("{{{{", "{{").replace("}}}}", "}}").replace("motion.div", "div")
+""".replace("{{{{", "{{").replace("}}}}", "}}")
 
 
 def main() -> None:
@@ -189,43 +219,111 @@ def main() -> None:
         print("Warning: no SUPABASE_URL — using base64 (Gmail/Outlook may hide the logo).")
         print("  Upload: node scripts/upload-email-brand-assets.mjs")
 
-    auth_bridge = "https://ganicanoz.github.io/flyfam/auth-callback.html"
+    auth_bridge = "https://app.flyfamapp.com/auth-callback.html"
     signup_href = f"{auth_bridge}?token_hash={{{{ .TokenHash }}}}&amp;type=signup"
     recovery_href = f"{auth_bridge}?token_hash={{{{ .TokenHash }}}}&amp;type=recovery"
+    invite_href = f"{auth_bridge}?token_hash={{{{ .TokenHash }}}}&amp;type=invite"
+    magic_link_href = f"{auth_bridge}?token_hash={{{{ .TokenHash }}}}&amp;type=magiclink"
+    email_change_href = f"{auth_bridge}?token_hash={{{{ .TokenHash }}}}&amp;type=email_change"
 
     (TEMPLATES / "confirmation.html").write_text(
         render(
-            "E-posta adresinizi doğrulayın",
-            "Verify your email address",
-            "FlyFam — E-posta doğrulama · Verify your email",
-            "Merhaba,<br /><br />FlyFam'e hoş geldiniz. Hesabınızı etkinleştirmek ve uçuş programınızı yönetmeye başlamak için e-posta adresinizi onaylayın.",
-            "Verify in FlyFam<br /><span style=\"font-size:13px;font-weight:500;opacity:0.92;\">FlyFam&#39;de do&#287;rula</span>",
-            "Do&#287;rulama i&#231;in k&#305;sa s&#252;re taray&#305;c&#305; a&#231;&#305;labilir; ard&#305;ndan FlyFam uygulamas&#305; a&#231;&#305;l&#305;r.<br />A brief browser step is normal; then the FlyFam app opens.",
-            "Welcome to FlyFam. Please confirm your email to activate your account and start managing your roster and sharing flights with your family.<br /><br />Use the button above — the <strong>FlyFam</strong> app will open after verification.",
-            f'Buton çalışmazsa: <a href="{signup_href}" style="color:#1D4FA3;font-weight:600;text-decoration:underline;">doğrulama bağlantısı</a>',
-            f'If the button does not work: <a href="{signup_href}" style="color:#1D4FA3;font-weight:600;text-decoration:underline;">verification link</a>',
+            "HESAP DO&#286;RULAMA",
+            "FlyFam'e hoş geldiniz",
+            "Welcome to FlyFam",
+            "FlyFam — Hesabınızı doğrulayın · Confirm your account",
+            "Uçuş programınızı güvenle yönetmek ve seçtiğiniz yakınlarınızı zamanında bilgilendirmek için son bir adım kaldı. E-posta adresinizi doğrulayarak hesabınızı etkinleştirin.",
+            "Hesab&#305;m&#305; do&#287;rula<br /><span style=\"font-size:12px;font-weight:600;opacity:0.88;\">Confirm my account</span>",
+            "Bu ba&#287;lant&#305; yaln&#305;zca hesab&#305;n&#305;z&#305; etkinle&#351;tirmek i&#231;in kullan&#305;l&#305;r.",
+            "There is just one step left. Confirm your email to activate FlyFam, manage your flight schedule securely, and keep the people you choose informed at the right time.",
+            f'Buton çalışmazsa <a href="{signup_href}" style="color:#1A5CF5;font-weight:700;text-decoration:underline;">bu güvenli bağlantıyı açın</a>.',
+            f'If the button does not work, open <a href="{signup_href}" style="color:#1A5CF5;font-weight:700;text-decoration:underline;">this secure link</a>.',
             logo_html,
+            email_asset_public_url("flyfam-email-confirmation-hero.jpg"),
             signup_href,
         ),
         encoding="utf-8",
     )
     (TEMPLATES / "recovery.html").write_text(
         render(
-            "Şifrenizi sıfırlayın",
-            "Reset your password",
-            "FlyFam — Şifre sıfırlama · Password reset",
-            "FlyFam hesabınız için şifre sıfırlama talebi aldık. Yeni şifre belirlemek için düğmeye dokunun. Bu talebi siz yapmadıysanız bu e-postayı yok sayın.",
-            "Reset password<br /><span style=\"font-size:13px;font-weight:500;opacity:0.92;\">&#350;ifremi s&#305;f&#305;rla</span>",
-            "K&#305;sa s&#252;re taray&#305;c&#305; a&#231;&#305;labilir; ard&#305;ndan FlyFam a&#231;&#305;l&#305;r. Ba&#287;lant&#305; s&#305;n&#305;rl&#305; s&#252;re ge&#231;erlidir.<br />A brief browser step is normal; then FlyFam opens. Link expires soon.",
-            "We received a request to reset your FlyFam password. Use the button above to set a new password. If you did not request this, ignore this email.",
-            f'Buton çalışmazsa: <a href="{recovery_href}" style="color:#1D4FA3;font-weight:600;text-decoration:underline;">şifre sıfırlama bağlantısı</a>',
-            f'If the button does not work: <a href="{recovery_href}" style="color:#1D4FA3;font-weight:600;text-decoration:underline;">password reset link</a>',
+            "HESAP G&#220;VENL&#304;&#286;&#304;",
+            "Yeni şifrenizi belirleyin",
+            "Choose a new password",
+            "FlyFam — Şifrenizi güvenle yenileyin · Secure password reset",
+            "FlyFam hesabınız için şifre yenileme talebi aldık. Aşağıdaki güvenli bağlantıyı kullanarak yeni şifrenizi oluşturabilirsiniz. Bu talep size ait değilse e-postayı yok saymanız yeterlidir.",
+            "Yeni &#351;ifre olu&#351;tur<br /><span style=\"font-size:12px;font-weight:600;opacity:0.88;\">Create a new password</span>",
+            "G&#252;venli&#287;iniz i&#231;in bu ba&#287;lant&#305; s&#305;n&#305;rl&#305; s&#252;re ge&#231;erlidir.",
+            "We received a password reset request for your FlyFam account. Use the secure link above to create a new password. If you did not request this, simply ignore this email.",
+            f'Buton çalışmazsa <a href="{recovery_href}" style="color:#1A5CF5;font-weight:700;text-decoration:underline;">bu güvenli bağlantıyı açın</a>.',
+            f'If the button does not work, open <a href="{recovery_href}" style="color:#1A5CF5;font-weight:700;text-decoration:underline;">this secure link</a>.',
             logo_html,
+            email_asset_public_url("flyfam-email-recovery-hero.jpg"),
             recovery_href,
         ),
         encoding="utf-8",
     )
-    print("Updated", TEMPLATES / "confirmation.html", "and", TEMPLATES / "recovery.html")
+    (TEMPLATES / "invite.html").write_text(
+        render(
+            "FLYFAM DAVET&#304;",
+            "FlyFam'e davet edildiniz",
+            "You are invited to FlyFam",
+            "FlyFam — Davetinizi kabul edin · Accept your invitation",
+            "FlyFam hesabınızı oluşturarak uçuş programlarını güvenle takip edebilir ve size verilen erişim kapsamında ailenizle bağlantıda kalabilirsiniz.",
+            "Daveti kabul et<br /><span style=\"font-size:12px;font-weight:600;opacity:0.88;\">Accept invitation</span>",
+            "Bu davet yaln&#305;zca bu e-posta adresi i&#231;in ge&#231;erlidir.",
+            "Create your FlyFam account to follow flight schedules securely and stay connected with your family within the access shared with you.",
+            f'Buton çalışmazsa <a href="{invite_href}" style="color:#1A5CF5;font-weight:700;text-decoration:underline;">bu güvenli bağlantıyı açın</a>.',
+            f'If the button does not work, open <a href="{invite_href}" style="color:#1A5CF5;font-weight:700;text-decoration:underline;">this secure link</a>.',
+            logo_html,
+            email_asset_public_url("flyfam-email-confirmation-hero.jpg"),
+            invite_href,
+        ),
+        encoding="utf-8",
+    )
+    (TEMPLATES / "magic-link.html").write_text(
+        render(
+            "G&#220;VENL&#304; G&#304;R&#304;&#350;",
+            "FlyFam'e güvenle giriş yapın",
+            "Sign in securely to FlyFam",
+            "FlyFam — Güvenli giriş bağlantınız · Your secure sign-in link",
+            "FlyFam hesabınıza şifresiz giriş yapmak için aşağıdaki tek kullanımlık bağlantıyı açın. Bu isteği siz yapmadıysanız e-postayı yok sayabilirsiniz.",
+            "Giri&#351; yap<br /><span style=\"font-size:12px;font-weight:600;opacity:0.88;\">Sign in</span>",
+            "Bu ba&#287;lant&#305; tek kullan&#305;ml&#305;kt&#305;r ve s&#305;n&#305;rl&#305; s&#252;re ge&#231;erlidir.",
+            "Open the one-time link above to sign in to your FlyFam account without a password. If you did not request this, you can safely ignore this email.",
+            f'Buton çalışmazsa <a href="{magic_link_href}" style="color:#1A5CF5;font-weight:700;text-decoration:underline;">bu güvenli bağlantıyı açın</a>.',
+            f'If the button does not work, open <a href="{magic_link_href}" style="color:#1A5CF5;font-weight:700;text-decoration:underline;">this secure link</a>.',
+            logo_html,
+            email_asset_public_url("flyfam-email-confirmation-hero.jpg"),
+            magic_link_href,
+        ),
+        encoding="utf-8",
+    )
+    (TEMPLATES / "change-email.html").write_text(
+        render(
+            "E-POSTA G&#220;VENL&#304;&#286;&#304;",
+            "Yeni e-posta adresinizi doğrulayın",
+            "Confirm your new email address",
+            "FlyFam — E-posta değişikliğini doğrulayın · Confirm your email change",
+            "FlyFam hesabınızın e-posta adresini değiştirme talebi aldık. Yeni adresi kullanmaya başlamak için aşağıdaki güvenli bağlantıyla işlemi doğrulayın. Bu talep size ait değilse bağlantıyı açmayın.",
+            "Yeni adresi do&#287;rula<br /><span style=\"font-size:12px;font-weight:600;opacity:0.88;\">Confirm new email</span>",
+            "Bu ba&#287;lant&#305; yaln&#305;zca e-posta de&#287;i&#351;ikli&#287;ini onaylar.",
+            "We received a request to change the email address for your FlyFam account. Confirm the change using the secure link above. If you did not request it, do not open the link.",
+            f'Buton çalışmazsa <a href="{email_change_href}" style="color:#1A5CF5;font-weight:700;text-decoration:underline;">bu güvenli bağlantıyı açın</a>.',
+            f'If the button does not work, open <a href="{email_change_href}" style="color:#1A5CF5;font-weight:700;text-decoration:underline;">this secure link</a>.',
+            logo_html,
+            email_asset_public_url("flyfam-email-recovery-hero.jpg"),
+            email_change_href,
+            account_html=(
+                '<span style="color:#6B7280;font-size:12px;">Mevcut / Current</span><br />'
+                '<strong style="color:#0F1B3D;font-size:14px;">{{ .Email }}</strong><br />'
+                '<span style="display:inline-block;margin-top:8px;color:#6B7280;font-size:12px;">Yeni / New</span><br />'
+                '<strong style="color:#1A5CF5;font-size:14px;">{{ .NewEmail }}</strong>'
+            ),
+        ),
+        encoding="utf-8",
+    )
+    updated = ["confirmation.html", "recovery.html", "invite.html", "magic-link.html", "change-email.html"]
+    print("Updated", ", ".join(str(TEMPLATES / name) for name in updated))
 
 
 if __name__ == "__main__":

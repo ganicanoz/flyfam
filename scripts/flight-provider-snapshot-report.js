@@ -2,9 +2,10 @@
 /**
  * Belirli uçuşlar için PDF dışı tüm sağlayıcılardan anlık yanıt toplar ve HTML rapor üretir.
  *
- *   node scripts/flight-provider-snapshot-report.js
+ *   node scripts/flight-provider-snapshot-report.js [--date YYYY-MM-DD] [uçuşlar...]
  *
- * `flight_date` her zaman **çalıştırma anındaki yerel takvim günü** (Node sürecinin TZ’si; macOS’ta genelde sistem saati). Argüman yok. Anahtarlar: kök `.env` + `mobile/.env`
+ * `--date` verilmezse `flight_date` çalıştırma anındaki yerel takvim günüdür.
+ * Anahtarlar: kök `.env` + `mobile/.env`
  * (AIRLABS / FR24 / AeroDataBox RapidAPI / AeroAPI / FlightAPI).
  * FR24: yalnızca rapor `flight_date` (ymd) ve ertesi gün kalkış meydanı **yerel** gününe uyan bacaklar; aksi halde “Atlandı” (eski land edilmiş bacaklar özet/faza girmez).
  *
@@ -19,8 +20,16 @@ const projectRoot = path.resolve(__dirname, '..');
 const OUT_HTML = path.join(projectRoot, 'docs', 'FLIGHT_PROVIDER_SNAPSHOT.html');
 const OUT_PARAMS_HTML = path.join(projectRoot, 'docs', 'FLIGHT_PROVIDER_PARAMETERS_SNAPSHOT.html');
 
-const DEFAULT_FLIGHTS = ['PC271', 'PC351', 'PC2018', 'PC1015', 'PC2218'];
-const CLI_FLIGHTS = process.argv.slice(2)
+const DEFAULT_FLIGHTS = ['PC271', 'TK2410', 'XQ118', 'FH1303'];
+const RAW_ARGS = process.argv.slice(2);
+const dateFlagIndex = RAW_ARGS.indexOf('--date');
+const requestedDate = dateFlagIndex >= 0 ? RAW_ARGS[dateFlagIndex + 1] : null;
+if (requestedDate && !/^\d{4}-\d{2}-\d{2}$/.test(requestedDate)) {
+  console.error('Geçersiz --date. Beklenen biçim: YYYY-MM-DD');
+  process.exit(2);
+}
+const CLI_FLIGHTS = RAW_ARGS
+  .filter((_, index) => index !== dateFlagIndex && index !== dateFlagIndex + 1)
   .map((s) => String(s || '').trim().toUpperCase())
   .filter(Boolean);
 const TARGET_FLIGHTS = CLI_FLIGHTS.length > 0 ? [...new Set(CLI_FLIGHTS)] : DEFAULT_FLIGHTS;
@@ -56,7 +65,7 @@ const ADB_KEY =
   process.env.AERODATABOX_RAPIDAPI_KEY ||
   process.env.EXPO_PUBLIC_AERODATABOX_RAPIDAPI_KEY ||
   process.env.RAPIDAPI_KEY ||
-  '15e502192bmsh69e44f588a1f748p1f3145jsnb8957fc1856c';
+  '';
 
 const IATA_TO_ICAO = { PC: 'PGT', TK: 'THY', XQ: 'SXS', VF: 'TKJ' };
 
@@ -90,7 +99,7 @@ function todayLocalYmd() {
   return `${y}-${m}-${day}`;
 }
 
-const FLIGHT_DATE = todayLocalYmd();
+const FLIGHT_DATE = requestedDate || todayLocalYmd();
 
 function esc(s) {
   return String(s == null ? '' : s)

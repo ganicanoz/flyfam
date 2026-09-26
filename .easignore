@@ -1,0 +1,31 @@
+# Git-root is EAS upload root.
+# IMPORTANT: patterns without leading slash match anywhere — use /docs/ so
+# mobile/docs (airlines JSON for Metro) is NOT excluded.
+node-v*.pkg
+*.pkg
+/docs/
+/support/
+/wireframe samples/
+/FlyFam/
+/scripts/
+hs_err_pid*.log
+*.log
+app.json.eas-root-bak
+mobile/node_modules/
+mobile/ios/Pods/
+mobile/ios/build/
+mobile/dist/
+mobile/.expo/
+
+# Secrets must come from EAS environment/credentials, never from the upload.
+.env
+.env.*
+*.p8
+*.p12
+*.pem
+*.key
+*.jks
+*.keystore
+*.mobileprovision
+*firebase-adminsdk*.json
+*service-account*.json

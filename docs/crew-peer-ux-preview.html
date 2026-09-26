@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>FlyFam · Crew–Crew UX önizleme</title>
+  <style>
+    :root {
+      --bg: #EEF2F7;
+      --panel: #fff;
+      --ink: #0F172A;
+      --muted: #64748B;
+      --line: #E2E8F0;
+      --pink: #E57373;
+      --blue: #4A90E2;
+      --green: #E8F5E9;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: linear-gradient(180deg, #dbe7f5 0%, #eef2f7 40%, #f7f8fb 100%);
+      color: var(--ink);
+      min-height: 100vh;
+      padding: 24px 16px 48px;
+    }
+    h1 { font-size: 22px; margin: 0 0 6px; }
+    .lead { color: var(--muted); margin: 0 0 20px; max-width: 720px; line-height: 1.45; }
+    .phones {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 28px;
+      justify-content: center;
+    }
+    .phone {
+      width: 320px;
+      background: #0b1220;
+      border-radius: 36px;
+      padding: 12px;
+      box-shadow: 0 18px 50px rgba(15, 23, 42, 0.25);
+    }
+    .screen {
+      background: var(--bg);
+      border-radius: 28px;
+      overflow: hidden;
+      min-height: 640px;
+      display: flex;
+      flex-direction: column;
+    }
+    .status {
+      height: 28px;
+      background: var(--blue);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 14px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .header {
+      background: var(--blue);
+      color: #fff;
+      padding: 10px 14px 14px;
+      font-weight: 800;
+      font-size: 18px;
+    }
+    .body { padding: 12px; flex: 1; }
+    .section-label {
+      font-size: 11px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin: 8px 2px 6px;
+      font-weight: 700;
+    }
+    .hint {
+      font-size: 12px;
+      color: var(--muted);
+      margin: 0 2px 10px;
+      line-height: 1.35;
+    }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 12px 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+    .card.peer { border-color: var(--blue); }
+    .avatar {
+      width: 40px; height: 40px; border-radius: 20px;
+      background: #E3F2FD; color: var(--blue);
+      display: grid; place-items: center; font-weight: 800;
+      flex: 0 0 auto;
+    }
+    .name { font-weight: 700; font-size: 15px; }
+    .sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .pill {
+      margin-left: auto;
+      font-size: 11px;
+      font-weight: 700;
+      background: #E3F2FD;
+      color: var(--blue);
+      padding: 4px 8px;
+      border-radius: 999px;
+    }
+    .flight {
+      background: #EEEEF0;
+      border: 1px solid #C8C8CC;
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 8px;
+    }
+    .flight.off { background: var(--green); border-color: #A5D6A7; }
+    .fn { font-weight: 800; }
+    .route { font-weight: 600; font-size: 14px; margin-top: 2px; }
+    .meta { font-size: 12px; color: #6B7A90; margin-top: 4px; }
+    .banner {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 10px 12px;
+      margin-bottom: 10px;
+    }
+    .banner strong { display: block; margin-bottom: 2px; }
+    .tabs {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 4px;
+      padding: 8px 10px 12px;
+      background: rgba(255,255,255,0.9);
+      border-top: 1px solid var(--line);
+    }
+    .tab {
+      text-align: center;
+      font-size: 11px;
+      color: var(--muted);
+      padding: 8px 4px;
+      border-radius: 10px;
+    }
+    .tab.on { color: var(--ink); font-weight: 700; background: #e8eef7; }
+    .caption {
+      text-align: center;
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .note {
+      max-width: 720px;
+      margin: 28px auto 0;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 14px 16px;
+      line-height: 1.45;
+      color: #334155;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Crew–Crew takip · nasıl görünecek</h1>
+  <p class="lead">
+    Demo Crew A, Aile sekmesinde Demo Crew B’yi görür; dokununca onaylı arkadaşının roster’ı açılır.
+    Gani’nin kendi Roster sekmesi değişmez — PDF/import orada kalır.
+  </p>
+
+  <div class="phones">
+    <div>
+      <div class="phone">
+        <div class="screen">
+          <div class="status"><span>9:41</span><span>FlyFam</span></div>
+          <div class="header">Aile</div>
+          <div class="body">
+            <div class="section-label">Crew takiplerim</div>
+            <p class="hint">Crew kişiye dokun → partner roster (salt okunur).</p>
+            <div class="card peer">
+              <div class="avatar">O</div>
+              <div>
+                <div class="name">Demo Crew B</div>
+                <div class="sub">Turkish Airlines · THY · Crew</div>
+              </div>
+              <span class="pill">Aç ›</span>
+            </div>
+
+            <div class="section-label">Bağlı aile üyeleri</div>
+            <div class="card"><div class="avatar">M</div><div><div class="name">Mine Öz</div><div class="sub">Aile</div></div></div>
+            <div class="card"><div class="avatar">N</div><div><div class="name">Nurten Sarıçay Öz</div><div class="sub">Aile</div></div></div>
+            <div class="card"><div class="avatar">H</div><div><div class="name">Hayati Öz</div><div class="sub">Aile</div></div></div>
+          </div>
+          <div class="tabs">
+            <div class="tab">Program</div>
+            <div class="tab on">Aile</div>
+            <div class="tab">Profil</div>
+          </div>
+        </div>
+      </div>
+      <div class="caption">1 · Gani · Aile listesi</div>
+    </div>
+
+    <div>
+      <div class="phone">
+        <div class="screen">
+          <div class="status"><span>9:41</span><span>FlyFam</span></div>
+          <div class="header">‹ Demo Crew B</div>
+          <div class="body">
+            <div class="banner">
+              <strong>Demo Crew B · Example Airlines</strong>
+              <span class="sub">Salt okunur partner roster. Kendi programın Roster sekmesinde.</span>
+            </div>
+            <div class="flight">
+              <div class="fn">TK275</div>
+              <div class="route">IST → RMO</div>
+              <div class="meta">28 Ağu · 09:15 – 10:40</div>
+            </div>
+            <div class="flight">
+              <div class="fn">TK276</div>
+              <div class="route">RMO → IST</div>
+              <div class="meta">28 Ağu · 11:35 – 13:00</div>
+            </div>
+            <div class="flight off">
+              <div class="fn">IBE</div>
+              <div class="route">Boş Gün</div>
+              <div class="meta">1 Eyl</div>
+            </div>
+            <div class="flight">
+              <div class="fn">TK1081</div>
+              <div class="route">IST → BEG</div>
+              <div class="meta">2 Eyl</div>
+            </div>
+          </div>
+          <div class="tabs">
+            <div class="tab">Program</div>
+            <div class="tab on">Aile</div>
+            <div class="tab">Profil</div>
+          </div>
+        </div>
+      </div>
+      <div class="caption">2 · Oben’in roster’ı (Ceren ile aynı TK programı)</div>
+    </div>
+  </div>
+
+  <div class="note">
+    <strong>Simülatör:</strong> Demo Crew A ile giriş → <em>Aile</em> → <em>Demo Crew B</em>.
+    Oben hesabı: <code>oben.oz.flyfam.demo@gmail.com</code> / <code>FlyFamDemoOben1!</code> (THY crew; Ceren uçuşlarına flight_crew ile bağlı).
+  </div>
+</body>
+</html>

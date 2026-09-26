@@ -1,7 +1,7 @@
 -- Demo roster: PC1 iptal, PC2 divert, PC3 gecikmeli planlı.
 -- Supabase Dashboard → SQL Editor → yapıştır → Run.
 --
--- v_user: auth.users / profiles id (ganicanoz@gmail.com)
+-- v_user: auth.users / profiles id for a non-production demo account
 
 do $$
 declare
