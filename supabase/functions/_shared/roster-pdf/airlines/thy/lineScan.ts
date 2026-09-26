@@ -101,9 +101,9 @@ export function tryThyLineAnchorDate(line: string): string | null {
   return thyDdMmmYyyyToIso(m[1]!, m[2]!, m[3]!);
 }
 
-/** Tek satır (temiz metin / bazı çıkarıcılar): TK661 IST/6:00 TUN/10MAR2026 09:00 */
+/** Tek satır: TK661 / VF3282 (+ opsiyonel P) IST/6:00 TUN/10MAR2026 09:00 */
 const THY_GMT_ONE_LINE =
-  /^TK(\d{2,4})\s+(?:P\s+)?([A-Z]{3})\/(\d{1,2}):(\d{2})\s+([A-Z]{3})\/(\d{1,2})(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(\d{4})(?:\s+(\d{1,2}):(\d{2}))?/i;
+  /^(TK|VF)(\d{2,4})\s+(?:P\s+)?([A-Z]{3})\/(\d{1,2}):(\d{2})\s+([A-Z]{3})\/(\d{1,2})(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(\d{4})(?:\s+(\d{1,2}):(\d{2}))?/i;
 
 /** Varış: TUN/10MAR202609:00 veya TUN/10MAR2026 09:00 */
 const THY_ARR_GLUED =
@@ -212,19 +212,19 @@ function parseGmtFlightsFromPdfText_THY(text: string): PdfFlightRow[] {
 
     const one = THY_GMT_ONE_LINE.exec(line);
     if (one) {
-      const fn = `TK${one[1]}`;
-      const depAp = one[2]!;
-      const depH = one[3]!;
-      const depMin = one[4]!;
-      const arrAp = one[5]!;
-      const arrDay = one[6]!;
-      const arrMon = one[7]!;
-      const arrYear = one[8]!;
+      const fn = `${one[1]!.toUpperCase()}${one[2]}`;
+      const depAp = one[3]!;
+      const depH = one[4]!;
+      const depMin = one[5]!;
+      const arrAp = one[6]!;
+      const arrDay = one[7]!;
+      const arrMon = one[8]!;
+      const arrYear = one[9]!;
       let arrH: string;
       let arrMin: string;
-      if (one[9] != null && one[10] != null) {
-        arrH = one[9]!;
-        arrMin = one[10]!;
+      if (one[10] != null && one[11] != null) {
+        arrH = one[10]!;
+        arrMin = one[11]!;
       } else {
         const j = skipEmpty(i + 1, lines);
         const tm = /^(\d{1,2}):(\d{2})\b/.exec(lines[j] ?? '');
@@ -238,12 +238,19 @@ function parseGmtFlightsFromPdfText_THY(text: string): PdfFlightRow[] {
       continue;
     }
 
-    const tkOnly = /^TK(\d{2,4})$/i.exec(line);
-    if (!tkOnly) continue;
+    // BUS / BUS-01 transfer satırları import edilmez.
+    if (/^BUS(?:-?\d*)?$/i.test(line)) continue;
 
-    const fn = `TK${tkOnly[1]}`;
+    const flOnly = /^(TK|VF)(\d{2,4})$/i.exec(line);
+    if (!flOnly) continue;
+
+    const fn = `${flOnly[1]!.toUpperCase()}${flOnly[2]}`;
     let j = skipEmpty(i + 1, lines);
     if ((lines[j] ?? '').trim().toUpperCase() === 'P') {
+      j = skipEmpty(j + 1, lines);
+    }
+    // Nadiren "BUS" etiketi uçuş ile rota arasında (BUS-01 bloklarında); yoksay.
+    if (/^BUS$/i.test((lines[j] ?? '').trim())) {
       j = skipEmpty(j + 1, lines);
     }
 
@@ -357,7 +364,7 @@ function pushThyDutyRow(
 
 /**
  * Lokal saatli günlük program → tanınan her uçuş ve görev satırı
- * (TK…, RC1/EMM/HSBY/CFR, IBB/IBI boş günler, vb.).
+ * (TK… / VF… AJet, RC1/EMM/HSBY/CFR, IBB/IBI boş günler, vb.). BUS transfer yok sayılır.
  */
 export function parseLocalTimeProgramFromPdfText_THY(text: string): PdfFlightRow[] {
   const section = extractThyLocalTimeSection(text);
@@ -403,19 +410,28 @@ export function parseLocalTimeProgramFromPdfText_THY(text: string): PdfFlightRow
       }
     }
 
-    type TkLeg = { fn: string; from: string; to: string; dep: string; arr: string };
-    const tks: TkLeg[] = [];
+    type FlLeg = { fn: string; from: string; to: string; dep: string; arr: string };
+    const legs: FlLeg[] = [];
     for (let i = 0; i < chunk.length; i += 1) {
-      const tk = /^TK(\d{2,4})$/i.exec(chunk[i] ?? '');
-      if (!tk) continue;
+      const raw = (chunk[i] ?? '').trim();
+      // IST↔SAW transfer otobüsü — roster uçuşu değil.
+      if (/^BUS(?:-?\d*)?$/i.test(raw)) continue;
+      const fl = /^(TK|VF)(\d{2,4})$/i.exec(raw);
+      if (!fl) continue;
       let j = skipEmpty(i + 1, chunk);
+      if ((chunk[j] ?? '').trim().toUpperCase() === 'P') {
+        j = skipEmpty(j + 1, chunk);
+      }
+      if (/^BUS$/i.test((chunk[j] ?? '').trim())) {
+        j = skipEmpty(j + 1, chunk);
+      }
       const dep = parseThyLocalTimeLine(chunk[j] ?? '');
       if (!dep?.airport) continue;
       j = skipEmpty(j + 1, chunk);
       const arr = parseThyLocalTimeLine(chunk[j] ?? '');
       if (!arr?.airport) continue;
-      tks.push({
-        fn: `TK${tk[1]}`,
+      legs.push({
+        fn: `${fl[1]!.toUpperCase()}${fl[2]}`,
         from: dep.airport,
         to: arr.airport,
         dep: dep.hm,
@@ -423,24 +439,67 @@ export function parseLocalTimeProgramFromPdfText_THY(text: string): PdfFlightRow
       });
     }
 
-    if (tks.length > 0) {
-      tks.forEach((leg, idx) => {
-        const d = gmbs[idx] ?? gmbs[0] ?? mb;
+    if (legs.length > 0) {
+      let gmbPtr = 0;
+      let prevDepMins: number | null = null;
+      let dateYmd = (gmbs[0] ?? mb).ymd;
+      for (const leg of legs) {
+        const dm = minutes(leg.dep);
+        if (prevDepMins != null && dm < prevDepMins) {
+          dateYmd = addCalendarDays(dateYmd, 1);
+        }
+        // Erken sabah ayağı + ilk GMB öğleden sonra → sonraki GMB gününe kaydır (BUS atlandıktan sonra).
+        while (gmbPtr + 1 < gmbs.length) {
+          const cur = gmbs[gmbPtr]!;
+          const next = gmbs[gmbPtr + 1]!;
+          if (
+            prevDepMins == null &&
+            dm < 12 * 60 &&
+            minutes(cur.hm) > 12 * 60 &&
+            next.ymd > cur.ymd &&
+            next.ymd <= addCalendarDays(cur.ymd, 1)
+          ) {
+            gmbPtr += 1;
+            dateYmd = next.ymd;
+            continue;
+          }
+          // Aynı gün içinde sonraki GMB başlangıcı bu kalkıştan önce/eşitse ilerle.
+          if (next.ymd === dateYmd && minutes(next.hm) <= dm + 15) {
+            gmbPtr += 1;
+            continue;
+          }
+          break;
+        }
+        if (gmbs[gmbPtr] && gmbs[gmbPtr]!.ymd > dateYmd) {
+          // İleri GMB’ye yalnızca bir gün içinde kaldıysak ve sabah ayağındaysak yapış.
+          if (
+            prevDepMins == null &&
+            dm < 12 * 60 &&
+            gmbs[gmbPtr]!.ymd <= addCalendarDays((gmbs[0] ?? mb).ymd, 1)
+          ) {
+            dateYmd = gmbs[gmbPtr]!.ymd;
+          }
+        } else if (gmbs[gmbPtr] && gmbs[gmbPtr]!.ymd === dateYmd) {
+          /* keep */
+        } else if (gmbs[gmbPtr] && gmbs[gmbPtr]!.ymd < dateYmd) {
+          /* overnight roll already advanced dateYmd */
+        }
         addDedup({
           roster_entry_kind: 'flight',
           flight_number: leg.fn,
-          flight_date: d.ymd,
+          flight_date: dateYmd,
           origin_iata: leg.from,
           destination_iata: leg.to,
           dep_time_local: leg.dep,
           arr_time_local: leg.arr,
           duty_clock_basis: 'local',
         });
-      });
+        prevDepMins = dm;
+      }
       continue;
     }
 
-    // Görev: blok sonundaki kod + saat çifti (IST/8:30 veya 3:00).
+    // Görev: blok sonundaki kod + saat çifti (IST/8:30 veya 3:00). BUS görev değil.
     let duty: { code: string; start: string; end: string } | null = null;
     for (let i = chunk.length - 1; i >= 1; i -= 1) {
       const t2 = parseThyLocalTimeLine(chunk[i] ?? '');
@@ -452,6 +511,7 @@ export function parseLocalTimeProgramFromPdfText_THY(text: string): PdfFlightRow
       let k = j - 1;
       while (k >= 0 && !(chunk[k] ?? '').trim()) k -= 1;
       const code = ((chunk[k] ?? '') as string).trim().toUpperCase();
+      if (/^BUS(?:-?\d*)?$/.test(code)) continue;
       if (!isThyLocalDutyCodeToken(code)) continue;
       duty = { code, start: t1.hm, end: t2.hm };
       break;

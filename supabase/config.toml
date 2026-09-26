@@ -236,9 +236,17 @@ content_path = "./supabase/templates/confirmation.html"
 subject = "FlyFam — Şifre sıfırlama / Reset your password"
 content_path = "./supabase/templates/recovery.html"
 
-# [auth.email.template.invite]
-# subject = "FlyFam daveti"
-# content_path = "./templates/invite.html"
+[auth.email.template.invite]
+subject = "FlyFam — Davetinizi kabul edin / Accept your invitation"
+content_path = "./supabase/templates/invite.html"
+
+[auth.email.template.magic_link]
+subject = "FlyFam — Güvenli giriş bağlantınız / Your secure sign-in link"
+content_path = "./supabase/templates/magic-link.html"
+
+[auth.email.template.email_change]
+subject = "FlyFam — E-posta değişikliğini doğrulayın / Confirm your email change"
+content_path = "./supabase/templates/change-email.html"
 
 # Uncomment to customize notification email template
 # [auth.email.notification.password_changed]
@@ -396,6 +404,14 @@ verify_jwt = false
 
 # Admin dashboard: Bearer token function içinde decode edilip email whitelist uygulanır.
 [functions.admin-dashboard]
+verify_jwt = false
+
+# Panel şifresi function içinde signInWithPassword; gateway JWT istemez.
+[functions.admin-panel-login]
+verify_jwt = false
+
+# Public HTML shell for Ops Console (mobile Chrome; github.io often blocked).
+[functions.admin-panel-ui]
 verify_jwt = false
 
 # Aile planı sayfası: admin oturumu function içinde auth.getUser ile, PIN token HMAC ile doğrulanır.

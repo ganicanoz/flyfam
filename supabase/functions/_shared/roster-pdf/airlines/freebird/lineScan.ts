@@ -343,14 +343,14 @@ export function parseFlightsFromPdfText_Freebird(text: string): PdfFlightRow[] {
           dutyStart = localNonMid[0] ?? dutyStart;
           dutyEnd = localNonMid[localNonMid.length - 1] ?? dutyEnd;
         }
-        if (!dutyStart) dutyStart = addMinutesToHhmm(utcTimes[0] ?? null, 180);
-        if (!dutyEnd) dutyEnd = addMinutesToHhmm(utcTimes[1] ?? null, 180);
+        if (!dutyStart) dutyStart = addMinutesToHhmm(utcTimes[0] ?? null, 180) ?? dutyStart;
+        if (!dutyEnd) dutyEnd = addMinutesToHhmm(utcTimes[1] ?? null, 180) ?? dutyEnd;
       }
       if (['FREE', 'OFF', 'VAC', 'RQST', 'DOFF'].includes(dutyCode)) {
         if (!dutyStart && dutyEnd === '23:59') dutyStart = '00:00';
         if (!dutyEnd && dutyStart === '00:00') dutyEnd = '23:59';
-        if (!dutyStart) dutyStart = addMinutesToHhmm(utcTimes[0] ?? null, 180);
-        if (!dutyEnd) dutyEnd = addMinutesToHhmm(utcTimes[1] ?? null, 180);
+        if (!dutyStart) dutyStart = addMinutesToHhmm(utcTimes[0] ?? null, 180) ?? dutyStart;
+        if (!dutyEnd) dutyEnd = addMinutesToHhmm(utcTimes[1] ?? null, 180) ?? dutyEnd;
       }
       if (dutyCode === 'FREE' && !dutyStart && !dutyEnd) {
         dutyStart = '00:00';

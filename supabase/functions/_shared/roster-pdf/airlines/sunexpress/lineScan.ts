@@ -766,12 +766,22 @@ export function parseFlightsFromPdfText_SunExpress(text: string): PdfFlightRow[]
 
   if (monthInfo && out.length > 0) {
     // Hedef ayda satırı olmayan günleri OFF ile doldur.
+    // Uçuşun flight_date'i yanı sıra dep/arr UTC günleri de dolu sayılır
+    // (gece dönüş ertesi takvim gününe FOF basılmasın).
     const dayHasEntry = new Set<number>();
-    for (const r of out) {
-      const y = Number(r.flight_date.slice(0, 4));
-      const m = Number(r.flight_date.slice(5, 7));
-      const d = Number(r.flight_date.slice(8, 10));
+    const markYmd = (ymd: string | null | undefined) => {
+      if (!ymd || ymd.length < 10) return;
+      const y = Number(ymd.slice(0, 4));
+      const m = Number(ymd.slice(5, 7));
+      const d = Number(ymd.slice(8, 10));
       if (y === monthInfo.year && m === monthInfo.month) dayHasEntry.add(d);
+    };
+    for (const r of out) {
+      markYmd(r.flight_date);
+      if (isFlightCode(r.flight_number)) {
+        markYmd(r.dep_schedule_utc_iso?.slice(0, 10));
+        markYmd(r.arr_schedule_utc_iso?.slice(0, 10));
+      }
     }
     const monthLen = daysInMonth(monthInfo.year, monthInfo.month);
     for (let d = 1; d <= monthLen; d += 1) {

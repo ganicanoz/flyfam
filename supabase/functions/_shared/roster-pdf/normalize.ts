@@ -39,8 +39,8 @@ export function normalizePdfTextForRosterParse(text: string): string {
 /** Pegasus duty roster (tarih+sütun blokları); bu formatta satır-taran Pegasus parser yanlış lastDate ile hayalet uçuş üretebilir. */
 export function looksLikePegasusDutyStylePdf(text: string): boolean {
   const t = (text || '').replace(/\r\n/g, '\n');
-  if (/\d{1,2}\.\d{1,2}\.\d{2}\d{1,2}:\d{2}(DUTY|FSF|FOF|STBY[A-Z0-9]*|\S*SIM|IPT)/i.test(t)) return true;
-  if (/\d{1,2}\.\d{1,2}\.\d{4}\d{1,2}:\d{2}(\S*SIM|IPT)/i.test(t)) return true;
+  if (/\d{1,2}\.\d{1,2}\.\d{2}\d{1,2}:\d{2}(DUTY|FSF|FOF|STBY[A-Z0-9]*|\S*SIM|\S*IPT)/i.test(t)) return true;
+  if (/\d{1,2}\.\d{1,2}\.\d{4}\d{1,2}:\d{2}(\S*SIM|\S*IPT)/i.test(t)) return true;
   if (/\d{1,2}\.\d{1,2}\.\d{2}\s+\d{1,2}:\d{2}\s+(DUTY|FSF|FOF|STBY)/i.test(t)) return true;
   return false;
 }

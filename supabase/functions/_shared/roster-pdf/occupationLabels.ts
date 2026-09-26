@@ -25,11 +25,19 @@ export function isStandbyOccupationCode(code: string | null | undefined): boolea
   );
 }
 
-/** Eğitim / training içeren yer görevleri — takvimde kırmızı, kartta görev. Sim/IPT hariç. */
+/** Evden yapılabilen görev (çevrimiçi eğitim) — takvimde turuncu çizgi, kırmızı nokta yok. */
+export function isHomeDutyOccupationCode(code: string | null | undefined): boolean {
+  const u = (code || '').replace(/\s/g, '').toUpperCase();
+  if (!u) return false;
+  return u === 'COTD' || u.startsWith('COTD');
+}
+
+/** Eğitim / training içeren yer görevleri — takvimde kırmızı, kartta görev. Sim/IPT / ev-duty hariç. */
 export function isTrainingOccupationCode(code: string | null | undefined): boolean {
   const u = (code || '').replace(/\s/g, '').toUpperCase();
   if (!u) return false;
   if (isSimulatorOccupationCode(u)) return false;
+  if (isHomeDutyOccupationCode(u)) return false;
   if (u.includes('TRAINING')) return true;
   if (u.includes('YERDR')) return true;
   return (

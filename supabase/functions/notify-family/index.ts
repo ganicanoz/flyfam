@@ -3,6 +3,7 @@
 // For daily digest, caller can use header x-cron-secret to bypass auth (set CRON_SECRET in Supabase secrets).
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { publicNotificationArtworkUrl } from '../_shared/notificationArtwork.ts';
 
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
 
@@ -58,6 +59,27 @@ function formatTimeInTimezone(iso: string | null, timezoneIana: string | null | 
 }
 
 type NotifLocale = 'en' | 'tr';
+
+/** Approved crew peer followers who should receive push for this crew's flights. */
+async function getCrewPeerFollowerIds(
+  supabaseAdmin: ReturnType<typeof createClient>,
+  peerCrewId: string,
+  excludeUserId?: string | null,
+): Promise<string[]> {
+  const { data: links } = await supabaseAdmin
+    .from('crew_peer_links')
+    .select('follower_user_id')
+    .eq('peer_crew_id', peerCrewId)
+    .eq('status', 'approved');
+  const ids: string[] = [];
+  for (const row of links ?? []) {
+    const uid = (row as { follower_user_id: string }).follower_user_id;
+    if (!uid) continue;
+    if (excludeUserId && uid === excludeUserId) continue;
+    if (!ids.includes(uid)) ids.push(uid);
+  }
+  return ids;
+}
 
 function todayFlightsBody(
   locale: NotifLocale,
@@ -215,15 +237,69 @@ function preferCityForLocale(
   return airportCode || 'unknown';
 }
 
-async function sendExpoPush(tokens: string[], title: string, body: string): Promise<void> {
+type PushSoundOpts = {
+  sound?: string;
+  channelId?: string;
+  icon?: string;
+  imageUrl?: string;
+};
+
+function pushSoundForType(type: string, opts?: { manualShare?: boolean }): PushSoundOpts {
+  // `_v2` channels: do not rename — Android locks channel sound at first creation.
+  const supabaseUrl = Deno.env.get('SUPABASE_URL');
+  if (type === 'took_off') {
+    return {
+      sound: 'flyfam_took_off.wav',
+      channelId: 'flyfam_took_off_v2',
+      icon: 'notification_icon_takeoff',
+      imageUrl: publicNotificationArtworkUrl(supabaseUrl, 'takeoff') ?? undefined,
+    };
+  }
+  if (type === 'landed') {
+    return {
+      sound: 'flyfam_landed.wav',
+      channelId: 'flyfam_landed_v2',
+      icon: 'notification_icon_landed',
+      imageUrl: publicNotificationArtworkUrl(supabaseUrl, 'landing') ?? undefined,
+    };
+  }
+  if (type === 'today_flights' && opts?.manualShare) {
+    return {
+      sound: 'flyfam_roster_share.wav',
+      channelId: 'flyfam_roster_share_v2',
+      icon: 'notification_icon_roster',
+      imageUrl: publicNotificationArtworkUrl(supabaseUrl, 'roster') ?? undefined,
+    };
+  }
+  return { sound: 'default', channelId: 'default', icon: 'notification_icon' };
+}
+
+async function sendExpoPush(
+  tokens: string[],
+  title: string,
+  body: string,
+  soundOpts?: PushSoundOpts,
+): Promise<void> {
   if (tokens.length === 0) return;
-  const messages = tokens.map((token) => ({
-    to: token,
-    title,
-    body,
-    sound: 'default' as const,
-    channelId: 'default', // Android: use app-created channel for sound/importance
-  }));
+  const sound = soundOpts?.sound ?? 'default';
+  const channelId = soundOpts?.channelId ?? 'default';
+  const icon = soundOpts?.icon?.trim() || undefined;
+  const imageUrl = soundOpts?.imageUrl?.trim() || undefined;
+  const messages = tokens.map((token) => {
+    const msg: Record<string, unknown> = {
+      to: token,
+      title,
+      body,
+      sound,
+      channelId,
+    };
+    if (icon) msg.icon = icon;
+    if (imageUrl) {
+      msg.richContent = { image: imageUrl };
+      msg.mutableContent = true;
+    }
+    return msg;
+  });
   const res = await fetch(EXPO_PUSH_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -485,30 +561,34 @@ Deno.serve(async (req) => {
         .select('id, family_id')
         .eq('crew_id', crewId)
         .eq('status', 'approved');
-      if (!conns?.length) continue;
 
-      const familyIds = conns.map((c) => c.family_id);
-      const connectionIds = conns.map((c) => c.id);
-      const { data: prefs } = await supabaseAdmin
-        .from('notification_preferences')
-        .select('user_id, connection_id, today_flights')
-        .in('connection_id', connectionIds);
-      const disabledForConnection = new Set<string>();
-      for (const p of prefs ?? []) {
-        if (p.today_flights === false) disabledForConnection.add(`${p.user_id}:${p.connection_id}`);
+      const familyIds = (conns ?? []).map((c) => c.family_id);
+      const connectionIds = (conns ?? []).map((c) => c.id);
+      let allowed: string[] = [];
+      if (connectionIds.length > 0) {
+        const { data: prefs } = await supabaseAdmin
+          .from('notification_preferences')
+          .select('user_id, connection_id, today_flights')
+          .in('connection_id', connectionIds);
+        const disabledForConnection = new Set<string>();
+        for (const p of prefs ?? []) {
+          if (p.today_flights === false) disabledForConnection.add(`${p.user_id}:${p.connection_id}`);
+        }
+        allowed = familyIds.filter((familyId) => {
+          const conn = (conns ?? []).find((c) => c.family_id === familyId);
+          if (!conn) return false;
+          return !disabledForConnection.has(`${familyId}:${conn.id}`);
+        });
       }
-      const allowed = familyIds.filter((familyId) => {
-        const conn = conns.find((c) => c.family_id === familyId);
-        if (!conn) return false;
-        return !disabledForConnection.has(`${familyId}:${conn.id}`);
-      });
-      if (allowed.length === 0) continue;
+      const peerFollowers = await getCrewPeerFollowerIds(supabaseAdmin, crewId, crew.user_id);
+      const allowedWithPeers = [...new Set([...allowed, ...peerFollowers])];
+      if (allowedWithPeers.length === 0) continue;
 
       const title = 'FlyFam';
       const { data: profilesWithTz } = await supabaseAdmin
         .from('profiles')
         .select('id, timezone_iana, locale')
-        .in('id', allowed);
+        .in('id', allowedWithPeers);
       const timezoneByUserId = new Map<string, string | null>();
       const localeByUserId = new Map<string, NotifLocale>();
       for (const p of profilesWithTz ?? []) {
@@ -517,7 +597,7 @@ Deno.serve(async (req) => {
         const isTr = typeof rawLocale === 'string' && rawLocale.toLowerCase().startsWith('tr');
         localeByUserId.set(p.id, isTr ? 'tr' : 'en');
       }
-      const { data: tokensRows } = await supabaseAdmin.from('device_tokens').select('user_id, token').in('user_id', allowed);
+      const { data: tokensRows } = await supabaseAdmin.from('device_tokens').select('user_id, token').in('user_id', allowedWithPeers);
       const tokensByUserId = new Map<string, string[]>();
       for (const row of tokensRows ?? []) {
         const t = (row as { user_id: string; token: string }).token?.trim();
@@ -526,7 +606,7 @@ Deno.serve(async (req) => {
         if (!tokensByUserId.has(uid)) tokensByUserId.set(uid, []);
         tokensByUserId.get(uid)!.push(t);
       }
-      for (const familyUserId of allowed) {
+      for (const familyUserId of allowedWithPeers) {
         const userTokens = tokensByUserId.get(familyUserId) ?? [];
         if (userTokens.length === 0) continue;
         const tz = timezoneByUserId.get(familyUserId) ?? null;
@@ -610,7 +690,7 @@ Deno.serve(async (req) => {
               dutyDurationText,
               crossDaySuffix
             );
-        await sendExpoPush(userTokens, title, body);
+        await sendExpoPush(userTokens, title, body, pushSoundForType('today_flights', { manualShare }));
         totalMembers += 1;
       }
       if (totalMembers > sentBeforeCrew) {
@@ -687,28 +767,28 @@ Deno.serve(async (req) => {
         .select('id, family_id')
         .eq('crew_id', body.crewId)
         .eq('status', 'approved');
-      if (!conns?.length) {
-        return new Response(JSON.stringify({ ok: true, sent: 0 }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+
+      const familyIds = (conns ?? []).map((c) => c.family_id);
+      const connectionIds = (conns ?? []).map((c) => c.id);
+      let allowed: string[] = [];
+      if (connectionIds.length > 0) {
+        const { data: prefs } = await supabaseAdmin
+          .from('notification_preferences')
+          .select('user_id, connection_id, today_flights')
+          .in('connection_id', connectionIds);
+        const disabledForConnection = new Set<string>();
+        for (const p of prefs ?? []) {
+          if (p.today_flights === false) disabledForConnection.add(`${p.user_id}:${p.connection_id}`);
+        }
+        allowed = familyIds.filter((familyId) => {
+          const conn = (conns ?? []).find((c) => c.family_id === familyId);
+          if (!conn) return false;
+          return !disabledForConnection.has(`${familyId}:${conn.id}`);
         });
       }
-
-      const familyIds = conns.map((c) => c.family_id);
-      const connectionIds = conns.map((c) => c.id);
-      const { data: prefs } = await supabaseAdmin
-        .from('notification_preferences')
-        .select('user_id, connection_id, today_flights')
-        .in('connection_id', connectionIds);
-      const disabledForConnection = new Set<string>();
-      for (const p of prefs ?? []) {
-        if (p.today_flights === false) disabledForConnection.add(`${p.user_id}:${p.connection_id}`);
-      }
-      const allowed = familyIds.filter((familyId) => {
-        const conn = conns.find((c) => c.family_id === familyId);
-        if (!conn) return false;
-        return !disabledForConnection.has(`${familyId}:${conn.id}`);
-      });
-      if (allowed.length === 0) {
+      const peerFollowers = await getCrewPeerFollowerIds(supabaseAdmin, body.crewId, crewRow.user_id);
+      const allowedWithPeers = [...new Set([...allowed, ...peerFollowers])];
+      if (allowedWithPeers.length === 0) {
         return new Response(JSON.stringify({ ok: true, sent: 0 }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
@@ -717,7 +797,7 @@ Deno.serve(async (req) => {
       const { data: profilesWithLocale } = await supabaseAdmin
         .from('profiles')
         .select('id, locale')
-        .in('id', allowed);
+        .in('id', allowedWithPeers);
       const localeByUserId = new Map<string, NotifLocale>();
       for (const p of profilesWithLocale ?? []) {
         const rawLocale = (p as { locale?: string | null }).locale;
@@ -727,7 +807,7 @@ Deno.serve(async (req) => {
       const { data: tokensRows } = await supabaseAdmin
         .from('device_tokens')
         .select('user_id, token')
-        .in('user_id', allowed);
+        .in('user_id', allowedWithPeers);
       const tokensByUserId = new Map<string, string[]>();
       for (const row of tokensRows ?? []) {
         const t = (row as { user_id: string; token: string }).token?.trim();
@@ -739,7 +819,7 @@ Deno.serve(async (req) => {
 
       const title = 'FlyFam';
       let totalMembers = 0;
-      for (const familyUserId of allowed) {
+      for (const familyUserId of allowedWithPeers) {
         const userTokens = tokensByUserId.get(familyUserId) ?? [];
         if (userTokens.length === 0) continue;
         const locale = localeByUserId.get(familyUserId) ?? 'tr';
@@ -867,28 +947,33 @@ Deno.serve(async (req) => {
         .eq('crew_id', crewId)
         .eq('status', 'approved');
       const uniqueByFamily = (conns2 ?? []).filter((c, i, a) => a.findIndex((x) => x.family_id === c.family_id) === i);
-      if (!uniqueByFamily.length) continue;
 
-      const prefKey = payload.type;
-      const connectionIds2 = uniqueByFamily.map((c) => c.id);
-      const { data: prefs2 } = await supabaseAdmin
-        .from('notification_preferences')
-        .select('user_id, connection_id, ' + prefKey)
-        .in('connection_id', connectionIds2);
-      const disabled2 = new Set<string>();
-      for (const p of prefs2 ?? []) {
-        if ((p as Record<string, boolean>)[prefKey] === false) disabled2.add(`${p.user_id}:${p.connection_id}`);
+      if (uniqueByFamily.length > 0) {
+        const prefKey = payload.type;
+        const connectionIds2 = uniqueByFamily.map((c) => c.id);
+        const { data: prefs2 } = await supabaseAdmin
+          .from('notification_preferences')
+          .select('user_id, connection_id, ' + prefKey)
+          .in('connection_id', connectionIds2);
+        const disabled2 = new Set<string>();
+        for (const p of prefs2 ?? []) {
+          if ((p as Record<string, boolean>)[prefKey] === false) disabled2.add(`${p.user_id}:${p.connection_id}`);
+        }
+        const allowed2 = uniqueByFamily
+          .filter((c) => !disabled2.has(`${c.family_id}:${c.id}`))
+          .map((c) => c.family_id);
+        for (const uid of allowed2) {
+          if (!recipientCrewNameByUser.has(uid)) recipientCrewNameByUser.set(uid, crewName);
+        }
       }
-      const allowed2 = uniqueByFamily
-        .filter((c) => !disabled2.has(`${c.family_id}:${c.id}`))
-        .map((c) => c.family_id);
-      for (const uid of allowed2) {
+      const peerFollowers = await getCrewPeerFollowerIds(supabaseAdmin, crewId, crewRow.user_id);
+      for (const uid of peerFollowers) {
         if (!recipientCrewNameByUser.has(uid)) recipientCrewNameByUser.set(uid, crewName);
       }
     }
 
     if (recipientCrewNameByUser.size === 0) {
-      console.log('[notify-family] sent=0: no approved family recipients for targeted crews', { flightId, targetCrewIds });
+      console.log('[notify-family] sent=0: no approved recipients for targeted crews', { flightId, targetCrewIds });
       return new Response(JSON.stringify({ ok: true, sent: 0 }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
@@ -997,7 +1082,7 @@ Deno.serve(async (req) => {
         const p = payload as FlightEventPayload;
         body = delayedBody(locale, crewName, cityFrom, cityTo, p.delayPhase, p.delayMinutes);
       }
-      await sendExpoPush(userTokens, title, body);
+      await sendExpoPush(userTokens, title, body, pushSoundForType(payload.type));
       totalSent2 += userTokens.length;
       loggedUserIds.push(uid);
     }

@@ -28,6 +28,7 @@ export {
   isOfficeDutyOccupationCode,
   isStandbyOccupationCode,
   isTrainingOccupationCode,
+  isHomeDutyOccupationCode,
 } from './occupationLabels.ts';
 
 export { isSimulatorOccupationCode, simulatorFlightNumberLabel, PEGASUS_SIM_OR_IPT_OCC } from './simulatorDuty.ts';

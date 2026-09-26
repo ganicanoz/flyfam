@@ -21,7 +21,6 @@ type SupabaseSvc = any;
 const AIRLABS_BASE = 'https://airlabs.co/api/v9';
 const AERODATABOX_BASE = 'https://aerodatabox.p.rapidapi.com';
 const AEROAPI_BASE = 'https://aeroapi.flightaware.com/aeroapi';
-const AERODATABOX_RAPIDAPI_FALLBACK = '15e502192bmsh69e44f588a1f748p1f3145jsnb8957fc1856c';
 const FR24_URL = 'https://fr24api.flightradar24.com/api/flight-summary/light';
 
 const COOLDOWN_AIRLABS = 'airlabs';
@@ -343,7 +342,7 @@ async function fetchAeroDataBoxFlight(
     Deno.env.get('AERODATABOX_RAPIDAPI_KEY') ??
     Deno.env.get('RAPIDAPI_KEY') ??
     Deno.env.get('EXPO_PUBLIC_AERODATABOX_RAPIDAPI_KEY') ??
-    AERODATABOX_RAPIDAPI_FALLBACK;
+    '';
   // ADB 429 risk: semi/active zincirde fan-out'u sınırlıyoruz.
   const variants = flightNumberVariants(flightNumber).slice(0, 3);
   const sources = buildAerodataboxFlightNumberSources(variants, flightDate, rapidKey, {
@@ -442,6 +441,7 @@ async function fetchAirLabsFlight(
   delayArrMin: number | null;
   progressPercent: number | null;
   aircraftRegistration: string | null;
+  aircraftType: string | null;
 } | null> {
   if (isBlockedUntil(cooldownMap, COOLDOWN_AIRLABS)) return null;
   const raw = flightNumber.replace(/\s/g, '').trim().toUpperCase();
@@ -483,9 +483,12 @@ async function fetchAirLabsFlight(
       const regRaw = o.reg_number ?? o.reg_num;
       const aircraftRegistration =
         typeof regRaw === 'string' && regRaw.trim() ? regRaw.trim().toUpperCase() : null;
+      const typeRaw = o.aircraft_icao ?? o.ac_icao ?? o.aircraft_iata;
+      const aircraftType =
+        typeof typeRaw === 'string' && typeRaw.trim() ? typeRaw.trim().toUpperCase() : null;
       if (
         !depIso && !arrIso && !st && delayDepMin == null && delayArrMin == null && progressPercent == null &&
-        !aircraftRegistration
+        !aircraftRegistration && !aircraftType
       ) continue;
       return {
         scheduledDep: depIso,
@@ -496,6 +499,7 @@ async function fetchAirLabsFlight(
         delayArrMin,
         progressPercent,
         aircraftRegistration,
+        aircraftType,
       };
     } catch {
       continue;
@@ -694,6 +698,7 @@ function attachAirLabsTimingFields(
   if (al.delayArrMin != null) info.delayArrMin = al.delayArrMin;
   if (al.progressPercent != null) info.airlabsProgressPercent = al.progressPercent;
   if (al.aircraftRegistration) info.aircraftRegistration = al.aircraftRegistration;
+  if (al.aircraftType) info.aircraftType = al.aircraftType;
 }
 
 export async function pollRosterFlightEdge(
@@ -730,7 +735,8 @@ export async function pollRosterFlightEdge(
       o.delayArrMin == null &&
       o.airlabsProgressPercent == null &&
       !o.fr24_progress_dep_utc &&
-      !o.aircraftRegistration
+      !o.aircraftRegistration &&
+      !o.aircraftType
     ) {
       return null;
     }

@@ -15,7 +15,6 @@ import {
 } from '../_shared/hubAirportBoardAdbSync.ts';
 import { istanbulCalendarDate, istanbulSlotKey } from '../_shared/hubAirportBoardIstanbul.ts';
 
-const AERODATABOX_RAPIDAPI_FALLBACK = '15e502192bmsh69e44f588a1f748p1f3145jsnb8957fc1856c';
 const CACHE_ID = 'singleton';
 /** Tam hub turunda: sık cron ADB yakmasın. */
 const SKIP_IF_NEWER_THAN_MS = 11 * 60 * 60 * 1000;
@@ -56,7 +55,7 @@ Deno.serve(async (req) => {
   const cronSecret = Deno.env.get('CRON_SECRET');
   const rapidKey =
     (Deno.env.get('AERODATABOX_RAPIDAPI_KEY') ?? Deno.env.get('RAPIDAPI_KEY') ??
-      Deno.env.get('EXPO_PUBLIC_AERODATABOX_RAPIDAPI_KEY') ?? '').trim() || AERODATABOX_RAPIDAPI_FALLBACK;
+      Deno.env.get('EXPO_PUBLIC_AERODATABOX_RAPIDAPI_KEY') ?? '').trim();
 
   if (!supabaseUrl || !serviceKey) {
     return new Response(JSON.stringify({ error: 'Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY' }), {

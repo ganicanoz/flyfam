@@ -1,3 +1,8 @@
+/**
+ * Shared Expo Push helpers for FlyFam family notifications.
+ * Sound channel IDs (`flyfam_*_v2`) are owned by the mobile app; do not rename lightly.
+ */
+
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
 
 export type ExpoPushResult = {
@@ -5,21 +10,44 @@ export type ExpoPushResult = {
   errors: string[];
 };
 
+export type ExpoPushSoundOpts = {
+  sound?: string;
+  channelId?: string;
+  /** Android small icon drawable resource name (monochrome). */
+  icon?: string;
+  /** HTTPS URL for rich notification image (Android BigPicture; iOS NSE attachment). */
+  imageUrl?: string;
+};
+
 export async function sendExpoPush(
   tokens: string[],
   title: string,
   body: string,
   data?: Record<string, unknown> | null,
+  soundOpts?: ExpoPushSoundOpts,
 ): Promise<ExpoPushResult> {
   if (tokens.length === 0) return { sent: 0, errors: [] };
-  const messages = tokens.map((token) => ({
-    to: token,
-    title,
-    body,
-    sound: 'default' as const,
-    channelId: 'default',
-    ...(data && Object.keys(data).length > 0 ? { data } : {}),
-  }));
+  const sound = soundOpts?.sound ?? 'default';
+  const channelId = soundOpts?.channelId ?? 'default';
+  const icon = soundOpts?.icon?.trim() || undefined;
+  const imageUrl = soundOpts?.imageUrl?.trim() || undefined;
+  const messages = tokens.map((token) => {
+    const msg: Record<string, unknown> = {
+      to: token,
+      title,
+      body,
+      sound,
+      channelId,
+    };
+    if (icon) msg.icon = icon;
+    if (imageUrl) {
+      msg.richContent = { image: imageUrl };
+      // Required so iOS Notification Service Extension can attach the image.
+      msg.mutableContent = true;
+    }
+    if (data && Object.keys(data).length > 0) msg.data = data;
+    return msg;
+  });
   const res = await fetch(EXPO_PUSH_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

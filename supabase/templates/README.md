@@ -8,11 +8,16 @@ Bu klasördeki HTML dosyalarını **production** Supabase projenize yapıştır�
 |-------|-------------------|-------------------------|
 | `confirmation.html` | Confirm signup | `FlyFam — E-posta doğrulama / Verify your email` |
 | `recovery.html` | Reset password | `FlyFam — Şifre sıfırlama / Reset your password` |
+| `invite.html` | Invite user | `FlyFam — Davetinizi kabul edin / Accept your invitation` |
+| `magic-link.html` | Magic link | `FlyFam — Güvenli giriş bağlantınız / Your secure sign-in link` |
+| `change-email.html` | Change email address | `FlyFam — E-posta değişikliğini doğrulayın / Confirm your email change` |
 
-Her şablon **TR + EN** metin içerir (tek mail, tek `{{ .ConfirmationURL }}` butonu).
+Her şablon **TR + EN** metin ve tek bir güvenli ana işlem butonu içerir.
 
 - **FlyFam logosu** — Supabase Storage public URL (`admin-static/brand/flyfam-email-logo.png`); Gmail/Outlook base64 göstermez
-- Renkler: gökyüzü gradient `#D8E8FD → #B4CCFB → #7BA8EE`, buton `#1D4FA3`, link `#5AA6FF`
+- **Özgün başlık görselleri** — hesap/davet/giriş için `flyfam-email-confirmation-hero.jpg`, güvenlik işlemleri için `flyfam-email-recovery-hero.jpg`
+- Renkler: uygulamayla aynı lacivert–mavi sistem `#0F1B3D` ve `#1A5CF5`; sıcak ışık vurguları aileyle bağlantıyı temsil eder
+- Düzen: beyaz marka başlığı, geniş hikâye görseli, tek net ana işlem, hesap kartı, Türkçe ana içerik ve kompakt İngilizce karşılığı
 
 Logo / renk güncelleme:
 
@@ -25,9 +30,10 @@ python3 scripts/build-auth-email-templates.py
 Önemli:
 
 - Gövdede bağlantı: HTTPS köprü + `token_hash` (PKCE code verifier gerektirmez).
-  Örnek: `https://ganicanoz.github.io/flyfam/auth-callback.html?token_hash={{ .TokenHash }}&type=signup`
+  Örnek: `https://app.flyfamapp.com/auth-callback.html?token_hash={{ .TokenHash }}&type=signup`
+- Kullanılan doğrulama türleri: `signup`, `recovery`, `invite`, `magiclink`, `email_change`.
 - **URL Configuration** → Site URL / Redirect URLs:
-  - `https://ganicanoz.github.io/flyfam/auth-callback.html`
+  - `https://app.flyfamapp.com/auth-callback.html`
   - `flyfam://auth/callback`
   - `flyfam://**`
   - `com.flyfam.app://**`

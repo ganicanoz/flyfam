@@ -42,6 +42,10 @@ function isPcFlightCode(code: string): boolean {
 function isTkFlightCode(code: string): boolean {
   return /^TK\d{3,4}$/.test(code);
 }
+/** AJet (THY low-cost) — THY ekip PDF’lerinde VF uçuşları görev olarak gelir. */
+function isVfFlightCode(code: string): boolean {
+  return /^VF\d{2,4}$/.test(code);
+}
 function isXqFlightCode(code: string): boolean {
   return /^XQ\d{2,4}$/.test(code);
 }
@@ -54,7 +58,7 @@ function is6eFlightCode(code: string): boolean {
 
 /**
  * Yalnızca desteklenen ICAO için çağrılmalı.
- * PGT: PC… + DH + duty_off/sim · THY: TK… + duty · SXS: XQ… · FHY: FH… · IGO: 6E…
+ * PGT: PC… + DH + duty_off/sim · THY: TK… + VF… (AJet) + duty · SXS: XQ… · FHY: FH… · IGO: 6E…
  */
 export function filterPdfRowsForCrewAirline(
   rows: PdfFlightRow[],
@@ -73,8 +77,14 @@ export function filterPdfRowsForCrewAirline(
       continue;
     }
     if (icao === 'THY') {
-      if (isTkFlightCode(code) || r.roster_entry_kind === 'duty_off' || r.roster_entry_kind === 'sim') kept.push(r);
-      else skippedWrongAirline += 1;
+      if (
+        isTkFlightCode(code) ||
+        isVfFlightCode(code) ||
+        r.roster_entry_kind === 'duty_off' ||
+        r.roster_entry_kind === 'sim'
+      ) {
+        kept.push(r);
+      } else skippedWrongAirline += 1;
       continue;
     }
     if (icao === 'SXS') {

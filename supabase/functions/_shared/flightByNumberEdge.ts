@@ -17,8 +17,6 @@ const AIRLABS_BASE = 'https://airlabs.co/api/v9';
 const AERODATABOX_BASE = 'https://aerodatabox.p.rapidapi.com';
 const AEROAPI_BASE = 'https://aeroapi.flightaware.com/aeroapi';
 const AVIATIONSTACK_BASE = 'https://api.aviationstack.com/v1';
-/** Env yoksa RapidAPI key (kullanıcı isteği); üretimde `AERODATABOX_RAPIDAPI_KEY` secret tercih edilir. */
-const AERODATABOX_RAPIDAPI_FALLBACK = '15e502192bmsh69e44f588a1f748p1f3145jsnb8957fc1856c';
 const FR24_URL = 'https://fr24api.flightradar24.com/api/flight-summary/light';
 const COOLDOWN_AIRLABS = 'airlabs';
 const COOLDOWN_FR24 = 'fr24';
@@ -351,7 +349,7 @@ async function fetchFromAeroDataBoxFlightEdge(
     Deno.env.get('AERODATABOX_RAPIDAPI_KEY') ??
     Deno.env.get('RAPIDAPI_KEY') ??
     Deno.env.get('EXPO_PUBLIC_AERODATABOX_RAPIDAPI_KEY') ??
-    AERODATABOX_RAPIDAPI_FALLBACK;
+    '';
   const variants = flightNumberVariants(flightNumber).slice(0, 6);
   const sources = buildAerodataboxFlightNumberSources(variants, flightDate, rapidKey);
   if (!sources.length) return null;

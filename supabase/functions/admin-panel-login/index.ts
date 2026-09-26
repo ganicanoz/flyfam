@@ -6,8 +6,6 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
-const DEFAULT_ADMIN_EMAIL = 'ganicanoz@gmail.com';
-
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -46,7 +44,17 @@ Deno.serve(async (req) => {
     });
   }
 
-  const adminEmail = (Deno.env.get('ADMIN_PANEL_EMAIL') ?? DEFAULT_ADMIN_EMAIL).trim().toLowerCase();
+  const adminEmail = (
+    Deno.env.get('ADMIN_PANEL_EMAIL') ??
+    Deno.env.get('ADMIN_DASHBOARD_ALLOWED_EMAILS')?.split(',')[0] ??
+    ''
+  ).trim().toLowerCase();
+  if (!adminEmail) {
+    return new Response(JSON.stringify({ error: 'Server misconfigured' }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
   const client = createClient(supabaseUrl, anonKey, {
     auth: { autoRefreshToken: false, persistSession: false },
   });

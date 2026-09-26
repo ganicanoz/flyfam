@@ -35,8 +35,6 @@ const FR24_URL = 'https://fr24api.flightradar24.com/api/flight-summary/light';
 const AIRLABS_BASE = 'https://airlabs.co/api/v9';
 const AERODATABOX_BASE = 'https://aerodatabox.p.rapidapi.com';
 const AEROAPI_BASE = 'https://aeroapi.flightaware.com/aeroapi';
-const AERODATABOX_RAPIDAPI_FALLBACK = '15e502192bmsh69e44f588a1f748p1f3145jsnb8957fc1856c';
-
 const IATA_TO_ICAO: Record<string, string> = { PC: 'PGT', TK: 'THY', XQ: 'SXS' };
 
 type DbFlightStatus = 'scheduled' | 'taxi_out' | 'en_route' | 'landed';
@@ -221,13 +219,58 @@ function hasStrongLandedEvidence(args: {
   aeroActualInUtc?: string | null;
   actualArrivalDb?: string | null;
   includeDbActualArrival?: boolean;
+  scheduledDepUtc?: string | null;
+  scheduledArrUtc?: string | null;
+  nowMs?: number;
 }): boolean {
   const useDb = args.includeDbActualArrival !== false;
-  return Boolean(
-    toUtcIsoAssumeUtc(args.fr24LandedUtc ?? null) ??
-      toUtcIsoAssumeUtc(args.aeroActualInUtc ?? null) ??
-      (useDb ? toUtcIsoAssumeUtc(args.actualArrivalDb ?? null) : null),
-  );
+  const nowMs = args.nowMs ?? Date.now();
+  const fr24 = toUtcIsoAssumeUtc(args.fr24LandedUtc ?? null);
+  if (fr24) return true;
+
+  const aero = toUtcIsoAssumeUtc(args.aeroActualInUtc ?? null);
+  if (
+    aero &&
+    isActualInReliableForCurrentLeg({
+      actualInUtc: aero,
+      scheduledDepUtc: args.scheduledDepUtc ?? null,
+      scheduledArrUtc: args.scheduledArrUtc ?? null,
+      nowMs,
+    })
+  ) {
+    return true;
+  }
+
+  if (!useDb) return false;
+  const dbArr = toUtcIsoAssumeUtc(args.actualArrivalDb ?? null);
+  if (
+    dbArr &&
+    isActualInReliableForCurrentLeg({
+      actualInUtc: dbArr,
+      scheduledDepUtc: args.scheduledDepUtc ?? null,
+      scheduledArrUtc: args.scheduledArrUtc ?? null,
+      nowMs,
+    })
+  ) {
+    return true;
+  }
+  return false;
+}
+
+/** Provider ETA/ETD must sit near this roster leg — reject previous/next calendar day. */
+function providerScheduleMatchesRosterLeg(args: {
+  providerUtc?: string | null;
+  scheduledUtc?: string | null;
+  maxAbsDiffHours?: number;
+}): boolean {
+  const providerIso = toUtcIsoAssumeUtc(args.providerUtc ?? null);
+  const scheduledIso = toUtcIsoAssumeUtc(args.scheduledUtc ?? null);
+  if (!providerIso || !scheduledIso) return false;
+  const pMs = new Date(providerIso).getTime();
+  const sMs = new Date(scheduledIso).getTime();
+  if (!Number.isFinite(pMs) || !Number.isFinite(sMs)) return false;
+  const maxH = args.maxAbsDiffHours ?? 12;
+  return Math.abs(pMs - sMs) <= maxH * 60 * 60 * 1000;
 }
 
 /**
@@ -471,7 +514,7 @@ async function fetchAeroDataBoxFlight(
     Deno.env.get('AERODATABOX_RAPIDAPI_KEY') ??
     Deno.env.get('RAPIDAPI_KEY') ??
     Deno.env.get('EXPO_PUBLIC_AERODATABOX_RAPIDAPI_KEY') ??
-    AERODATABOX_RAPIDAPI_FALLBACK;
+    '';
 
   // ADB 429 risk: semi/active zincirde fan-out'u sınırlıyoruz.
   const variants = flightNumberVariants(flightNumber).slice(0, 3);
@@ -779,15 +822,43 @@ const POLL_CRUISE_MS = 25 * 60 * 1000;
 const MINUTE_MS = 60 * 1000;
 
 /** FR24 datetime_takeoff → DB alanı (polling kalkış referansı birinci öncelik). */
-function fr24DatetimeTakeoffUtcPatch(f: Fr24Flight): Record<string, unknown> {
+function fr24DatetimeTakeoffUtcPatch(
+  f: Fr24Flight,
+  scheduledDepUtc?: string | null,
+): Record<string, unknown> {
   const takeoff = toUtcIsoAssumeUtc((f.datetime_takeoff ?? f.datetimeTakeoff) as string | undefined);
-  return takeoff ? { fr24_datetime_takeoff_utc: takeoff } : {};
+  if (!takeoff) return {};
+  if (
+    scheduledDepUtc &&
+    !providerScheduleMatchesRosterLeg({
+      providerUtc: takeoff,
+      scheduledUtc: scheduledDepUtc,
+      maxAbsDiffHours: 12,
+    })
+  ) {
+    return {};
+  }
+  return { fr24_datetime_takeoff_utc: takeoff };
 }
 
 /** FR24 first_seen → DB (STD ile kıyaslı kalkış gecikmesi için). */
-function fr24FirstSeenUtcPatch(f: Fr24Flight): Record<string, unknown> {
+function fr24FirstSeenUtcPatch(
+  f: Fr24Flight,
+  scheduledDepUtc?: string | null,
+): Record<string, unknown> {
   const first = toUtcIsoAssumeUtc((f.first_seen ?? f.firstSeen) as string | undefined);
-  return first ? { fr24_first_seen_utc: first } : {};
+  if (!first) return {};
+  if (
+    scheduledDepUtc &&
+    !providerScheduleMatchesRosterLeg({
+      providerUtc: first,
+      scheduledUtc: scheduledDepUtc,
+      maxAbsDiffHours: 12,
+    })
+  ) {
+    return {};
+  }
+  return { fr24_first_seen_utc: first };
 }
 
 /**
@@ -1041,7 +1112,10 @@ Deno.serve(async (req) => {
       const rosterKey = rosterPollCacheKey('semi_active', row.flight_number as string, row.flight_date as string);
       const cachedPoll = await getCachedPayload(supabase, rosterKey);
       if (cachedPoll) {
-        const cachePatch = semiActivePatchFromCachedRosterPoll(cachedPoll);
+        const cachePatch = semiActivePatchFromCachedRosterPoll(cachedPoll, {
+          scheduled_departure: (row.scheduled_departure as string | null | undefined) ?? null,
+          scheduled_arrival: (row.scheduled_arrival as string | null | undefined) ?? null,
+        });
         if (Object.keys(cachePatch).length > 0) {
           const { error: upErr } = await supabase.from('flights').update(cachePatch).eq('id', row.id);
           if (!upErr) semiScheduleUpdates++;
@@ -1065,8 +1139,24 @@ Deno.serve(async (req) => {
 
       const patch: Record<string, unknown> = {};
       if (al) {
-        if (al.scheduledDep) patch.estimated_departure = al.scheduledDep;
-        if (al.scheduledArr) patch.estimated_arrival = al.scheduledArr;
+        if (
+          al.scheduledDep &&
+          providerScheduleMatchesRosterLeg({
+            providerUtc: al.scheduledDep,
+            scheduledUtc: (row.scheduled_departure as string | null | undefined) ?? null,
+          })
+        ) {
+          patch.estimated_departure = al.scheduledDep;
+        }
+        if (
+          al.scheduledArr &&
+          providerScheduleMatchesRosterLeg({
+            providerUtc: al.scheduledArr,
+            scheduledUtc: (row.scheduled_arrival as string | null | undefined) ?? null,
+          })
+        ) {
+          patch.estimated_arrival = al.scheduledArr;
+        }
         if (al.delayDepMin != null) patch.delay_dep_min = al.delayDepMin;
         if (al.delayArrMin != null) patch.delay_arr_min = al.delayArrMin;
         if (al.progressPercent != null) patch.airlabs_progress_percent = al.progressPercent;
@@ -1113,8 +1203,19 @@ Deno.serve(async (req) => {
         pickedFr = f;
         fr24Ended = fr24FlightEnded(f);
         const barPatch = fr24ProgressBarPatch(f);
-        Object.assign(barPatch, fr24DatetimeTakeoffUtcPatch(f), fr24FirstSeenUtcPatch(f));
-        const landedTs = fr24LandedUtcFromFlight(f);
+        const stdUtc = (row.scheduled_departure as string | null | undefined) ?? null;
+        Object.assign(barPatch, fr24DatetimeTakeoffUtcPatch(f, stdUtc), fr24FirstSeenUtcPatch(f, stdUtc));
+        const landedTsRaw = fr24LandedUtcFromFlight(f);
+        const landedTs =
+          landedTsRaw &&
+          (!stdUtc ||
+            providerScheduleMatchesRosterLeg({
+              providerUtc: landedTsRaw,
+              scheduledUtc: (row.scheduled_arrival as string | null | undefined) ?? stdUtc,
+              maxAbsDiffHours: 18,
+            }))
+            ? landedTsRaw
+            : undefined;
         if (landedTs) barPatch.fr24_datetime_landed_utc = landedTs;
         if (Object.keys(barPatch).length > 0) {
           await supabase.from('flights').update(barPatch).eq('id', row.id);
@@ -1141,8 +1242,24 @@ Deno.serve(async (req) => {
       );
       if (al) {
         const alMeta: Record<string, unknown> = {};
-        if (al.scheduledDep) alMeta.estimated_departure = al.scheduledDep;
-        if (al.scheduledArr) alMeta.estimated_arrival = al.scheduledArr;
+        if (
+          al.scheduledDep &&
+          providerScheduleMatchesRosterLeg({
+            providerUtc: al.scheduledDep,
+            scheduledUtc: (row.scheduled_departure as string | null | undefined) ?? null,
+          })
+        ) {
+          alMeta.estimated_departure = al.scheduledDep;
+        }
+        if (
+          al.scheduledArr &&
+          providerScheduleMatchesRosterLeg({
+            providerUtc: al.scheduledArr,
+            scheduledUtc: (row.scheduled_arrival as string | null | undefined) ?? null,
+          })
+        ) {
+          alMeta.estimated_arrival = al.scheduledArr;
+        }
         if (al.delayDepMin != null) alMeta.delay_dep_min = al.delayDepMin;
         // İniş sonrası stale ETA/arr_delayed yazma — ATA−STA aşağıda hesaplanır.
         if (al.delayArrMin != null && !fr24LandedTs && !al.actualIn) {
@@ -1212,10 +1329,9 @@ Deno.serve(async (req) => {
         await supabase.from('flights').update(endedPatch).eq('id', row.id);
       } else {
         // flight_ended=true: datetime_landed yoksa bile landed (last_seen → fr24_datetime_landed_utc).
+        // Do NOT copy provider scheduledArr into actual_arrival (often previous calendar day).
         newStatus = 'landed';
-        if (!endedPatch.actual_arrival && al?.scheduledArr) {
-          endedPatch.actual_arrival = al.scheduledArr;
-        }
+        if (fr24LandedTs) endedPatch.actual_arrival = fr24LandedTs;
         await supabase.from('flights').update(endedPatch).eq('id', row.id);
       }
     } else if (frStatus != null) {
@@ -1247,14 +1363,25 @@ Deno.serve(async (req) => {
       await supabase.from('flights').update({ internal_status: 'en_route', review_flag: false }).eq('id', row.id);
     } else if (al) {
       const st = mapAirLabsStatus(al.status ?? undefined);
-      // Fallback landed accepted (AirLabs/ADB/AeroAPI) when FR24 datetime_landed is unavailable.
-      if (st === 'landed') {
+      // Fallback landed only with reliable actualIn — never scheduledArr-as-ATA (wrong-day trap).
+      if (
+        st === 'landed' &&
+        al.actualIn &&
+        isActualInReliableForCurrentLeg({
+          actualInUtc: al.actualIn,
+          actualOutUtc: al.actualOut ?? null,
+          scheduledDepUtc: (row.scheduled_departure as string | null | undefined) ?? null,
+          scheduledArrUtc: (row.scheduled_arrival as string | null | undefined) ?? null,
+          nowMs,
+        })
+      ) {
         newStatus = 'landed';
-        const landedPatch: Record<string, unknown> = { internal_status: 'landed' };
-        if (al.actualIn) landedPatch.actual_arrival = al.actualIn;
-        else if (al.scheduledArr) landedPatch.actual_arrival = al.scheduledArr;
+        const landedPatch: Record<string, unknown> = {
+          internal_status: 'landed',
+          actual_arrival: al.actualIn,
+        };
         await supabase.from('flights').update(landedPatch).eq('id', row.id);
-      } else if (st) {
+      } else if (st && st !== 'landed') {
         newStatus = st;
         const reviewPatch: Record<string, unknown> = { internal_status: st };
         if (st === 'taxi_out') {
@@ -1276,6 +1403,9 @@ Deno.serve(async (req) => {
         aeroActualInUtc: al?.actualIn ?? null,
         actualArrivalDb: (row.actual_arrival as string | null | undefined) ?? null,
         includeDbActualArrival: false,
+        scheduledDepUtc: (row.scheduled_departure as string | null | undefined) ?? null,
+        scheduledArrUtc: (row.scheduled_arrival as string | null | undefined) ?? null,
+        nowMs,
       });
       if (staleBy4h && landedEvidenceForStale && (alStatusLower === 'landed' || alStatusLower === 'arrived')) {
         newStatus = 'landed';
@@ -1288,6 +1418,9 @@ Deno.serve(async (req) => {
         aeroActualInUtc: al?.actualIn ?? null,
         actualArrivalDb: (row.actual_arrival as string | null | undefined) ?? null,
         includeDbActualArrival: false,
+        scheduledDepUtc: (row.scheduled_departure as string | null | undefined) ?? null,
+        scheduledArrUtc: (row.scheduled_arrival as string | null | undefined) ?? null,
+        nowMs,
       }) ||
       (fr24Ended && pickedFr != null);
 
@@ -1486,7 +1619,9 @@ Deno.serve(async (req) => {
 
     const { data: termRows, error: termListErr } = await supabase
       .from('flights')
-      .select('id, flight_date, flight_status, actual_arrival, fr24_datetime_landed_utc')
+      .select(
+        'id, flight_date, flight_status, actual_arrival, fr24_datetime_landed_utc, scheduled_departure, scheduled_arrival',
+      )
       .eq('roster_entry_kind', 'flight')
       .not('scheduled_departure', 'is', null)
       .in('flight_status', ['landed', 'parked', 'cancelled', 'diverted', 'en_route'])
@@ -1510,6 +1645,9 @@ Deno.serve(async (req) => {
           const landedEvidence = hasStrongLandedEvidence({
             fr24LandedUtc: (tr as Record<string, unknown>).fr24_datetime_landed_utc as string | null | undefined,
             actualArrivalDb: (tr as Record<string, unknown>).actual_arrival as string | null | undefined,
+            scheduledDepUtc: (tr as Record<string, unknown>).scheduled_departure as string | null | undefined,
+            scheduledArrUtc: (tr as Record<string, unknown>).scheduled_arrival as string | null | undefined,
+            nowMs: Date.now(),
           });
           if (!landedEvidence) continue;
           notifType = 'landed';

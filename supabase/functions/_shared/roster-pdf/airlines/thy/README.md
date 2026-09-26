@@ -6,9 +6,10 @@ Kaynak: `lineScan.ts` — `parseLocalTimeProgramFromPdfText_THY` / `parseFlights
 
 - Dipnot cümlesindeki “LOKAL SAATLI …” değil; satır başı başlık `LOKAL SAATLI UCUS PROGRAMI`.
 - Bölüm sonu: `ACIKLAMALAR`.
-- Her gün `MB:` bloğu; uçuşlarda `GMB:` tarihleri + `TK###` + `AAA/h:mm` çiftleri.
+- Her gün `MB:` bloğu; uçuşlarda `GMB:` tarihleri + `TK###` / `VF###` (AJet) + `AAA/h:mm` çiftleri.
 - Görevler: blok sonu kod (`RC1`, `EMM`, `HSBY`, `CFR`, …) + saat çifti (`IST/8:30` veya `3:00`).
-- **Uçuş:** `TK###` + lokal saat çifti.
+- **Uçuş:** `TK###` veya `VF###` (AJet; THY ekibi) + lokal saat çifti. Opsiyonel `P` satırı atlanır.
+- **BUS / BUS-01:** IST↔SAW transfer — import edilmez.
 - **Görev / boş gün:** blok sonundaki kod + saat çifti (`RC1`, `EMM`, `HSBY`, `CFR`, `IBB`, `IBI`, …).
 - Kural: lokal tabloda tanınan her satır import edilir; meta/limit satırları ve bilinmeyen token’lar atlanır.
 - Saatler **lokal** (`duty_clock_basis: 'local'`); UTC Edge/istemci import’ta IATA TZ ile üretilir.

@@ -42,6 +42,8 @@ export function parseFlightsFromPdfText_DutyLocalTableCore(text: string): PdfFli
   const lines = text.split(/\r?\n/).map((l) => l.trim());
   const out: PdfFlightRow[] = [];
   const planTimeBasis = detectPegasusPlanTimeBasis(text);
+  /** Active Plan (Z) → nöbet/DUTY/rest duvar saatleri Zulu; aksi (L)/bilinmeyen → TR local. */
+  const dutyClockBasis: 'local' | 'utc' = planTimeBasis === 'Z' ? 'utc' : 'local';
 
   /** 22.03.2615:25DUTY | …FSF | …IPT | …OPC3-SIM (2 haneli yıl) */
   const dutyOcc = `([A-Z][A-Z0-9_-]{1,20}|${PEGASUS_SIM_OR_IPT_OCC})`;
@@ -98,6 +100,7 @@ export function parseFlightsFromPdfText_DutyLocalTableCore(text: string): PdfFli
       duty_occupation_code: pendingOccupationCode,
       duty_occupation_label_tr: rosterOccupationLabelTr(pendingOccupationCode),
       duty_occupation_label_en: rosterOccupationLabelEn(pendingOccupationCode),
+      duty_clock_basis: dutyClockBasis,
       duty_start_time_local: pendingDutyStartTime,
       duty_slash_start_date_iso: p0.ymd,
       duty_slash_start_time_local: p0.hhmm,
@@ -118,6 +121,7 @@ export function parseFlightsFromPdfText_DutyLocalTableCore(text: string): PdfFli
       duty_occupation_code: code,
       duty_occupation_label_tr: rosterOccupationLabelTr(code),
       duty_occupation_label_en: rosterOccupationLabelEn(code),
+      duty_clock_basis: dutyClockBasis,
       duty_start_time_local: pendingDutyStartTime,
       duty_end_date_iso: p0.ymd,
       duty_end_time_local: p0.hhmm,
@@ -138,6 +142,7 @@ export function parseFlightsFromPdfText_DutyLocalTableCore(text: string): PdfFli
       duty_occupation_code: code,
       duty_occupation_label_tr: rosterOccupationLabelTr(code),
       duty_occupation_label_en: rosterOccupationLabelEn(code),
+      duty_clock_basis: dutyClockBasis,
       duty_start_time_local: pendingDutyStartTime,
       duty_end_date_iso: p0.ymd,
       duty_end_time_local: p0.hhmm,
@@ -159,6 +164,7 @@ export function parseFlightsFromPdfText_DutyLocalTableCore(text: string): PdfFli
       duty_occupation_code: code,
       duty_occupation_label_tr: rosterOccupationLabelTr(code),
       duty_occupation_label_en: rosterOccupationLabelEn(code),
+      duty_clock_basis: dutyClockBasis,
       duty_start_time_local: pendingDutyStartTime,
     });
   };
@@ -176,6 +182,7 @@ export function parseFlightsFromPdfText_DutyLocalTableCore(text: string): PdfFli
       duty_occupation_code: code,
       duty_occupation_label_tr: rosterOccupationLabelTr(code),
       duty_occupation_label_en: rosterOccupationLabelEn(code),
+      duty_clock_basis: dutyClockBasis,
       duty_start_time_local: pendingDutyStartTime,
       duty_end_date_iso: p0.ymd,
       duty_end_time_local: p0.hhmm,
@@ -318,6 +325,7 @@ export function parseFlightsFromPdfText_DutyLocalTableCore(text: string): PdfFli
       duty_occupation_code: pendingOccupationCode,
       duty_occupation_label_tr: rosterOccupationLabelTr(pendingOccupationCode),
       duty_occupation_label_en: rosterOccupationLabelEn(pendingOccupationCode),
+      duty_clock_basis: dutyClockBasis,
       duty_start_time_local: pendingDutyStartTime,
       duty_end_date_iso: pendingSlashDutyEnd?.ymd ?? null,
       duty_end_time_local: pendingSlashDutyEnd?.hhmm ?? null,

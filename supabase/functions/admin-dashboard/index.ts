@@ -9,8 +9,6 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
 };
 
-const DEFAULT_ALLOWED_EMAIL = 'ganicanoz@gmail.com';
-
 function normalizeEmail(s: string | null | undefined): string {
   return (s ?? '').trim().toLowerCase();
 }
@@ -376,7 +374,7 @@ Deno.serve(async (req) => {
     });
   }
 
-  const allowedEmailsRaw = Deno.env.get('ADMIN_DASHBOARD_ALLOWED_EMAILS') ?? DEFAULT_ALLOWED_EMAIL;
+  const allowedEmailsRaw = Deno.env.get('ADMIN_DASHBOARD_ALLOWED_EMAILS') ?? '';
   const allowedEmails = new Set(
     allowedEmailsRaw
       .split(',')
@@ -399,6 +397,11 @@ Deno.serve(async (req) => {
       body = null;
     }
     const action = typeof body?.action === 'string' ? body.action : '';
+    if (action === 'check_access') {
+      return new Response(JSON.stringify({ ok: true }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
     if (action === 'list_ops_history') {
       const daysRaw = Number(body?.days ?? 7);
       const days = Number.isFinite(daysRaw) ? Math.min(90, Math.max(1, Math.floor(daysRaw))) : 7;
@@ -1287,7 +1290,7 @@ Deno.serve(async (req) => {
       const redirectTo =
         typeof body?.redirect_to === 'string' && body.redirect_to.trim()
           ? body.redirect_to.trim()
-          : 'https://ganicanoz.github.io/flyfam/auth-callback.html';
+          : 'https://app.flyfamapp.com/auth-callback.html';
       const anonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
       if (!anonKey) {
         return new Response(JSON.stringify({ error: 'Missing SUPABASE_ANON_KEY' }), {
@@ -2556,17 +2559,19 @@ Deno.serve(async (req) => {
         flight: 'flight_dot',
         other: 'none',
       };
+      const noteText = sug.note ? String(sug.note).trim() : '';
       const upsertRow = {
         code,
         airline_icao: airline || '',
         category,
         label_tr: labelTr,
         label_en: labelEn,
-        description_tr: sug.note ? String(sug.note) : null,
-        description_en: null,
+        // NOT NULL columns — null violates roster_occupation_codes constraints.
+        description_tr: noteText || labelTr || '',
+        description_en: noteText || labelEn || labelTr || '',
         card_accent: accentByCat[category] || 'other',
         calendar_mark: calByCat[category] || 'none',
-        special_notes: sug.note ? String(sug.note) : null,
+        special_notes: noteText || null,
         sort_order: 500,
         active: true,
         updated_at: new Date().toISOString(),
@@ -3681,4 +3686,3 @@ Deno.serve(async (req) => {
     });
   }
 });
-

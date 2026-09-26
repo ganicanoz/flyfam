@@ -13,8 +13,6 @@ type UsagePoint = {
   credits: number | null;
   raw: Record<string, unknown>;
 };
-const DEFAULT_ALLOWED_EMAIL = 'ganicanoz@gmail.com';
-
 function normalizeEmail(s: string | null | undefined): string {
   return (s ?? '').trim().toLowerCase();
 }
@@ -178,7 +176,7 @@ Deno.serve(async (req) => {
   if (!authorized && bearer) {
     const claims = decodeJwtPayload(bearer);
     const requesterEmail = normalizeEmail(claims?.email);
-    const allowedEmailsRaw = Deno.env.get('ADMIN_DASHBOARD_ALLOWED_EMAILS') ?? DEFAULT_ALLOWED_EMAIL;
+    const allowedEmailsRaw = Deno.env.get('ADMIN_DASHBOARD_ALLOWED_EMAILS') ?? '';
     const allowedEmails = new Set(
       allowedEmailsRaw
         .split(',')
