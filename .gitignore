@@ -68,6 +68,13 @@ docs/app-store-screenshots/source/
 docs/app-store-screenshots/marketing-v1/
 docs/app-store-screenshots/marketing-v2/
 
+# Local notification sound auditions (selected production sounds live under mobile/assets/sounds)
+docs/notification-sound-alts/
+docs/notification-sounds-preview.html
+
+# Supabase CLI generated project state
+supabase/.temp/
+
 # Android debug keystore (not signing key, but keep out of repo)
 mobile/android/app/debug.keystore
 FlyFam
