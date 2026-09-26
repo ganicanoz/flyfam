@@ -53,8 +53,8 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - **Dosyalar:** `mobile/app.config.js`, `mobile/android/app/build.gradle`, `mobile/ios/FlyFam.xcodeproj/project.pbxproj`
 - **Amaç:** Binary 48→49; COTD/katalog/expand takvim düzeltmeleri telefona; production EAS + auto-submit.
 - **Durum:** Build + submit tamamlandı (`exit 0`).
-  - Android `3752bcbe…` → https://expo.dev/accounts/ganicanoz/projects/flyfam/builds/3752bcbe-3d0d-4eff-909a-1cf0497e5729 — submit `0eacc07e…` (Play internal OK)
-  - iOS `e7947e27…` → https://expo.dev/accounts/ganicanoz/projects/flyfam/builds/e7947e27-0d29-4ee8-a2d3-3a7cda7fcc35 — submit `6749e6c8…` (ASC yüklendi; Apple işliyor)
+  - Android build `3752bcbe…` — submit `0eacc07e…` (Play internal OK)
+  - iOS build `e7947e27…` — submit `6749e6c8…` (ASC yüklendi; Apple işliyor)
 - **Doğrulama:** EAS her iki build finished; Android submission done; iOS «successfully uploaded to App Store Connect».
 - **Not:** Fingerprint ExpoConfigLoader uyarısı (non-fatal). Android track=internal.
 - **Koruma:** Marketing 1.3.0 / build 49.
@@ -104,8 +104,8 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - **Dosyalar:** `mobile/app.config.js`, `mobile/android/app/build.gradle`, `mobile/ios/FlyFam.xcodeproj/project.pbxproj`
 - **Amaç:** Binary 47→48; roster import/yatı/FSF düzeltmeleri telefona; production EAS + auto-submit.
 - **Durum:** Build kuyruğa alındı + submit planlandı (EAS bitince otomatik).
-  - Android `9d84aac6…` → https://expo.dev/accounts/ganicanoz/projects/flyfam/builds/9d84aac6-568d-4310-8d99-d25b697966d4 — submit `7ac154d7…`
-  - iOS `a3ab0539…` → https://expo.dev/accounts/ganicanoz/projects/flyfam/builds/a3ab0539-3216-4a96-bc93-bcc2b0b4df72 — submit `2fdbb13b…`
+  - Android build `9d84aac6…` — submit `7ac154d7…`
+  - iOS build `a3ab0539…` — submit `2fdbb13b…`
 - **Not:** Fingerprint ExpoConfigLoader uyarısı (non-fatal); credentials hazır. Android track=internal.
 - **Koruma:** Marketing 1.3.0 / build 48.
 
@@ -154,8 +154,8 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - **Dosyalar:** `mobile/app.config.js`, `mobile/android/app/build.gradle`, `mobile/ios/FlyFam.xcodeproj/project.pbxproj`
 - **Amaç:** Binary 46→47; production EAS build her iki platform + auto-submit.
 - **Durum:** Build kuyruğa alındı + submit planlandı (EAS bitene kadar beklemede).
-  - Android build `21366b2e…` → https://expo.dev/accounts/ganicanoz/projects/flyfam/builds/21366b2e-edcc-40c4-bed9-6e65a3d386ca — submit `ed41f99b…`
-  - iOS build `b837f6d6…` → https://expo.dev/accounts/ganicanoz/projects/flyfam/builds/b837f6d6-f05e-4a6b-a97c-87b8cc76d552 — submit `c8866714…`
+  - Android build `21366b2e…` — submit `ed41f99b…`
+  - iOS build `b837f6d6…` — submit `c8866714…`
 - **Not:** Fingerprint ExpoConfigLoader uyarısı (non-fatal); credentials hazır. Android track=internal.
 - **Koruma:** Marketing 1.3.0 / build 47.
 
@@ -299,8 +299,8 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - **Dosyalar:** (sürüm `app.config.js` / gradle / pbxproj = 1.3.0 / 46)
 - **Amaç:** Production EAS build her iki platform + store submit.
 - **Durum:** Build + auto-submit planlandı (henüz bitmedi).
-  - Android `05c62ef2…` → https://expo.dev/accounts/ganicanoz/projects/flyfam/builds/05c62ef2-dfdc-4eca-8c0b-fc94e3743c62 — submit `39e4fea8…`
-  - iOS `7898d095…` → https://expo.dev/accounts/ganicanoz/projects/flyfam/builds/7898d095-f1bc-42bc-99de-25c635c968ef — submit `2fdcdfb4…`
+  - Android build `05c62ef2…` — submit `39e4fea8…`
+  - iOS build `7898d095…` — submit `2fdcdfb4…`
 - **Not:** Fingerprint ExpoConfigLoader uyarısı (non-fatal); credentials hazır.
 - **Koruma:** Marketing 1.3.0 / build 46.
 
@@ -421,7 +421,7 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 ### 2026-09-20 — PC398 yanlış-gün ETA/ATA → erken “indi” + 12h arşiv
 
 - **Dosyalar:** `supabase/functions/check-flight-status-and-notify/index.ts` (deploy)
-- **Olay:** Gani Can Öz PC398 (SAW→LED, `flight_date` 2026-09-19) programdan düşüp “indi” göründü.
+- **Olay:** Anonim test uçuşu PC398 (SAW→LED, `flight_date` 2026-09-19) programdan düşüp “indi” göründü.
 - **Gerçek:** FR24 kalkış/iniş 19 Eyl UTC doğru; 12h slim arşiv 20 Eyl ~16:23 UTC (`past_12h_slim_card`) — canlı listeden kalkması beklenen davranış.
 - **Bug:** Snapshot’ta `estimated_*` / `actual_arrival` **18 Eyl** (önceki gün PC398) yazılmıştı; provider `landed` + `scheduledArr` ATA sanılıp erken kilitleyebiliyordu.
 - **Fix:** ETA/ETD yalnız roster STD/STA ±12h ise yazılır; `scheduledArr` asla ATA olmaz; provider `landed` yalnız güvenilir `actualIn` ile; `hasStrongLandedEvidence` yanlış-gün ATA’yı reddeder.
@@ -861,13 +861,13 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## 2026-09-24 — Production magic-link Gmail testi başlatıldı
 
-- Kullanıcı onayıyla `ganicanoz@gmail.com` için production Supabase `/auth/v1/otp` akışı `create_user:false` ve `https://app.flyfamapp.com/auth-callback.html` dönüş adresiyle çağrıldı.
+- Kullanıcı onayıyla özel test posta kutusu için production Supabase `/auth/v1/otp` akışı `create_user:false` ve `https://app.flyfamapp.com/auth-callback.html` dönüş adresiyle çağrıldı.
 - Supabase isteği HTTP 200 ile kabul etti. Bu yalnız sunucunun e-postayı kabul ettiğini kanıtlar; gerçek teslim, e-posta istemcisindeki görsel görünüm ve CTA/deep-link sonucu kullanıcı teyidi bekliyor.
 
 ## 2026-09-24 — Markalı Auth callback alan adı canlıya alındı
 
 - Magic-link e-postasındaki CTA'nın uygulamayı açmamasının kök nedeni bulundu: `app.flyfamapp.com` için DNS kaydı yoktu; istek uygulama köprüsüne hiç ulaşmıyordu.
-- Kullanıcı onayıyla Cloudflare DNS'e `CNAME app → ganicanoz.github.io`, `DNS only`, `TTL Auto` kaydı eklendi ve dış DNS çözümlemesinde doğrulandı.
+- Kullanıcı onayıyla Cloudflare DNS'e markalı `app` CNAME kaydı `DNS only`, `TTL Auto` olarak eklendi ve dış DNS çözümlemesinde doğrulandı.
 - Kullanıcı onayıyla GitHub Pages özel alan adı `app.flyfamapp.com` olarak ayarlandı. GitHub sertifikası `approved` durumuna ulaştı.
 - `https://app.flyfamapp.com/auth-callback.html` dış ağdan HTTP 200 döndürdü. E-posta şablonlarındaki markalı callback artık erişilebilir.
 - GitHub Pages `https_enforced` henüz false. Sertifika çalışıyor; sıradaki güvenlik adımı HTTPS zorlamasını etkinleştirmek ve ardından gerçek CTA/deep-link testini tekrarlamaktır.
@@ -889,25 +889,25 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 - Production Auth yapılandırmasında Site URL'nin hâlâ kişisel GitHub Pages adresini kullandığı ve yeni markalı adresin allowlist'te olmadığı tespit edildi.
 - Kullanıcı onayıyla `site_url` değeri `https://app.flyfamapp.com/auth-callback.html` olarak değiştirildi.
-- `uri_allow_list` içindeki eski `https://ganicanoz.github.io/flyfam/auth-callback.html` kaldırıldı; markalı callback eklendi. `flyfam://auth/callback`, `flyfam://**`, `com.flyfam.app://**` ve `com.flyfam.app://auth/callback` korundu.
+- `uri_allow_list` içindeki eski kişisel GitHub Pages callback'i kaldırıldı; markalı callback eklendi. `flyfam://auth/callback`, `flyfam://**`, `com.flyfam.app://**` ve `com.flyfam.app://auth/callback` korundu.
 - Management API tekrar okuması `verified:true` verdi. Route to Live içindeki auth callback alan adı taşıma maddesi OK yapıldı.
 
 ## 2026-09-24 — Production recovery akışı uçtan uca doğrulandı
 
-- Kullanıcı isteğiyle `ganicanoz@gmail.com` adresine production `/auth/v1/recover` üzerinden markalı callback kullanan yeni şifre sıfırlama e-postası gönderildi; istek HTTP 200 ile kabul edildi.
+- Kullanıcı isteğiyle özel test posta kutusuna production `/auth/v1/recover` üzerinden markalı callback kullanan yeni şifre sıfırlama e-postası gönderildi; istek HTTP 200 ile kabul edildi.
 - Kullanıcı, e-postadaki CTA'nın FlyFam uygulamasını açtığını ve doğru yeni şifre belirleme ekranına yönlendirdiğini doğruladı.
 - Recovery e-posta teslimi + markalı HTTPS köprü + mobil recovery deep-link zinciri çalışıyor. Bu akış eski giriş ekranı davranışına geri döndürülmemelidir.
 
 ## 2026-09-24 — Production signup confirmation akışı doğrulandı
 
-- Kullanıcı onayıyla `ganicanoz+flyfamtest@gmail.com` adresinde rastgele, kaydedilmeyen güçlü parolayla geçici production crew hesabı oluşturuldu. Supabase signup isteği HTTP 200 döndü ve confirmation-required sonucu verdi.
+- Kullanıcı onayıyla özel bir plus-address üzerinde rastgele, kaydedilmeyen güçlü parolayla geçici production crew hesabı oluşturuldu. Supabase signup isteği HTTP 200 döndü ve confirmation-required sonucu verdi.
 - Kullanıcı, yeni tasarımlı doğrulama e-postasındaki CTA'nın FlyFam uygulamasını açtığını doğruladı. Signup confirmation → markalı HTTPS callback → mobil deep-link zinciri çalışıyor.
 - Ara sayfanın İngilizce görünmesi bildirildi; uygulama başarıyla açıldığı için doğrulama zincirini engellemiyor. Köprü sayfasının dil deneyimi ileride cihaz/uygulama diline göre iyileştirilebilir.
 - Geçici test hesabı daha sonra kullanıcı açık onayıyla production'dan kalıcı olarak silindi; aşağıdaki silme kaydı güncel durumdur.
 
 ## 2026-09-24 — Geçici signup test hesabı temizlendi
 
-- Kullanıcının açık onayıyla yalnız tam e-posta eşleşmesi `ganicanoz+flyfamtest@gmail.com` olan Auth hesabı çözümlendi; eşleşme sayısı silme öncesinde tam olarak bir olarak doğrulandı.
+- Kullanıcının açık onayıyla yalnız geçici test e-postasının tam eşleşmesi olan Auth hesabı çözümlendi; eşleşme sayısı silme öncesinde tam olarak bir olarak doğrulandı.
 - Hesabın doğrudan `flight_crew`, `crew_profiles` ve `profiles` kayıtları temizlendi; ardından Supabase Auth kullanıcısı kalıcı olarak silindi.
 - Silme sonrasında aynı tam e-posta yeniden arandı ve sıfır eşleşme doğrulandı. Başka kullanıcı hedeflenmedi.
 - Aynı kontrollü işlem için `scripts/delete-exact-test-user.mjs` eklendi. Script varsayılan çalışmada yalnız doğrulama yapar; kalıcı silme ancak açık `--confirm` parametresiyle gerçekleşir.
@@ -933,12 +933,12 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## 2026-09-24 — Markalı destek e-postası etkinleştirildi
 
-- Cloudflare Email Routing `flyfamapp.com` için etkinleştirildi. `support@flyfamapp.com` adresi aktif olarak özel hedef `ganicanoz@gmail.com` adresine yönleniyor; genel catch-all kapalı bırakıldı.
+- Cloudflare Email Routing `flyfamapp.com` için etkinleştirildi. `support@flyfamapp.com` adresi aktif olarak özel yönetim posta kutusuna yönleniyor; genel catch-all kapalı bırakıldı.
 - Kamusal sayfalar, gizlilik/kullanım şartları, mobil roster destek bağlantıları, zorunlu güncelleme metinleri ve yayın scripti markalı destek adresine taşındı. Özel hedef adres kullanıcıya açık yüzeylerde gösterilmemelidir.
 - Uygulanmış tarihsel migration geriye dönük değiştirilmedi. `20260924170000_brand_support_email.sql`, production `app_release_policy` satırını ve sütun varsayılanını ileri yönlü olarak günceller.
 - Production `app_release_policy` satırındaki `android_invite_email`, Türkçe gövde ve İngilizce gövde yalnız bu kayıt hedeflenerek doğrudan güncellendi; eski Gmail adresinin canlı politikada kalmadığı yanıt üzerinden doğrulandı. Diğer bekleyen migrationlar bu işlem için topluca gönderilmedi.
 - `support/` değişiklikleri yalnız ilgili dört dosyayı içeren `d0a0aee` commit'iyle `main` dalına gönderildi. GitHub Pages `Deploy support site` çalışması başarıyla tamamlandı; canlı ana sayfa, gizlilik politikası ve kullanım şartlarında `support@flyfamapp.com` ayrı ayrı doğrulandı.
-- Cursor bu adresleri `support@flyfam.app` veya `flyfamapp@gmail.com` değerlerine geri çevirmemeli; yeni kullanıcıya açık iletişim noktalarında `support@flyfamapp.com` kullanılmalıdır.
+- Cursor markalı destek adresini eski veya doğrulanmamış adreslere geri çevirmemeli; yeni kullanıcıya açık iletişim noktalarında `support@flyfamapp.com` kullanılmalıdır.
 
 ## 2026-09-26 — Aktif mobil TypeScript kapsamı temizlendi
 
@@ -965,3 +965,11 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - Ardından iOS ve Android için production Expo exportu üretir; çıktı yalnız sistem geçici klasöründe tutulur ve başarı/hata sonunda temizlenir. Hızlı yerel tur gerekirse script doğrudan `--skip-export` kabul eder; gerçek release öncesinde export atlanmamalıdır.
 - Tam kapı 1.3.0 (49) için çalıştırıldı: bütün kontroller, iOS Hermes bundle ve Android Hermes bundle başarıyla tamamlandı.
 - Route to Live sürüm eşleme maddesi 45'ten güncel 49'a düzeltildi. Eski 45 EAS build kaydı tarihsel kanıt olarak korundu ancak güncel 49 store build alınmadığı için `eas-builds` maddesi yeniden açık duruma getirildi.
+
+## 2026-09-26 — Production migration ön denetimi ve kimlik temizliği
+
+- `supabase db push --dry-run --include-all` production migration ledgerında 8 bekleyen migration gösterdi: `20260916150000`, `20260916160000`, `20260916170000`, `20260916210000`, `20260920193000`, `20260920194500`, `20260924160000`, `20260924170000`.
+- Salt-okunur production denetiminde arşiv toplamı 569, silme adayı 0 ve geri yükleme adayı 0 bulundu. İlgili dört fonksiyon, erken durum koruma triggerı, phase health ve markalı destek adresi zaten canlı. `occupation_catalog` anonim okuma politikası ise production'da eksik.
+- `20260920194500_protect_premature_landed_trigger.sql` içindeki tek kullanıcı/uçuşa özel düzeltme kaldırıldı; migration artık yalnız genel şema davranışını değiştiriyor. Daha önce uygulanmış `20260824111000_crew_home_base_fields.sql` içindeki kişisel test hesabı seed'i, yeni ortamların kişisel kimlik üretmemesi için kaldırıldı.
+- Dokümanlarda kalan kişisel ad, özel posta kutusu ve kişisel yayın URL kayıtları anonimleştirildi. Bilinen kişisel kimlik dizileri için kaynak taraması sıfır eşleşme verdi.
+- Production'a henüz migration uygulanmadı. Sıradaki işlem, kullanıcıdan açık production onayı alındıktan sonra önce public şema yedeği almak ve ardından `--include-all` ile 8 migrationı uygulamaktır. Cursor bu onay olmadan production push yapmamalıdır.

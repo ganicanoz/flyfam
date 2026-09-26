@@ -16,7 +16,7 @@
 - Tarih + uçuş numarası + rota (varsa) çıkarılır; önümüzdeki günler için `flights` tablosuna kayıt atılır.
 - İlk aşamada **sadece Pegasus** formatı hedeflenir; format dokümante edilir, ileride başka havayolu eklenebilir.
 
-**Teknik not:** PDF formatı (Pegasus’un kurumsal uygulama çıktısı) bir örnek dosya ile netleştirilmeli. `docs/GANI CAN OZ - MARt26.pdf` örnek olarak kullanılabilir; yapı analiz edilip parser kuralları yazılacak.
+**Teknik not:** PDF formatı (Pegasus’un kurumsal uygulama çıktısı) anonimleştirilmiş bir örnek dosya ile netleştirilmeli; yapı analiz edilip parser kuralları yazılacak.
 
 ---
 

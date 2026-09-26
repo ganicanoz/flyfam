@@ -97,30 +97,3 @@ create trigger tg_flights_protect_premature_landed
 
 comment on function public.tg_flights_protect_premature_landed() is
   'Blocks wrong-day STD/STA overwrite and premature landed/FR24 stamps before roster STD.';
-
--- Heal Gani PC398 20 Sep if still dirty.
-update public.flights
-set
-  flight_date = '2026-09-20',
-  scheduled_departure = '2026-09-20T19:00:00+00:00',
-  scheduled_arrival = '2026-09-20T22:45:00+00:00',
-  duty_rest_end = '2026-09-21T06:15:00+00:00',
-  flight_status = 'scheduled',
-  internal_status = 'scheduled',
-  api_refresh_phase = 'semi_active',
-  phase_active_locked = false,
-  actual_arrival = null,
-  actual_departure = null,
-  estimated_departure = null,
-  estimated_arrival = null,
-  fr24_datetime_takeoff_utc = null,
-  fr24_datetime_landed_utc = null,
-  fr24_first_seen_utc = null,
-  fr24_progress_dep_utc = null,
-  fr24_progress_eta_utc = null,
-  last_seen_utc = null,
-  delay_dep_min = null,
-  delay_arr_min = null,
-  is_delayed = false,
-  review_flag = false
-where id = 'c2abec4c-8702-4a83-8979-45fbeabf4cf1';

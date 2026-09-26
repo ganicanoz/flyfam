@@ -39,12 +39,3 @@ $$;
 
 comment on function public.create_crew_profile(text, text, text, text, text)
   is 'Create or update crew profile for auth user (idempotent on user_id), including home base fields.';
-
--- Seed explicit home base for existing test account.
-update public.crew_profiles cp
-set home_base_iata = 'SAW',
-    home_base_city = 'Istanbul'
-from public.profiles p
-where cp.user_id = p.id
-  and p.role = 'crew'
-  and p.full_name ilike 'gani can oz%';
