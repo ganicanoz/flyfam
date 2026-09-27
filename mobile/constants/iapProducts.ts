@@ -1,5 +1,5 @@
 /** App Store Connect subscription group for all FlyFam crew packages. */
-export const IOS_SUBSCRIPTION_GROUP = 'flyfam_base' as const;
+export const IOS_SUBSCRIPTION_GROUP = 'flyfam_subscription' as const;
 
 export type PackageCode =
   | 'duo'
@@ -16,7 +16,7 @@ export type SubscriptionTier = {
   maxFamilyMembers: number;
   iosMonthlyProductId: string;
   iosYearlyProductId: string;
-  /** Ascending service level for Apple subscription group ranking (1 = entry). */
+  /** App Store Connect group level (1 = highest service level). */
   appleLevel: number;
   /** List prices (ASC matrix). Store sheet is authoritative at purchase. */
   listPriceMonthlyTry: number;
@@ -39,7 +39,7 @@ export const SUBSCRIPTION_TIERS: readonly SubscriptionTier[] = [
     maxFamilyMembers: 1,
     iosMonthlyProductId: 'flyfam.duo.monthly',
     iosYearlyProductId: 'flyfam.duo.yearly',
-    appleLevel: 1,
+    appleLevel: 7,
     listPriceMonthlyTry: 99.99,
     listPriceYearlyTry: 999.99,
     listPriceMonthlyUsd: 1.49,
@@ -50,7 +50,7 @@ export const SUBSCRIPTION_TIERS: readonly SubscriptionTier[] = [
     maxFamilyMembers: 2,
     iosMonthlyProductId: 'flyfam.trio.monthly',
     iosYearlyProductId: 'flyfam.trio.yearly',
-    appleLevel: 2,
+    appleLevel: 6,
     listPriceMonthlyTry: 129.99,
     listPriceYearlyTry: 1299.99,
     listPriceMonthlyUsd: 1.99,
@@ -61,7 +61,7 @@ export const SUBSCRIPTION_TIERS: readonly SubscriptionTier[] = [
     maxFamilyMembers: 3,
     iosMonthlyProductId: 'flyfam.family.monthly',
     iosYearlyProductId: 'flyfam.family.yearly',
-    appleLevel: 3,
+    appleLevel: 5,
     listPriceMonthlyTry: 149.99,
     listPriceYearlyTry: 1499.99,
     listPriceMonthlyUsd: 2.49,
@@ -83,7 +83,7 @@ export const SUBSCRIPTION_TIERS: readonly SubscriptionTier[] = [
     maxFamilyMembers: 5,
     iosMonthlyProductId: 'flyfam.extended.monthly',
     iosYearlyProductId: 'flyfam.extended.yearly',
-    appleLevel: 5,
+    appleLevel: 3,
     listPriceMonthlyTry: 199.99,
     listPriceYearlyTry: 1999.99,
     listPriceMonthlyUsd: 3.49,
@@ -94,7 +94,7 @@ export const SUBSCRIPTION_TIERS: readonly SubscriptionTier[] = [
     maxFamilyMembers: 6,
     iosMonthlyProductId: 'flyfam.clan.monthly',
     iosYearlyProductId: 'flyfam.clan.yearly',
-    appleLevel: 6,
+    appleLevel: 2,
     listPriceMonthlyTry: 229.99,
     listPriceYearlyTry: 2299.99,
     listPriceMonthlyUsd: 3.99,
@@ -105,7 +105,7 @@ export const SUBSCRIPTION_TIERS: readonly SubscriptionTier[] = [
     maxFamilyMembers: 7,
     iosMonthlyProductId: 'flyfam.circle.monthly',
     iosYearlyProductId: 'flyfam.circle.yearly',
-    appleLevel: 7,
+    appleLevel: 1,
     listPriceMonthlyTry: 249.99,
     listPriceYearlyTry: 2499.99,
     listPriceMonthlyUsd: 4.49,

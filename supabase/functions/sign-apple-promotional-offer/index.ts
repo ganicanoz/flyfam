@@ -61,7 +61,7 @@ Deno.serve(async (req) => {
     }
 
     const body = (await req.json()) as SignRequest;
-    const productId = String(body?.productId ?? '01').trim();
+    const productId = String(body?.productId ?? 'flyfam.duo.monthly').trim();
     const offerId = String(body?.offerId ?? defaultOfferId ?? '').trim();
 
     if (!offerId) {
@@ -70,7 +70,7 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
-    if (productId !== '01' && productId !== '02') {
+    if (productId !== 'flyfam.duo.monthly' && productId !== '01') {
       return new Response(JSON.stringify({ error: 'Unsupported productId' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
