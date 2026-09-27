@@ -12,6 +12,20 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+### 2026-09-27 — Admin toplu seçim (kullanıcı + uçuş) + aktivite «Peer review» (ui=58)
+
+- **Dosyalar:** `docs/ADMIN_STATUS_DASHBOARD.html` (+ kopya `support/admin/index.html`), `support/index.html`, `supabase/functions/admin-dashboard/index.ts`, `supabase/functions/admin-panel-ui/index.ts`
+- **Amaç:** Admin panelde çoklu seçimle kullanıcı/uçuş işlemleri; aktivitede kişi başı `PeerRoster_<uuid>` ekranlarını tek kalemde toplamak.
+- **Uygulama:**
+  - Ortak `runBulkAction` (eşzamanlılık sınırı, tekrar eden ID tekil, `skip`/hata sayımı, ilerleme, aynı anda tek toplu işlem) + `copyTextToClipboard`.
+  - Kullanıcılar: checkbox sütunu + görünenleri seç; çubuk: email doğrula, onay/şifre maili, Geniş Sülale ver (yalnız crew), push (başlık/mesaj/link), ID/email kopyala, sil (`SİL` yazarak onay). Filtre dışı seçim sayısı gösterilir. Hepsi mevcut tekil admin aksiyonlarını çağırır (yeni backend yetkisi yok).
+  - Uçuşlar (mevcut seçim çubuğu): API yenile (kota uyarısı, eşzamanlılık 2), crew ekle/çıkar (çıkarmada «crew kalmayan uçuş silinir» uyarısı), ID kopyala.
+  - Aktivite: `PeerRoster_*` → «Peer review» (backend top_screens sayımı + panel birleştirme / son olay detayı).
+  - ZeroDeploy `wispy-glade-310` **HTTP 451 (askıya alındı)**; `admin-panel-ui` 302 ve destek linkleri `https://app.flyfamapp.com/admin/`’e çevrildi.
+- **Doğrulama:** Script sözdizimi OK; yerel tarayıcıda sahte veriyle seçim/tümünü seç/filtre dışı sayım/runner (1 başarılı·1 atlandı·1 hata, eşzamanlı engel) ve Peer review birleştirme (4+3→7) OK. `admin-dashboard` + `admin-panel-ui` deploy OK; yetkisiz `check_access` 401; `admin-panel-ui` → `app.flyfamapp.com/admin/?ui=58`; CORS preflight 200.
+- **Açık:** `app.flyfamapp.com/admin/` hâlâ ui=57 — ui=58 için bu dosyaların `main`’e push’u gerekir (Deploy support site workflow). Gerçek veriyle toplu aksiyonlar canlıda denenmedi.
+- **Koruma:** Tekil aksiyonlar, `bulk_update_flights`/`bulk_delete_flights`, ID alanlı eski toplu form aynı; mobil `PeerRoster_<uuid>` route adları değişmedi.
+
 ### 2026-09-26 — Offline peer/aile: «Plan gerekli» yerine cache roster
 
 - **Dosyalar:** `mobile/lib/rosterAccessCache.ts`, `mobile/screens/Roster.tsx`, `mobile/contexts/SessionContext.tsx`
@@ -981,3 +995,10 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - Önceden denetlenen 8 migration `supabase db push --include-all` ile başarıyla uygulandı. `supabase migration list` çıktısında sekiz sürümün tamamı Local/Remote eşleşiyor.
 - Yeni `roster_occupation_catalog_meta_select_anon` davranışı, mobil uygulamanın gerçek anonim Supabase yapılandırmasıyla REST üzerinden test edildi; HTTP 200 ve bir katalog satırı döndü.
 - Ön denetimde silme ve geri yükleme adayı sıfırdı. Push sırasında hata oluşmadı; arşiv üzerinde beklenmeyen veri işlemi raporlanmadı. Route to Live `migrations-prod` maddesi OK yapıldı.
+
+## 2026-09-27 — Güncel Edge Functionlar production'a deploy edildi
+
+- Production fonksiyon envanteri yerel kaynaklarla karşılaştırıldı. Ortak modül veya doğrudan kaynak değişikliği bulunan sekiz fonksiyon kullanıcı açık onayıyla deploy edildi: `admin-dashboard`, `admin-panel-login`, `check-flight-status-and-notify`, `flight-lookup`, `notify-family`, `parse-roster-pdf`, `sync-fr24-usage-metrics`, `sync-hub-airport-boards`.
+- Deployların tamamı hatasız sonuçlandı. Son production envanterinde sırasıyla sürümler 75, 8, 127, 97, 109, 134, 32 ve 47; sekizinin de durumu `ACTIVE`, güncelleme tarihi 2026-09-27.
+- `subscription-status`, `validate-apple-subscription` ve `validate-google-subscription` yerelde dosya içermeyen eski klasörlerdir; deploy edilmedi. Aktif satın alma doğrulama fonksiyonu `verify-store-purchase` production'da mevcuttur.
+- Docker'ın çalışmıyor uyarısı deployu engellemedi; Supabase CLI varlıkları doğrudan paketleyip production'a yükledi. Route to Live `functions-prod` maddesi OK yapıldı.
