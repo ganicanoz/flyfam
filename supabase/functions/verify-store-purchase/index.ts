@@ -97,9 +97,10 @@ Deno.serve(async (req) => {
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     const authHeader = req.headers.get('Authorization');
 
-    if (!supabaseUrl || !anonKey || !authHeader) {
+    if (!supabaseUrl || !anonKey || !serviceRoleKey || !authHeader) {
       return new Response(JSON.stringify({ error: 'Missing server configuration or auth header' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -108,6 +109,9 @@ Deno.serve(async (req) => {
 
     const userClient = createClient(supabaseUrl, anonKey, {
       global: { headers: { Authorization: authHeader } },
+    });
+    const adminClient = createClient(supabaseUrl, serviceRoleKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
     });
 
     const {
@@ -173,7 +177,8 @@ Deno.serve(async (req) => {
         String(verified.matchedTx.is_trial_period ?? '').toLowerCase() === 'true' ||
         String(verified.matchedTx.is_in_intro_offer_period ?? '').toLowerCase() === 'true';
 
-      const { data, error } = await userClient.rpc('apply_verified_store_purchase', {
+      const { data, error } = await adminClient.rpc('apply_verified_store_purchase_for_user', {
+        p_user_id: user.id,
         p_platform: platform,
         p_product_id: productId,
         p_transaction_id: transactionId,
@@ -214,39 +219,12 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { data, error } = await userClient.rpc('apply_verified_store_purchase', {
-      p_platform: platform,
-      p_product_id: productId,
-      p_transaction_id: transactionId,
-      p_original_transaction_id: originalTransactionId,
-      p_purchase_at: purchaseAt,
-      p_raw_payload: {
-        platform,
-        productId,
-        transactionId,
-        originalTransactionId,
-        purchaseAtMs: body?.purchaseAtMs ?? null,
-        receiptDataPresent: !!body?.receiptData,
-      },
+    // Android store proof validation is not implemented yet. Never grant an
+    // entitlement from client-supplied product/transaction identifiers alone.
+    return new Response(JSON.stringify({ error: 'Android purchase verification is not available yet' }), {
+      status: 501,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
-
-    if (error) {
-      return new Response(JSON.stringify({ error: error.message }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    return new Response(
-      JSON.stringify({
-        ok: true,
-        result: data,
-      }),
-      {
-        status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      },
-    );
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     return new Response(JSON.stringify({ error: msg }), {
