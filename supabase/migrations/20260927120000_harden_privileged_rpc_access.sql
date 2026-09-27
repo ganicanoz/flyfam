@@ -224,6 +224,11 @@ grant execute on function public.purge_old_flight_ops_log(interval) to service_r
 grant execute on function public.purge_old_flights_archive(interval) to service_role;
 grant execute on function public.refresh_flights_api_refresh_phase() to service_role;
 
+-- Flight/flight_crew RLS policies call this read-only helper for signed-in
+-- crew and family viewers. Keep it unavailable to anon, but executable by
+-- authenticated so those policies can evaluate normally.
+grant execute on function public.crew_has_active_subscription(uuid) to authenticated;
+
 -- New functions must opt in to PostgREST exposure explicitly instead of
 -- inheriting executable access for every anonymous client.
 alter default privileges for role postgres in schema public
