@@ -28,7 +28,7 @@ export default {
       supportsTablet: true,
       bundleIdentifier: 'com.flyfam.app',
       /** Her App Store / TestFlight yüklemesinde bir öncekinden büyük olmalı (CFBundleVersion). */
-      buildNumber: '49',
+      buildNumber: '50',
       jsEngine: 'hermes',
       infoPlist: {
         /** expo-share-extension ana uygulama + uzantı için App Group */
@@ -47,7 +47,7 @@ export default {
       },
     },
     android: {
-      versionCode: 49,
+      versionCode: 50,
       jsEngine: 'hermes',
       /** Play + adaptive foreground: iOS App Store ikonu ile aynı 1024 kaynak. */
       icon: APP_ICON_1024,
@@ -121,7 +121,6 @@ export default {
     extra: {
       supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL,
       supabaseAnonKey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
-      iosMonthlyPromoOfferId: process.env.EXPO_PUBLIC_IOS_MONTHLY_PROMO_OFFER_ID,
       iosFamilyAddonProductId: process.env.EXPO_PUBLIC_IOS_FAMILY_ADDON_PRODUCT_ID,
       eas: {
         projectId: process.env.EXPO_PUBLIC_EAS_PROJECT_ID ?? '5c9f4f99-9766-4d38-bfe0-6b1cd6a7e83f',

@@ -5,13 +5,20 @@
 import Constants from 'expo-constants';
 import * as Localization from 'expo-localization';
 import { Platform } from 'react-native';
-import { IAP_PRODUCTS, SUBSCRIPTION_TIERS, type PackageCode } from '../constants/iapProducts';
+import {
+  IAP_PRODUCTS,
+  IOS_SUBSCRIPTION_GROUP_ID,
+  SUBSCRIPTION_TIERS,
+  type PackageCode,
+} from '../constants/iapProducts';
 
 export type TierStorePrices = {
   monthly: string;
   yearly: string;
   currency?: string | null;
   source: 'store' | 'list';
+  introOfferAvailable?: boolean;
+  introOfferEligible?: boolean;
 };
 
 function formatListPrice(amount: number, currency: 'TRY' | 'USD', locale: string): string {
@@ -83,19 +90,34 @@ export async function fetchSubscriptionTierDisplayPrices(): Promise<Record<Packa
 
     const skus = [...IAP_PRODUCTS.ios.subscriptions];
     const products = await iap.fetchProducts({ skus, type: 'subs' });
-    const byId = new Map<string, { displayPrice: string; currency?: string | null }>();
+    const byId = new Map<string, {
+      displayPrice: string;
+      currency?: string | null;
+      introOfferAvailable: boolean;
+    }>();
     for (const p of (products ?? []) as Array<{
       id?: string;
       productId?: string;
       displayPrice?: string;
       localizedPrice?: string | null;
       currency?: string | null;
+      introductoryPriceIOS?: string | null;
+      subscriptionOffers?: Array<{ type?: string | null; offerType?: string | null }> | null;
     }>) {
       const id = String(p.id ?? p.productId ?? '').trim();
       const display = String(p.displayPrice ?? p.localizedPrice ?? '').trim();
       if (!id || !display) continue;
-      byId.set(id, { displayPrice: display, currency: p.currency ?? null });
+      const introOfferAvailable =
+        !!String(p.introductoryPriceIOS ?? '').trim() ||
+        (p.subscriptionOffers ?? []).some((offer) =>
+          String(offer.type ?? offer.offerType ?? '').toLowerCase().includes('intro'),
+        );
+      byId.set(id, { displayPrice: display, currency: p.currency ?? null, introOfferAvailable });
     }
+
+    const introOfferEligible = await iap
+      .isEligibleForIntroOfferIOS(IOS_SUBSCRIPTION_GROUP_ID)
+      .catch(() => false);
 
     const fallbackCurrency = listFallbackCurrency(storefront);
     const fallback = listFallbackPrices(fallbackCurrency);
@@ -112,6 +134,8 @@ export async function fetchSubscriptionTierDisplayPrices(): Promise<Record<Packa
         yearly: yearly?.displayPrice ?? fallback[tier.code].yearly,
         currency: monthly?.currency ?? yearly?.currency ?? fallbackCurrency,
         source: 'store',
+        introOfferAvailable: monthly?.introOfferAvailable ?? false,
+        introOfferEligible,
       };
     }
 

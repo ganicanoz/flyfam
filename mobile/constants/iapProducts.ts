@@ -1,5 +1,7 @@
 /** App Store Connect subscription group for all FlyFam crew packages. */
 export const IOS_SUBSCRIPTION_GROUP = 'flyfam_subscription' as const;
+/** Numeric App Store Connect subscription group ID used by StoreKit eligibility checks. */
+export const IOS_SUBSCRIPTION_GROUP_ID = '21969234' as const;
 
 export type PackageCode =
   | 'duo'
@@ -163,5 +165,3 @@ export function isIosFamilyAddonProductId(productId: string): boolean {
 export function resolveIosFamilyAddonProductId(): string {
   return IOS_IAP_PRODUCTS.FAMILY_ADDON;
 }
-
-export const IOS_MONTHLY_PROMO_OFFER_ENV = 'EXPO_PUBLIC_IOS_MONTHLY_PROMO_OFFER_ID' as const;

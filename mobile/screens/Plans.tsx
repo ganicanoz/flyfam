@@ -16,7 +16,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { fetchMySubscriptionAccess, type SubscriptionAccess } from '../lib/subscriptionAccess';
 import { purchaseBaseSubscriptionIos, restorePurchases } from '../lib/iapRestore';
-import { isIosMonthlyPromoOfferConfigured } from '../lib/applePromotionalOffer';
 import {
   fetchSubscriptionTierDisplayPrices,
   type TierStorePrices,
@@ -225,22 +224,23 @@ export default function Plans() {
             <View style={[styles.grid, { gap }]}>
               {SUBSCRIPTION_TIERS.map((tier) => {
                 const selected = isSubActive && currentCode === tier.code;
-                const showPromo =
-                  Platform.OS === 'ios' &&
-                  tier.code === 'duo' &&
-                  isIosMonthlyPromoOfferConfigured() &&
-                  !isSubActive &&
-                  billing === 'monthly';
-                const busy = buyingCode === tier.code;
                 const prices = storePrices?.[tier.code] ?? {
                   monthly: '—',
                   yearly: '—',
                   source: 'list' as const,
                 };
+                const showIntroOffer =
+                  Platform.OS === 'ios' &&
+                  tier.code === 'duo' &&
+                  prices.introOfferAvailable === true &&
+                  prices.introOfferEligible === true &&
+                  !isSubActive &&
+                  billing === 'monthly';
+                const busy = buyingCode === tier.code;
                 const price = billing === 'yearly' ? prices.yearly : prices.monthly;
                 const period = billing === 'yearly' ? t('plans.perYear') : t('plans.perMonth');
                 const savePct = billing === 'yearly' ? yearlySavingsPct(tier) : null;
-                const isTrialCta = tier.code === 'duo' || showPromo;
+                const isTrialCta = showIntroOffer;
 
                 return (
                   <View

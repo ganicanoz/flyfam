@@ -4,7 +4,6 @@
  */
 import { supabase } from './supabase';
 import { refreshMyEntitlements } from './subscriptionAccess';
-import { fetchSignedIosPromotionalOffer, isIosMonthlyPromoOfferConfigured } from './applePromotionalOffer';
 import Constants from 'expo-constants';
 
 export type StorePurchaseVerificationInput = {
@@ -83,12 +82,6 @@ export async function purchaseBaseSubscriptionIos(productId: string): Promise<vo
   const iap = await loadIapModule();
   await iap.initConnection();
   const fallbackReceipt = await iap.getReceiptIOS().catch(() => null);
-  // Promotional offer is Duo monthly only (intro/promo configured on that SKU in ASC).
-  const withOffer =
-    isIosMonthlyPromoOfferConfigured() &&
-    (productId === 'flyfam.duo.monthly' || productId === '01')
-      ? await fetchSignedIosPromotionalOffer(productId)
-      : null;
   await new Promise<void>((resolve, reject) => {
     let purchaseSub: { remove: () => void } | null = null;
     let errorSub: { remove: () => void } | null = null;
@@ -136,7 +129,6 @@ export async function purchaseBaseSubscriptionIos(productId: string): Promise<vo
       request: {
         ios: {
           sku: productId,
-          ...(withOffer ? { withOffer } : {}),
         },
       },
     }).catch((e) => settle(e));
