@@ -273,7 +273,7 @@ async function upsertCrewProfile(userId) {
 
 async function upsertSubscription(crewId) {
   if (dryRun) {
-    console.log('Would upsert crew_subscriptions (trialing couple)');
+    console.log('Would upsert crew_subscriptions (active circle review plan)');
     return;
   }
   const now = new Date();
@@ -287,7 +287,7 @@ async function upsertSubscription(crewId) {
 
   const body = {
     crew_id: crewId,
-    plan_code: 'couple',
+    plan_code: 'circle',
     status: 'active',
     extra_family_slots: 0,
     trial_started_at: iso(now),
@@ -334,7 +334,12 @@ async function seedDemoFlights(accessToken) {
     return;
   }
   const d = new Date();
-  const flightDate = d.toISOString().slice(0, 10);
+  d.setUTCHours(0, 0, 0, 0);
+  const day = (offset) => {
+    const next = new Date(d);
+    next.setUTCDate(next.getUTCDate() + offset);
+    return next.toISOString().slice(0, 10);
+  };
   const userHeaders = {
     Authorization: `Bearer ${accessToken}`,
     apikey: anonKey,
@@ -344,19 +349,61 @@ async function seedDemoFlights(accessToken) {
   const demos = [
     {
       p_flight_number: 'PC9001',
-      p_flight_date: flightDate,
+      p_flight_date: day(0),
       p_origin_airport: 'SAW',
       p_destination_airport: 'AYT',
-      p_scheduled_departure: `${flightDate}T06:00:00.000Z`,
-      p_scheduled_arrival: `${flightDate}T07:15:00.000Z`,
+      p_scheduled_departure: `${day(0)}T06:00:00.000Z`,
+      p_scheduled_arrival: `${day(0)}T07:15:00.000Z`,
+      p_roster_entry_kind: 'flight',
+    },
+    {
+      p_flight_number: 'PC9002',
+      p_flight_date: day(0),
+      p_origin_airport: 'AYT',
+      p_destination_airport: 'SAW',
+      p_scheduled_departure: `${day(0)}T08:20:00.000Z`,
+      p_scheduled_arrival: `${day(0)}T09:35:00.000Z`,
       p_roster_entry_kind: 'flight',
     },
     {
       p_flight_number: 'RSV',
-      p_flight_date: flightDate,
-      p_scheduled_departure: `${flightDate}T08:00:00.000Z`,
-      p_scheduled_arrival: `${flightDate}T16:00:00.000Z`,
+      p_flight_date: day(1),
+      p_scheduled_departure: `${day(1)}T08:00:00.000Z`,
+      p_scheduled_arrival: `${day(1)}T16:00:00.000Z`,
       p_roster_entry_kind: 'duty_off',
+      p_roster_detail: 'App Review demo reserve duty',
+    },
+    {
+      p_flight_number: 'FOF',
+      p_flight_date: day(2),
+      p_roster_entry_kind: 'duty_off',
+      p_roster_detail: 'App Review demo day off',
+    },
+    {
+      p_flight_number: 'PC9003',
+      p_flight_date: day(3),
+      p_origin_airport: 'SAW',
+      p_destination_airport: 'ADB',
+      p_scheduled_departure: `${day(3)}T12:10:00.000Z`,
+      p_scheduled_arrival: `${day(3)}T13:20:00.000Z`,
+      p_roster_entry_kind: 'flight',
+    },
+    {
+      p_flight_number: 'PC9004',
+      p_flight_date: day(3),
+      p_origin_airport: 'ADB',
+      p_destination_airport: 'SAW',
+      p_scheduled_departure: `${day(3)}T14:25:00.000Z`,
+      p_scheduled_arrival: `${day(3)}T15:35:00.000Z`,
+      p_roster_entry_kind: 'flight',
+    },
+    {
+      p_flight_number: 'SIM',
+      p_flight_date: day(4),
+      p_scheduled_departure: `${day(4)}T09:00:00.000Z`,
+      p_scheduled_arrival: `${day(4)}T13:00:00.000Z`,
+      p_roster_entry_kind: 'sim',
+      p_roster_detail: 'App Review demo simulator duty',
     },
   ];
 
@@ -370,7 +417,7 @@ async function seedDemoFlights(accessToken) {
     if (!res.ok) {
       console.warn('add_me_to_flight skipped:', body.p_flight_number, json.message ?? res.status);
     } else {
-      console.log('Roster row:', body.p_flight_number, flightDate, json);
+      console.log('Roster row:', body.p_flight_number, body.p_flight_date, json);
     }
   }
 }
