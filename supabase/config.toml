@@ -398,6 +398,10 @@ verify_jwt = false
 [functions.admin-dashboard]
 verify_jwt = false
 
+# Aile planı sayfası: admin oturumu function içinde auth.getUser ile, PIN token HMAC ile doğrulanır.
+[functions.family-planner]
+verify_jwt = false
+
 # cron-job.org → POST + x-cron-secret; FR24 /api/usage (veya env URL) çekip DB'ye yazar.
 [functions.sync-fr24-usage-metrics]
 verify_jwt = false

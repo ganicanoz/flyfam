@@ -1,0 +1,1361 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="robots" content="noindex, nofollow" />
+  <meta name="theme-color" content="#0f766e" />
+  <title>Aile planı</title>
+  <style>
+    :root {
+      --bg: #f4f7fb; --panel: #ffffff; --soft: #f1f5f9; --line: #e2e8f0; --text: #0f172a; --muted: #64748b;
+      --brand: #0f766e; --brand-2: #14b8a6; --bad: #dc2626; --warn: #d97706; --ok: #16a34a;
+      --s5: #16a34a; --s4: #65a30d; --s3: #ca8a04; --s2: #ea580c; --s1: #dc2626;
+      --duty: #1a5cf5; --away: #818cf8; --standby: #f59e0b; --school: #22a55b;
+      --radius: 14px;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    button { font: inherit; cursor: pointer; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); color: var(--text); padding: 8px 12px; }
+    button:disabled { opacity: .5; cursor: default; }
+    button.primary { background: linear-gradient(135deg, var(--brand), var(--brand-2)); color: #fff; border: 0; font-weight: 700; }
+    button.ghost { background: transparent; }
+    input, select, textarea { font: inherit; border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; background: #fff; color: var(--text); }
+    [hidden] { display: none !important; }
+    .muted { color: var(--muted); }
+    .small { font-size: 12px; }
+
+    /* PIN kapısı */
+    .gate { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; background: radial-gradient(circle at 30% 10%, #ccfbf1, transparent 55%), var(--bg); }
+    .gate-card { width: min(340px, 100%); background: var(--panel); border-radius: 22px; padding: 26px 22px; box-shadow: 0 20px 50px rgba(15, 23, 42, .12); text-align: center; }
+    .gate-card h1 { margin: 6px 0 4px; font-size: 22px; }
+    .gate-logo { display: inline-flex; gap: 6px; }
+    .dots { display: flex; justify-content: center; gap: 14px; margin: 20px 0 8px; }
+    .dots i { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--brand); }
+    .dots i.on { background: var(--brand); }
+    .dots.shake { animation: shake .35s; }
+    @keyframes shake { 25% { transform: translateX(-8px); } 75% { transform: translateX(8px); } }
+    .pad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 14px; }
+    .pad button { height: 58px; font-size: 22px; font-weight: 600; border-radius: 16px; background: var(--soft); border: 0; }
+    .pad button:active { background: #ccfbf1; }
+    .gate-msg { min-height: 20px; color: var(--bad); font-size: 13px; }
+
+    /* Üst çubuk */
+    .top { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; gap: 10px; padding: 10px 14px; padding-top: max(10px, env(safe-area-inset-top));
+      background: rgba(255,255,255,.92); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
+    .top .title { font-weight: 800; font-size: 16px; display: flex; align-items: center; gap: 6px; }
+    .month { display: flex; align-items: center; gap: 4px; margin-left: auto; }
+    .month button { padding: 4px 10px; font-size: 18px; line-height: 1; }
+    .month strong { min-width: 104px; text-align: center; text-transform: capitalize; }
+    .wx { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; padding: 4px 10px; border-radius: 999px; background: var(--soft); white-space: nowrap; }
+    .wx.rain { background: #dbeafe; color: #1e40af; font-weight: 700; }
+    main { max-width: 1180px; margin: 0 auto; padding: 12px; display: grid; gap: 12px; }
+    .card { background: var(--panel); border-radius: var(--radius); border: 1px solid var(--line); padding: 12px; }
+
+    /* İkonlar ve yıldızlar */
+    .ic { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; color: #fff; font-weight: 800; font-size: 12px; flex: none; }
+    .ic.out { background: transparent !important; border: 2px solid currentColor; }
+    .stars { letter-spacing: -1px; font-size: 11px; white-space: nowrap; }
+
+    /* Hedefler */
+    .goals { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .goal { display: inline-flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 12px; background: var(--soft); }
+    .goal b { font-size: 15px; }
+    .bar { width: 64px; height: 6px; border-radius: 3px; background: #e2e8f0; overflow: hidden; }
+    .bar i { display: block; height: 100%; background: var(--brand); }
+    .actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .dirty { color: var(--warn); font-weight: 700; }
+
+    /* Takvim */
+    .weekdays, .grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; }
+    .weekdays span { text-align: center; font-size: 11px; font-weight: 700; color: var(--muted); }
+    .cell { position: relative; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); min-height: 118px; padding: 5px 6px 6px; display: flex; flex-direction: column; gap: 3px; cursor: pointer; overflow: hidden; }
+    .cell:hover { border-color: var(--brand-2); }
+    .cell.out { opacity: .38; }
+    .cell.we { background: #fafbfd; }
+    .cell.hol { background: #fff7ed; }
+    .cell.vac { background: repeating-linear-gradient(135deg, #f0fdfa 0 8px, #fff 8px 16px); }
+    .cell.today { box-shadow: inset 0 0 0 2px var(--brand); }
+    .cell.bad { border-color: #fca5a5; box-shadow: inset 0 0 0 1px #fca5a5; }
+    .cell.picked { border-width: 2px; }
+    .d { display: flex; justify-content: space-between; align-items: baseline; gap: 2px; }
+    .d b { font-size: 14px; }
+    .d small { font-size: 9.5px; font-weight: 600; color: #c2410c; text-align: right; line-height: 1.1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .tl { display: grid; gap: 2px; }
+    .tl-row { position: relative; height: 5px; border-radius: 3px; background: rgba(148,163,184,.16); overflow: hidden; }
+    .seg { position: absolute; top: 0; bottom: 0; border-radius: 3px; }
+    .seg.cand { background-image: repeating-linear-gradient(135deg, rgba(255,255,255,.55) 0 3px, transparent 3px 6px); }
+    .crew { font-size: 10.5px; color: #1d4ed8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .crew.warn { color: #b45309; font-weight: 700; }
+    .crew.muted { color: var(--muted); }
+    .work { display: flex; flex-wrap: wrap; gap: 3px; align-items: center; margin-top: auto; }
+    .pick { display: inline-flex; align-items: center; gap: 4px; padding: 2px 6px 2px 2px; border-radius: 999px; font-size: 11px; font-weight: 700; }
+    .opt-mini { display: inline-flex; align-items: center; gap: 1px; font-size: 10px; }
+    .opt-mini .ic { width: 16px; height: 16px; font-size: 9px; }
+    .flag { font-size: 10.5px; color: var(--bad); font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .legend { display: flex; flex-wrap: wrap; gap: 6px 12px; font-size: 11.5px; color: var(--muted); margin: 8px 0 2px; }
+    .legend i.sw { display: inline-block; width: 14px; height: 6px; border-radius: 3px; margin-right: 4px; vertical-align: middle; }
+
+    /* Detay sayfası */
+    .sheet-bg { position: fixed; inset: 0; background: rgba(15,23,42,.35); z-index: 40; display: flex; align-items: flex-end; justify-content: center; }
+    .sheet { width: min(640px, 100%); max-height: 88vh; overflow: auto; background: var(--panel); border-radius: 20px 20px 0 0; padding: 16px 16px max(16px, env(safe-area-inset-bottom)); box-shadow: 0 -10px 40px rgba(15,23,42,.2); }
+    @media (min-width: 760px) { .sheet-bg { align-items: center; } .sheet { border-radius: 20px; } }
+    .sheet h3 { margin: 0 0 8px; text-transform: capitalize; display: flex; justify-content: space-between; align-items: center; }
+    .rows { display: grid; grid-template-columns: 58px 1fr; gap: 5px 8px; align-items: center; font-size: 12px; }
+    .rows .tl-row { height: 12px; }
+    .hours { display: flex; justify-content: space-between; font-size: 10px; color: var(--muted); }
+    .notes { list-style: none; padding: 0; margin: 10px 0; display: grid; gap: 4px; font-size: 13px; }
+    .notes .ok { color: #047857; } .notes .warn { color: #b45309; } .notes .bad { color: var(--bad); font-weight: 700; } .notes .crew { color: #1d4ed8; } .notes .muted { color: var(--muted); }
+    .opts { display: grid; gap: 8px; }
+    .opt { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; text-align: left; padding: 10px 12px; border-radius: 14px; border: 2px solid var(--line); background: #fff; }
+    .opt.on { border-color: var(--brand); background: #f0fdfa; }
+    .opt .t { font-weight: 700; }
+    .opt .why { font-size: 12px; color: var(--muted); }
+
+    /* Özet */
+    .sum-grid { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+    .sum { border-radius: 14px; border: 1px solid var(--line); overflow: hidden; background: #fff; }
+    .sum header { display: flex; align-items: center; gap: 8px; padding: 10px 12px; color: #fff; }
+    .sum header b { flex: 1; }
+    .sum ul { margin: 0; padding: 8px 12px 4px 30px; font-size: 13px; }
+    .sum li.bad { color: var(--bad); font-weight: 700; } .sum li.warn { color: #b45309; }
+    .sum footer { display: flex; gap: 6px; padding: 8px 12px 12px; flex-wrap: wrap; }
+    .wa { background: #25d366; color: #fff; border: 0; font-weight: 700; }
+
+    /* Açılır kutular */
+    details.card > summary { cursor: pointer; font-weight: 700; list-style: none; display: flex; align-items: center; gap: 8px; }
+    details.card > summary::-webkit-details-marker { display: none; }
+    details.card > summary::after { content: '▾'; margin-left: auto; color: var(--muted); transition: transform .15s; }
+    details.card[open] > summary::after { transform: rotate(180deg); }
+    details.card > .inner { margin-top: 10px; }
+    table.t { border-collapse: collapse; width: 100%; font-size: 12.5px; }
+    table.t th, table.t td { border-bottom: 1px solid var(--line); padding: 5px 6px; text-align: left; vertical-align: top; }
+    table.t select { padding: 2px 4px; }
+    .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    textarea.cfg { width: 100%; min-height: 260px; font-family: ui-monospace, Menlo, monospace; font-size: 12px; }
+    body.embed .top { position: static; }
+    .modal-img { max-width: 100%; border-radius: 12px; border: 1px solid var(--line); display: block; margin: 8px auto; }
+
+    @media (max-width: 760px) {
+      .top { flex-wrap: wrap; }
+      .month { order: 3; width: 100%; justify-content: center; margin-left: 0; }
+      main { padding: 8px; }
+      .grid, .weekdays { gap: 3px; }
+      .cell { min-height: 76px; padding: 3px; border-radius: 9px; }
+      .crew, .flag, .d small, .opt-mini .stars { display: none; }
+      .cell .tl-row { height: 4px; }
+      .pick { padding: 1px; gap: 1px; flex-direction: column; font-size: 9px; }
+      .pick .stars { font-size: 8px; }
+      .pick .ic { width: 20px; height: 20px; }
+      .opt-mini .ic { width: 14px; height: 14px; font-size: 8px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="gate" class="gate" hidden>
+    <div class="gate-card">
+      <div class="gate-logo"><span class="ic" style="background:#0284c7">M</span><span class="ic" style="background:#0d9488">T</span><span class="ic" style="background:#7c3aed">A</span></div>
+      <h1>Aile planı</h1>
+      <div class="muted small">4 haneli kodu gir</div>
+      <div class="dots" id="dots"><i></i><i></i><i></i><i></i></div>
+      <div class="gate-msg" id="gateMsg"></div>
+      <div class="pad" id="pad">
+        <button type="button" data-k="1">1</button><button type="button" data-k="2">2</button><button type="button" data-k="3">3</button>
+        <button type="button" data-k="4">4</button><button type="button" data-k="5">5</button><button type="button" data-k="6">6</button>
+        <button type="button" data-k="7">7</button><button type="button" data-k="8">8</button><button type="button" data-k="9">9</button>
+        <span></span><button type="button" data-k="0">0</button><button type="button" data-k="del" aria-label="Sil">⌫</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="app" hidden>
+    <header class="top">
+      <div class="title"><span id="titleIcons"></span>Aile planı</div>
+      <div class="month">
+        <button type="button" id="prev" aria-label="Önceki ay">‹</button>
+        <strong id="mLabel">—</strong>
+        <button type="button" id="next" aria-label="Sonraki ay">›</button>
+      </div>
+      <span id="wx" class="wx" title="İstanbul hava durumu">…</span>
+    </header>
+    <main>
+      <section class="card">
+        <div class="goals" id="goals"></div>
+        <div class="actions" style="margin-top:10px;">
+          <button type="button" class="primary" id="btnSuggest">★ Öneri oluştur</button>
+          <button type="button" id="btnFix">✓ Fixle</button>
+          <button type="button" class="ghost" id="btnClear">Temizle</button>
+          <span id="selStatus" class="small muted"></span>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="weekdays"><span>Pzt</span><span>Sal</span><span>Çar</span><span>Per</span><span>Cum</span><span>Cmt</span><span>Paz</span></div>
+        <div class="grid" id="grid" style="margin-top:4px;"></div>
+        <div class="legend" id="legend"></div>
+      </section>
+
+      <section class="card">
+        <div style="font-weight:800;margin-bottom:8px;">Özet · kliniklerle paylaş</div>
+        <div id="summary" class="small muted">—</div>
+      </section>
+
+      <details class="card" id="boxVac">
+        <summary>🏖️ Tatil günleri</summary>
+        <div class="inner">
+          <p class="small muted" style="margin-top:0;">Bu günlerde okul ve iş planlanmaz; takvimde boş kalır.</p>
+          <div class="row">
+            <label class="small">Başlangıç <input type="date" id="vacFrom" /></label>
+            <label class="small">Bitiş <input type="date" id="vacTo" /></label>
+            <input type="text" id="vacLabel" placeholder="Açıklama (ör. Kasım tatili)" />
+            <button type="button" id="vacAdd">Ekle</button>
+          </div>
+          <div id="vacList" class="small" style="margin-top:8px;"></div>
+          <div id="vacStatus" class="small muted"></div>
+        </div>
+      </details>
+
+      <details class="card">
+        <summary>ℹ️ Bilgiler · roster, konumlar, kurallar</summary>
+        <div class="inner">
+          <div class="row">
+            <label class="small" for="pdf">Roster PDF</label>
+            <input type="file" id="pdf" accept="application/pdf,.pdf" />
+            <span id="pdfStatus" class="small muted"></span>
+          </div>
+          <div id="rosterSrc" class="small" style="margin-top:6px;"></div>
+          <div id="frame" class="small" style="margin-top:10px;"></div>
+        </div>
+      </details>
+
+      <details class="card">
+        <summary>🚗 Ulaşım süreleri (manuel)</summary>
+        <div class="inner">
+          <p class="small muted" style="margin-top:0;">Normal / yoğun saat dakikası. Sistem çıkış saatine göre seçer; İstanbul'da yağış varsa süreler otomatik artar.</p>
+          <div id="travel"></div>
+          <div class="row" style="margin-top:10px;">
+            <label class="small">Yoğun · hafta içi <input type="text" id="peakWd" placeholder="07:00-10:00, 16:00-20:00" /></label>
+            <label class="small">Cumartesi <input type="text" id="peakSat" placeholder="boş = yok" /></label>
+            <label class="small">Pazar <input type="text" id="peakSun" placeholder="boş = yok" /></label>
+            <label class="small">Yağışta + % <input type="number" id="rainPct" min="0" max="200" step="5" style="width:70px;" /></label>
+          </div>
+          <div class="row" style="margin-top:10px;">
+            <button type="button" class="primary" id="travelSave">Süreleri kaydet</button>
+            <span id="travelStatus" class="small muted"></span>
+          </div>
+        </div>
+      </details>
+
+      <details class="card">
+        <summary>⚙️ Gelişmiş ayarlar (JSON)</summary>
+        <div class="inner">
+          <p class="small muted" style="margin-top:0;">Kişiler, okul, sabit işler, aday klinikler, hedefler. Roster ve fixli seçimler ayrı saklanır.</p>
+          <textarea id="cfg" class="cfg" spellcheck="false"></textarea>
+          <div class="row" style="margin-top:8px;">
+            <button type="button" class="primary" id="cfgSave">Kaydet</button>
+            <button type="button" id="cfgPreview">Önizle</button>
+            <span id="cfgStatus" class="small muted"></span>
+          </div>
+        </div>
+      </details>
+
+      <div class="row small muted" style="justify-content:space-between;">
+        <span id="status"></span>
+        <button type="button" class="ghost small" id="logout">Çıkış</button>
+      </div>
+    </main>
+  </div>
+
+  <div id="sheet" class="sheet-bg" hidden></div>
+
+  <script>
+    'use strict';
+    const SUPABASE_URL = 'https://slmgmcpluanezvkgkozw.supabase.co';
+    const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNsbWdtY3BsdWFuZXp2a2drb3p3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEwODgxNzYsImV4cCI6MjA4NjY2NDE3Nn0.6dFDTjZSEXUSBp4WY10VbPRjk4tQwFczU_Ps9UPXubY';
+    const API = SUPABASE_URL + '/functions/v1/family-planner';
+    const ADMIN_SESSION_KEY = 'flyfam_admin_dashboard_session_v2';
+    const TOKEN_KEY = 'flyfam_family_plan_token_v1';
+    const WX_URL = 'https://api.open-meteo.com/v1/forecast?latitude=41.01&longitude=29.03&timezone=Europe%2FIstanbul&forecast_days=16' +
+      '&current=temperature_2m,precipitation,weather_code&hourly=precipitation,precipitation_probability&daily=weather_code,temperature_2m_max,precipitation_sum,precipitation_probability_max';
+
+    const HOLIDAYS = {
+      '2026-01-01': ['Yılbaşı'], '2026-03-19': ['Ramazan B. arifesi', true], '2026-03-20': ['Ramazan Bayramı'], '2026-03-21': ['Ramazan Bayramı'],
+      '2026-03-22': ['Ramazan Bayramı'], '2026-04-23': ['23 Nisan'], '2026-05-01': ['1 Mayıs'], '2026-05-19': ['19 Mayıs'], '2026-05-26': ['Kurban B. arifesi', true],
+      '2026-05-27': ['Kurban Bayramı'], '2026-05-28': ['Kurban Bayramı'], '2026-05-29': ['Kurban Bayramı'], '2026-05-30': ['Kurban Bayramı'], '2026-07-15': ['15 Temmuz'],
+      '2026-08-30': ['30 Ağustos'], '2026-10-28': ['Cumhuriyet B. arifesi', true], '2026-10-29': ['Cumhuriyet Bayramı'],
+      '2027-01-01': ['Yılbaşı'], '2027-03-08': ['Ramazan B. arifesi', true], '2027-03-09': ['Ramazan Bayramı'], '2027-03-10': ['Ramazan Bayramı'], '2027-03-11': ['Ramazan Bayramı'],
+      '2027-04-23': ['23 Nisan'], '2027-05-01': ['1 Mayıs'], '2027-05-15': ['Kurban B. arifesi', true], '2027-05-16': ['Kurban Bayramı'], '2027-05-17': ['Kurban Bayramı'],
+      '2027-05-18': ['Kurban Bayramı'], '2027-05-19': ['Kurban B. · 19 Mayıs'], '2027-07-15': ['15 Temmuz'], '2027-08-30': ['30 Ağustos'],
+      '2027-10-28': ['Cumhuriyet B. arifesi', true], '2027-10-29': ['Cumhuriyet Bayramı'],
+    };
+    const OFF_CODES = new Set(['MSF', 'FSF', 'FOF', 'FREE', 'OFF', 'OFFB', 'DOFF', 'RQST', 'RSF', 'ROF', 'RUF', 'SOF', 'SOS', 'LSF', 'OFG',
+      'IBB', 'IBE', 'IBX', 'IOZ', 'IBC', 'IBY', 'IBI', 'III', 'VAC', 'AVAC', 'VAV', 'UPV']);
+    const COLORS = { duty: '#1a5cf5', away: '#818cf8', standby: '#f59e0b', school: '#22a55b', fixed: '#7c3aed' };
+    const PALETTE = ['#0284c7', '#0d9488', '#db2777', '#65a30d'];
+    const STAR_COLORS = ['', '#dc2626', '#ea580c', '#ca8a04', '#65a30d', '#16a34a'];
+    const DAY_NAMES = ['', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi', 'Pazar'];
+    const DAY_SHORT = ['', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
+    const DATA_KEYS = ['rosters', 'plans'];
+    const DEFAULT_CONFIG = {
+      version: 3,
+      timezone: 'Europe/Istanbul',
+      view: { start: '06:00', end: '23:00' },
+      people: { crew: 'Crew', partner: 'Eş', child: 'Çocuk' },
+      places: { home: { label: 'Ev', address: '' }, school: { label: 'Okul', address: '' }, crewBase: { label: 'Havalimanı', address: '' } },
+      travel: {
+        peaks: [{ weekdays: [1, 2, 3, 4, 5], start: '07:00', end: '10:00' }, { weekdays: [1, 2, 3, 4, 5], start: '16:00', end: '20:00' }],
+        pairs: {}, fallbackMin: [20, 35], rainExtraPct: 50,
+      },
+      school: { weekdays: [1, 2, 3, 4, 5], start: '09:30', end: '15:00', halfDayEnd: '12:30', skipPublicHolidays: true, closedDates: [], place: 'school', dropBeforeMin: 10 },
+      crewDuty: { homeBase: '', reportBeforeDepMin: 60, releaseAfterArrMin: 30, commutePlace: 'crewBase' },
+      partnerFixed: [],
+      partnerCandidates: [],
+      goals: {},
+      vacations: [],
+    };
+
+    const st = { month: null, data: null, full: {}, config: null, draft: {}, draftDirty: false, travelDirty: false, cfgDirty: false, wx: null, openDay: null, bearer: null, via: null, summaryGroups: [] };
+
+    // ---------- yardımcılar ----------
+    const $ = (id) => document.getElementById(id);
+    const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const hm = (v) => { const m = /^(\d{1,2}):(\d{2})$/.exec(String(v || '').trim()); return m ? Number(m[1]) * 60 + Number(m[2]) : 0; };
+    const fmt = (min) => { const m = ((Math.round(min) % 1440) + 1440) % 1440; return String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0'); };
+    const round5 = (m, up) => (up ? Math.ceil(m / 5) * 5 : Math.floor(m / 5) * 5);
+    const dayIndex = (ymd) => Math.round(Date.parse(ymd + 'T00:00:00Z') / 86400000);
+    const ymdOf = (idx) => new Date(idx * 86400000).toISOString().slice(0, 10);
+    const addDays = (ymd, n) => ymdOf(dayIndex(ymd) + n);
+    const weekday = (ymd) => { const d = new Date(ymd + 'T12:00:00Z').getUTCDay(); return d === 0 ? 7 : d; };
+    const weekOf = (ymd) => addDays(ymd, -(weekday(ymd) - 1));
+    const dateLong = (ymd) => new Date(ymd + 'T12:00:00Z').toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', timeZone: 'UTC' }) + ' ' + DAY_NAMES[weekday(ymd)];
+    const monthName = (m) => new Date(m + '-15T12:00:00Z').toLocaleDateString('tr-TR', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+    const pairKey = (a, b) => [a, b].sort().join('|');
+    const starsText = (n) => '★'.repeat(n) + '☆'.repeat(5 - n);
+    function merge(base, over) {
+      if (!over || typeof over !== 'object' || Array.isArray(over)) return base;
+      const out = Array.isArray(base) ? base.slice() : { ...base };
+      for (const [k, v] of Object.entries(over)) {
+        out[k] = v && typeof v === 'object' && !Array.isArray(v) && base && typeof base[k] === 'object' && !Array.isArray(base[k]) ? merge(base[k], v) : v;
+      }
+      return out;
+    }
+    const settingsOf = (full) => { const o = {}; for (const [k, v] of Object.entries(full || {})) if (!DATA_KEYS.includes(k)) o[k] = v; return o; };
+    const fmtCache = {};
+    function absOf(iso, tz) {
+      if (!iso) return null;
+      const d = new Date(iso);
+      if (Number.isNaN(d.getTime())) return null;
+      const f = fmtCache[tz] || (fmtCache[tz] = new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }));
+      const p = {};
+      for (const part of f.formatToParts(d)) p[part.type] = part.value;
+      return dayIndex(p.year + '-' + p.month + '-' + p.day) * 1440 + Number(p.hour) * 60 + Number(p.minute);
+    }
+    const tzOffset = (tz, ymd) => { const v = absOf(ymd + 'T12:00:00Z', tz); return v == null ? 0 : v - (dayIndex(ymd) * 1440 + 720); };
+    const placeLabel = (cfg, key) => ((cfg.places && cfg.places[key]) || {}).label || key;
+    const isStandby = (u) => /^STB/.test(u) || ['SBY', 'SBX', 'HSBY', 'HSYB', 'ASYB', 'ASBD', 'SBYP', 'RZV', 'RZVM', 'CFR'].includes(u) || /^RSV\d*$/.test(u) || /^SB[1-6X]?$/.test(u);
+    function workMeta(cfg, item, idx, fixed) {
+      const color = item.color || (fixed ? COLORS.fixed : PALETTE[idx % PALETTE.length]);
+      const short = item.short || item.label || item.id || '?';
+      const icon = String(item.icon || short[0] || '?').toUpperCase().slice(0, 1);
+      return { color, short, icon };
+    }
+    const icHtml = (meta, out) => '<span class="ic' + (out ? ' out' : '') + '" style="' + (out ? 'color:' : 'background:') + meta.color + '">' + esc(meta.icon) + '</span>';
+
+    // ---------- hava durumu ----------
+    function wxRainyAt(ymd, min) {
+      if (!st.wx || !st.wx.hourly) return false;
+      const shift = Math.floor(min / 1440);
+      const d = shift ? addDays(ymd, shift) : ymd;
+      const h = Math.floor((min - shift * 1440) / 60);
+      const x = st.wx.hourly[d + 'T' + String(h).padStart(2, '0')];
+      return !!(x && ((x.p || 0) >= 0.2 || (x.pp || 0) >= 60));
+    }
+    function wxEmoji(code, rain) {
+      if (code >= 95) return '⛈️';
+      if (code >= 71 && code <= 77) return '❄️';
+      if ((code >= 51 && code <= 67) || (code >= 80 && code <= 82) || rain) return '🌧️';
+      if (code === 45 || code === 48) return '🌫️';
+      if (code >= 1 && code <= 3) return '⛅';
+      return '☀️';
+    }
+    async function loadWeather() {
+      try {
+        const res = await fetch(WX_URL);
+        const j = await res.json();
+        const hourly = {};
+        (j.hourly?.time || []).forEach((t, i) => { hourly[t.slice(0, 13)] = { p: j.hourly.precipitation?.[i], pp: j.hourly.precipitation_probability?.[i] }; });
+        const daily = {};
+        (j.daily?.time || []).forEach((t, i) => { daily[t] = { code: j.daily.weather_code?.[i], tmax: j.daily.temperature_2m_max?.[i], sum: j.daily.precipitation_sum?.[i], pmax: j.daily.precipitation_probability_max?.[i] }; });
+        const prev = JSON.stringify(Object.keys(st.wx?.hourly || {}).filter((k) => wxRainyAt(k.slice(0, 10), Number(k.slice(11, 13)) * 60)));
+        st.wx = { current: j.current || {}, hourly, daily, at: new Date() };
+        renderWeather();
+        const next = JSON.stringify(Object.keys(hourly).filter((k) => wxRainyAt(k.slice(0, 10), Number(k.slice(11, 13)) * 60)));
+        if (prev !== next && st.config) render();
+      } catch (_) {
+        $('wx').textContent = 'Hava durumu alınamadı';
+      }
+    }
+    function renderWeather() {
+      const c = st.wx?.current || {};
+      const rainNow = (c.precipitation || 0) > 0 || wxRainyAt(new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Istanbul' }), new Date().getHours() * 60);
+      const pct = Number(st.config?.travel?.rainExtraPct ?? 50);
+      const el = $('wx');
+      el.classList.toggle('rain', rainNow);
+      const t = c.temperature_2m != null ? Math.round(c.temperature_2m) + '°' : '';
+      const at = st.wx?.at ? st.wx.at.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }) : '';
+      el.innerHTML = wxEmoji(c.weather_code, rainNow) + ' ' + esc(t) + (rainNow ? ' · yağış · yol +%' + pct : '') + ' <span class="muted">' + esc(at) + '</span>';
+      el.title = 'İstanbul · Open-Meteo · ' + at + (rainNow ? ' · yağışlı saatlerde yol süreleri +%' + pct : '') + ' · 16 günlük tahmin planlamada kullanılır';
+    }
+
+    // ---------- yol süresi ----------
+    function isPeak(cfg, wd, t) { return ((cfg.travel && cfg.travel.peaks) || []).some((p) => (p.weekdays || []).includes(wd) && t >= hm(p.start) && t < hm(p.end)); }
+    /** Yol süresi (dk): yoğun saat ve (tahmin varsa) yağışa göre. */
+    function travel(cfg, a, b, ymd, atMin) {
+      if (!a || !b || a === b) return 0;
+      const shift = Math.floor(atMin / 1440);
+      const d = shift ? addDays(ymd, shift) : ymd;
+      const t = atMin - shift * 1440;
+      const tr = cfg.travel || {};
+      const fb = Array.isArray(tr.fallbackMin) ? tr.fallbackMin : [20, 35];
+      const pair = tr.pairs && tr.pairs[pairKey(a, b)];
+      const v = Array.isArray(pair) ? pair : fb;
+      let n = Number(v[isPeak(cfg, weekday(d), t) ? 1 : 0]);
+      if (!Number.isFinite(n)) n = Number(fb[0]) || 20;
+      if (wxRainyAt(d, t)) n = Math.round(n * (1 + Number(tr.rainExtraPct ?? 50) / 100));
+      return n;
+    }
+
+    // ---------- crew roster ----------
+    function rosterClaims(full) {
+      const claims = {};
+      const list = Array.isArray(full && full.rosters) ? full.rosters.slice() : [];
+      list.sort((a, b) => String(b.importedAt || '').localeCompare(String(a.importedAt || '')));
+      for (const imp of list) {
+        if (!imp || !imp.from || !imp.to || !Array.isArray(imp.rows)) continue;
+        for (let d = imp.from; d <= imp.to; d = addDays(d, 1)) if (!claims[d]) claims[d] = imp;
+      }
+      return claims;
+    }
+    function buildCrew(cfg, dbEntries, claims, homeBase) {
+      const tz = cfg.timezone || 'Europe/Istanbul';
+      const report = Number(cfg.crewDuty.reportBeforeDepMin) || 0;
+      const release = Number(cfg.crewDuty.releaseAfterArrMin) || 0;
+      const base = cfg.crewDuty.commutePlace || 'crewBase';
+      const at2ymd = (at) => ymdOf(Math.floor(at / 1440));
+      const toBase = (at) => travel(cfg, 'home', base, at2ymd(at), at % 1440 - 45);
+      const fromBase = (at) => travel(cfg, base, 'home', at2ymd(at), at % 1440);
+      const intervals = [];
+      const labels = {};
+      const addLabel = (ymd, t, k) => { if (ymd) (labels[ymd] = labels[ymd] || []).push({ k, t }); };
+      const duties = [];
+      const seen = new Set();
+      for (const imp of Object.values(claims)) {
+        if (seen.has(imp)) continue;
+        seen.add(imp);
+        const groups = new Map();
+        for (const r of imp.rows) {
+          if (claims[r.fd] !== imp) continue;
+          const code = String(r.n || '').replace(/\s/g, '').toUpperCase();
+          const kind = String(r.k || 'flight');
+          const toAbs = (ymd, h) => (!ymd || !h ? null : dayIndex(ymd) * 1440 + hm(h) + (r.cb === 'utc' ? tzOffset(tz, ymd) : 0));
+          if (kind === 'flight') {
+            const depDay = r.ds && r.dt && hm(r.dt) < hm(r.ds) ? addDays(r.fd, 1) : r.fd;
+            addLabel(depDay, '✈ ' + code + ' ' + (r.o || '') + '→' + (r.d || '') + ' ' + (r.dt || '') + (r.at ? '–' + r.at : ''), 'crew');
+            const key = r.ds && r.ed && r.et ? [r.fd, r.ds, r.ed, r.et].join('|') : 'leg|' + r.fd + '|' + code;
+            let g = groups.get(key);
+            if (!g) {
+              let s = toAbs(r.fd, r.ds), e = toAbs(r.ed, r.et);
+              if (s == null || e == null || e <= s) {
+                const dep = toAbs(depDay, r.dt);
+                const arr = dep == null ? null : dep + ((hm(r.at) - hm(r.dt) + 1440) % 1440);
+                s = dep == null ? null : dep - report;
+                e = arr == null ? null : arr + release;
+              }
+              g = { s, e, legs: [] };
+              groups.set(key, g);
+            }
+            g.legs.push(r);
+            continue;
+          }
+          if (OFF_CODES.has(code)) {
+            const last = r.ed ? (hm(r.et) <= 360 ? addDays(r.ed, -1) : r.ed) : r.fd;
+            for (let d = r.fd; d <= last; d = addDays(d, 1)) addLabel(d, 'Boş gün', 'muted');
+            continue;
+          }
+          let s = toAbs(r.fd, r.ds), e = toAbs(r.ed, r.et);
+          if (isStandby(code)) {
+            if (code === 'CFR' || s == null || e == null || e <= s) { s = dayIndex(r.fd) * 1440; e = s + 1440; }
+            intervals.push({ s, e, kind: 'standby', label: code });
+            addLabel(r.fd, (code === 'CFR' ? 'CFR · tüm gün' : code + ' ' + fmt(s) + '–' + fmt(e)), 'warn');
+            continue;
+          }
+          if (s != null && e != null && e > s) {
+            intervals.push({ s: s - toBase(s), e: e + fromBase(e), kind: 'duty', label: code });
+            addLabel(r.fd, code + ' ' + fmt(s) + '–' + fmt(e), 'crew');
+          } else addLabel(r.fd, code, 'crew');
+        }
+        for (const g of groups.values()) if (g.s != null && g.e != null) duties.push(g);
+      }
+      const legs = [];
+      for (const e of dbEntries || []) {
+        if (claims[e.flight_date]) continue;
+        const kind = String(e.roster_entry_kind || 'flight').toLowerCase();
+        const code = String(e.flight_number || '').replace(/\s/g, '').toUpperCase();
+        const s = absOf(e.scheduled_departure, tz), en = absOf(e.scheduled_arrival, tz);
+        const dayYmd = s != null ? at2ymd(s) : e.flight_date;
+        if (OFF_CODES.has(code)) { addLabel(e.flight_date, 'Boş gün', 'muted'); continue; }
+        if (isStandby(code)) {
+          let ss = s, ee = en;
+          if (code === 'CFR' || ss == null || ee == null || ee <= ss) { ss = dayIndex(e.flight_date) * 1440; ee = ss + 1440; }
+          intervals.push({ s: ss, e: ee, kind: 'standby', label: code });
+          addLabel(e.flight_date, code === 'CFR' ? 'CFR · tüm gün' : code + ' ' + fmt(ss) + '–' + fmt(ee), 'warn');
+          continue;
+        }
+        if (kind === 'flight') {
+          if (s == null || en == null) { addLabel(e.flight_date, '✈ ' + code, 'crew'); continue; }
+          legs.push({ s, e: en, n: code, o: e.origin_airport || '', d: e.destination_airport || '' });
+          addLabel(dayYmd, '✈ ' + code + ' ' + (e.origin_airport || '') + '→' + (e.destination_airport || '') + ' ' + fmt(s) + '–' + fmt(en), 'crew');
+          continue;
+        }
+        if (s != null && en != null && en > s) { intervals.push({ s: s - toBase(s), e: en + fromBase(en), kind: 'duty', label: code }); addLabel(dayYmd, code + ' ' + fmt(s) + '–' + fmt(en), 'crew'); }
+        else addLabel(e.flight_date, code, 'crew');
+      }
+      legs.sort((a, b) => a.s - b.s);
+      let cur = null;
+      const flush = () => { if (cur) duties.push({ s: cur[0].s - report, e: cur[cur.length - 1].e + release, legs: cur }); cur = null; };
+      for (const f of legs) { if (cur && f.s - cur[cur.length - 1].e >= 480) flush(); if (!cur) cur = []; cur.push(f); }
+      flush();
+      duties.sort((a, b) => a.s - b.s);
+      duties.forEach((g, i) => {
+        const first = g.legs[0] || {}, last = g.legs[g.legs.length - 1] || {};
+        const startsHome = !homeBase || !first.o || first.o === homeBase;
+        const endsHome = !homeBase || !last.d || last.d === homeBase;
+        intervals.push({ s: g.s - (startsHome ? toBase(g.s) : 0), e: g.e + (endsHome ? fromBase(g.e) : 0), kind: 'duty', label: g.legs.map((x) => x.n).join(' ') });
+        const next = duties[i + 1];
+        if (!endsHome && next && next.s > g.e) intervals.push({ s: g.e, e: next.s, kind: 'away', label: 'Yatı ' + (last.d || '') });
+      });
+      intervals.sort((a, b) => a.s - b.s);
+      return { intervals, labels };
+    }
+    function crewState(intervals, s, e) {
+      let r = null;
+      for (const iv of intervals) if (iv.s < e && iv.e > s) { if (iv.kind === 'duty' || iv.kind === 'away') return iv.kind; r = 'standby'; }
+      return r;
+    }
+    function fixedApplies(f, ymd, wd) {
+      if (Array.isArray(f.dates) && f.dates.includes(ymd)) return true;
+      if (Array.isArray(f.weekdays) && f.weekdays.includes(wd)) return true;
+      if (f.monthlyNth && Number(f.monthlyNth.weekday) === wd) return Math.floor((Number(ymd.slice(8, 10)) - 1) / 7) + 1 === Number(f.monthlyNth.n);
+      return false;
+    }
+    function vacationOf(cfg, ymd) { return (cfg.vacations || []).find((v) => v && v.from && v.to && ymd >= v.from && ymd <= v.to) || null; }
+
+    // ---------- kurallar ----------
+    function dayBase(cfg, ymd) {
+      const wd = weekday(ymd);
+      const hol = HOLIDAYS[ymd] || null;
+      const vac = vacationOf(cfg, ymd);
+      const holFull = !!(hol && !hol[1]), holHalf = !!(hol && hol[1]);
+      const sc = cfg.school || {};
+      const closed = Array.isArray(sc.closedDates) && sc.closedDates.includes(ymd);
+      const schoolDay = !vac && (sc.weekdays || []).includes(wd) && !closed && !(holFull && sc.skipPublicHolidays !== false);
+      const sStart = hm(sc.start);
+      const sEnd = holHalf ? Math.min(hm(sc.end), hm(sc.halfDayEnd || '12:30')) : hm(sc.end);
+      return { ymd, wd, hol, vac, holFull, holHalf, schoolDay, sStart, sEnd, schoolPlace: sc.place || 'school', base: dayIndex(ymd) * 1440 };
+    }
+    /** Eş `place`'te [start,end] çalışırsa crew'un karşılaması gereken aralıklar (götürme/alma yalnız crew veya eş). */
+    function workNeeds(ctx, day, place, start, end) {
+      const cfg = ctx.cfg;
+      const T = (a, b, at) => travel(cfg, a, b, day.ymd, at);
+      const leave = start - T('home', place, start - 30);
+      const back = end + T(place, 'home', end);
+      const needs = [];
+      if (day.schoolDay) {
+        const S = day.sStart, E = day.sEnd, sch = day.schoolPlace;
+        const pre = Number.isFinite(Number(cfg.school.dropBeforeMin)) ? Number(cfg.school.dropBeforeMin) : 10;
+        const dStart = S - pre - T('home', sch, S - 30), dEnd = S + T(sch, 'home', S);
+        const pStart = E - pre - T('home', sch, E - 30), pEnd = E + T(sch, 'home', E);
+        const mineDrops = leave >= dEnd || S + T(sch, place, S) <= start;
+        const minePicks = back <= pStart || leave >= pEnd || end + T(place, sch, end) <= E;
+        if (!mineDrops) needs.push({ what: 'okula götürme', s: Math.min(leave, dStart), e: dEnd, run: true });
+        if (!minePicks) needs.push({ what: 'okuldan alma + evde', s: pStart, e: Math.max(pEnd, back), run: true });
+        else if (leave >= E) needs.push({ what: 'evde bakım', s: leave, e: back });
+      } else needs.push({ what: 'evde bakım', s: leave, e: back });
+      let worst = 'ok';
+      for (const n of needs) {
+        n.st = crewState(ctx.crew.intervals, day.base + n.s, day.base + n.e);
+        if (n.st === 'duty' || n.st === 'away') worst = 'bad';
+        else if (n.st === 'standby' && worst === 'ok') worst = 'risk';
+      }
+      return { needs, worst };
+    }
+    function needText(cfg, n) {
+      const P = cfg.people || {};
+      const C = P.crew || 'Crew', CH = P.child || 'Çocuk';
+      const s = !n.st ? C + ' müsait' : n.st === 'standby' ? C + ' nöbet/rezerv (riskli)' : n.st === 'away' ? C + ' yatıda' : C + ' görevde';
+      return CH + ' ' + n.what + ' ' + fmt(n.s) + '–' + fmt(n.e) + ': ' + s;
+    }
+    const needKind = (n) => (!n.st ? 'ok' : n.st === 'standby' ? 'warn' : 'bad');
+
+    /** 1–5 yıldız: 5 = kimseye bağlı değil, rahat. */
+    function rate(ctx, day, o) {
+      const cfg = ctx.cfg;
+      const C = (cfg.people || {}).crew || 'Crew';
+      let s = 5;
+      const why = [];
+      const dayIvs = ctx.crew.intervals.filter((iv) => iv.s < day.base + 1440 && iv.e > day.base);
+      const standbyDay = dayIvs.some((iv) => iv.kind === 'standby' && iv.s < day.base + 22 * 60 && iv.e > day.base + 6 * 60);
+      const dutyDay = dayIvs.some((iv) => iv.kind === 'duty' || iv.kind === 'away');
+      const runs = o.needs.filter((n) => n.run);
+      const care = o.needs.filter((n) => !n.run);
+      if (o.worst === 'risk') { s = Math.min(s, 2); why.push(C + ' nöbet/rezervde ama ona bağlı'); }
+      if (runs.length) { s -= 1; why.push(C + ' ' + runs.map((n) => n.what.replace(' + evde', '')).join(' ve ') + ' yapar'); }
+      if (care.length && dutyDay && o.worst === 'ok') { s -= 1; why.push(C + ' aynı gün görevli (yorgun/yakın)'); }
+      if (standbyDay && o.worst !== 'risk') { s -= 1; why.push(C + ' nöbet/rezerv günü'); }
+      if (o.needs.length) {
+        let gap = Infinity;
+        for (const n of o.needs) for (const iv of dayIvs) {
+          if (iv.kind === 'standby') continue;
+          if (iv.s >= day.base + n.e) gap = Math.min(gap, iv.s - (day.base + n.e));
+          if (iv.e <= day.base + n.s) gap = Math.min(gap, day.base + n.s - iv.e);
+        }
+        if (gap < 90) { s -= 1; why.push(C + "'nin görevine çok yakın"); }
+      }
+      if (wxRainyAt(day.ymd, o.s - 30) || wxRainyAt(day.ymd, o.e)) { s -= 1; why.push('yağış bekleniyor: trafik'); }
+      s = Math.max(1, Math.min(5, s));
+      if (!why.length) why.push('kimseye bağlı değil, rahat');
+      return { stars: s, why };
+    }
+
+    function options(ctx, day, fixedCount) {
+      const cfg = ctx.cfg;
+      const opts = [], rejected = [];
+      if (fixedCount || day.vac) return { opts, rejected };
+      const T = (a, b, at) => travel(cfg, a, b, day.ymd, at);
+      (cfg.partnerCandidates || []).forEach((c, ci) => {
+        const id = String(c.id || 'c' + ci);
+        const meta = workMeta(cfg, c, ci, false);
+        const place = c.place || id;
+        if (!(c.weekdays || [1, 2, 3, 4, 5]).includes(day.wd)) return;
+        if (day.holFull && c.skipPublicHolidays !== false) return;
+        const buf = Number.isFinite(Number(c.bufferMin)) ? Number(c.bufferMin) : 10;
+        const minMin = (Number(c.minHours) || (c.mode === 'evening' ? 2 : 3)) * 60;
+        const push = (v, s, e, r) => {
+          const o = { key: id + ':' + v, cand: id, v, s, e, place, label: c.label || meta.short, ...meta, needs: r.needs, worst: r.worst };
+          Object.assign(o, rate(ctx, day, o));
+          opts.push(o);
+        };
+        if (c.mode === 'school_hours') {
+          if (!day.schoolDay || day.holHalf) return;
+          const S = day.sStart, E = day.sEnd, sch = day.schoolPlace;
+          const stdS = round5(S + T(sch, place, S) + buf, true);
+          const stdE = round5(E - buf - T(place, sch, E - 30), false);
+          if (stdE - stdS >= minMin) { const r = workNeeds(ctx, day, place, stdS, stdE); if (r.worst !== 'bad') push('std', stdS, stdE, r); }
+          else rejected.push(meta.short + ': okul saatinde ' + (minMin / 60) + ' sa kalmıyor');
+          const exS = c.extendedStart ? hm(c.extendedStart) : null, exE = c.extendedEnd ? hm(c.extendedEnd) : null;
+          const tries = [];
+          if (exS != null && exE != null) tries.push([Math.min(exS, stdS), Math.max(exE, stdE)]);
+          if (exE != null) tries.push([stdS, Math.max(exE, stdE)]);
+          if (exS != null) tries.push([Math.min(exS, stdS), stdE]);
+          for (const [s, e] of tries) {
+            if ((s === stdS && e === stdE) || e - s < minMin) continue;
+            const r = workNeeds(ctx, day, place, s, e);
+            if (r.worst === 'ok') { push('ext', s, e, r); break; }
+          }
+        } else if (c.mode === 'evening') {
+          let s = hm(c.start || '16:00');
+          const e = hm(c.end || '20:00');
+          if (day.schoolDay) { const homeAt = day.sEnd + T(day.schoolPlace, 'home', day.sEnd); s = Math.max(s, round5(homeAt + T('home', place, homeAt), true)); }
+          if (e - s < minMin) return;
+          const r = workNeeds(ctx, day, place, s, e);
+          if (r.worst === 'bad') { const n = r.needs.find((x) => x.st === 'duty' || x.st === 'away'); rejected.push(meta.short + ' ' + fmt(s) + '–' + fmt(e) + ': ' + (n ? needText(cfg, n) : 'uygun değil')); return; }
+          push('eve', s, e, r);
+        }
+      });
+      opts.sort((a, b) => b.stars - a.stars);
+      return { opts, rejected };
+    }
+
+    function evalDay(ctx, ymd) {
+      const cfg = ctx.cfg;
+      const P = cfg.people || {};
+      const day = dayBase(cfg, ymd);
+      const segs = { crew: [], child: [], partner: [] };
+      const notes = [];
+      let conflict = false;
+      for (const iv of ctx.crew.intervals) if (iv.s < day.base + 1440 && iv.e > day.base) segs.crew.push({ s: Math.max(iv.s, day.base) - day.base, e: Math.min(iv.e, day.base + 1440) - day.base, kind: iv.kind, title: iv.label });
+      if (day.schoolDay) {
+        segs.child.push({ s: day.sStart, e: day.sEnd, kind: 'school', title: 'Okul' });
+        if (day.holHalf) notes.push({ k: 'warn', t: 'Arife: okul çıkışı ' + fmt(day.sEnd) });
+      }
+      if (day.vac) notes.push({ k: 'muted', t: '🏖️ Tatil: ' + (day.vac.label || '') });
+      const fixed = [];
+      if (!day.vac) (cfg.partnerFixed || []).forEach((f, fi) => {
+        if (day.holFull && f.skipPublicHolidays !== false) return;
+        if (!fixedApplies(f, ymd, day.wd)) return;
+        const meta = workMeta(cfg, f, fi, true);
+        const s = hm(f.start), e = hm(f.end);
+        const r = workNeeds(ctx, day, f.place, s, e);
+        fixed.push({ ...f, ...meta, s, e, needs: r.needs, worst: r.worst });
+        segs.partner.push({ s, e, kind: 'fixed', color: meta.color, title: f.label });
+        notes.push({ k: 'muted', t: (P.partner || 'Eş') + ' · ' + (f.label || '') + ' ' + fmt(s) + '–' + fmt(e) + ' (sabit)' });
+        for (const n of r.needs) notes.push({ k: needKind(n), t: needText(cfg, n) });
+        if (r.worst === 'bad') conflict = true;
+      });
+      const { opts, rejected } = options(ctx, day, fixed.length);
+      const sel = st.draft[ymd];
+      let plan = null;
+      if (sel && !day.vac) {
+        const idx = (cfg.partnerCandidates || []).findIndex((x, i) => String(x.id || 'c' + i) === sel.cand);
+        const c = idx >= 0 ? cfg.partnerCandidates[idx] : { id: sel.cand, short: sel.short, label: sel.label };
+        const meta = workMeta(cfg, c, Math.max(0, idx), false);
+        const s = hm(sel.start), e = hm(sel.end);
+        const place = sel.place || c.place || sel.cand;
+        const r = workNeeds(ctx, day, place, s, e);
+        plan = { ...sel, ...meta, s, e, place, needs: r.needs, worst: r.worst, label: sel.label || meta.short };
+        Object.assign(plan, rate(ctx, day, plan));
+        segs.partner.push({ s, e, kind: 'plan', color: meta.color, title: plan.label });
+        notes.push({ k: 'ok', t: '✓ ' + plan.label + ' ' + sel.start + '–' + sel.end });
+        if (fixed.length) { notes.push({ k: 'bad', t: 'Aynı gün sabit iş var (günde tek iş)' }); conflict = true; }
+        for (const n of r.needs) notes.push({ k: needKind(n), t: needText(cfg, n) });
+        if (r.worst === 'bad') conflict = true;
+      }
+      return { ...day, segs, notes, fixed, opts, rejected, plan, conflict, crewLabels: ctx.crew.labels[ymd] || [] };
+    }
+
+    function compute() {
+      if (!st.data || !st.config) return null;
+      const cfg = st.config;
+      const homeBase = String(cfg.crewDuty.homeBase || (st.data.crew && st.data.crew.home_base_iata) || '').toUpperCase();
+      const claims = rosterClaims(st.full);
+      const crew = buildCrew(cfg, st.data.entries || [], claims, homeBase);
+      const ctx = { cfg, crew };
+      const [y, m] = st.month.split('-').map(Number);
+      const first = st.month + '-01';
+      const last = new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10);
+      const days = [];
+      for (let d = addDays(first, -(weekday(first) - 1)); d <= addDays(last, 7 - weekday(last)); d = addDays(d, 1)) {
+        const ev = evalDay(ctx, d);
+        ev.inMonth = d.slice(0, 7) === st.month;
+        days.push(ev);
+      }
+      return { cfg, ctx, days, claims };
+    }
+
+    /** Hedeflere göre öneri: önce sayılı hedefler (haftada en fazla 1, ay içine yayılmış), sonra «her hafta içi» hedefleri. */
+    function suggest(res) {
+      const { cfg, days } = res;
+      const goals = cfg.goals || {};
+      const draft = {};
+      const inMonth = days.filter((d) => d.inMonth);
+      const best = (d, cand) => d.opts.filter((o) => o.cand === cand).sort((a, b) => b.stars - a.stars || (a.v === 'std' ? -1 : 1))[0] || null;
+      const take = (d, o) => { draft[d.ymd] = { cand: o.cand, v: o.v, place: o.place, label: o.label, short: o.short, start: fmt(o.s), end: fmt(o.e) }; };
+      const counted = Object.entries(goals).filter(([, g]) => g && (typeof g.weekdays === 'number' || g.saturdays));
+      const allWd = Object.entries(goals).filter(([, g]) => g && g.weekdays === 'all');
+      for (const [cand, g] of counted) {
+        const minStars = Number(g.minStars) || 2;
+        const maxPerWeek = Number(g.maxPerWeek) || 1;
+        const perWeek = {};
+        const chosen = [];
+        const otherStars = (d) => Math.max(0, ...d.opts.filter((o) => o.cand !== cand).map((o) => o.stars));
+        const pick = (filter, n) => {
+          for (let i = 0; i < n; i += 1) {
+            let top = null, topScore = -Infinity;
+            for (const d of inMonth) {
+              if (draft[d.ymd] || !filter(d)) continue;
+              const wk = weekOf(d.ymd);
+              if ((perWeek[wk] || 0) >= maxPerWeek) continue;
+              const o = best(d, cand);
+              if (!o || o.stars < minStars) continue;
+              const dist = chosen.length ? Math.min(...chosen.map((x) => Math.abs(dayIndex(x) - dayIndex(d.ymd)))) : 10;
+              const score = o.stars * 10 + Math.min(dist, 10) * 1.5 - otherStars(d) * 2;
+              if (score > topScore) { topScore = score; top = { d, o }; }
+            }
+            if (!top) break;
+            take(top.d, top.o);
+            chosen.push(top.d.ymd);
+            const wk = weekOf(top.d.ymd);
+            perWeek[wk] = (perWeek[wk] || 0) + 1;
+          }
+        };
+        pick((d) => d.wd === 6, Number(g.saturdays) || 0);
+        pick((d) => d.wd <= 5, Number(g.weekdays) || 0);
+      }
+      for (const [cand, g] of allWd) {
+        const minStars = Number(g.minStars) || 2;
+        for (const d of inMonth) {
+          if (draft[d.ymd] || d.wd > 5) continue;
+          const o = best(d, cand);
+          if (o && o.stars >= minStars) take(d, o);
+        }
+      }
+      return draft;
+    }
+
+    // ---------- çizim ----------
+    function timeline(ev, cfg, big) {
+      const vs = hm(cfg.view?.start || '06:00'), ve = hm(cfg.view?.end || '23:00');
+      const span = Math.max(60, ve - vs);
+      const seg = (x) => {
+        const s = Math.max(vs, x.s), e = Math.min(ve, x.e);
+        if (e <= s) return '';
+        return '<span class="seg' + (x.kind === 'cand' ? ' cand' : '') + '" title="' + esc((x.title || '') + ' ' + fmt(x.s) + '–' + fmt(x.e)) + '" style="left:' + ((s - vs) / span * 100).toFixed(2) + '%;width:' +
+          ((e - s) / span * 100).toFixed(2) + '%;background-color:' + (x.color || COLORS[x.kind] || '#94a3b8') + '"></span>';
+      };
+      const row = (a) => '<div class="tl-row">' + a.map(seg).join('') + '</div>';
+      if (!big) return '<div class="tl">' + row(ev.segs.crew) + row(ev.segs.child) + row(ev.segs.partner) + '</div>';
+      const P = cfg.people || {};
+      return '<div class="rows"><span>' + esc(P.crew || 'Crew') + '</span>' + row(ev.segs.crew) + '<span>' + esc(P.child || 'Çocuk') + '</span>' + row(ev.segs.child) +
+        '<span>' + esc(P.partner || 'Eş') + '</span>' + row(ev.segs.partner) + '<span></span><div class="hours"><span>' + fmt(vs) + '</span><span>' + fmt(vs + span / 2) + '</span><span>' + fmt(ve) + '</span></div></div>';
+    }
+    const starsHtml = (n) => '<span class="stars" style="color:' + STAR_COLORS[n] + '">' + starsText(n) + '</span>';
+
+    function render() {
+      const res = compute();
+      $('mLabel').textContent = st.month ? monthName(st.month) : '—';
+      if (!res) return;
+      const { cfg, days } = res;
+      const today = new Date().toLocaleDateString('en-CA', { timeZone: cfg.timezone || 'Europe/Istanbul' });
+      $('grid').innerHTML = days.map((ev) => {
+        const cls = ['cell'];
+        if (!ev.inMonth) cls.push('out');
+        if (ev.wd >= 6) cls.push('we');
+        if (ev.hol) cls.push('hol');
+        if (ev.vac) cls.push('vac');
+        if (ev.ymd === today) cls.push('today');
+        if (ev.conflict) cls.push('bad');
+        let work = '';
+        let style = '';
+        for (const f of ev.fixed) work += '<span class="pick" style="background:' + f.color + '1f">' + icHtml(f) + '</span>';
+        if (ev.plan) {
+          cls.push('picked');
+          style = 'border-color:' + STAR_COLORS[ev.plan.stars] + ';background:' + STAR_COLORS[ev.plan.stars] + '12;';
+          work += '<span class="pick" style="background:' + ev.plan.color + '1f">' + icHtml(ev.plan) + starsHtml(ev.plan.stars) + '</span>';
+        } else if (ev.inMonth && ev.opts.length && !ev.fixed.length) {
+          const seen = new Set();
+          for (const o of ev.opts) {
+            if (seen.has(o.cand)) continue;
+            seen.add(o.cand);
+            work += '<span class="opt-mini" title="' + esc(o.label + ' ' + fmt(o.s) + '–' + fmt(o.e) + ' · ' + o.stars + '★') + '">' + icHtml(o, true) + '<span class="stars" style="color:' + STAR_COLORS[o.stars] + '">' + o.stars + '★</span></span>';
+          }
+        }
+        const crew = ev.crewLabels.slice(0, 2).map((l) => '<div class="crew ' + l.k + '">' + esc(l.t) + '</div>').join('');
+        const bad = ev.notes.filter((n) => n.k === 'bad').slice(0, 1).map((n) => '<div class="flag">⚠ ' + esc(n.t.split(':')[0]) + '</div>').join('');
+        const top = ev.vac ? '🏖️ ' + (ev.vac.label || 'Tatil') : ev.hol ? ev.hol[0] : '';
+        return '<div class="' + cls.join(' ') + '" style="' + style + '" data-day="' + ev.ymd + '" role="button" tabindex="0">' +
+          '<div class="d"><b>' + Number(ev.ymd.slice(8, 10)) + '</b>' + (top ? '<small>' + esc(top) + '</small>' : '') + '</div>' +
+          timeline(ev, cfg, false) + crew + bad + '<div class="work">' + work + '</div></div>';
+      }).join('');
+      renderGoals(res);
+      renderLegend(cfg);
+      renderSummary(res);
+      renderFrame(cfg, res.claims);
+      renderTravel(cfg);
+      renderVacations(cfg);
+      if (st.openDay) openDay(st.openDay, res);
+      const n = Object.keys(st.draft).filter((d) => d.slice(0, 7) === st.month).length;
+      $('selStatus').innerHTML = n + ' gün seçili' + (st.draftDirty ? ' · <span class="dirty">fixlenmedi</span>' : '');
+    }
+
+    function renderGoals(res) {
+      const { cfg, days } = res;
+      const inMonth = days.filter((d) => d.inMonth);
+      const parts = [];
+      (cfg.partnerCandidates || []).forEach((c, ci) => {
+        const id = String(c.id || 'c' + ci);
+        const meta = workMeta(cfg, c, ci, false);
+        const g = (cfg.goals || {})[id];
+        const picked = inMonth.filter((d) => d.plan && d.plan.cand === id);
+        if (g && g.weekdays === 'all') {
+          const avail = inMonth.filter((d) => d.wd <= 5 && (d.opts.some((o) => o.cand === id) || (d.plan && d.plan.cand === id))).length;
+          parts.push('<span class="goal">' + icHtml(meta) + '<span><b>' + picked.length + '</b> / ' + avail + ' hafta içi</span><span class="bar"><i style="width:' + (avail ? Math.min(100, picked.length / avail * 100) : 0) + '%;background:' + meta.color + '"></i></span></span>');
+        } else if (g) {
+          const wd = picked.filter((d) => d.wd <= 5).length, sat = picked.filter((d) => d.wd === 6).length;
+          const target = (Number(g.weekdays) || 0) + (Number(g.saturdays) || 0);
+          parts.push('<span class="goal">' + icHtml(meta) + '<span><b>' + wd + '</b>/' + (g.weekdays || 0) + ' hafta içi · <b>' + sat + '</b>/' + (g.saturdays || 0) + ' Cmt</span><span class="bar"><i style="width:' + (target ? Math.min(100, (wd + sat) / target * 100) : 0) + '%;background:' + meta.color + '"></i></span></span>');
+        } else {
+          parts.push('<span class="goal">' + icHtml(meta) + '<span><b>' + picked.length + '</b> gün</span></span>');
+        }
+      });
+      const fixedPlaces = new Set();
+      (cfg.partnerFixed || []).forEach((f, fi) => {
+        if (fixedPlaces.has(f.place)) return;
+        fixedPlaces.add(f.place);
+        const cnt = inMonth.filter((d) => d.fixed.some((x) => x.place === f.place)).length;
+        parts.push('<span class="goal">' + icHtml(workMeta(cfg, f, fi, true)) + '<span><b>' + cnt + '</b> sabit · ' + esc(f.short || placeLabel(cfg, f.place)) + '</span></span>');
+      });
+      const conf = inMonth.filter((d) => d.conflict).length;
+      if (conf) parts.push('<span class="goal" style="background:#fee2e2;color:#991b1b;">⚠ <b>' + conf + '</b> çakışma</span>');
+      $('goals').innerHTML = parts.join('');
+    }
+    function renderLegend(cfg) {
+      const P = cfg.people || {};
+      const items = [[COLORS.duty, (P.crew || 'Crew') + ' görev + yol'], [COLORS.away, 'Yatı'], [COLORS.standby, 'Nöbet / rezerv'], [COLORS.school, (P.child || 'Çocuk') + ' okul']];
+      $('legend').innerHTML = items.map(([c, t]) => '<span><i class="sw" style="background:' + c + '"></i>' + esc(t) + '</span>').join('') +
+        (cfg.partnerCandidates || []).map((c, i) => { const m = workMeta(cfg, c, i, false); return '<span>' + icHtml(m) + ' ' + esc(c.label || m.short) + '</span>'; }).join('') +
+        (cfg.partnerFixed || []).filter((f, i, a) => a.findIndex((x) => x.place === f.place) === i).map((f, i) => { const m = workMeta(cfg, f, i, true); return '<span>' + icHtml(m) + ' ' + esc(placeLabel(cfg, f.place)) + ' (sabit)</span>'; }).join('') +
+        '<span>' + [5, 4, 3, 2, 1].map((n) => '<b style="color:' + STAR_COLORS[n] + '">' + n + '★</b>').join(' ') + ' rahat → zor</span>';
+    }
+
+    function openDay(ymd, resIn) {
+      const res = resIn || compute();
+      const ev = res && res.days.find((d) => d.ymd === ymd);
+      if (!ev) return closeDay();
+      st.openDay = ymd;
+      const cfg = res.cfg;
+      const items = [];
+      if (ev.hol) items.push('<li class="warn">Resmi tatil: ' + esc(ev.hol[0]) + (ev.hol[1] ? ' (yarım gün)' : '') + '</li>');
+      for (const l of ev.crewLabels) items.push('<li class="' + l.k + '">' + esc(l.t) + '</li>');
+      if (!ev.crewLabels.length) items.push('<li class="muted">' + esc((cfg.people || {}).crew || 'Crew') + ': roster kaydı yok</li>');
+      for (const n of ev.notes) items.push('<li class="' + n.k + '">' + esc(n.t) + '</li>');
+      let opts = '';
+      if (ev.vac) opts = '<p class="muted small">Tatil günü; iş planlanmaz.</p>';
+      else if (ev.fixed.length) opts = '<p class="muted small">Sabit iş günü; günde tek iş kuralı nedeniyle başka seçenek yok.</p>';
+      else if (ev.opts.length || ev.rejected.length) {
+        opts = '<div class="opts">' + ev.opts.map((o) => {
+          const on = ev.plan && ev.plan.cand === o.cand && ev.plan.v === o.v;
+          return '<button type="button" class="opt' + (on ? ' on' : '') + '" data-opt="' + esc(ev.ymd + '|' + o.key) + '">' + icHtml(o) +
+            '<span><span class="t">' + esc(o.label) + ' ' + fmt(o.s) + '–' + fmt(o.e) + (o.v === 'ext' ? ' ↔' : '') + '</span><br><span class="why">' + esc(o.why.join(' · ')) + '</span></span>' + starsHtml(o.stars) + '</button>';
+        }).join('') + ev.rejected.map((t) => '<div class="small muted">✕ ' + esc(t) + '</div>').join('') + '</div>' +
+          (ev.plan ? '<div class="row" style="margin-top:10px;"><button type="button" data-unpick="' + ev.ymd + '">Seçimi kaldır</button></div>' : '');
+      } else opts = '<p class="muted small">Bu gün için uygun klinik yok.</p>';
+      $('sheet').innerHTML = '<div class="sheet"><h3><span>' + esc(dateLong(ev.ymd)) + '</span><button type="button" class="ghost" data-close="1" aria-label="Kapat">✕</button></h3>' +
+        timeline(ev, cfg, true) + '<ul class="notes">' + items.join('') + '</ul>' + opts + '</div>';
+      $('sheet').hidden = false;
+    }
+    function closeDay() { st.openDay = null; $('sheet').hidden = true; $('sheet').innerHTML = ''; }
+
+    function renderSummary(res) {
+      const { cfg, days } = res;
+      const groups = new Map();
+      const add = (place, meta, ymd, s, e, fixed, warn) => {
+        if (!groups.has(place)) groups.set(place, { place, label: placeLabel(cfg, place), meta, items: [] });
+        groups.get(place).items.push({ ymd, s, e, fixed, warn });
+      };
+      for (const d of days) {
+        if (!d.inMonth) continue;
+        for (const f of d.fixed) add(f.place, f, d.ymd, f.s, f.e, true, f.worst === 'bad' ? 'bad' : '');
+        if (d.plan) add(d.plan.place, d.plan, d.ymd, d.plan.s, d.plan.e, false, d.plan.worst === 'bad' ? 'bad' : d.plan.stars <= 2 ? 'warn' : '');
+      }
+      st.summaryGroups = [...groups.values()];
+      if (!groups.size) { $('summary').innerHTML = '«★ Öneri oluştur» ile başla, sonra günlere dokunup düzenle ve «✓ Fixle».'; return; }
+      let html = st.draftDirty ? '<p class="dirty" style="margin-top:0;">Seçimler henüz fixlenmedi.</p>' : '';
+      html += '<div class="sum-grid">' + st.summaryGroups.map((g, gi) => {
+        g.items.sort((a, b) => a.ymd.localeCompare(b.ymd));
+        g.hours = Math.round(g.items.reduce((a, x) => a + (x.e - x.s), 0) / 6) / 10;
+        return '<div class="sum"><header style="background:' + g.meta.color + '">' + '<span class="ic" style="background:rgba(255,255,255,.25)">' + esc(g.meta.icon) + '</span><b>' + esc(g.label) + '</b><span>' + g.items.length + ' gün · ' + String(g.hours).replace('.', ',') + ' sa</span></header><ul>' +
+          g.items.map((x) => '<li class="' + x.warn + '">' + esc(dateLong(x.ymd)) + ' · ' + fmt(x.s) + '–' + fmt(x.e) + (x.fixed ? ' <span class="muted">(sabit)</span>' : '') + '</li>').join('') +
+          '</ul><footer><button type="button" class="wa" data-share="' + gi + '">WhatsApp ile gönder</button><button type="button" data-img="' + gi + '">🖼 Resim</button><button type="button" data-copy="' + gi + '">Kopyala</button></footer></div>';
+      }).join('') + '</div>';
+      $('summary').innerHTML = html;
+    }
+    function groupText(g) {
+      return monthName(st.month) + ' · ' + g.label + '\n' + g.items.map((x) => '• ' + dateLong(x.ymd) + ' ' + fmt(x.s) + '–' + fmt(x.e)).join('\n') + '\nToplam: ' + g.items.length + ' gün · ' + String(g.hours).replace('.', ',') + ' saat';
+    }
+    function groupImage(g) {
+      const W = 1080, rowH = 74, head = 250, foot = 120;
+      const H = head + g.items.length * rowH + foot;
+      const c = document.createElement('canvas');
+      c.width = W; c.height = H;
+      const x = c.getContext('2d');
+      x.fillStyle = '#ffffff'; x.fillRect(0, 0, W, H);
+      const grad = x.createLinearGradient(0, 0, W, head);
+      grad.addColorStop(0, g.meta.color); grad.addColorStop(1, '#0f172a');
+      x.fillStyle = grad; x.fillRect(0, 0, W, head - 40);
+      x.fillStyle = 'rgba(255,255,255,.22)'; x.beginPath(); x.arc(120, 105, 54, 0, Math.PI * 2); x.fill();
+      x.fillStyle = '#fff'; x.font = 'bold 60px -apple-system, Segoe UI, Roboto, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(g.meta.icon, 120, 108);
+      x.textAlign = 'left'; x.textBaseline = 'alphabetic';
+      x.font = 'bold 46px -apple-system, Segoe UI, Roboto, sans-serif'; x.fillText(g.label, 200, 100);
+      x.font = '32px -apple-system, Segoe UI, Roboto, sans-serif'; x.fillStyle = 'rgba(255,255,255,.85)';
+      x.fillText(monthName(st.month) + ' · çalışma günleri', 200, 150);
+      g.items.forEach((it, i) => {
+        const y = head + i * rowH;
+        if (i % 2 === 0) { x.fillStyle = '#f1f5f9'; x.fillRect(40, y - 8, W - 80, rowH - 6); }
+        x.fillStyle = g.meta.color; x.beginPath(); x.arc(78, y + rowH / 2 - 11, 9, 0, Math.PI * 2); x.fill();
+        x.fillStyle = '#0f172a'; x.font = '600 34px -apple-system, Segoe UI, Roboto, sans-serif';
+        x.fillText(dateLong(it.ymd), 110, y + rowH / 2);
+        x.textAlign = 'right'; x.font = 'bold 34px -apple-system, Segoe UI, Roboto, sans-serif';
+        x.fillText(fmt(it.s) + ' – ' + fmt(it.e), W - 64, y + rowH / 2); x.textAlign = 'left';
+      });
+      const fy = head + g.items.length * rowH + 40;
+      x.fillStyle = '#334155'; x.font = 'bold 34px -apple-system, Segoe UI, Roboto, sans-serif';
+      x.fillText('Toplam: ' + g.items.length + ' gün · ' + String(g.hours).replace('.', ',') + ' saat', 64, fy + 20);
+      return new Promise((resolve) => c.toBlob((b) => resolve(b), 'image/png'));
+    }
+    const slug = (s) => String(s).toLowerCase().replace(/[çğıöşü]/g, (ch) => ({ ç: 'c', ğ: 'g', ı: 'i', ö: 'o', ş: 's', ü: 'u' }[ch])).replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    async function shareGroup(gi) {
+      const g = st.summaryGroups[gi];
+      if (!g) return;
+      const blob = await groupImage(g);
+      const file = new File([blob], slug(g.label) + '-' + st.month + '.png', { type: 'image/png' });
+      const text = groupText(g);
+      try {
+        if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], text, title: g.label }); return; }
+      } catch (err) { if (err && err.name === 'AbortError') return; }
+      downloadBlob(blob, file.name);
+      const phone = String(((st.config.places || {})[g.place] || {}).whatsapp || '').replace(/\D/g, '');
+      window.open('https://wa.me/' + phone + '?text=' + encodeURIComponent(text), '_blank');
+    }
+    function downloadBlob(blob, name) {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob); a.download = name;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    }
+    async function previewGroup(gi) {
+      const g = st.summaryGroups[gi];
+      if (!g) return;
+      const blob = await groupImage(g);
+      const url = URL.createObjectURL(blob);
+      $('sheet').innerHTML = '<div class="sheet"><h3><span>' + esc(g.label) + '</span><button type="button" class="ghost" data-close="1">✕</button></h3><img class="modal-img" src="' + url + '" alt="özet" />' +
+        '<div class="row"><button type="button" class="wa" data-share="' + gi + '">WhatsApp ile gönder</button><button type="button" data-dl="' + gi + '">İndir</button></div></div>';
+      $('sheet').hidden = false;
+    }
+
+    function renderFrame(cfg, claims) {
+      const P = cfg.people || {};
+      const rows = Object.entries(cfg.places || {}).map(([key, p]) => {
+        const addr = String((p && p.address) || '');
+        const link = addr ? '<a href="https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(addr) + '" target="_blank" rel="noopener">Harita</a>' : '';
+        const t = key === 'home' ? '—' : travel(cfg, 'home', key, '2000-01-03', 720) + ' / ' + travel(cfg, 'home', key, '2000-01-03', 480) + ' dk';
+        return '<tr><td><b>' + esc((p && p.label) || key) + '</b></td><td>' + esc(addr) + '</td><td>' + t + '</td><td>' + link + '</td></tr>';
+      }).join('');
+      const C = esc(P.crew || 'Crew'), PA = esc(P.partner || 'Eş'), CH = esc(P.child || 'Çocuk');
+      const sc = cfg.school || {};
+      const wds = (a) => (a || []).map((d) => DAY_SHORT[d] || d).join(', ');
+      const rules = [
+        CH + ' okul: ' + wds(sc.weekdays) + ' ' + esc(sc.start) + '–' + esc(sc.end) + ', resmi tatiller ve girilen tatil günleri hariç.',
+        'Götürme / alma yalnız ' + C + ' veya ' + PA + '; ' + CH + ' okul dışında ' + C + ' veya ' + PA + ' ile.',
+        PA + ' günde tek yerde çalışır. ' + C + "'in nöbet/rezerv günleri mümkün olduğunca kullanılmaz (yıldız düşer).",
+        'Yağış tahmini olan saatlerde yol süreleri +%' + Number(cfg.travel?.rainExtraPct ?? 50) + '.',
+      ];
+      for (const [id, g] of Object.entries(cfg.goals || {})) {
+        const c = (cfg.partnerCandidates || []).find((x) => x.id === id);
+        if (!c) continue;
+        rules.push('Hedef · ' + esc(c.label) + ': ' + (g.weekdays === 'all' ? 'uygun her hafta içi' : (g.weekdays || 0) + ' hafta içi + ' + (g.saturdays || 0) + ' Cumartesi, haftada en fazla ' + (g.maxPerWeek || 1) + ', aya yayılmış') + '.');
+      }
+      $('frame').innerHTML = '<table class="t"><thead><tr><th>Yer</th><th>Adres</th><th>Evden (normal/yoğun)</th><th></th></tr></thead><tbody>' + rows + '</tbody></table><ul style="padding-left:18px;">' + rules.map((r) => '<li>' + r + '</li>').join('') + '</ul>';
+      const list = Array.isArray(st.full.rosters) ? st.full.rosters : [];
+      const [y, m] = st.month.split('-').map(Number);
+      let covered = 0, total = 0;
+      for (let d = st.month + '-01'; d <= new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10); d = addDays(d, 1)) { total += 1; if (claims[d]) covered += 1; }
+      const head = covered === total ? 'Bu ay PDF rosterdan.' : covered ? 'Bu ayın ' + covered + '/' + total + ' günü PDF, kalanı uygulama verisi.' : 'Bu ay için PDF yok; uygulamadaki roster kullanılıyor.';
+      $('rosterSrc').innerHTML = esc(head) + (list.length ? '<ul style="padding-left:18px;margin:4px 0;">' + list.map((imp) => '<li>' + esc(imp.file || 'PDF') + ' · ' + esc(imp.from) + ' → ' + esc(imp.to) + ' · ' + (imp.rows || []).length + ' satır <button type="button" class="ghost small" data-delroster="' + esc(imp.id) + '">kaldır</button></li>').join('') + '</ul>' : '');
+    }
+    function renderTravel(cfg) {
+      const el = $('travel');
+      if (el.contains(document.activeElement)) return;
+      const keys = Object.keys(cfg.places || {});
+      const tr = cfg.travel || {};
+      const fb = Array.isArray(tr.fallbackMin) ? tr.fallbackMin : [20, 35];
+      const opt = (v) => { const vals = []; for (let i = 0; i <= 120; i += 5) vals.push(i); if (!vals.includes(v)) vals.push(v); vals.sort((a, b) => a - b); return vals.map((x) => '<option' + (x === v ? ' selected' : '') + '>' + x + '</option>').join(''); };
+      const rows = [];
+      for (let i = 0; i < keys.length; i += 1) for (let j = i + 1; j < keys.length; j += 1) {
+        const k = pairKey(keys[i], keys[j]);
+        const v = Array.isArray(tr.pairs?.[k]) ? tr.pairs[k] : fb;
+        rows.push('<tr><td>' + esc(placeLabel(cfg, keys[i])) + ' ↔ ' + esc(placeLabel(cfg, keys[j])) + '</td><td><select data-tr="' + esc(k) + '" data-i="0">' + opt(Number(v[0]) || 0) + '</select></td><td><select data-tr="' + esc(k) + '" data-i="1">' + opt(Number(v[1]) || 0) + '</select></td></tr>');
+      }
+      el.innerHTML = '<table class="t"><thead><tr><th>Yol</th><th>Normal</th><th>Yoğun</th></tr></thead><tbody>' + rows.join('') + '</tbody></table>';
+      if (!st.travelDirty) {
+        const pt = (days) => (tr.peaks || []).filter((p) => JSON.stringify(p.weekdays || []) === JSON.stringify(days)).map((p) => p.start + '-' + p.end).join(', ');
+        $('peakWd').value = pt([1, 2, 3, 4, 5]); $('peakSat').value = pt([6]); $('peakSun').value = pt([7]);
+        $('rainPct').value = Number(tr.rainExtraPct ?? 50);
+      }
+      $('travelStatus').innerHTML = st.travelDirty ? '<span class="dirty">kaydedilmedi</span>' : '';
+    }
+    function renderVacations(cfg) {
+      const list = cfg.vacations || [];
+      $('vacList').innerHTML = list.length ? list.map((v, i) => '<div>🏖️ ' + esc(v.from) + ' → ' + esc(v.to) + (v.label ? ' · ' + esc(v.label) : '') + ' <button type="button" class="ghost small" data-delvac="' + i + '">sil</button></div>').join('') : '<span class="muted">Tatil girilmedi.</span>';
+    }
+
+    // ---------- veri ----------
+    function rebuildConfig() { st.config = merge(DEFAULT_CONFIG, settingsOf(st.full)); }
+    async function api(action, payload) {
+      const res = await fetch(API, { method: 'POST', headers: { apikey: ANON_KEY, Authorization: 'Bearer ' + (st.bearer || ANON_KEY), 'Content-Type': 'application/json' }, body: JSON.stringify({ action, ...(payload || {}) }) });
+      const j = await res.json().catch(() => ({}));
+      if (res.status === 401 && action !== 'pin_login') { showGate(); throw new Error('Giriş gerekli'); }
+      if (!res.ok) throw new Error(j.error || 'HTTP ' + res.status);
+      return j;
+    }
+    async function persist(statusId, okText) {
+      const el = statusId ? $(statusId) : null;
+      if (el) el.textContent = 'Kaydediliyor…';
+      try { await api('save_config', { config: st.full }); if (el) el.textContent = okText || 'Kaydedildi'; return true; }
+      catch (err) { if (el) el.textContent = String(err.message || err); return false; }
+    }
+    async function load() {
+      if (!st.month) st.month = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Istanbul' }).slice(0, 7);
+      $('status').textContent = 'Yükleniyor…';
+      try {
+        const j = await api('get', { month: st.month });
+        st.data = j;
+        st.via = j.via;
+        const server = j.config && typeof j.config === 'object' && !Array.isArray(j.config) ? j.config : null;
+        if (!st.cfgDirty && !st.travelDirty) st.full = server ? { ...server } : { ...DEFAULT_CONFIG };
+        if (!st.draftDirty) st.draft = { ...((st.full.plans || {})[st.month] || {}) };
+        rebuildConfig();
+        if (!st.cfgDirty) $('cfg').value = JSON.stringify(settingsOf(st.full), null, 2);
+        $('status').textContent = (st.via === 'admin' ? 'Admin girişi' : 'PIN girişi') + ' · uygulama ' + (j.entries || []).length + ' kayıt';
+        renderIcons();
+        renderWeather();
+        render();
+      } catch (err) { $('status').textContent = String(err.message || err); }
+    }
+    function renderIcons() {
+      const cfg = st.config;
+      if (!cfg) return;
+      const ics = [...(cfg.partnerCandidates || []).map((c, i) => workMeta(cfg, c, i, false)), ...(cfg.partnerFixed || []).map((f, i) => workMeta(cfg, f, i, true))]
+        .filter((m, i, a) => a.findIndex((x) => x.icon === m.icon) === i);
+      $('titleIcons').innerHTML = ics.map((m) => icHtml(m)).join('');
+    }
+    function shiftMonth(delta) {
+      if (st.draftDirty && !confirm('Fixlenmemiş seçimler var. Ay değiştirilsin mi?')) return;
+      const [y, m] = st.month.split('-').map(Number);
+      st.month = new Date(Date.UTC(y, m - 1 + delta, 1)).toISOString().slice(0, 7);
+      st.draftDirty = false;
+      closeDay();
+      load();
+    }
+    function compactRows(flights) {
+      return (flights || []).filter((r) => r && r.flight_date && r.flight_number).map((r) => ({
+        fd: String(r.flight_date).slice(0, 10), n: String(r.flight_number), k: r.roster_entry_kind || 'flight', o: r.origin_iata || '', d: r.destination_iata || '',
+        dt: r.dep_time_local || '', at: r.arr_time_local || '', ds: r.duty_start_time_local || r.duty_slash_start_time_local || '', ed: r.duty_end_date_iso || '', et: r.duty_end_time_local || '', cb: r.duty_clock_basis || 'local',
+      }));
+    }
+    function fileToBase64(file) {
+      return new Promise((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => { const s = String(r.result || ''); const i = s.indexOf('base64,'); resolve(i >= 0 ? s.slice(i + 7) : s); };
+        r.onerror = () => reject(r.error || new Error('Dosya okunamadı'));
+        r.readAsDataURL(file);
+      });
+    }
+    async function importPdf(file) {
+      $('pdfStatus').textContent = 'PDF okunuyor…';
+      try {
+        const j = await api('parse_pdf', { pdf_base64: await fileToBase64(file) });
+        const rows = compactRows(j.flights);
+        if (!rows.length) throw new Error('PDF içinde görev bulunamadı');
+        const fds = rows.map((r) => r.fd).sort();
+        const imp = { id: Date.now().toString(36), file: String(file.name || 'roster.pdf').slice(0, 80), importedAt: new Date().toISOString(), from: fds[0], to: fds[fds.length - 1], rows };
+        st.full.rosters = [imp, ...(st.full.rosters || []).filter((x) => !(x.from === imp.from && x.to === imp.to))].slice(0, 6);
+        const counts = {};
+        for (const r of rows) counts[r.fd.slice(0, 7)] = (counts[r.fd.slice(0, 7)] || 0) + 1;
+        const bestMonth = Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0];
+        if (await persist('pdfStatus', rows.length + ' satır alındı (' + imp.from + ' → ' + imp.to + ')')) {
+          if (bestMonth !== st.month && !st.draftDirty) { st.month = bestMonth; await load(); } else render();
+        }
+      } catch (err) { $('pdfStatus').textContent = String(err.message || err); }
+    }
+    function parsePeaks(text, weekdays) {
+      return String(text || '').split(/[,;]+/).map((x) => x.trim()).filter(Boolean).map((x) => {
+        const m = /^(\d{1,2}:\d{2})\s*[-–]\s*(\d{1,2}:\d{2})$/.exec(x);
+        return m ? { weekdays, start: m[1].padStart(5, '0'), end: m[2].padStart(5, '0') } : null;
+      }).filter(Boolean);
+    }
+
+    // ---------- giriş ----------
+    let pin = '';
+    function showGate(msg) {
+      $('app').hidden = true;
+      $('gate').hidden = false;
+      $('gateMsg').textContent = msg || '';
+      pin = '';
+      paintDots();
+    }
+    function paintDots() { [...$('dots').children].forEach((d, i) => d.classList.toggle('on', i < pin.length)); }
+    async function submitPin() {
+      try {
+        const j = await api('pin_login', { pin });
+        localStorage.setItem(TOKEN_KEY, j.token);
+        st.bearer = j.token;
+        enterApp();
+      } catch (err) {
+        $('dots').classList.remove('shake'); void $('dots').offsetWidth; $('dots').classList.add('shake');
+        $('gateMsg').textContent = String(err.message || err);
+        pin = ''; paintDots();
+      }
+    }
+    function enterApp() {
+      $('gate').hidden = true;
+      $('app').hidden = false;
+      load();
+      loadWeather();
+    }
+    async function tryAdminSession() {
+      let sess = null;
+      try { sess = JSON.parse(localStorage.getItem(ADMIN_SESSION_KEY) || 'null'); } catch (_) { sess = null; }
+      if (!sess || !sess.access_token) return false;
+      const now = Math.floor(Date.now() / 1000);
+      if (sess.refresh_token && Number(sess.expires_at || 0) < now + 120) {
+        try {
+          const r = await fetch(SUPABASE_URL + '/auth/v1/token?grant_type=refresh_token', { method: 'POST', headers: { apikey: ANON_KEY, 'Content-Type': 'application/json' }, body: JSON.stringify({ refresh_token: sess.refresh_token }) });
+          const j = await r.json();
+          if (r.ok && j.access_token) {
+            sess = { ...sess, access_token: j.access_token, refresh_token: j.refresh_token || sess.refresh_token, expires_at: j.expires_at || now + Number(j.expires_in || 3600) };
+            localStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify(sess));
+          }
+        } catch (_) { /* PIN'e düş */ }
+      }
+      st.bearer = sess.access_token;
+      try { await api('session'); return true; } catch (_) { st.bearer = null; return false; }
+    }
+    async function boot() {
+      if (await tryAdminSession()) return enterApp();
+      const tok = localStorage.getItem(TOKEN_KEY);
+      if (tok) {
+        st.bearer = tok;
+        try { await api('session'); return enterApp(); } catch (_) { localStorage.removeItem(TOKEN_KEY); st.bearer = null; }
+      }
+      showGate();
+    }
+
+    // ---------- olaylar ----------
+    $('pad').addEventListener('click', (e) => {
+      const b = e.target.closest('[data-k]');
+      if (!b) return;
+      const k = b.getAttribute('data-k');
+      if (k === 'del') pin = pin.slice(0, -1);
+      else if (pin.length < 4) pin += k;
+      $('gateMsg').textContent = '';
+      paintDots();
+      if (pin.length === 4) submitPin();
+    });
+    document.addEventListener('keydown', (e) => {
+      if ($('gate').hidden) { if (e.key === 'Escape') closeDay(); return; }
+      if (/^\d$/.test(e.key) && pin.length < 4) { pin += e.key; paintDots(); if (pin.length === 4) submitPin(); }
+      else if (e.key === 'Backspace') { pin = pin.slice(0, -1); paintDots(); }
+    });
+    $('prev').addEventListener('click', () => shiftMonth(-1));
+    $('next').addEventListener('click', () => shiftMonth(1));
+    $('logout').addEventListener('click', () => { localStorage.removeItem(TOKEN_KEY); st.bearer = null; showGate('Çıkış yapıldı'); });
+    $('grid').addEventListener('click', (e) => { const c = e.target.closest('[data-day]'); if (c) openDay(c.getAttribute('data-day')); });
+    $('grid').addEventListener('keydown', (e) => { if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('[data-day]')) { e.preventDefault(); openDay(e.target.getAttribute('data-day')); } });
+    $('sheet').addEventListener('click', (e) => {
+      if (e.target === $('sheet') || e.target.closest('[data-close]')) return closeDay();
+      const o = e.target.closest('[data-opt]');
+      if (o) {
+        const [ymd, key] = o.getAttribute('data-opt').split('|');
+        const res = compute();
+        const d = res.days.find((x) => x.ymd === ymd);
+        const opt = d && d.opts.find((x) => x.key === key);
+        if (!opt) return;
+        const cur = st.draft[ymd];
+        if (cur && cur.cand === opt.cand && cur.v === opt.v) delete st.draft[ymd];
+        else st.draft[ymd] = { cand: opt.cand, v: opt.v, place: opt.place, label: opt.label, short: opt.short, start: fmt(opt.s), end: fmt(opt.e) };
+        st.draftDirty = true;
+        render();
+        return;
+      }
+      const u = e.target.closest('[data-unpick]');
+      if (u) { delete st.draft[u.getAttribute('data-unpick')]; st.draftDirty = true; render(); return; }
+      const sh = e.target.closest('[data-share]');
+      if (sh) return void shareGroup(Number(sh.getAttribute('data-share')));
+      const dl = e.target.closest('[data-dl]');
+      if (dl) { const g = st.summaryGroups[Number(dl.getAttribute('data-dl'))]; if (g) groupImage(g).then((b) => downloadBlob(b, slug(g.label) + '-' + st.month + '.png')); }
+    });
+    $('summary').addEventListener('click', async (e) => {
+      const sh = e.target.closest('[data-share]');
+      if (sh) return void shareGroup(Number(sh.getAttribute('data-share')));
+      const im = e.target.closest('[data-img]');
+      if (im) return void previewGroup(Number(im.getAttribute('data-img')));
+      const cp = e.target.closest('[data-copy]');
+      if (cp) {
+        const g = st.summaryGroups[Number(cp.getAttribute('data-copy'))];
+        if (!g) return;
+        try { await navigator.clipboard.writeText(groupText(g)); cp.textContent = 'Kopyalandı ✓'; } catch (_) { prompt('Metni kopyala:', groupText(g)); }
+      }
+    });
+    $('btnSuggest').addEventListener('click', () => {
+      const res = compute();
+      if (!res) return;
+      const has = Object.keys(st.draft).some((d) => d.slice(0, 7) === st.month);
+      if (has && !confirm('Mevcut seçimler önerilerle değiştirilsin mi?')) return;
+      const draft = suggest(res);
+      for (const d of Object.keys(st.draft)) if (d.slice(0, 7) === st.month) delete st.draft[d];
+      Object.assign(st.draft, draft);
+      st.draftDirty = true;
+      render();
+    });
+    $('btnFix').addEventListener('click', async () => {
+      const plans = { ...(st.full.plans || {}) };
+      const monthSel = {};
+      for (const [d, v] of Object.entries(st.draft)) if (d.slice(0, 7) === st.month) monthSel[d] = v;
+      if (Object.keys(monthSel).length) plans[st.month] = monthSel; else delete plans[st.month];
+      st.full.plans = plans;
+      if (await persist('selStatus', Object.keys(monthSel).length + ' gün fixlendi ✓')) { st.draftDirty = false; setTimeout(render, 900); }
+    });
+    $('btnClear').addEventListener('click', () => {
+      if (!Object.keys(st.draft).length || !confirm('Bu ayın seçimleri temizlensin mi? («Fixle» ile kaydedilir)')) return;
+      for (const d of Object.keys(st.draft)) if (d.slice(0, 7) === st.month) delete st.draft[d];
+      st.draftDirty = true;
+      render();
+    });
+    $('pdf').addEventListener('change', (e) => { const f = e.target.files && e.target.files[0]; if (f) importPdf(f).finally(() => { e.target.value = ''; }); });
+    $('rosterSrc').addEventListener('click', async (e) => {
+      const b = e.target.closest('[data-delroster]');
+      if (!b || !confirm('Bu PDF kaldırılsın mı? Günler uygulama verisine döner.')) return;
+      st.full.rosters = (st.full.rosters || []).filter((x) => x.id !== b.getAttribute('data-delroster'));
+      if (await persist('pdfStatus', 'PDF kaldırıldı')) render();
+    });
+    $('travel').addEventListener('change', (e) => {
+      const s = e.target.closest('[data-tr]');
+      if (!s) return;
+      const k = s.getAttribute('data-tr'), i = Number(s.getAttribute('data-i'));
+      const tr = { ...(st.full.travel || DEFAULT_CONFIG.travel) };
+      const pairs = { ...(tr.pairs || {}) };
+      const cur = Array.isArray(pairs[k]) ? pairs[k].slice() : (st.config.travel.fallbackMin || [20, 35]).slice();
+      cur[i] = Number(s.value);
+      pairs[k] = cur;
+      st.full.travel = { ...tr, pairs };
+      st.travelDirty = true;
+      rebuildConfig();
+      s.blur();
+      render();
+    });
+    ['peakWd', 'peakSat', 'peakSun', 'rainPct'].forEach((id) => $(id).addEventListener('change', () => {
+      st.full.travel = {
+        ...(st.full.travel || DEFAULT_CONFIG.travel),
+        peaks: [...parsePeaks($('peakWd').value, [1, 2, 3, 4, 5]), ...parsePeaks($('peakSat').value, [6]), ...parsePeaks($('peakSun').value, [7])],
+        rainExtraPct: Math.max(0, Math.min(200, Number($('rainPct').value) || 0)),
+      };
+      st.travelDirty = true;
+      rebuildConfig();
+      render();
+    }));
+    $('travelSave').addEventListener('click', async () => { if (await persist('travelStatus', 'Kaydedildi ✓')) { st.travelDirty = false; } });
+    $('vacAdd').addEventListener('click', async () => {
+      const from = $('vacFrom').value, to = $('vacTo').value || $('vacFrom').value;
+      if (!from || to < from) { $('vacStatus').textContent = 'Geçerli bir tarih aralığı seç'; return; }
+      st.full.vacations = [...(st.full.vacations || []), { from, to, label: $('vacLabel').value.trim() }].sort((a, b) => a.from.localeCompare(b.from));
+      for (const d of Object.keys(st.draft)) if (d >= from && d <= to) delete st.draft[d];
+      rebuildConfig();
+      if (await persist('vacStatus', 'Tatil eklendi ✓')) { $('vacFrom').value = ''; $('vacTo').value = ''; $('vacLabel').value = ''; render(); }
+    });
+    $('vacList').addEventListener('click', async (e) => {
+      const b = e.target.closest('[data-delvac]');
+      if (!b) return;
+      st.full.vacations = (st.full.vacations || []).filter((_, i) => i !== Number(b.getAttribute('data-delvac')));
+      rebuildConfig();
+      if (await persist('vacStatus', 'Silindi')) render();
+    });
+    $('cfg').addEventListener('input', () => { st.cfgDirty = true; });
+    const parseCfg = () => { try { const o = JSON.parse($('cfg').value); if (!o || typeof o !== 'object' || Array.isArray(o)) throw new Error('JSON nesnesi olmalı'); $('cfgStatus').textContent = ''; return settingsOf(o); } catch (err) { $('cfgStatus').textContent = 'JSON hatası: ' + err.message; return null; } };
+    $('cfgPreview').addEventListener('click', () => { const o = parseCfg(); if (!o) return; st.config = merge(DEFAULT_CONFIG, o); $('cfgStatus').textContent = 'Önizleme (kaydedilmedi)'; render(); });
+    $('cfgSave').addEventListener('click', async () => {
+      const o = parseCfg();
+      if (!o) return;
+      const data = {};
+      for (const k of DATA_KEYS) if (st.full[k] !== undefined) data[k] = st.full[k];
+      st.full = { ...o, ...data };
+      rebuildConfig();
+      if (await persist('cfgStatus', 'Kaydedildi ✓')) { st.cfgDirty = false; st.travelDirty = false; renderIcons(); render(); }
+    });
+    if (new URLSearchParams(location.search).get('embed') === '1') { document.body.classList.add('embed'); $('logout').hidden = true; }
+    setInterval(loadWeather, 10 * 60 * 1000);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden && !$('app').hidden) loadWeather(); });
+
+    boot();
+  </script>
+</body>
+</html>

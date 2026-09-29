@@ -13,7 +13,7 @@
   <meta http-equiv="Expires" content="0" />
   <script>
     (function () {
-      var UI = '58';
+      var UI = '59';
       var p = new URLSearchParams(location.search);
       if (p.get('ui') !== UI) {
         p.set('ui', UI);
@@ -1109,6 +1109,10 @@
           <div class="menu-group-label">Yayın</div>
           <button type="button" class="nav-btn" data-view="routeToLiveView"><span class="nav-ico">12</span><span class="nav-label">Route to Live</span><span class="nav-now">Şimdi</span></button>
         </div>
+        <div class="menu-group">
+          <div class="menu-group-label">Kişisel</div>
+          <button type="button" class="nav-btn" data-view="familyPlannerView"><span class="nav-ico">13</span><span class="nav-label">Aile planı</span><span class="nav-now">Şimdi</span></button>
+        </div>
       </nav>
       <div class="rail-foot">
         <span class="mini">Ops console · ui 54</span>
@@ -2062,6 +2066,15 @@
           </div>
         </div>
       </section>
+      <section id="familyPlannerView" class="view">
+        <header class="page-head">
+          <div class="section-kicker">Kişisel</div>
+          <h1>Aile planı</h1>
+          <p class="sub">Paylaşılan sayfa: <a href="/aile/" target="_blank" rel="noopener">app.flyfamapp.com/aile</a> · admin oturumu varsa otomatik girer, yoksa PIN ister.</p>
+        </header>
+        <iframe id="familyPlannerFrame" class="route-live-frame" data-src="/aile/?embed=1" title="Aile planı"></iframe>
+      </section>
+
       <section id="routeToLiveView" class="view">
         <iframe class="route-live-frame" src="./ROUTE_TO_LIVE.html" title="FlyFam Route to Live kontrol merkezi"></iframe>
       </section>
@@ -6720,6 +6733,10 @@
       if (viewId === 'occupationCodesView' && accessToken) {
         loadOccupationCodes().catch((err) => setStatus(String(err?.message || err), 'bad'));
         loadOccupationSuggestions().catch(() => {});
+      }
+      if (viewId === 'familyPlannerView') {
+        const frame = document.getElementById('familyPlannerFrame');
+        if (frame && !frame.getAttribute('src')) frame.setAttribute('src', frame.dataset.src);
       }
       if (viewId === 'flightControlView') {
         const dateEl = document.getElementById('fcFlightDate');
