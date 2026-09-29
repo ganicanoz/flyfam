@@ -2043,10 +2043,12 @@ Deno.serve(async (req) => {
           if (!a.last_screen_view_at || ev.occurred_at > a.last_screen_view_at) {
             a.last_screen_view_at = ev.occurred_at;
           }
-          const screen =
+          const rawScreen =
             ev.meta && typeof ev.meta === 'object' && typeof (ev.meta as { screen?: unknown }).screen === 'string'
               ? String((ev.meta as { screen: string }).screen)
               : 'unknown';
+          // Each followed crew is a separate `PeerRoster_<uuid>` route; report them as one screen.
+          const screen = /^PeerRoster(_|$)/.test(rawScreen) ? 'Peer review' : rawScreen;
           topScreens.set(screen, (topScreens.get(screen) ?? 0) + 1);
           if (bucket) {
             bucket.screen_views += 1;

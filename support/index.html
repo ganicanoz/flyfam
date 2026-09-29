@@ -59,14 +59,12 @@
       id="adminPanelLink"
       class="mail"
       style="display:block;text-align:center;margin:0 0 10px;"
-      href="https://wispy-glade-310.zerodeploy.app/"
-      >Admin paneli aç (mobil)</a>
+      href="https://app.flyfamapp.com/admin/"
+      >Admin paneli aç</a>
     <span style="display:block;color:#94a3b8;font-size:0.85rem;word-break:break-all;line-height:1.45;">
       Mobil Chrome: adresi <strong>adres çubuğuna yapıştır</strong> (Google aramasına yazma).<br />
-      Mobil:
-      <a id="adminShortLink" href="https://wispy-glade-310.zerodeploy.app/" style="color:#38bdf8;">https://wispy-glade-310.zerodeploy.app/</a><br />
-      Markalı yedek adres:
-      <a id="adminGithubLink" href="https://app.flyfamapp.com/admin/" style="color:#38bdf8;">https://app.flyfamapp.com/admin/</a>
+      Adres:
+      <a id="adminShortLink" href="https://app.flyfamapp.com/admin/" style="color:#38bdf8;">https://app.flyfamapp.com/admin/</a>
     </span>
   </p>
 
@@ -95,10 +93,9 @@
       var cb = '__DEPLOY_SHA__';
       if (!cb || cb.indexOf('__') === 0) cb = String(Date.now());
       /* docs/ADMIN_STATUS_DASHBOARD.html içindeki var UI ile aynı tut. */
-      var adminUi = '57';
-      /* Mobil birincil: zerodeploy. Markalı alan adı aynı panelin yedeğidir. */
-      var mobileBase = 'https://wispy-glade-310.zerodeploy.app/';
-      var githubBase = 'https://app.flyfamapp.com/admin/';
+      var adminUi = '58';
+      var mobileBase = 'https://app.flyfamapp.com/admin/';
+      var githubBase = mobileBase;
       var q =
         '?cb=' + encodeURIComponent(cb) + '&ui=' + encodeURIComponent(adminUi);
       var href = mobileBase.replace(/\?.*$/, '') + q;

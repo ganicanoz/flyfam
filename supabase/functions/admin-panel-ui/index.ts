@@ -1,10 +1,10 @@
 /**
- * Redirect helper for Ops Console when github.io is unreachable.
- * Primary host: ZeroDeploy static URL (text/html). Supabase cannot serve
+ * Redirect helper for Ops Console.
+ * Primary host: branded GitHub Pages path (text/html). Supabase cannot serve
  * GET text/html on *.supabase.co without a custom domain.
  */
 const PRIMARY =
-  'https://wispy-glade-310.zerodeploy.app/';
+  'https://app.flyfamapp.com/admin/';
 
 Deno.serve((req) => {
   const url = new URL(req.url);

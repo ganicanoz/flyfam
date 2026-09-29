@@ -13,7 +13,7 @@
   <meta http-equiv="Expires" content="0" />
   <script>
     (function () {
-      var UI = '57';
+      var UI = '58';
       var p = new URLSearchParams(location.search);
       if (p.get('ui') !== UI) {
         p.set('ui', UI);
@@ -758,6 +758,13 @@
       border: 1px solid #7dd3fc; border-radius: 8px;
     }
     .flights-selection-bar.hidden { display: none !important; }
+    .bulk-bar-group { display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: center; padding-right: 10px; border-right: 1px solid #7dd3fc; }
+    .bulk-bar-group:last-of-type { border-right: 0; }
+    .bulk-bar-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: #0369a1; }
+    .bulk-bar-row { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+    .bulk-bar-row input, .bulk-bar-row textarea { width: auto; flex: 1 1 180px; min-width: 140px; }
+    .bulk-progress { flex-basis: 100%; font-size: 12px; color: #0f172a; }
+    .bulk-check-col { width: 28px; }
 
     .user-detail-row { display: none; background: #f8fafc; }
     .user-detail-row.open { display: table-row; }
@@ -1375,10 +1382,42 @@
           </div>
           <p id="usersEmailHint" class="mini" style="margin:0 0 10px;display:none;"></p>
           <p id="usersSearchHint" class="mini" style="margin:-4px 0 10px;"></p>
+          <div id="usersSelectionBar" class="flights-selection-bar hidden">
+            <strong id="usersSelectionCount">0 seçili</strong>
+            <span class="bulk-bar-group">
+              <span class="bulk-bar-label">Email</span>
+              <button type="button" id="btnUsersBulkConfirm" class="btnPrimary btnSmall">Doğrula</button>
+              <button type="button" id="btnUsersBulkSignupMail" class="btnSmall">Onay maili</button>
+              <button type="button" id="btnUsersBulkRecoveryMail" class="btnSmall">Şifre yenileme maili</button>
+            </span>
+            <span class="bulk-bar-group">
+              <span class="bulk-bar-label">Abonelik</span>
+              <button type="button" id="btnUsersBulkGrant" class="btnSmall" title="Yalnız crew kullanıcılara uygulanır">Geniş Sülale ver</button>
+            </span>
+            <span class="bulk-bar-group">
+              <span class="bulk-bar-label">Liste</span>
+              <button type="button" id="btnUsersBulkCopyIds" class="btnSmall">ID kopyala</button>
+              <button type="button" id="btnUsersBulkCopyEmails" class="btnSmall">Email kopyala</button>
+              <button type="button" id="btnUsersBulkSelectVisible" class="btnSmall">Görünenleri seç</button>
+              <button type="button" id="btnUsersBulkClear" class="btnSmall">Temizle</button>
+            </span>
+            <span class="bulk-bar-group">
+              <button type="button" id="btnUsersBulkDelete" class="btnDanger btnSmall">Seçilenleri sil</button>
+            </span>
+            <div class="bulk-bar-row">
+              <span class="bulk-bar-label">Push</span>
+              <input id="usersBulkPushTitle" value="FlyFam" maxlength="100" placeholder="Başlık" style="flex:0 1 140px;" />
+              <input id="usersBulkPushBody" maxlength="500" placeholder="Mesaj (zorunlu)" />
+              <input id="usersBulkPushUrl" placeholder="Link (opsiyonel)" />
+              <button type="button" id="btnUsersBulkPush" class="btnSmall">Push gönder</button>
+            </div>
+            <div id="usersBulkProgress" class="bulk-progress mini"></div>
+          </div>
           <div class="users-table-wrap">
             <table class="users-table" id="usersTable">
               <thead>
                 <tr id="usersHead">
+                  <th class="bulk-check-col"><input type="checkbox" id="usersSelectAll" title="Görünenlerin tümünü seç" /></th>
                   <th>#</th>
                   <th class="sortable" data-sort="custom_id">Custom ID <span class="sort-ind"></span></th>
                   <th class="sortable" data-sort="full_name">Ad soyad <span class="sort-ind"></span></th>
@@ -1600,8 +1639,16 @@
                 <option value="diverted">diverted</option>
               </select>
               <button type="button" id="btnBulkSelStatus" class="btnSmall">Status uygula</button>
+              <button type="button" id="btnBulkSelApi" class="btnSmall" title="Her uçuş için sağlayıcı API çağrısı yapar (kota harcar)">API yenile</button>
+              <select id="bulkSelCrew" class="btnSmall" style="width:auto;max-width:220px;">
+                <option value="">Crew seç</option>
+              </select>
+              <button type="button" id="btnBulkSelAttachCrew" class="btnSmall">Crew ekle</button>
+              <button type="button" id="btnBulkSelDetachCrew" class="btnSmall">Crew çıkar</button>
+              <button type="button" id="btnBulkSelCopyIds" class="btnSmall">ID kopyala</button>
               <button type="button" id="btnBulkSelDelete" class="btnDanger btnSmall">Seçilenleri sil</button>
               <button type="button" id="btnBulkSelClear" class="btnSmall">Temizle</button>
+              <div id="flightsBulkProgress" class="bulk-progress mini"></div>
             </div>
             <p id="flightsApiHint" class="mini" style="margin:8px 0;display:none;"></p>
             <table id="flightsTable"><thead><tr id="flightsHead">
@@ -2217,6 +2264,9 @@
     let activityRecentSortKey = 'occurred_at';
     let activityRecentSortDir = 'desc';
     let selectedFlightIds = new Set();
+    let selectedUserIds = new Set();
+    let lastVisibleUserIds = [];
+    let bulkActionRunning = false;
     let drawerUserId = null;
     let drawerUserMode = 'details';
     let hubBoardCacheRows = null;
@@ -2560,6 +2610,96 @@
       if (on) selectedFlightIds.add(id);
       else selectedFlightIds.delete(id);
       updateFlightsSelectionBar();
+    }
+
+    /**
+     * Ortak toplu işlem: seçili id'ler için tekil admin aksiyonunu sınırlı eşzamanlılıkla çalıştırır.
+     * worker 'skip' dönerse atlandı sayılır; throw hata listesine düşer, diğerleri devam eder.
+     */
+    async function runBulkAction(opts) {
+      const ids = Array.from(new Set((opts.ids || []).filter(Boolean)));
+      if (!ids.length) throw new Error('Önce satır seçin');
+      if (bulkActionRunning) throw new Error('Başka bir toplu işlem sürüyor');
+      bulkActionRunning = true;
+      const progressEl = opts.progressEl || null;
+      const concurrency = Math.max(1, Math.min(8, Number(opts.concurrency) || 4));
+      const result = { ok: 0, skipped: 0, failed: [] };
+      let done = 0;
+      const paint = () => {
+        const msg =
+          opts.label + ': ' + done + '/' + ids.length +
+          (result.failed.length ? ' · ' + result.failed.length + ' hata' : '');
+        if (progressEl) progressEl.textContent = msg;
+        setStatus(msg, 'warn');
+      };
+      paint();
+      const queue = ids.slice();
+      try {
+        const workers = Array.from({ length: Math.min(concurrency, queue.length) }, async () => {
+          while (queue.length) {
+            const id = queue.shift();
+            try {
+              const r = await opts.worker(id);
+              if (r === 'skip') result.skipped += 1;
+              else result.ok += 1;
+            } catch (err) {
+              result.failed.push({ id, error: String(err?.message || err) });
+            }
+            done += 1;
+            paint();
+          }
+        });
+        await Promise.all(workers);
+      } finally {
+        bulkActionRunning = false;
+      }
+      const summary =
+        opts.label + ' bitti · ' + result.ok + ' başarılı' +
+        (result.skipped ? ' · ' + result.skipped + ' atlandı' : '') +
+        (result.failed.length ? ' · ' + result.failed.length + ' hata' : '');
+      if (progressEl) {
+        progressEl.textContent =
+          summary + (result.failed.length ? ' — ilk hata: ' + result.failed[0].error : '');
+      }
+      setStatus(summary, result.failed.length ? 'bad' : 'ok');
+      if (result.failed.length) console.warn('[bulk] ' + opts.label, result.failed);
+      return result;
+    }
+
+    function copyTextToClipboard(text, okMsg) {
+      if (!text) {
+        setStatus('Kopyalanacak veri yok', 'bad');
+        return;
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(
+          () => setStatus(okMsg, 'ok'),
+          () => setStatus('Kopyalanamadı', 'bad'),
+        );
+      } else {
+        window.prompt('Kopyala:', text);
+      }
+    }
+
+    function updateUsersSelectionBar() {
+      const bar = document.getElementById('usersSelectionBar');
+      const cnt = document.getElementById('usersSelectionCount');
+      const n = selectedUserIds.size;
+      const visible = new Set(lastVisibleUserIds);
+      const hidden = [...selectedUserIds].filter((id) => !visible.has(id)).length;
+      if (bar) bar.classList.toggle('hidden', n === 0);
+      if (cnt) cnt.textContent = n + ' seçili' + (hidden ? ' (' + hidden + ' filtre dışında)' : '');
+      const selectAll = document.getElementById('usersSelectAll');
+      if (selectAll) {
+        const allOn = lastVisibleUserIds.length > 0 && lastVisibleUserIds.every((id) => selectedUserIds.has(id));
+        selectAll.checked = allOn;
+        selectAll.indeterminate = !allOn && lastVisibleUserIds.some((id) => selectedUserIds.has(id));
+      }
+    }
+
+    function selectedUsersList() {
+      const byId = new Map(lastUsers.map((u) => [String(u.id || ''), u]));
+      return [...selectedUserIds].map((id) => byId.get(id)).filter(Boolean);
     }
 
     function closeDrawer() {
@@ -3892,6 +4032,9 @@
       }
       const sorted = sortByKey(filtered, usersSortKey, usersSortDir, userSortValue, 'last_sign_in_at');
       updateSortableHeaders(els.usersHead, usersSortKey, usersSortDir);
+      const knownIds = new Set(lastUsers.map((u) => String(u.id || '')));
+      [...selectedUserIds].forEach((id) => { if (!knownIds.has(id)) selectedUserIds.delete(id); });
+      lastVisibleUserIds = sorted.map((u) => String(u.id || '')).filter(Boolean);
       els.usersBody.innerHTML = sorted.map((u, idx) => {
         const appRole = String(u.role || '');
         const roleBadgeCls = appRole === 'crew' ? 'role-crew' : (appRole === 'family' ? 'role-family' : '');
@@ -3935,6 +4078,12 @@
           );
         return (
           '<tr class="user-row-main" data-user-row-id="' + uid + '">' +
+            '<td class="bulk-check-col">' +
+              (uid
+                ? '<input type="checkbox" class="user-select" data-user-id="' + escapeAttr(uid) + '"' +
+                  (selectedUserIds.has(uid) ? ' checked' : '') + ' />'
+                : '') +
+            '</td>' +
             '<td>' + (idx + 1) + '</td>' +
             '<td><span class="u-custom-id">' + escapeHtml(customId) + '</span></td>' +
             '<td><a href="#" class="u-name-link" data-action="open-user-details" data-user-id="' + uid + '" onclick="return false;">' + nameText + '</a></td>' +
@@ -3956,6 +4105,7 @@
           '</tr>'
         );
       }).join('');
+      updateUsersSelectionBar();
     }
 
     function renderCrewDirectory(rows) {
@@ -3963,6 +4113,16 @@
       els.newCrewIds.innerHTML = crews
         .map((c) => '<option value="' + c.crew_id + '">' + ((c.full_name || '-') + ' · ' + (c.email || '-')) + '</option>')
         .join('');
+      const bulkCrew = document.getElementById('bulkSelCrew');
+      if (bulkCrew) {
+        const prev = bulkCrew.value;
+        bulkCrew.innerHTML =
+          '<option value="">Crew seç</option>' +
+          crews
+            .map((c) => '<option value="' + escapeAttr(c.crew_id) + '">' + escapeHtml((c.full_name || '-') + ' · ' + (c.email || '-')) + '</option>')
+            .join('');
+        if (prev && crews.some((c) => String(c.crew_id) === prev)) bulkCrew.value = prev;
+      }
     }
 
     function renderFlights(rows) {
@@ -4651,9 +4811,23 @@
       ]);
     }
 
+    /** Takip edilen her crew ayrı `PeerRoster_<uuid>` route'u — aktivitede tek kalemde toplanır. */
+    function normalizeActivityScreen(name) {
+      const s = String(name || '');
+      if (/^PeerRoster(_|$)/.test(s) || s === 'Peer review') return 'Peer review';
+      return s;
+    }
+
     function renderTopScreens(rows) {
       if (!els.activityTopScreens) return;
-      const list = rows || [];
+      const merged = new Map();
+      (rows || []).forEach((r) => {
+        const key = normalizeActivityScreen(r && r.screen) || '—';
+        merged.set(key, (merged.get(key) || 0) + Number((r && r.count) || 0));
+      });
+      const list = [...merged.entries()]
+        .map(([screen, count]) => ({ screen, count }))
+        .sort((a, b) => b.count - a.count);
       if (!list.length) {
         els.activityTopScreens.innerHTML = '<div class="mini">Henüz screen_view yok (yeni app sürümü gerekir).</div>';
         return;
@@ -4794,7 +4968,7 @@
       lastActivityRecent = (json.recent || []).map((r) => {
         const meta = r.meta && typeof r.meta === 'object' ? r.meta : {};
         const bits = [];
-        if (meta.screen) bits.push(String(meta.screen));
+        if (meta.screen) bits.push(normalizeActivityScreen(meta.screen));
         if (meta.kind) bits.push(String(meta.kind));
         if (meta.sent != null) bits.push('sent ' + meta.sent);
         if (meta.ok != null) bits.push('ok ' + meta.ok);
@@ -5361,6 +5535,146 @@
       }
     });
 
+    els.usersBody.addEventListener('change', (e) => {
+      const t = e.target;
+      if (!(t instanceof HTMLInputElement) || !t.classList.contains('user-select')) return;
+      const id = t.getAttribute('data-user-id') || '';
+      if (!id) return;
+      if (t.checked) selectedUserIds.add(id);
+      else selectedUserIds.delete(id);
+      updateUsersSelectionBar();
+    });
+
+    document.getElementById('usersSelectAll')?.addEventListener('change', (e) => {
+      const t = e.target;
+      if (!(t instanceof HTMLInputElement)) return;
+      lastVisibleUserIds.forEach((id) => (t.checked ? selectedUserIds.add(id) : selectedUserIds.delete(id)));
+      renderUsers();
+    });
+
+    const usersBulkProgress = () => document.getElementById('usersBulkProgress');
+
+    async function runUsersBulk(label, worker, opts) {
+      try {
+        const res = await runBulkAction({
+          label,
+          ids: [...selectedUserIds],
+          worker,
+          concurrency: (opts && opts.concurrency) || 4,
+          progressEl: usersBulkProgress(),
+        });
+        if (opts && opts.clearAfter) selectedUserIds.clear();
+        if (!opts || opts.reload !== false) await loadDashboard();
+        return res;
+      } catch (err) {
+        setStatus(String(err?.message || err), 'bad');
+        return null;
+      }
+    }
+
+    function userById(id) {
+      return lastUsers.find((x) => String(x.id || '') === id) || null;
+    }
+
+    document.getElementById('btnUsersBulkConfirm')?.addEventListener('click', () => {
+      void runUsersBulk('Email doğrulama', async (id) => {
+        const u = userById(id);
+        if (u && u.email_confirmed) return 'skip';
+        await callAdminAction('confirm_user_email', { user_id: id });
+      });
+    });
+
+    function bulkAuthMail(emailType) {
+      const n = selectedUserIds.size;
+      const what = emailType === 'recovery' ? 'Şifre yenileme maili' : 'Onay maili';
+      if (!n) return setStatus('Önce kullanıcı seçin', 'bad');
+      if (!window.confirm(what + ' ' + n + ' kullanıcıya gönderilsin mi?')) return;
+      void runUsersBulk(what, async (id) => {
+        const u = userById(id);
+        if (emailType === 'signup' && u && u.email_confirmed) return 'skip';
+        await callAdminAction('send_auth_email', { user_id: id, email_type: emailType });
+      }, { concurrency: 2, reload: false });
+    }
+    document.getElementById('btnUsersBulkSignupMail')?.addEventListener('click', () => bulkAuthMail('signup'));
+    document.getElementById('btnUsersBulkRecoveryMail')?.addEventListener('click', () => bulkAuthMail('recovery'));
+
+    document.getElementById('btnUsersBulkGrant')?.addEventListener('click', () => {
+      const crewCount = selectedUsersList().filter((u) => String(u.role || '') === 'crew').length;
+      if (!crewCount) return setStatus('Seçimde crew kullanıcı yok', 'bad');
+      if (!window.confirm('Geniş Sülale (circle / active, 1 yıl) ' + crewCount + ' crew kullanıcıya verilsin mi?\nFamily kullanıcılar atlanır.')) return;
+      const periodEnd = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
+      void runUsersBulk('Abonelik verme', async (id) => {
+        const u = userById(id);
+        if (!u || String(u.role || '') !== 'crew') return 'skip';
+        await callAdminAction('update_user_subscription', {
+          user_id: id,
+          plan_code: 'circle',
+          status: 'active',
+          extra_family_slots: 0,
+          current_period_ends_at: periodEnd,
+        });
+      }, { concurrency: 3 });
+    });
+
+    document.getElementById('btnUsersBulkPush')?.addEventListener('click', () => {
+      const title = String(document.getElementById('usersBulkPushTitle')?.value || '').trim() || 'FlyFam';
+      const bodyEl = document.getElementById('usersBulkPushBody');
+      const body = String(bodyEl?.value || '').trim();
+      const url = String(document.getElementById('usersBulkPushUrl')?.value || '').trim();
+      const n = selectedUserIds.size;
+      if (!n) return setStatus('Önce kullanıcı seçin', 'bad');
+      if (!body) return setStatus('Push mesajı gerekli', 'bad');
+      if (!window.confirm('Push ' + n + ' kullanıcıya gönderilsin mi?\n\nBaşlık: ' + title + '\nMesaj: ' + body + (url ? '\nLink: ' + url : ''))) return;
+      void runUsersBulk('Push', async (id) => {
+        const payload = { user_id: id, title, body };
+        if (url) payload.url = url;
+        const json = await callAdminAction('send_push_notification', payload);
+        if (json && json.no_tokens) return 'skip';
+        if (!json || Number(json.sent || 0) <= 0) {
+          const err = json && Array.isArray(json.expo_errors) && json.expo_errors.length ? json.expo_errors.join('; ') : 'Expo hata';
+          throw new Error(err);
+        }
+      }, { concurrency: 3, reload: false }).then((res) => {
+        if (res && !res.failed.length && bodyEl) bodyEl.value = '';
+      });
+    });
+
+    document.getElementById('btnUsersBulkDelete')?.addEventListener('click', () => {
+      const list = selectedUsersList();
+      if (!list.length) return setStatus('Önce kullanıcı seçin', 'bad');
+      const preview = list.slice(0, 8).map((u) => '• ' + (u.full_name || '-') + ' · ' + (u.email || u.id)).join('\n');
+      const typed = window.prompt(
+        'PROFİL SİL — ' + list.length + ' kullanıcı ve ilişkili verileri kalıcı silinecek.\n\n' +
+          preview + (list.length > 8 ? '\n… +' + (list.length - 8) : '') +
+          '\n\nOnay için SİL yazın:',
+      );
+      if (String(typed || '').trim().toLocaleUpperCase('tr-TR') !== 'SİL') {
+        setStatus('Silme iptal edildi', 'warn');
+        return;
+      }
+      void runUsersBulk('Profil silme', async (id) => {
+        await callAdminAction('delete_user', { user_id: id });
+      }, { concurrency: 2, clearAfter: true });
+    });
+
+    document.getElementById('btnUsersBulkCopyIds')?.addEventListener('click', () => {
+      copyTextToClipboard([...selectedUserIds].join('\n'), selectedUserIds.size + ' ID kopyalandı');
+    });
+    document.getElementById('btnUsersBulkCopyEmails')?.addEventListener('click', () => {
+      const emails = selectedUsersList().map((u) => u.email).filter(Boolean);
+      copyTextToClipboard(emails.join('\n'), emails.length + ' email kopyalandı');
+    });
+    document.getElementById('btnUsersBulkSelectVisible')?.addEventListener('click', () => {
+      lastVisibleUserIds.forEach((id) => selectedUserIds.add(id));
+      renderUsers();
+    });
+    document.getElementById('btnUsersBulkClear')?.addEventListener('click', () => {
+      selectedUserIds.clear();
+      const p = usersBulkProgress();
+      if (p) p.textContent = '';
+      renderUsers();
+    });
+
     const drawerBody = document.getElementById('drawerBody');
     const drawerBackdrop = document.getElementById('drawerBackdrop');
     const drawerClose = document.getElementById('drawerClose');
@@ -5651,7 +5965,62 @@
     });
     document.getElementById('btnBulkSelClear')?.addEventListener('click', () => {
       selectedFlightIds.clear();
+      const p = document.getElementById('flightsBulkProgress');
+      if (p) p.textContent = '';
       renderFlights(lastFlights);
+    });
+
+    async function runFlightsBulk(label, worker, opts) {
+      try {
+        const res = await runBulkAction({
+          label,
+          ids: resolveBulkFlightIds(),
+          worker,
+          concurrency: (opts && opts.concurrency) || 4,
+          progressEl: document.getElementById('flightsBulkProgress'),
+        });
+        if (opts && opts.clearAfter) selectedFlightIds.clear();
+        await loadDashboard();
+        return res;
+      } catch (err) {
+        setStatus(String(err?.message || err), 'bad');
+        return null;
+      }
+    }
+
+    document.getElementById('btnBulkSelApi')?.addEventListener('click', () => {
+      const ids = resolveBulkFlightIds();
+      if (!ids.length) return setStatus('Önce uçuş seçin', 'bad');
+      if (!window.confirm(ids.length + ' uçuş için sağlayıcı API yenilemesi yapılsın mı? (kota harcar)')) return;
+      const byId = new Map(lastFlights.map((f) => [String(f.id || ''), f]));
+      void runFlightsBulk('API yenileme', async (id) => {
+        const f = byId.get(id);
+        if (!f || !f.flight_number || !f.flight_date) return 'skip';
+        await requestFreshFlightApi(f.flight_number, f.flight_date);
+      }, { concurrency: 2 });
+    });
+
+    function bulkCrewLink(attach) {
+      const crewSel = document.getElementById('bulkSelCrew');
+      const crewId = crewSel ? String(crewSel.value || '') : '';
+      const ids = resolveBulkFlightIds();
+      if (!ids.length) return setStatus('Önce uçuş seçin', 'bad');
+      if (!crewId) return setStatus('Crew seçin', 'bad');
+      const crewLabel = crewSel && crewSel.selectedOptions[0] ? crewSel.selectedOptions[0].textContent : crewId;
+      const warn = attach ? '' : '\n\nNot: crew kalmayan uçuş DB’den silinir.';
+      if (!window.confirm((attach ? 'Crew ekle: ' : 'Crew çıkar: ') + crewLabel + '\n' + ids.length + ' uçuş' + warn)) return;
+      void runFlightsBulk(attach ? 'Crew ekleme' : 'Crew çıkarma', async (id) => {
+        await callAdminAction(attach ? 'attach_crew_to_flight' : 'detach_crew_from_flight', {
+          flight_id: id,
+          crew_id: crewId,
+        });
+      }, { clearAfter: !attach });
+    }
+    document.getElementById('btnBulkSelAttachCrew')?.addEventListener('click', () => bulkCrewLink(true));
+    document.getElementById('btnBulkSelDetachCrew')?.addEventListener('click', () => bulkCrewLink(false));
+    document.getElementById('btnBulkSelCopyIds')?.addEventListener('click', () => {
+      const ids = resolveBulkFlightIds();
+      copyTextToClipboard(ids.join('\n'), ids.length + ' uçuş ID kopyalandı');
     });
 
     function parseBulkIds() {
