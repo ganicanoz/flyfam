@@ -70,6 +70,8 @@ export type RosterFlightCardModel = {
   showAssignAction?: boolean;
   /** COTD vb. — standby chrome, rozet «Görev». */
   homeDutyLike?: boolean;
+  /** Nöbet kartı rozeti yerine (Rezerv, CFR). */
+  standbyBadgeLabel?: string | null;
   showSuggestOccupation?: boolean;
   aircraftReg?: string | null;
   aircraftType?: string | null;
@@ -84,6 +86,8 @@ type Props = {
   onLongPress?: () => void;
   onLiveTrack?: () => void;
   onFooterAction?: () => void;
+  /** Nöbet kartında «Uçuşa dönüştür» yanında «Boş gün yap» (CFR, rezerv). */
+  onOffDayAction?: () => void;
   onSuggestOccupation?: () => void;
 };
 
@@ -95,6 +99,7 @@ export function RosterFlightCard({
   onLongPress,
   onLiveTrack,
   onFooterAction,
+  onOffDayAction,
   onSuggestOccupation,
 }: Props) {
   const { t } = useTranslation();
@@ -223,7 +228,7 @@ export function RosterFlightCard({
     const kindLabel = isStandby
       ? model.homeDutyLike
         ? t('roster.trainingBadge')
-        : t('roster.statusStandby')
+        : model.standbyBadgeLabel?.trim() || t('roster.statusStandby')
       : isLayover
         ? t('roster.legendLayover')
         : isTraining
@@ -301,18 +306,41 @@ export function RosterFlightCard({
                 </Text>
               </View>
               {model.showAssignAction && onFooterAction ? (
-                <Pressable
-                  onPress={onFooterAction}
-                  hitSlop={6}
-                  accessibilityRole="button"
-                  accessibilityLabel={t('roster.assignFlightsA11y')}
-                  style={[styles.assignTextBtn, { backgroundColor: marks.standbyLine }]}
-                >
-                  <Ionicons name="airplane" size={16} color="#FFFFFF" />
-                  <Text style={[styles.assignTextBtnLabel, { fontSize: chip(10) }]} numberOfLines={2}>
-                    {t('roster.assignFlights')}
-                  </Text>
-                </Pressable>
+                <View style={styles.standbyActions}>
+                  {onOffDayAction ? (
+                    <Pressable
+                      onPress={onOffDayAction}
+                      hitSlop={6}
+                      accessibilityRole="button"
+                      accessibilityLabel={t('roster.standbyToOffA11y')}
+                      style={[
+                        styles.assignTextBtn,
+                        styles.offDayBtn,
+                        { backgroundColor: marks.offBadgeBg, borderColor: marks.offLine },
+                      ]}
+                    >
+                      <Ionicons name="moon-outline" size={16} color={marks.offBadgeText} />
+                      <Text
+                        style={[styles.assignTextBtnLabel, { color: marks.offBadgeText, fontSize: chip(10) }]}
+                        numberOfLines={2}
+                      >
+                        {t('roster.standbyToOff')}
+                      </Text>
+                    </Pressable>
+                  ) : null}
+                  <Pressable
+                    onPress={onFooterAction}
+                    hitSlop={6}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('roster.assignFlightsA11y')}
+                    style={[styles.assignTextBtn, styles.assignBtnInRow, { backgroundColor: marks.standbyLine }]}
+                  >
+                    <Ionicons name="airplane" size={16} color="#FFFFFF" />
+                    <Text style={[styles.assignTextBtnLabel, { fontSize: chip(10) }]} numberOfLines={2}>
+                      {t('roster.assignFlights')}
+                    </Text>
+                  </Pressable>
+                </View>
               ) : (
                 <Ionicons name="chevron-forward" size={16} color={ink.muted} style={styles.assignChevron} />
               )}
@@ -701,6 +729,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 2,
   },
+  standbyActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginLeft: 'auto',
+    flexShrink: 0,
+  },
+  offDayBtn: { marginLeft: 0, borderWidth: StyleSheet.hairlineWidth },
+  assignBtnInRow: { marginLeft: 0 },
   assignTextBtnLabel: {
     color: '#FFFFFF',
     fontWeight: '700',

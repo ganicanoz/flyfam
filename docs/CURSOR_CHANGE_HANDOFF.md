@@ -1002,3 +1002,55 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - Deployların tamamı hatasız sonuçlandı. Son production envanterinde sırasıyla sürümler 75, 8, 127, 97, 109, 134, 32 ve 47; sekizinin de durumu `ACTIVE`, güncelleme tarihi 2026-09-27.
 - `subscription-status`, `validate-apple-subscription` ve `validate-google-subscription` yerelde dosya içermeyen eski klasörlerdir; deploy edilmedi. Aktif satın alma doğrulama fonksiyonu `verify-store-purchase` production'da mevcuttur.
 - Docker'ın çalışmıyor uyarısı deployu engellemedi; Supabase CLI varlıkları doğrudan paketleyip production'a yükledi. Route to Live `functions-prod` maddesi OK yapıldı.
+
+## 2026-09-29 — Roster: Rezerv rozeti + CFR rezerv gibi gösteriliyor
+
+- **Dosyalar:** `mobile/screens/Roster.tsx`, `mobile/components/roster/RosterFlightCard.tsx`, `mobile/locales/tr.json`, `mobile/locales/en.json`
+- **Sorun:** RSV/RZV/RZVM kartı «Nöbet» rozetiyle çıkıyordu (hesaplanan «Rezerve» etiketi nöbet kartında kullanılmıyordu). THY `CFR` (Potansiyel Görev) hiçbir gruba girmediği için gri «Boş» kartı olarak, saatsiz ve takvimde boş gün rengiyle görünüyordu.
+- **Uygulama:**
+  - Kart modeline opsiyonel `standbyBadgeLabel`; nöbet kompakt kartında rozet metni onu kullanır, yoksa «Nöbet» (mevcut davranış).
+  - Rezerv kodları `/^RSV\d*$/`, `RZV`, `RZVM` → rozet `roster.statusReserve` («Rezerv» / «Reserve»).
+  - `CFR` (`duty_off`) → rezervle aynı nöbet kartı (turuncu şerit, üs istasyonu, tarih · saat aralığı, crew için «Uçuşa dönüştür»), rozet «CFR». Takvimde `standby` (turuncu çizgi); yatı arası günlerde isimli görev olarak gizlenmez.
+  - Paylaşılan `isStandbyOccupationCode` değiştirilmedi (PDF import / duty-window mantığı etkilenmesin); CFR yalnız Roster görünümünde `isCfrDutyCode` ile ele alınıyor.
+- **Doğrulama:** `npx tsc --noEmit` OK; locale JSON parse OK; `git diff --check` OK. Cihazda görsel kontrol yapılmadı (CFR satırı olan THY roster gerekiyor).
+- **Koruma:** HSBY/SBY/STBY vb. nöbet kartları «Nöbet» rozetiyle aynı; COTD «Görev» rozeti aynı; CFR'den «Uçuşa dönüştür» mevcut standby atama akışını (AddFlight `replaceStandbyFlightId` + aileye nöbetten görev bildirimi) kullanır.
+
+## 2026-09-29 — Roster: CFR tüm gün + netleşme notu
+
+- **Dosyalar:** `mobile/screens/Roster.tsx`, `mobile/components/roster/RosterFlightCard.tsx`, `mobile/locales/tr.json`, `mobile/locales/en.json`
+- **Ürün kuralı (kullanıcı):** CFR tüm günü kapsar; bir önceki gün 01:00Z'de uçuşa veya boş güne döner.
+- **Uygulama:** CFR kartında saat aralığı yerine `{gün ay} · Tüm gün`. Kart modeline opsiyonel `standbyNoteLine` (nöbet kartında saat satırı altında soluk tek satır). CFR günü geçmemişse: netleşme anı `(flight_date − 1)T01:00Z` gelecekteyse «Netleşme: 29 Eylül 04:00 · uçuş veya boş gün» (üs TZ; UTC görünümünde `01:00Z`), geçmişse «Netleşti · roster'ı güncelle». Geçmiş CFR kartında not yok.
+- **Doğrulama:** `npx tsc --noEmit` OK; locale JSON OK; Node'da `2026-09-29T01:00Z` → İstanbul `2026-09-29 04:00` OK; `git diff --check` OK. Cihazda görsel kontrol yapılmadı.
+- **Koruma:** Diğer nöbet/rezerv kartları saat aralığıyla aynı; `standbyNoteLine` yoksa kart düzeni değişmez. Veri/import tarafına dokunulmadı.
+
+## 2026-09-29 — Roster: CFR kartına «Boş gün yap»
+
+- **Dosyalar:** `mobile/screens/Roster.tsx` (`runCfrToOffDay`, `openCfrToOffDay`), `mobile/components/roster/RosterFlightCard.tsx` (`onOffDayAction`, `standbyActions`, `offDayBtn`), `mobile/locales/tr.json`, `mobile/locales/en.json`
+- **Kullanıcı kararı:** CFR boş güne dönünce kartta «Uçuşa dönüştür» yanında «Boş gün yap» olsun.
+- **Uygulama:** Yalnız crew, geçmemiş CFR kartında gri ay ikonlu ikinci buton. Onay sonrası: `add_me_to_flight('OFF', flight_date, …, CFR saatleri, 'duty_off')` → başarılıysa `remove_me_from_flight(cfrId)` → `refreshCrewListFromDb()`. CFR satırı doğrudan güncellenmez çünkü `flights` numara+tarihle ekipler arasında paylaşımlı (aynı gün CFR'si olan diğer ekip etkilenirdi); `remove_me_from_flight` son ekip çıkınca satırı siler. Aileye bildirim gönderilmez. Not satırı iki satıra çıkabilir (buton genişliği için).
+- **Doğrulama:** `npx tsc --noEmit` OK; locale JSON OK; `git diff --check` OK. RPC imzası/parametre adları PDF import çağrısıyla aynı. Canlı DB'de ve cihazda denenmedi.
+- **Bilinen etki:** Aynı gün mevcut paylaşımlı `OFF` satırı varsa `add_me_to_flight` onun `scheduled_*` alanlarını CFR saatleriyle günceller (PDF import davranışıyla aynı).
+- **Koruma:** «Uçuşa dönüştür» akışı, diğer nöbet/rezerv kartları (tek buton) ve import aynı.
+
+## 2026-09-29 — Roster: Rezerv de CFR gibi (netleşme notu + «Boş gün yap»); aile bildirimi kuralı
+
+- **Dosyalar:** `mobile/screens/Roster.tsx`, `mobile/components/roster/RosterFlightCard.tsx`, `mobile/locales/tr.json`, `mobile/locales/en.json`
+- **Ürün kuralı (kullanıcı):** Rezerv, görev başlangıcından 10 saat önce uçuşa veya boş güne döner. CFR ve rezervde uçuş çıkarsa aileye bildirim gider; boş gün olursa gitmez.
+- **Uygulama:**
+  - Ortak `canConvertToOffDay` (CFR veya `/^RSV\d*$/`/RZV/RZVM nöbet kartı). Netleşme anı: CFR `(flight_date − 1)T01:00Z`; rezerv `scheduled_departure − 10 saat`. Rezerv kartı saat aralığını göstermeye devam eder, altına aynı not satırı gelir.
+  - `runCfrToOffDay`/`openCfrToOffDay` → `runStandbyToOffDay`/`openStandbyToOffDay(item, dutyLabel)`; `roster.cfr*` anahtarları `roster.standby*` olarak yeniden adlandırıldı (yalnız bu oturumda eklenmişti). Onay metninde «Aileye bildirim gönderilmez».
+  - Aile bildirimi: «Uçuşa dönüştür» zaten AddFlight `replaceStandbyFlightId` → `notifyFamilyStandbyAssigned` (Edge `standby_assigned`) yolunu kullanıyor; CFR ve rezervde bildirim gidiyor. «Boş gün yap» yalnız `add_me_to_flight` + `remove_me_from_flight` çağırır, `notify-family` çağrılmaz (bu RPC'lerde push tetikleyen trigger yok).
+  - AddFlight'taki `remove_me_from_flight` sonrası `.delete()` paylaşımlı satırı başkalarından silemez: RLS «Allow delete when no crew on flight».
+- **Doğrulama:** `npx tsc --noEmit` OK; locale JSON OK; eski `cfr*` anahtar referansı kalmadı; `git diff --check` OK. Canlı DB'de ve cihazda denenmedi.
+- **Açık:** Aile push metni «…nöbetten uçuş verildi» — rezerv/CFR için de aynı metin gider (Edge değişikliği yapılmadı).
+- **Ek (aynı gün):** `RosterFlightCard.tsx` buton sırası: «Boş gün yap» solda, «Uçuşa dönüştür» en sağda (`assignBtnInRow`). Tek butonlu nöbet kartlarında «Uçuşa dönüştür» yine en sağda. `tsc` + `git diff --check` OK.
+- **Ek (kullanıcı kararı):** Netleşme notu kaldırıldı (bkz. aşağıda tebliğ hatırlatması) — `standbyNoteLine` prop/render, Roster'daki netleşme hesabı ve `roster.standbyDecisionAt`/`standbyDecisionPassed` anahtarları silindi. Yukarıdaki «CFR tüm gün + netleşme notu» kaydındaki not kısmı artık geçersiz; CFR «Tüm gün» satırı, rezerv/CFR «Boş gün yap» ve aile bildirimi kuralı aynı. `tsc`, locale JSON, `git diff --check` OK.
+
+## 2026-09-29 — Crew: CFR / rezerv tebliğ saati yerel hatırlatması
+
+- **Dosyalar:** yeni `mobile/lib/standbyDecisionReminders.ts`; `mobile/screens/Roster.tsx` (sync effect), `mobile/contexts/SessionContext.tsx` (çıkışta iptal), `mobile/locales/tr.json`, `mobile/locales/en.json`
+- **Ürün kuralı (kullanıcı):** CFR → görev gününden bir önceki gün **02:00Z**; rezerv (`/^RSV\d*$/`, RZV, RZVM) → `scheduled_departure − 10 saat`. Yalnız crew kullanıcısına: «CFR (Rezerv) görevin için tebliğ saati geldi. Kontrol ettin mi?»
+- **Uygulama:** Cihazda `expo-notifications` DATE trigger (sunucu/cron/migration yok). Kimlik `standby-decision:<flightId>`; `data.atMs/kind` + metin aynıysa korunur, değilse iptal/yeniden kurulur; roster'dan kalkan (uçuşa/boş güne çevrilen) görevin hatırlatması iptal edilir. Yalnız `duty_off` satırları, gelecek 45 gün, en fazla 30 bekleyen (iOS 64 sınırı). İzin istemez; izin yoksa zamanlamaz. Roster'da yalnız kendi roster'ı (`isCrew`, `!loading`, 1,5 sn debounce); peer sekmesi hiçbir şey iptal etmez. `signOut` ve `SIGNED_OUT` olayında hepsi iptal. Android kanal `default`.
+- **Doğrulama:** `npx tsc --noEmit` OK; locale JSON OK; `git diff --check` OK. esbuild + sahte `expo-notifications` ile: CFR (D) → (D−1)T02:00Z, RSV1 03:00Z → önceki gün 17:00Z; HSBY / geçmiş CFR / `flight` türü atlandı; listeden kalkınca iptal; `cancelStandbyDecisionReminders` 0 bırakıyor. Cihazda gerçek bildirim denenmedi.
+- **Sınırlar:** Yerel olduğu için yalnız roster'ı en son yükleyen cihazda çalar; uygulama açılmadan sunucuda değişen roster (ör. başka cihazda dönüştürme) bir sonraki açılışa kadar eski hatırlatmayı tutabilir. Aynı hesap birden fazla cihazda → her cihazda çalar.
+- **Koruma:** Aile push'ları, `scheduleLocalTestNotification`, bildirim handler'ı ve kanallar aynı.

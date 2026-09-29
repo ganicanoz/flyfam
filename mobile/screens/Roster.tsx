@@ -116,6 +116,7 @@ import { parseRosterPdfFromDevice, pdfParseSourceDevLabel } from '../lib/rosterP
 import { materializeSharedPdfToCache } from '../lib/sharedPdfImport';
 import { maybePromptHomeBaseAfterRosterImport } from '../lib/homeBaseFromRoster';
 import { alertWithCopy } from '../lib/alertWithCopy';
+import { syncStandbyDecisionReminders } from '../lib/standbyDecisionReminders';
 import { buildPdfImportReport, showPdfImportAlert } from '../lib/pdfImportAlert';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -183,6 +184,11 @@ const LAYOVER_PLACEHOLDER_FN = 'LAYOVER';
 
 type CalendarDayKind = 'empty' | 'flight' | 'standby' | 'duty_off' | 'layover';
 
+/** THY «Potansiyel Görev» — listede ve takvimde rezerv gibi. */
+function isCfrDutyCode(code: string | null | undefined): boolean {
+  return (code || '').replace(/\s/g, '').toUpperCase() === 'CFR';
+}
+
 function calendarDayKindForEntry(f: {
   roster_entry_kind?: string | null;
   flight_number?: string | null;
@@ -210,7 +216,14 @@ function calendarDayKindForEntry(f: {
     return 'duty_off';
   }
   const isDutyOff = f.roster_entry_kind === 'duty_off';
-  if (isDutyOff) return isStandbyOccupationCode(blockCode) || isStandbyOccupationCode(occCode) ? 'standby' : 'duty_off';
+  if (isDutyOff) {
+    return isStandbyOccupationCode(blockCode) ||
+      isStandbyOccupationCode(occCode) ||
+      isCfrDutyCode(blockCode) ||
+      isCfrDutyCode(occCode)
+      ? 'standby'
+      : 'duty_off';
+  }
   return 'flight';
 }
 
@@ -1148,6 +1161,15 @@ export default function Roster({
   const isCrew = profile?.role === 'crew' && !isPeerViewer;
   const flightsRef = useRef<Flight[]>([]);
   flightsRef.current = flights;
+
+  /** Yalnız kendi roster'ı: peer sekmesi ayrı Roster örneği olduğu için iptal etmez. */
+  useEffect(() => {
+    if (!isCrew || loading) return;
+    const timer = setTimeout(() => {
+      void syncStandbyDecisionReminders(flightsRef.current, t);
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, [isCrew, loading, flights, t, i18n.language]);
   /** Son başarılı focus network yüklemesi (throttle). */
   const lastFocusLoadMsRef = useRef(0);
   /** Lazy slim-archive bellek; focus live-only ile birleşir. */
@@ -1753,6 +1775,7 @@ export default function Roster({
         const keepNamed =
           isOffDayOccupationCode(code) ||
           isStandbyOccupationCode(code) ||
+          isCfrDutyCode(code) ||
           isTrainingOccupationCode(code) ||
           isHomeDutyOccupationCode(code) ||
           isGroundDutyOccupationCode(code) ||
@@ -3788,6 +3811,54 @@ export default function Roster({
               });
             },
           },
+        ],
+        { cancelable: true },
+      );
+    });
+  };
+
+  /** Satır numara+tarihle paylaşımlı: CFR/rezerv satırını güncelleme; OFF'a katıl, görevden çık. Aileye bildirim yok. */
+  const runStandbyToOffDay = async (item: Flight) => {
+    if (!isCrew || !crewProfile?.id) return;
+    setFlightOpBusyMessage(t('roster.standbyToOffBusy'));
+    try {
+      const { data: offId, error: addErr } = await supabase.rpc('add_me_to_flight', {
+        p_flight_number: 'OFF',
+        p_flight_date: item.flight_date,
+        p_origin_airport: null,
+        p_destination_airport: null,
+        p_scheduled_departure: item.scheduled_departure ?? null,
+        p_scheduled_arrival: item.scheduled_arrival ?? null,
+        p_roster_entry_kind: 'duty_off',
+        p_duty_rest_end: null,
+        p_roster_detail: null,
+      });
+      if (addErr || !offId) {
+        Alert.alert(t('common.error'), addErr?.message ?? t('roster.standbyToOffError'));
+        return;
+      }
+      const { error: rmErr } = await supabase.rpc('remove_me_from_flight', { p_flight_id: item.id });
+      if (rmErr) {
+        Alert.alert(t('common.error'), rmErr.message);
+      }
+      await refreshCrewListFromDb();
+    } finally {
+      setFlightOpBusyMessage(null);
+    }
+  };
+
+  const openStandbyToOffDay = (item: Flight, dutyLabel: string) => {
+    if (!isCrew) return;
+    InteractionManager.runAfterInteractions(() => {
+      Alert.alert(
+        t('roster.standbyToOffConfirmTitle'),
+        t('roster.standbyToOffConfirmMessage', {
+          date: formatStandbyDayMonth(item.flight_date),
+          duty: dutyLabel,
+        }),
+        [
+          { text: t('common.cancel'), style: 'cancel' },
+          { text: t('roster.standbyToOff'), onPress: () => void runStandbyToOffDay(item) },
         ],
         { cancelable: true },
       );
@@ -5922,8 +5993,10 @@ export default function Roster({
               isDutyOffBlock || isSimBlock || isGroundDutyBlock || isHomeDutyBlock;
             const isStandbyDutyCode = isStandbyOccupationCode(blockCode);
             const isReserveDutyCode =
-              blockCode === 'RSV' || blockCode === 'RZV' || blockCode === 'RZVM';
-            const isStandbyBlock = isDutyOffBlock && (isStandbyDutyCode || isReserveDutyCode);
+              /^RSV\d*$/.test(blockCode) || blockCode === 'RZV' || blockCode === 'RZVM';
+            const isCfrDuty = isCfrDutyCode(blockCode);
+            const isStandbyBlock =
+              isDutyOffBlock && (isStandbyDutyCode || isReserveDutyCode || isCfrDuty);
             const isTr = String(i18n.language || '').toLowerCase().startsWith('tr');
             const indigoLabels = shouldUseIndigoRosterLabels({
               isCrew,
@@ -6150,6 +6223,8 @@ export default function Roster({
             const destCityName = isNonFlightBlock
               ? undefined
               : cityFor(item.destination_airport, item.destination_city);
+            /** CFR ve rezerv: uçuşa veya boş güne döner. */
+            const canConvertToOffDay = isStandbyBlock && (isCfrDuty || isReserveDutyCode);
 
             const onCardPress = () => {
               if (isCrew) {
@@ -6184,7 +6259,7 @@ export default function Roster({
               arrSkewMins,
               rosterEntryKind: item.roster_entry_kind,
               flightStatus: item.flight_status ?? displayStatus,
-              isStandbyDutyCode: isStandbyDutyCode || isReserveDutyCode,
+              isStandbyDutyCode: isStandbyDutyCode || isReserveDutyCode || isCfrDuty,
               isNonFlightBlock,
               blockTitle: isSimBlock
                 ? `${t('roster.simulatorBlockType')} ${blockTitle}`.trim()
@@ -6207,7 +6282,9 @@ export default function Roster({
                   ? blockTitle
                   : undefined,
               standbyScheduleLine: isStandbyBlock
-                ? `${formatStandbyDayMonth(item.flight_date)} · ${depTime} – ${arrTime}`
+                ? isCfrDuty
+                  ? `${formatStandbyDayMonth(item.flight_date)} · ${t('roster.allDay')}`
+                  : `${formatStandbyDayMonth(item.flight_date)} · ${depTime} – ${arrTime}`
                 : isHomeDutyBlock && depTime !== '—' && arrTime !== '—'
                   ? `${depTime} – ${arrTime}`
                   : isGroundDutyBlock && depTime !== '—' && arrTime !== '—'
@@ -6221,6 +6298,11 @@ export default function Roster({
               showAssignAction: isStandbyBlock && isCrew,
               /** Ev görevi: nöbet rozeti yerine «Görev». */
               homeDutyLike: isHomeDutyBlock,
+              standbyBadgeLabel: isCfrDuty
+                ? 'CFR'
+                : isReserveDutyCode
+                  ? t('roster.statusReserve')
+                  : null,
               showSuggestOccupation:
                 isCrew &&
                 isNonFlightBlock &&
@@ -6250,6 +6332,11 @@ export default function Roster({
                 }
                 onFooterAction={
                   isStandbyBlock && isCrew ? () => openAssignFlightsFromStandby(item) : undefined
+                }
+                onOffDayAction={
+                  canConvertToOffDay && isCrew && !isPast
+                    ? () => openStandbyToOffDay(item, isCfrDuty ? 'CFR' : t('roster.statusReserve'))
+                    : undefined
                 }
                 onSuggestOccupation={
                   isCrew &&

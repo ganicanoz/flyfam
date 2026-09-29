@@ -16,6 +16,7 @@ import {
 } from '@/lib/sessionProfileCache';
 import { clearRosterLocalCacheForUser } from '@/lib/rosterLocalCache';
 import { clearRosterAccessCacheForUser } from '@/lib/rosterAccessCache';
+import { cancelStandbyDecisionReminders } from '@/lib/standbyDecisionReminders';
 
 export type Profile = {
   id: string;
@@ -246,6 +247,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         setIsLoading(false);
         void clearSessionProfileCache();
         void clearConsentOkCache();
+        void cancelStandbyDecisionReminders();
       } else {
         // e.g. failed token refresh offline — keep existing session/profile.
         setIsLoading(false);
@@ -312,6 +314,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     setNeedsPasswordUpdate(false);
     void clearSessionProfileCache();
     void clearConsentOkCache();
+    void cancelStandbyDecisionReminders();
     if (uid) {
       void clearRosterLocalCacheForUser(uid);
       void clearRosterAccessCacheForUser(uid);
