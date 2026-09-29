@@ -290,7 +290,7 @@
     };
     const OFF_CODES = new Set(['MSF', 'FSF', 'FOF', 'FREE', 'OFF', 'OFFB', 'DOFF', 'RQST', 'RSF', 'ROF', 'RUF', 'SOF', 'SOS', 'LSF', 'OFG',
       'IBB', 'IBE', 'IBX', 'IOZ', 'IBC', 'IBY', 'IBI', 'III', 'VAC', 'AVAC', 'VAV', 'UPV']);
-    const COLORS = { duty: '#1a5cf5', away: '#818cf8', standby: '#f59e0b', school: '#22a55b', fixed: '#7c3aed' };
+    const COLORS = { duty: '#1a5cf5', away: '#818cf8', standby: '#f59e0b', home: '#06b6d4', school: '#22a55b', fixed: '#7c3aed' };
     const PALETTE = ['#0284c7', '#0d9488', '#db2777', '#65a30d'];
     const STAR_COLORS = ['', '#dc2626', '#ea580c', '#ca8a04', '#65a30d', '#16a34a'];
     const DAY_NAMES = ['', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi', 'Pazar'];
@@ -307,7 +307,7 @@
         pairs: {}, fallbackMin: [20, 35], rainExtraPct: 50,
       },
       school: { weekdays: [1, 2, 3, 4, 5], start: '09:30', end: '15:00', halfDayEnd: '12:30', skipPublicHolidays: true, closedDates: [], place: 'school', dropBeforeMin: 10 },
-      crewDuty: { homeBase: '', reportBeforeDepMin: 60, releaseAfterArrMin: 30, commutePlace: 'crewBase' },
+      crewDuty: { homeBase: '', reportBeforeDepMin: 60, releaseAfterArrMin: 30, commutePlace: 'crewBase', homeDutyCodes: ['COTD'] },
       partnerFixed: [],
       partnerCandidates: [],
       goals: {},
@@ -441,6 +441,7 @@
       const report = Number(cfg.crewDuty.reportBeforeDepMin) || 0;
       const release = Number(cfg.crewDuty.releaseAfterArrMin) || 0;
       const base = cfg.crewDuty.commutePlace || 'crewBase';
+      const homeCodes = new Set((Array.isArray(cfg.crewDuty.homeDutyCodes) ? cfg.crewDuty.homeDutyCodes : ['COTD']).map((x) => String(x).toUpperCase()));
       const at2ymd = (at) => ymdOf(Math.floor(at / 1440));
       const toBase = (at) => travel(cfg, 'home', base, at2ymd(at), at % 1440 - 45);
       const fromBase = (at) => travel(cfg, base, 'home', at2ymd(at), at % 1440);
@@ -489,6 +490,12 @@
             addLabel(r.fd, (code === 'CFR' ? 'CFR · tüm gün' : code + ' ' + fmt(s) + '–' + fmt(e)), 'warn');
             continue;
           }
+          if (homeCodes.has(code)) {
+            if (s == null || e == null || e <= s) { s = dayIndex(r.fd) * 1440 + 480; e = s + 480; }
+            intervals.push({ s, e, kind: 'home', label: code });
+            addLabel(r.fd, '🏠 ' + code + ' ' + fmt(s) + '–' + fmt(e) + ' · evde', 'crew');
+            continue;
+          }
           if (s != null && e != null && e > s) {
             intervals.push({ s: s - toBase(s), e: e + fromBase(e), kind: 'duty', label: code });
             addLabel(r.fd, code + ' ' + fmt(s) + '–' + fmt(e), 'crew');
@@ -509,6 +516,13 @@
           if (code === 'CFR' || ss == null || ee == null || ee <= ss) { ss = dayIndex(e.flight_date) * 1440; ee = ss + 1440; }
           intervals.push({ s: ss, e: ee, kind: 'standby', label: code });
           addLabel(e.flight_date, code === 'CFR' ? 'CFR · tüm gün' : code + ' ' + fmt(ss) + '–' + fmt(ee), 'warn');
+          continue;
+        }
+        if (homeCodes.has(code)) {
+          let ss = s, ee = en;
+          if (ss == null || ee == null || ee <= ss) { ss = dayIndex(e.flight_date) * 1440 + 480; ee = ss + 480; }
+          intervals.push({ s: ss, e: ee, kind: 'home', label: code });
+          addLabel(e.flight_date, '🏠 ' + code + ' ' + fmt(ss) + '–' + fmt(ee) + ' · evde', 'crew');
           continue;
         }
         if (kind === 'flight') {
@@ -539,7 +553,10 @@
     }
     function crewState(intervals, s, e) {
       let r = null;
-      for (const iv of intervals) if (iv.s < e && iv.e > s) { if (iv.kind === 'duty' || iv.kind === 'away') return iv.kind; r = 'standby'; }
+      for (const iv of intervals) if (iv.s < e && iv.e > s) {
+        if (iv.kind === 'duty' || iv.kind === 'away') return iv.kind;
+        if (iv.kind === 'standby' || !r) r = iv.kind;
+      }
       return r;
     }
     function fixedApplies(f, ymd, wd) {
@@ -585,17 +602,18 @@
       for (const n of needs) {
         n.st = crewState(ctx.crew.intervals, day.base + n.s, day.base + n.e);
         if (n.st === 'duty' || n.st === 'away') worst = 'bad';
-        else if (n.st === 'standby' && worst === 'ok') worst = 'risk';
+        else if ((n.st === 'standby' || (n.st === 'home' && n.run)) && worst === 'ok') worst = 'risk';
       }
       return { needs, worst };
     }
     function needText(cfg, n) {
       const P = cfg.people || {};
       const C = P.crew || 'Crew', CH = P.child || 'Çocuk';
-      const s = !n.st ? C + ' müsait' : n.st === 'standby' ? C + ' nöbet/rezerv (riskli)' : n.st === 'away' ? C + ' yatıda' : C + ' görevde';
+      const s = !n.st ? C + ' müsait' : n.st === 'standby' ? C + ' nöbet/rezerv (riskli)' : n.st === 'home' ? (n.run ? C + ' ev görevinde, okul yolu riskli' : C + ' ev görevinde, evde bakabilir') :
+        n.st === 'away' ? C + ' yatıda' : C + ' görevde';
       return CH + ' ' + n.what + ' ' + fmt(n.s) + '–' + fmt(n.e) + ': ' + s;
     }
-    const needKind = (n) => (!n.st ? 'ok' : n.st === 'standby' ? 'warn' : 'bad');
+    const needKind = (n) => (!n.st ? 'ok' : n.st === 'home' ? (n.run ? 'warn' : 'ok') : n.st === 'standby' ? 'warn' : 'bad');
 
     /** 1–5 yıldız: 5 = kimseye bağlı değil, rahat. */
     function rate(ctx, day, o) {
@@ -608,14 +626,15 @@
       const dutyDay = dayIvs.some((iv) => iv.kind === 'duty' || iv.kind === 'away');
       const runs = o.needs.filter((n) => n.run);
       const care = o.needs.filter((n) => !n.run);
-      if (o.worst === 'risk') { s = Math.min(s, 2); why.push(C + ' nöbet/rezervde ama ona bağlı'); }
+      if (o.worst === 'risk') { s = Math.min(s, 2); why.push(o.needs.some((n) => n.st === 'standby') ? C + ' nöbet/rezervde ama ona bağlı' : C + ' ev görevindeyken okul yolu'); }
       if (runs.length) { s -= 1; why.push(C + ' ' + runs.map((n) => n.what.replace(' + evde', '')).join(' ve ') + ' yapar'); }
+      if (care.some((n) => n.st === 'home')) { s -= 1; why.push(C + ' ev görevindeyken bakar'); }
       if (care.length && dutyDay && o.worst === 'ok') { s -= 1; why.push(C + ' aynı gün görevli (yorgun/yakın)'); }
       if (standbyDay && o.worst !== 'risk') { s -= 1; why.push(C + ' nöbet/rezerv günü'); }
       if (o.needs.length) {
         let gap = Infinity;
         for (const n of o.needs) for (const iv of dayIvs) {
-          if (iv.kind === 'standby') continue;
+          if (iv.kind === 'standby' || iv.kind === 'home') continue;
           if (iv.s >= day.base + n.e) gap = Math.min(gap, iv.s - (day.base + n.e));
           if (iv.e <= day.base + n.s) gap = Math.min(gap, day.base + n.s - iv.e);
         }
@@ -890,7 +909,7 @@
     }
     function renderLegend(cfg) {
       const P = cfg.people || {};
-      const items = [[COLORS.duty, (P.crew || 'Crew') + ' görev + yol'], [COLORS.away, 'Yatı'], [COLORS.standby, 'Nöbet / rezerv'], [COLORS.school, (P.child || 'Çocuk') + ' okul']];
+      const items = [[COLORS.duty, (P.crew || 'Crew') + ' görev + yol'], [COLORS.away, 'Yatı'], [COLORS.standby, 'Nöbet / rezerv'], [COLORS.home, 'Ev görevi'], [COLORS.school, (P.child || 'Çocuk') + ' okul']];
       $('legend').innerHTML = items.map(([c, t]) => '<span><i class="sw" style="background:' + c + '"></i>' + esc(t) + '</span>').join('') +
         (cfg.partnerCandidates || []).map((c, i) => { const m = workMeta(cfg, c, i, false); return '<span>' + icHtml(m) + ' ' + esc(c.label || m.short) + '</span>'; }).join('') +
         (cfg.partnerFixed || []).filter((f, i, a) => a.findIndex((x) => x.place === f.place) === i).map((f, i) => { const m = workMeta(cfg, f, i, true); return '<span>' + icHtml(m) + ' ' + esc(placeLabel(cfg, f.place)) + ' (sabit)</span>'; }).join('') +
