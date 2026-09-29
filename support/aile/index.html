@@ -5,6 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="robots" content="noindex, nofollow" />
   <meta name="theme-color" content="#0f766e" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="Aile planı" />
   <title>Aile planı</title>
   <style>
     :root {
@@ -80,7 +83,11 @@
     .chip.rec { box-shadow: 0 0 0 2px #facc15; }
     .chip i { font-style: normal; font-size: 10px; font-weight: 800; color: #a16207; background: #fef9c3; border-radius: 6px; padding: 0 4px; }
     .chip.demo { cursor: default; padding: 0 4px; border-color: #facc15; }
-    .d .tr { font-size: 10px; }
+    .cell.unl, .lrow.unl { background: #f1f5f9; }
+    .cell.unl .opt-mini, .lrow.unl .opt-mini { opacity: .35; }
+    .d small.u, .lrow .dt .u { color: #94a3b8; font-weight: 700; font-size: 9.5px; text-transform: uppercase; }
+    .chip.unl { opacity: .45; border-style: dashed; }
+    .chip i.uu { background: #e2e8f0; color: #64748b; }
     .actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
     .dirty { color: var(--warn); font-weight: 700; }
 
@@ -154,13 +161,52 @@
     body.embed .top { position: static; }
     .modal-img { max-width: 100%; border-radius: 12px; border: 1px solid var(--line); display: block; margin: 8px auto; }
 
-    @media (max-width: 760px) {
+    .cal-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+    .seg-toggle { margin-left: auto; display: inline-flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+    .seg-toggle button { border: 0; border-radius: 0; padding: 6px 12px; background: #fff; }
+    .seg-toggle button.on { background: var(--brand); color: #fff; font-weight: 700; }
+    .list { display: grid; gap: 6px; }
+    .wk { font-size: 11px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; margin: 8px 2px 0; }
+    .lrow { display: grid; grid-template-columns: 56px 1fr; gap: 10px; align-items: stretch; padding: 8px 10px 8px 0; border: 1px solid var(--line); border-left: 5px solid transparent; border-radius: 12px; background: #fff; cursor: pointer; }
+    .lrow.we { background: #fafbfd; } .lrow.hol { background: #fff7ed; } .lrow.vac { background: repeating-linear-gradient(135deg, #f0fdfa 0 8px, #fff 8px 16px); }
+    .lrow.today { box-shadow: inset 0 0 0 2px var(--brand); }
+    .lrow .dt { display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.1; }
+    .lrow .dt b { font-size: 22px; }
+    .lrow .dt span { font-size: 11px; font-weight: 700; color: var(--muted); }
+    .lrow .bd { min-width: 0; display: grid; gap: 4px; }
+    .lrow .tl-row { height: 6px; }
+    .lrow .ln { font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .lrow .ln.crew { color: #1d4ed8; } .lrow .ln.warn { color: #b45309; font-weight: 600; } .lrow .ln.muted { color: var(--muted); } .lrow .ln.bad { color: var(--bad); font-weight: 700; } .lrow .ln.hol { color: #c2410c; font-weight: 600; }
+    .lrow .wk-badges { display: flex; flex-wrap: wrap; gap: 5px; }
+    .pill { display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px 2px 2px; border-radius: 999px; font-size: 12px; font-weight: 700; }
+    @media (min-width: 641px) and (max-width: 1024px) {
+      main { padding: 10px; }
+      .cell { min-height: 108px; }
+      .crew { font-size: 10px; }
+      .crew + .crew { display: none; }
+    }
+    @media (max-width: 640px) {
+      input, select, textarea { font-size: 16px; }
+      button { min-height: 40px; }
+      .month button { min-width: 44px; }
+      main { padding-bottom: 96px; }
+      #actionBar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; margin: 0 !important; padding: 8px 10px max(8px, env(safe-area-inset-bottom));
+        background: rgba(255,255,255,.97); border-top: 1px solid var(--line); box-shadow: 0 -6px 20px rgba(15,23,42,.08); flex-wrap: wrap; }
+      #actionBar button { flex: 1 1 auto; }
+      #actionBar #selStatus { flex-basis: 100%; text-align: center; order: -1; }
+      body.embed #actionBar { position: static; box-shadow: none; }
+      .box { flex: 1 1 calc(50% - 6px); min-width: 0; }
+      .chip { padding: 6px 10px; font-size: 13px; }
+      .sum-grid { grid-template-columns: 1fr; }
+      .rows { grid-template-columns: 48px 1fr; }
+    }
+    @media (max-width: 640px) {
       .top { flex-wrap: wrap; }
       .month { order: 3; width: 100%; justify-content: center; margin-left: 0; }
-      main { padding: 8px; }
+      main { padding: 8px; padding-bottom: 96px; }
       .grid, .weekdays { gap: 3px; }
       .cell { min-height: 76px; padding: 3px; border-radius: 9px; }
-      .crew, .flag, .d small, .opt-mini .stars { display: none; }
+      .cell .crew, .cell .flag, .cell .d small, .cell .opt-mini .stars { display: none; }
       .cell .tl-row { height: 4px; }
       .pick { padding: 1px; gap: 1px; flex-direction: column; font-size: 9px; }
       .pick .stars { font-size: 8px; }
@@ -199,7 +245,7 @@
     <main>
       <section class="card">
         <div class="plan" id="goals"></div>
-        <div class="actions" style="margin-top:10px;">
+        <div class="actions" id="actionBar" style="margin-top:10px;">
           <button type="button" class="primary" id="btnSuggest">★ Önerileri kutulara koy</button>
           <button type="button" id="btnFix">✓ Fixle</button>
           <button type="button" class="ghost" id="btnClear">Temizle</button>
@@ -208,8 +254,18 @@
       </section>
 
       <section class="card">
-        <div class="weekdays"><span>Pzt</span><span>Sal</span><span>Çar</span><span>Per</span><span>Cum</span><span>Cmt</span><span>Paz</span></div>
-        <div class="grid" id="grid" style="margin-top:4px;"></div>
+        <div class="cal-head">
+          <b>Takvim</b>
+          <div class="seg-toggle" id="viewToggle">
+            <button type="button" data-viewmode="list">☰ Liste</button>
+            <button type="button" data-viewmode="grid">▦ Takvim</button>
+          </div>
+        </div>
+        <div id="gridWrap">
+          <div class="weekdays"><span>Pzt</span><span>Sal</span><span>Çar</span><span>Per</span><span>Cum</span><span>Cmt</span><span>Paz</span></div>
+          <div class="grid" id="grid" style="margin-top:4px;"></div>
+        </div>
+        <div class="list" id="list" hidden></div>
         <div class="legend" id="legend"></div>
       </section>
 
@@ -293,6 +349,7 @@
     const API = SUPABASE_URL + '/functions/v1/family-planner';
     const ADMIN_SESSION_KEY = 'flyfam_admin_dashboard_session_v2';
     const TOKEN_KEY = 'flyfam_family_plan_token_v1';
+    const VIEW_KEY = 'flyfam_family_plan_view_v1';
     const WX_URL = 'https://api.open-meteo.com/v1/forecast?latitude=41.01&longitude=29.03&timezone=Europe%2FIstanbul&forecast_days=16' +
       '&current=temperature_2m,precipitation,weather_code&hourly=precipitation,precipitation_probability&daily=weather_code,temperature_2m_max,precipitation_sum,precipitation_probability_max';
 
@@ -335,7 +392,7 @@
       vacations: [],
     };
 
-    const st = { month: null, data: null, full: {}, config: null, draft: {}, draftDirty: false, travelDirty: false, cfgDirty: false, wx: null, openDay: null, activeGroup: null, bearer: null, via: null, summaryGroups: [] };
+    const st = { month: null, data: null, full: {}, config: null, draft: {}, draftDirty: false, travelDirty: false, cfgDirty: false, wx: null, openDay: null, activeGroup: null, viewMode: (() => { try { return localStorage.getItem('flyfam_family_plan_view_v1'); } catch (_) { return null; } })(), bearer: null, via: null, summaryGroups: [] };
 
     // ---------- yardımcılar ----------
     const $ = (id) => document.getElementById(id);
@@ -820,7 +877,7 @@
       for (const grp of groups) {
         const minStars = Number(grp.g.minStars) || 2;
         const maxPerWeek = Number(grp.g.maxPerWeek) || (grp.n == null ? 7 : 1);
-        const eligible = inMonth.filter((d) => typeOk(d, grp.type) && (bestOpt(d, grp.cand)?.stars || 0) >= minStars);
+        const eligible = inMonth.filter((d) => typeOk(d, grp.type) && !(cfg.unlikelyWeekdays || []).includes(d.wd) && (bestOpt(d, grp.cand)?.stars || 0) >= minStars);
         let need = (grp.n == null ? eligible.length : grp.n) - inMonth.filter((d) => draft[d.ymd] && draft[d.ymd].cand === grp.cand && typeOk(d, grp.type)).length;
         while (need > 0) {
           const mine = Object.keys(draft).filter((k) => draft[k].cand === grp.cand);
@@ -893,11 +950,13 @@
         const crew = ev.crewLabels.slice(0, 2).map((l) => '<div class="crew ' + l.k + '">' + esc(l.t) + '</div>').join('');
         const bad = ev.notes.filter((n) => n.k === 'bad').slice(0, 1).map((n) => '<div class="flag">⚠ ' + esc(n.t.split(':')[0]) + '</div>').join('');
         const top = ev.vac ? '🏖️ ' + (ev.vac.label || 'Tatil') : ev.hol ? ev.hol[0] : '';
-        const unl = ev.inMonth && (cfg.unlikelyWeekdays || []).includes(ev.wd) && !ev.hol && !ev.vac;
+        if (ev.inMonth && (cfg.unlikelyWeekdays || []).includes(ev.wd) && !ev.hol && !ev.vac) cls.push('unl');
         return '<div class="' + cls.join(' ') + '" style="' + style + '" data-day="' + ev.ymd + '"' + (ev.inMonth ? ' draggable="true" data-drag-day="' + ev.ymd + '"' : '') + ' role="button" tabindex="0">' +
-          '<div class="d"><b>' + Number(ev.ymd.slice(8, 10)) + (unl ? ' <span class="tr" title="Trafik yoğun: unlikely">🚦</span>' : '') + '</b>' + (top ? '<small>' + esc(top) + '</small>' : '') + '</div>' +
+          '<div class="d"><b>' + Number(ev.ymd.slice(8, 10)) + '</b>' + (top ? '<small>' + esc(top) + '</small>' : cls.includes('unl') ? '<small class="u">unlikely</small>' : '') + '</div>' +
           timeline(ev, cfg, false) + crew + bad + '<div class="work">' + work + '</div></div>';
       }).join('');
+      renderList(res, today);
+      applyViewMode();
       renderGoals(res);
       renderLegend(cfg);
       renderSummary(res);
@@ -909,6 +968,59 @@
       $('selStatus').innerHTML = n + ' gün seçili' + (st.draftDirty ? ' · <span class="dirty">fixlenmedi</span>' : '');
     }
 
+    /** Telefon için günlük liste: her gün tek satır, okunaklı. */
+    function renderList(res, today) {
+      const { cfg, days } = res;
+      const inMonth = days.filter((d) => d.inMonth);
+      const out = [];
+      inMonth.forEach((ev, i) => {
+        if (i === 0 || ev.wd === 1) {
+          const end = addDays(ev.ymd, 7 - ev.wd);
+          const last = end.slice(0, 7) === st.month ? end : inMonth[inMonth.length - 1].ymd;
+          out.push('<div class="wk">' + Number(ev.ymd.slice(8, 10)) + '–' + Number(last.slice(8, 10)) + ' ' + esc(monthName(st.month).split(' ')[0]) + '</div>');
+        }
+        const cls = ['lrow'];
+        if (ev.wd >= 6) cls.push('we');
+        if (ev.hol) cls.push('hol');
+        if (ev.vac) cls.push('vac');
+        if (ev.ymd === today) cls.push('today');
+        const strip = ev.conflict ? '#dc2626' : ev.plan ? STAR_COLORS[ev.plan.stars] : ev.fixed.length ? ev.fixed[0].color : 'transparent';
+        const bg = ev.plan ? 'background:' + STAR_COLORS[ev.plan.stars] + '10;' : '';
+        const lines = [];
+        if (ev.vac) lines.push('<div class="ln hol">🏖️ ' + esc(ev.vac.label || 'Tatil') + '</div>');
+        else if (ev.hol) lines.push('<div class="ln hol">' + esc(ev.hol[0]) + '</div>');
+        for (const l of ev.crewLabels.slice(0, 2)) lines.push('<div class="ln ' + l.k + '">' + esc(l.t) + '</div>');
+        for (const n of ev.notes.filter((x) => x.k === 'bad').slice(0, 1)) lines.push('<div class="ln bad">⚠ ' + esc(n.t) + '</div>');
+        const badges = [];
+        for (const f of ev.fixed) badges.push('<span class="pill" style="background:' + f.color + '1f">' + icHtml(f) + esc(f.short || '') + ' ' + fmt(f.s) + '–' + fmt(f.e) + '</span>');
+        if (ev.plan) badges.push('<span class="pill" style="background:' + ev.plan.color + '1f">' + icHtml(ev.plan) + fmt(ev.plan.s) + '–' + fmt(ev.plan.e) + ' ' + starsHtml(ev.plan.stars) + '</span>');
+        else if (!ev.fixed.length) {
+          const seen = new Set();
+          for (const o of ev.opts) {
+            if (seen.has(o.cand)) continue;
+            seen.add(o.cand);
+            badges.push('<span class="opt-mini">' + icHtml(o, true) + '<span class="stars" style="color:' + STAR_COLORS[o.stars] + ';display:inline">' + o.stars + '★</span></span>');
+          }
+        }
+        const unl = (cfg.unlikelyWeekdays || []).includes(ev.wd) && !ev.hol && !ev.vac;
+        if (unl) cls.push('unl');
+        out.push('<div class="' + cls.join(' ') + '" style="border-left-color:' + strip + ';' + bg + '" data-day="' + ev.ymd + '" draggable="true" data-drag-day="' + ev.ymd + '" role="button" tabindex="0">' +
+          '<div class="dt"><b>' + Number(ev.ymd.slice(8, 10)) + '</b><span>' + DAY_SHORT[ev.wd] + '</span>' + (unl ? '<span class="u">unlikely</span>' : '') + '</div>' +
+          '<div class="bd">' + timeline(ev, cfg, false) + lines.join('') + (badges.length ? '<div class="wk-badges">' + badges.join('') + '</div>' : '') + '</div></div>');
+      });
+      $('list').innerHTML = out.join('');
+    }
+    function applyViewMode() {
+      const mode = st.viewMode || (window.matchMedia('(max-width: 640px)').matches ? 'list' : 'grid');
+      $('list').hidden = mode !== 'list';
+      $('gridWrap').hidden = mode === 'list';
+      document.querySelectorAll('[data-viewmode]').forEach((b) => b.classList.toggle('on', b.getAttribute('data-viewmode') === mode));
+    }
+    function defaultMonth() {
+      const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Istanbul' });
+      const [y, m, d] = today.split('-').map(Number);
+      return d > 25 ? new Date(Date.UTC(y, m, 1)).toISOString().slice(0, 7) : today.slice(0, 7);
+    }
     function renderGoals(res) {
       const { cfg, days } = res;
       const inMonth = days.filter((d) => d.inMonth);
@@ -928,11 +1040,13 @@
             boxes.push('<div class="box empty' + (st.activeGroup === gi ? ' active' : '') + '" data-drop="' + gi + '" data-activate="' + gi + '">' + (st.activeGroup === gi ? 'takvimden gün seç' : '+ gün') + '</div>');
           }
         }
-        const pool = inMonth.filter((d) => typeOk(d, grp.type) && !d.plan && !d.fixed.length && bestOpt(d, grp.cand)).map((d) => {
+        const isUnl = (d) => (cfg.unlikelyWeekdays || []).includes(d.wd);
+        const pool = inMonth.filter((d) => typeOk(d, grp.type) && !d.plan && !d.fixed.length && bestOpt(d, grp.cand))
+          .sort((a, b) => (isUnl(a) ? 1 : 0) - (isUnl(b) ? 1 : 0) || a.ymd.localeCompare(b.ymd)).map((d) => {
           const o = bestOpt(d, grp.cand);
           const r = rec[d.ymd] && rec[d.ymd].cand === grp.cand;
-          return '<button type="button" class="chip' + (r ? ' rec' : '') + '" draggable="true" data-drag-day="' + d.ymd + '" data-add="' + gi + '|' + d.ymd + '" title="' + esc(dateLong(d.ymd) + ' ' + fmt(o.s) + '–' + fmt(o.e) + ' · ' + o.why.join(' · ')) + '" style="border-color:' + STAR_COLORS[o.stars] + ';background:' + STAR_COLORS[o.stars] + '1a">' +
-            '<b>' + Number(d.ymd.slice(8, 10)) + '</b> ' + DAY_SHORT[d.wd] + ' <span style="color:' + STAR_COLORS[o.stars] + '">' + o.stars + '★</span>' + (r ? '<i>öneri</i>' : '') + '</button>';
+          return '<button type="button" class="chip' + (r ? ' rec' : '') + (isUnl(d) ? ' unl' : '') + '" draggable="true" data-drag-day="' + d.ymd + '" data-add="' + gi + '|' + d.ymd + '" title="' + esc(dateLong(d.ymd) + ' ' + fmt(o.s) + '–' + fmt(o.e) + ' · ' + o.why.join(' · ')) + '" style="border-color:' + STAR_COLORS[o.stars] + ';background:' + STAR_COLORS[o.stars] + '1a">' +
+            '<b>' + Number(d.ymd.slice(8, 10)) + '</b> ' + DAY_SHORT[d.wd] + ' <span style="color:' + STAR_COLORS[o.stars] + '">' + o.stars + '★</span>' + (r ? '<i>öneri</i>' : isUnl(d) ? '<i class="uu">unlikely</i>' : '') + '</button>';
         }).join('');
         const title = esc(grp.label) + ' · ' + (grp.type === 'sat' ? 'Cumartesi' : 'hafta içi');
         return '<div class="grp" data-drop="' + gi + '"><div class="grp-h">' + icHtml(grp.meta) + '<b>' + title + '</b><span class="cnt">' + Math.min(picked.length, n) + '/' + (grp.n == null ? '∞' : n) + '</span></div>' +
@@ -1169,7 +1283,7 @@
       catch (err) { if (el) el.textContent = String(err.message || err); return false; }
     }
     async function load() {
-      if (!st.month) st.month = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Istanbul' }).slice(0, 7);
+      if (!st.month) st.month = defaultMonth();
       $('status').textContent = 'Yükleniyor…';
       try {
         const j = await api('get', { month: st.month });
@@ -1315,13 +1429,18 @@
     $('prev').addEventListener('click', () => shiftMonth(-1));
     $('next').addEventListener('click', () => shiftMonth(1));
     $('logout').addEventListener('click', () => { localStorage.removeItem(TOKEN_KEY); st.bearer = null; showGate('Çıkış yapıldı'); });
-    $('grid').addEventListener('click', (e) => {
-      const c = e.target.closest('[data-day]');
-      if (!c) return;
-      if (st.activeGroup != null) addToGroup(st.activeGroup, c.getAttribute('data-day'));
-      else openDay(c.getAttribute('data-day'));
+    const onDayPick = (ymd) => { if (st.activeGroup != null) addToGroup(st.activeGroup, ymd); else openDay(ymd); };
+    ['grid', 'list'].forEach((id) => {
+      $(id).addEventListener('click', (e) => { const c = e.target.closest('[data-day]'); if (c) onDayPick(c.getAttribute('data-day')); });
+      $(id).addEventListener('keydown', (e) => { if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('[data-day]')) { e.preventDefault(); onDayPick(e.target.getAttribute('data-day')); } });
     });
-    $('grid').addEventListener('keydown', (e) => { if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('[data-day]')) { e.preventDefault(); openDay(e.target.getAttribute('data-day')); } });
+    $('viewToggle').addEventListener('click', (e) => {
+      const b = e.target.closest('[data-viewmode]');
+      if (!b) return;
+      st.viewMode = b.getAttribute('data-viewmode');
+      try { localStorage.setItem(VIEW_KEY, st.viewMode); } catch (_) { /* yok say */ }
+      applyViewMode();
+    });
     $('sheet').addEventListener('click', (e) => {
       if (e.target === $('sheet') || e.target.closest('[data-close]')) return closeDay();
       const o = e.target.closest('[data-opt]');
