@@ -300,6 +300,7 @@
       version: 3,
       timezone: 'Europe/Istanbul',
       view: { start: '06:00', end: '23:00' },
+      slotMin: 30,
       people: { crew: 'Crew', partner: 'Eş', child: 'Çocuk' },
       places: { home: { label: 'Ev', address: '' }, school: { label: 'Okul', address: '' }, crewBase: { label: 'Havalimanı', address: '' } },
       travel: {
@@ -321,7 +322,7 @@
     const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
     const hm = (v) => { const m = /^(\d{1,2}):(\d{2})$/.exec(String(v || '').trim()); return m ? Number(m[1]) * 60 + Number(m[2]) : 0; };
     const fmt = (min) => { const m = ((Math.round(min) % 1440) + 1440) % 1440; return String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0'); };
-    const round5 = (m, up) => (up ? Math.ceil(m / 5) * 5 : Math.floor(m / 5) * 5);
+    const roundTo = (m, step, up) => (up ? Math.ceil(m / step) * step : Math.floor(m / step) * step);
     const dayIndex = (ymd) => Math.round(Date.parse(ymd + 'T00:00:00Z') / 86400000);
     const ymdOf = (idx) => new Date(idx * 86400000).toISOString().slice(0, 10);
     const addDays = (ymd, n) => ymdOf(dayIndex(ymd) + n);
@@ -651,6 +652,8 @@
       const opts = [], rejected = [];
       if (fixedCount || day.vac) return { opts, rejected };
       const T = (a, b, at) => travel(cfg, a, b, day.ymd, at);
+      const slot = Math.max(5, Number(cfg.slotMin) || 30);
+      const up = (m) => roundTo(m, slot, true), down = (m) => roundTo(m, slot, false);
       (cfg.partnerCandidates || []).forEach((c, ci) => {
         const id = String(c.id || 'c' + ci);
         const meta = workMeta(cfg, c, ci, false);
@@ -667,11 +670,11 @@
         if (c.mode === 'school_hours') {
           if (!day.schoolDay || day.holHalf) return;
           const S = day.sStart, E = day.sEnd, sch = day.schoolPlace;
-          const stdS = round5(S + T(sch, place, S) + buf, true);
-          const stdE = round5(E - buf - T(place, sch, E - 30), false);
+          const stdS = up(S + T(sch, place, S) + buf);
+          const stdE = down(E - buf - T(place, sch, E - 30));
           if (stdE - stdS >= minMin) { const r = workNeeds(ctx, day, place, stdS, stdE); if (r.worst !== 'bad') push('std', stdS, stdE, r); }
           else rejected.push(meta.short + ': okul saatinde ' + (minMin / 60) + ' sa kalmıyor');
-          const exS = c.extendedStart ? hm(c.extendedStart) : null, exE = c.extendedEnd ? hm(c.extendedEnd) : null;
+          const exS = c.extendedStart ? up(hm(c.extendedStart)) : null, exE = c.extendedEnd ? down(hm(c.extendedEnd)) : null;
           const tries = [];
           if (exS != null && exE != null) tries.push([Math.min(exS, stdS), Math.max(exE, stdE)]);
           if (exE != null) tries.push([stdS, Math.max(exE, stdE)]);
@@ -682,9 +685,10 @@
             if (r.worst === 'ok') { push('ext', s, e, r); break; }
           }
         } else if (c.mode === 'evening') {
-          let s = hm(c.start || '16:00');
-          const e = hm(c.end || '20:00');
-          if (day.schoolDay) { const homeAt = day.sEnd + T(day.schoolPlace, 'home', day.sEnd); s = Math.max(s, round5(homeAt + T('home', place, homeAt), true)); }
+          const ov = (c.dayOverrides && c.dayOverrides[day.wd]) || {};
+          let s = up(hm(ov.start || c.start || '16:00'));
+          const e = down(hm(ov.end || c.end || '20:00'));
+          if (day.schoolDay) { const homeAt = day.sEnd + T(day.schoolPlace, 'home', day.sEnd); s = Math.max(s, up(homeAt + T('home', place, homeAt))); }
           if (e - s < minMin) return;
           const r = workNeeds(ctx, day, place, s, e);
           if (r.worst === 'bad') { const n = r.needs.find((x) => x.st === 'duty' || x.st === 'away'); rejected.push(meta.short + ' ' + fmt(s) + '–' + fmt(e) + ': ' + (n ? needText(cfg, n) : 'uygun değil')); return; }
@@ -1047,6 +1051,7 @@
         'Götürme / alma yalnız ' + C + ' veya ' + PA + '; ' + CH + ' okul dışında ' + C + ' veya ' + PA + ' ile.',
         PA + ' günde tek yerde çalışır. ' + C + "'in nöbet/rezerv günleri mümkün olduğunca kullanılmaz (yıldız düşer).",
         'Yağış tahmini olan saatlerde yol süreleri +%' + Number(cfg.travel?.rainExtraPct ?? 50) + '.',
+        PA + ' işe giriş/çıkış ' + (Number(cfg.slotMin) || 30) + ' dk dilimlerinde: giriş sonraki dilime, çıkış önceki dilime yuvarlanır (güvenlik payı).',
       ];
       for (const [id, g] of Object.entries(cfg.goals || {})) {
         const c = (cfg.partnerCandidates || []).find((x) => x.id === id);
