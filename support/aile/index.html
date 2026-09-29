@@ -308,7 +308,7 @@
         pairs: {}, fallbackMin: [20, 35], rainExtraPct: 50,
       },
       school: { weekdays: [1, 2, 3, 4, 5], start: '09:30', end: '15:00', halfDayEnd: '12:30', skipPublicHolidays: true, closedDates: [], place: 'school', dropBeforeMin: 10 },
-      crewDuty: { homeBase: '', reportBeforeDepMin: 60, releaseAfterArrMin: 30, commutePlace: 'crewBase', homeDutyCodes: ['COTD'] },
+      crewDuty: { homeBase: '', reportBeforeDepMin: 90, releaseAfterArrMin: 30, commutePlace: 'crewBase', homeDutyCodes: ['COTD'] },
       partnerFixed: [],
       partnerCandidates: [],
       goals: {},
@@ -477,6 +477,10 @@
               groups.set(key, g);
             }
             g.legs.push(r);
+            if (g.s != null && r.dt && (!homeBase || r.o === homeBase)) {
+              const dep = toAbs(depDay, r.dt);
+              if (dep != null) g.s = Math.min(g.s, dep - report);
+            }
             continue;
           }
           if (OFF_CODES.has(code)) {
@@ -1051,6 +1055,7 @@
         'Götürme / alma yalnız ' + C + ' veya ' + PA + '; ' + CH + ' okul dışında ' + C + ' veya ' + PA + ' ile.',
         PA + ' günde tek yerde çalışır. ' + C + "'in nöbet/rezerv günleri mümkün olduğunca kullanılmaz (yıldız düşer).",
         'Yağış tahmini olan saatlerde yol süreleri +%' + Number(cfg.travel?.rainExtraPct ?? 50) + '.',
+        C + ', ' + esc(placeLabel(cfg, cfg.crewDuty.commutePlace || 'crewBase')) + "'da uçuş kalkışından " + (Number(cfg.crewDuty.reportBeforeDepMin) || 0) + ' dk önce olur (PDF görev başlangıcı daha erkense o); öncesine evden yol eklenir.',
         PA + ' işe giriş/çıkış ' + (Number(cfg.slotMin) || 30) + ' dk dilimlerinde: giriş sonraki dilime, çıkış önceki dilime yuvarlanır (güvenlik payı).',
       ];
       for (const [id, g] of Object.entries(cfg.goals || {})) {
