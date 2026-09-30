@@ -113,6 +113,7 @@
     .d small.u, .lrow .dt .u { color: #94a3b8; font-weight: 700; font-size: 9.5px; text-transform: uppercase; }
     .chip.unl { opacity: .45; border-style: dashed; }
     .chip i.uu { background: #e2e8f0; color: #64748b; }
+    .chip i.both, .box i.both { font-style: normal; font-size: 10px; font-weight: 800; background: #e0e7ff; color: #3730a3; border-radius: 999px; padding: 0 5px; margin-left: 4px; }
     .actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
     .dirty { color: var(--warn); font-weight: 700; }
 
@@ -427,6 +428,7 @@
       slotMin: 30,
       unlikelyWeekdays: [],
       unlikelyPenalty: 2,
+      sameDayPairs: [],
       people: { crew: 'Crew', partner: 'Eş', child: 'Çocuk' },
       places: { home: { label: 'Ev', address: '' }, school: { label: 'Okul', address: '' }, crewBase: { label: 'Havalimanı', address: '' } },
       travel: {
@@ -868,24 +870,29 @@
         if (r.worst === 'bad') conflict = true;
       });
       const { opts, rejected } = options(ctx, day, fixed.length);
-      const sel = st.draft[ymd];
-      let plan = null;
-      if (sel && !day.vac) {
+      const plans = [];
+      for (const sel of day.vac ? [] : picksOf(st.draft[ymd])) {
         const idx = (cfg.partnerCandidates || []).findIndex((x, i) => String(x.id || 'c' + i) === sel.cand);
         const c = idx >= 0 ? cfg.partnerCandidates[idx] : { id: sel.cand, short: sel.short, label: sel.label };
         const meta = workMeta(cfg, c, Math.max(0, idx), false);
         const s = hm(sel.start), e = hm(sel.end);
         const place = sel.place || c.place || sel.cand;
         const r = workNeeds(ctx, day, place, s, e);
-        plan = { ...sel, ...meta, s, e, place, needs: r.needs, worst: r.worst, label: sel.label || meta.short };
+        const plan = { ...sel, ...meta, s, e, place, needs: r.needs, worst: r.worst, label: sel.label || meta.short };
         Object.assign(plan, rate(ctx, day, plan));
         segs.partner.push({ s, e, kind: 'plan', color: meta.color, title: plan.label });
         notes.push({ k: 'ok', t: '✓ ' + plan.label + ' ' + sel.start + '–' + sel.end });
-        if (fixed.length) { notes.push({ k: 'bad', t: 'Aynı gün sabit iş var (günde tek iş)' }); conflict = true; }
         for (const n of r.needs) notes.push({ k: needKind(n), t: needText(cfg, n) });
         if (r.worst === 'bad') conflict = true;
+        plans.push(plan);
       }
-      return { ...day, segs, notes, fixed, opts, rejected, plan, conflict, crewLabels: ctx.crew.labels[ymd] || [] };
+      if (plans.length && fixed.length) { notes.push({ k: 'bad', t: 'Aynı gün sabit iş var (sabit işle başka iş olmaz)' }); conflict = true; }
+      for (let i = 0; i < plans.length; i += 1) for (let j = i + 1; j < plans.length; j += 1) {
+        if (fitsWith(cfg, ymd, plans[i], plans[j])) continue;
+        notes.push({ k: 'bad', t: canShareDay(cfg, plans[i].cand, plans[j].cand) ? plans[i].label + ' ve ' + plans[j].label + ' saatleri/yolu çakışıyor' : plans[i].label + ' ve ' + plans[j].label + ' aynı gün olmaz' });
+        conflict = true;
+      }
+      return { ...day, segs, notes, fixed, opts, rejected, plans, plan: plans[0] || null, conflict, crewLabels: ctx.crew.labels[ymd] || [] };
     }
 
     function compute() {
@@ -924,6 +931,27 @@
     const typeOk = (d, type) => (type === 'sat' ? d.wd === 6 : d.wd <= 5);
     const bestOpt = (d, cand) => d.opts.filter((o) => o.cand === cand).sort((a, b) => b.stars - a.stars || (a.v === 'std' ? -1 : 1))[0] || null;
     const draftOf = (o) => ({ cand: o.cand, v: o.v, place: o.place, label: o.label, short: o.short, start: fmt(o.s), end: fmt(o.e) });
+    // Bir güne tek seçim (nesne) ya da izinli çift için iki seçim (dizi) kaydedilir; eski kayıtlar nesne olarak kalır.
+    const picksOf = (v) => (!v ? [] : Array.isArray(v) ? v.filter(Boolean) : [v]);
+    function setPicks(ymd, arr) { const a = (arr || []).filter(Boolean); if (!a.length) delete st.draft[ymd]; else st.draft[ymd] = a.length === 1 ? a[0] : a; }
+    const pickSpan = (p) => ({ cand: p.cand, place: p.place || p.cand, s: p.s != null ? p.s : hm(p.start), e: p.e != null ? p.e : hm(p.end) });
+    const planOf = (d, cand) => (d.plans || []).find((p) => p.cand === cand) || null;
+    function candLabel(cfg, id) {
+      const i = (cfg.partnerCandidates || []).findIndex((c, k) => String(c.id || 'c' + k) === id);
+      return i >= 0 ? cfg.partnerCandidates[i].label || workMeta(cfg, cfg.partnerCandidates[i], i, false).short : id;
+    }
+    function canShareDay(cfg, a, b) { return a !== b && (cfg.sameDayPairs || []).some((p) => Array.isArray(p) && p.includes(a) && p.includes(b)); }
+    /** İki iş aynı gün: izinli çift olmalı ve ilki bitip yol süresi eklenince ikincisine yetişilmeli. */
+    function fitsWith(cfg, ymd, a, b) {
+      if (!canShareDay(cfg, a.cand, b.cand)) return false;
+      const [x, y] = a.s <= b.s ? [pickSpan(a), pickSpan(b)] : [pickSpan(b), pickSpan(a)];
+      return x.e + travel(cfg, x.place, y.place, ymd, x.e) <= y.s;
+    }
+    /** Günün diğer seçimleriyle birlikte yapılabilen en iyi seçenek. */
+    function bestFit(cfg, d, cand, others) {
+      const other = (others || d.plans || []).filter((p) => p.cand !== cand);
+      return d.opts.filter((o) => o.cand === cand && other.every((p) => fitsWith(cfg, d.ymd, o, p))).sort((a, b) => b.stars - a.stars || (a.v === 'std' ? -1 : 1))[0] || null;
+    }
 
     /** Boş kutular için öneri: mevcut seçimler korunur; Cumartesi hedefleri önce, haftada en fazla N, aya ve haftalara yayılmış, yıldızı yüksek günler. */
     function suggest(res) {
@@ -934,26 +962,31 @@
       const fresh = {};
       const groups = goalGroups(cfg).slice().sort((a, b) => (a.type === 'sat' ? 0 : 1) - (b.type === 'sat' ? 0 : 1));
       const dist = (ymd, list, cap) => (list.length ? Math.min(cap, ...list.map((x) => Math.abs(dayIndex(x) - dayIndex(ymd)))) : cap);
+      const has = (ymd, cand) => picksOf(draft[ymd]).some((p) => p.cand === cand);
       for (const grp of groups) {
         const minStars = Number(grp.g.minStars) || 2;
         const maxPerWeek = Number(grp.g.maxPerWeek) || (grp.n == null ? 7 : 1);
         const eligible = inMonth.filter((d) => typeOk(d, grp.type) && !(cfg.unlikelyWeekdays || []).includes(d.wd) && (bestOpt(d, grp.cand)?.stars || 0) >= minStars);
-        let need = (grp.n == null ? eligible.length : grp.n) - inMonth.filter((d) => draft[d.ymd] && draft[d.ymd].cand === grp.cand && typeOk(d, grp.type)).length;
+        let need = (grp.n == null ? eligible.length : grp.n) - inMonth.filter((d) => has(d.ymd, grp.cand) && typeOk(d, grp.type)).length;
         while (need > 0) {
-          const mine = Object.keys(draft).filter((k) => draft[k].cand === grp.cand);
+          const mine = Object.keys(draft).filter((k) => has(k, grp.cand));
           const all = Object.keys(draft);
           const perWeek = {};
           for (const k of mine) perWeek[weekOf(k)] = (perWeek[weekOf(k)] || 0) + 1;
           let top = null, topScore = -Infinity;
           for (const d of eligible) {
-            if (draft[d.ymd] || (perWeek[weekOf(d.ymd)] || 0) >= maxPerWeek) continue;
-            const o = bestOpt(d, grp.cand);
+            if (has(d.ymd, grp.cand) || (perWeek[weekOf(d.ymd)] || 0) >= maxPerWeek) continue;
+            const o = bestFit(cfg, d, grp.cand, picksOf(draft[d.ymd]));
+            if (!o || o.stars < minStars) continue;
             const other = Math.max(0, ...d.opts.filter((x) => x.cand !== grp.cand).map((x) => x.stars));
             const score = o.stars * 10 + dist(d.ymd, mine, 10) * 1.5 + dist(d.ymd, all, 3) * 2 - other;
             if (score > topScore) { topScore = score; top = { d, o }; }
           }
           if (!top) break;
-          draft[top.d.ymd] = fresh[top.d.ymd] = draftOf(top.o);
+          const ymd = top.d.ymd, pick = draftOf(top.o);
+          const merged = [...picksOf(draft[ymd]), pick];
+          draft[ymd] = merged.length === 1 ? pick : merged;
+          fresh[ymd] = [...picksOf(fresh[ymd]), pick];
           need -= 1;
         }
       }
@@ -995,10 +1028,11 @@
         let work = '';
         let style = '';
         for (const f of ev.fixed) work += '<span class="pick" style="background:' + f.color + '1f">' + icHtml(f) + '</span>';
-        if (ev.plan) {
+        if (ev.plans.length) {
           cls.push('picked');
-          style = 'border-color:' + STAR_COLORS[ev.plan.stars] + ';background:' + STAR_COLORS[ev.plan.stars] + '12;';
-          work += '<span class="pick" style="background:' + ev.plan.color + '1f">' + icHtml(ev.plan) + starsHtml(ev.plan.stars) + '</span>';
+          const ms = Math.min(...ev.plans.map((p) => p.stars));
+          style = 'border-color:' + STAR_COLORS[ms] + ';background:' + STAR_COLORS[ms] + '12;';
+          for (const p of ev.plans) work += '<span class="pick" style="background:' + p.color + '1f">' + icHtml(p) + starsHtml(p.stars) + '</span>';
         } else if (ev.inMonth && ev.opts.length && !ev.fixed.length) {
           const seen = new Set();
           for (const o of ev.opts) {
@@ -1044,8 +1078,9 @@
         if (ev.hol) cls.push('hol');
         if (ev.vac) cls.push('vac');
         if (ev.ymd === today) cls.push('today');
-        const strip = ev.conflict ? '#dc2626' : ev.plan ? STAR_COLORS[ev.plan.stars] : ev.fixed.length ? ev.fixed[0].color : 'transparent';
-        const bg = ev.plan ? 'background:' + STAR_COLORS[ev.plan.stars] + '10;' : '';
+        const ms = ev.plans.length ? Math.min(...ev.plans.map((p) => p.stars)) : 0;
+        const strip = ev.conflict ? '#dc2626' : ms ? STAR_COLORS[ms] : ev.fixed.length ? ev.fixed[0].color : 'transparent';
+        const bg = ms ? 'background:' + STAR_COLORS[ms] + '10;' : '';
         const lines = [];
         if (ev.vac) lines.push('<div class="ln vacl">🏖️ ' + esc(ev.vac.label || 'Tatil') + ' · okul yok · iş yok</div>');
         else if (ev.hol) lines.push('<div class="ln hol">' + esc(ev.hol[0]) + '</div>');
@@ -1053,8 +1088,8 @@
         for (const n of ev.notes.filter((x) => x.k === 'bad').slice(0, 1)) lines.push('<div class="ln bad">⚠ ' + esc(n.t) + '</div>');
         const badges = [];
         for (const f of ev.fixed) badges.push('<span class="pill" style="background:' + f.color + '1f">' + icHtml(f) + esc(f.short || '') + ' ' + fmt(f.s) + '–' + fmt(f.e) + '</span>');
-        if (ev.plan) badges.push('<span class="pill" style="background:' + ev.plan.color + '1f">' + icHtml(ev.plan) + fmt(ev.plan.s) + '–' + fmt(ev.plan.e) + ' ' + starsHtml(ev.plan.stars) + '</span>');
-        else if (!ev.fixed.length) {
+        for (const p of ev.plans) badges.push('<span class="pill" style="background:' + p.color + '1f">' + icHtml(p) + fmt(p.s) + '–' + fmt(p.e) + ' ' + starsHtml(p.stars) + '</span>');
+        if (!ev.plans.length && !ev.fixed.length) {
           const seen = new Set();
           for (const o of ev.opts) {
             if (seen.has(o.cand)) continue;
@@ -1087,26 +1122,29 @@
       const rec = suggest(res);
       const groups = goalGroups(cfg);
       const html = groups.map((grp, gi) => {
-        const picked = inMonth.filter((d) => d.plan && d.plan.cand === grp.cand && typeOk(d, grp.type));
+        const picked = inMonth.filter((d) => planOf(d, grp.cand) && typeOk(d, grp.type));
         const n = grp.n == null ? picked.length + 1 : grp.n;
         const boxes = [];
         for (let i = 0; i < Math.max(n, picked.length); i += 1) {
           const d = picked[i];
           if (d) {
-            boxes.push('<div class="box filled' + (i >= n ? ' extra' : '') + '" data-drop="' + gi + '" data-box-day="' + d.ymd + '" style="border-color:' + STAR_COLORS[d.plan.stars] + ';background:' + STAR_COLORS[d.plan.stars] + '14">' +
-              '<b>' + Number(d.ymd.slice(8, 10)) + ' ' + DAY_SHORT[d.wd] + '</b><span>' + fmt(d.plan.s) + '–' + fmt(d.plan.e) + '</span>' + starsHtml(d.plan.stars) +
-              '<button type="button" class="x" data-unpick="' + d.ymd + '" aria-label="Çıkar">✕</button></div>');
+            const p = planOf(d, grp.cand);
+            const both = d.plans.length > 1 ? '<i class="both" title="Aynı gün ' + esc(d.plans.filter((x) => x.cand !== grp.cand).map((x) => x.label).join(', ')) + ' de var">+' + esc(d.plans.filter((x) => x.cand !== grp.cand).map((x) => x.icon).join('')) + '</i>' : '';
+            boxes.push('<div class="box filled' + (i >= n ? ' extra' : '') + '" data-drop="' + gi + '" data-box-day="' + d.ymd + '" style="border-color:' + STAR_COLORS[p.stars] + ';background:' + STAR_COLORS[p.stars] + '14">' +
+              '<b>' + Number(d.ymd.slice(8, 10)) + ' ' + DAY_SHORT[d.wd] + both + '</b><span>' + fmt(p.s) + '–' + fmt(p.e) + '</span>' + starsHtml(p.stars) +
+              '<button type="button" class="x" data-unpick="' + d.ymd + '|' + esc(grp.cand) + '" aria-label="Çıkar">✕</button></div>');
           } else {
             boxes.push('<div class="box empty' + (st.activeGroup === gi ? ' active' : '') + '" data-drop="' + gi + '" data-activate="' + gi + '">' + (st.activeGroup === gi ? 'takvimden gün seç' : '+ gün') + '</div>');
           }
         }
         const isUnl = (d) => (cfg.unlikelyWeekdays || []).includes(d.wd);
-        const pool = inMonth.filter((d) => typeOk(d, grp.type) && !d.plan && !d.fixed.length && bestOpt(d, grp.cand))
+        const pool = inMonth.filter((d) => typeOk(d, grp.type) && !planOf(d, grp.cand) && !d.fixed.length && bestFit(cfg, d, grp.cand))
           .sort((a, b) => (isUnl(a) ? 1 : 0) - (isUnl(b) ? 1 : 0) || a.ymd.localeCompare(b.ymd)).map((d) => {
-          const o = bestOpt(d, grp.cand);
-          const r = rec[d.ymd] && rec[d.ymd].cand === grp.cand;
-          return '<button type="button" class="chip' + (r ? ' rec' : '') + (isUnl(d) ? ' unl' : '') + '" draggable="true" data-drag-day="' + d.ymd + '" data-add="' + gi + '|' + d.ymd + '" title="' + esc(dateLong(d.ymd) + ' ' + fmt(o.s) + '–' + fmt(o.e) + ' · ' + o.why.join(' · ')) + '" style="border-color:' + STAR_COLORS[o.stars] + ';background:' + STAR_COLORS[o.stars] + '1a">' +
-            '<b>' + Number(d.ymd.slice(8, 10)) + '</b> ' + DAY_SHORT[d.wd] + ' <span style="color:' + STAR_COLORS[o.stars] + '">' + o.stars + '★</span>' + (r ? '<i>öneri</i>' : isUnl(d) ? '<i class="uu">unlikely</i>' : '') + '</button>';
+          const o = bestFit(cfg, d, grp.cand);
+          const r = picksOf(rec[d.ymd]).some((x) => x.cand === grp.cand);
+          const plus = d.plans.length ? '<i class="both">+' + esc(d.plans.map((x) => x.icon).join('')) + '</i>' : '';
+          return '<button type="button" class="chip' + (r ? ' rec' : '') + (isUnl(d) ? ' unl' : '') + '" draggable="true" data-drag-day="' + d.ymd + '" data-add="' + gi + '|' + d.ymd + '" title="' + esc(dateLong(d.ymd) + ' ' + fmt(o.s) + '–' + fmt(o.e) + (d.plans.length ? ' · aynı gün ' + d.plans.map((x) => x.label).join(', ') + ' ile' : '') + ' · ' + o.why.join(' · ')) + '" style="border-color:' + STAR_COLORS[o.stars] + ';background:' + STAR_COLORS[o.stars] + '1a">' +
+            '<b>' + Number(d.ymd.slice(8, 10)) + '</b> ' + DAY_SHORT[d.wd] + plus + ' <span style="color:' + STAR_COLORS[o.stars] + '">' + o.stars + '★</span>' + (r ? '<i>öneri</i>' : isUnl(d) ? '<i class="uu">unlikely</i>' : '') + '</button>';
         }).join('');
         const title = esc(grp.label) + ' · ' + (grp.type === 'sat' ? 'Cumartesi' : 'hafta içi');
         return '<div class="grp" data-drop="' + gi + '"><div class="grp-h">' + icHtml(grp.meta) + '<b>' + title + '</b><span class="cnt">' + Math.min(picked.length, n) + '/' + (grp.n == null ? '∞' : n) + '</span></div>' +
@@ -1133,13 +1171,17 @@
       const say = (t) => { $('selStatus').textContent = t; };
       if (!grp || !d) return say('Bu ayın bir gününü seç');
       if (!typeOk(d, grp.type)) return say(grp.type === 'sat' ? 'Bu kutu Cumartesi için' : 'Bu kutu hafta içi için');
-      const o = bestOpt(d, grp.cand);
-      if (!o) return say(dateLong(ymd) + ': ' + grp.label + ' için uygun değil');
+      if (!bestOpt(d, grp.cand)) return say(dateLong(ymd) + ': ' + grp.label + ' için uygun değil');
+      const o = bestFit(res.cfg, d, grp.cand);
+      if (!o) {
+        const others = d.plans.filter((p) => p.cand !== grp.cand);
+        return say(dateLong(ymd) + ': ' + others.map((p) => p.label).join(', ') + ' seçili; ' + (others.every((p) => canShareDay(res.cfg, p.cand, grp.cand)) ? 'saatler/yol yetişmiyor' : 'aynı gün ' + grp.label + ' olmaz') + '. Önce onu çıkar.');
+      }
       const inMonth = res.days.filter((x) => x.inMonth);
-      const picked = inMonth.filter((x) => x.plan && x.plan.cand === grp.cand && typeOk(x, grp.type) && x.ymd !== ymd);
-      if (replaceYmd && replaceYmd !== ymd) delete st.draft[replaceYmd];
+      const picked = inMonth.filter((x) => planOf(x, grp.cand) && typeOk(x, grp.type) && x.ymd !== ymd);
+      if (replaceYmd && replaceYmd !== ymd) setPicks(replaceYmd, picksOf(st.draft[replaceYmd]).filter((p) => p.cand !== grp.cand));
       else if (grp.n != null && picked.length >= grp.n) return say('Kutular dolu; önce birini çıkar ya da dolu kutunun üstüne bırak');
-      st.draft[ymd] = draftOf(o);
+      setPicks(ymd, [...picksOf(st.draft[ymd]).filter((p) => p.cand !== grp.cand), draftOf(o)]);
       st.draftDirty = true;
       st.activeGroup = null;
       render();
@@ -1166,14 +1208,17 @@
       for (const n of ev.notes) items.push('<li class="' + n.k + '">' + esc(n.t) + '</li>');
       let opts = '';
       if (ev.vac) opts = '<p class="muted small">Tatil günü; iş planlanmaz.</p>';
-      else if (ev.fixed.length) opts = '<p class="muted small">Sabit iş günü; günde tek iş kuralı nedeniyle başka seçenek yok.</p>';
+      else if (ev.fixed.length) opts = '<p class="muted small">Sabit iş günü; sabit işle aynı gün başka iş olmaz.</p>';
       else if (ev.opts.length || ev.rejected.length) {
+        const pairs = (cfg.sameDayPairs || []).filter((p) => Array.isArray(p) && p.length > 1);
         opts = '<div class="opts">' + ev.opts.map((o) => {
-          const on = ev.plan && ev.plan.cand === o.cand && ev.plan.v === o.v;
+          const on = ev.plans.some((p) => p.cand === o.cand && p.v === o.v);
+          const withOthers = !on && ev.plans.some((p) => p.cand !== o.cand) && ev.plans.filter((p) => p.cand !== o.cand).every((p) => fitsWith(cfg, ev.ymd, o, p));
           return '<button type="button" class="opt' + (on ? ' on' : '') + '" data-opt="' + esc(ev.ymd + '|' + o.key) + '">' + icHtml(o) +
-            '<span><span class="t">' + esc(o.label) + ' ' + fmt(o.s) + '–' + fmt(o.e) + (o.v === 'ext' ? ' ↔' : '') + '</span><br><span class="why">' + esc(o.why.join(' · ')) + '</span></span>' + starsHtml(o.stars) + '</button>';
+            '<span><span class="t">' + esc(o.label) + ' ' + fmt(o.s) + '–' + fmt(o.e) + (o.v === 'ext' ? ' ↔' : '') + (withOthers ? ' <span class="muted">(+ aynı gün eklenir)</span>' : '') + '</span><br><span class="why">' + esc(o.why.join(' · ')) + '</span></span>' + starsHtml(o.stars) + '</button>';
         }).join('') + ev.rejected.map((t) => '<div class="small muted">✕ ' + esc(t) + '</div>').join('') + '</div>' +
-          (ev.plan ? '<div class="row" style="margin-top:10px;"><button type="button" data-unpick="' + ev.ymd + '">Seçimi kaldır</button></div>' : '');
+          (pairs.length ? '<p class="small muted" style="margin:8px 0 0;">Aynı gün yalnız ' + pairs.map((p) => p.map((id) => esc(candLabel(cfg, id))).join(' + ')).join(', ') + ' birlikte olabilir (saatler ve yol yetişirse).</p>' : '') +
+          (ev.plans.length ? '<div class="row" style="margin-top:10px;"><button type="button" data-unpick="' + ev.ymd + '">' + (ev.plans.length > 1 ? 'Seçimleri kaldır' : 'Seçimi kaldır') + '</button></div>' : '');
       } else opts = '<p class="muted small">Bu gün için uygun klinik yok.</p>';
       $('sheet').innerHTML = '<div class="sheet"><h3><span>' + esc(dateLong(ev.ymd)) + '</span><button type="button" class="ghost" data-close="1" aria-label="Kapat">✕</button></h3>' +
         timeline(ev, cfg, true) + '<ul class="notes">' + items.join('') + '</ul>' + opts + '</div>';
@@ -1191,7 +1236,7 @@
       for (const d of days) {
         if (!d.inMonth) continue;
         for (const f of d.fixed) add(f.place, f, d.ymd, f.s, f.e, true, f.worst === 'bad' ? 'bad' : '');
-        if (d.plan) add(d.plan.place, d.plan, d.ymd, d.plan.s, d.plan.e, false, d.plan.worst === 'bad' ? 'bad' : d.plan.stars <= 2 ? 'warn' : '');
+        for (const p of d.plans) add(p.place, p, d.ymd, p.s, p.e, false, p.worst === 'bad' ? 'bad' : p.stars <= 2 ? 'warn' : '');
       }
       st.summaryGroups = [...groups.values()];
       if (!groups.size) { $('summary').innerHTML = 'Kutulara gün yerleştir (sürükle, dokun ya da «★ Önerileri kutulara koy»), sonra «✓ Fixle».'; return; }
@@ -1282,7 +1327,7 @@
       const rules = [
         CH + ' okul: ' + wds(sc.weekdays) + ' ' + esc(sc.start) + '–' + esc(sc.end) + ', resmi tatiller ve girilen tatil günleri hariç.',
         'Götürme / alma yalnız ' + C + ' veya ' + PA + '; ' + CH + ' okul dışında ' + C + ' veya ' + PA + ' ile.',
-        PA + ' günde tek yerde çalışır. ' + C + "'in nöbet/rezerv günleri mümkün olduğunca kullanılmaz (yıldız düşer).",
+        PA + ' günde tek yerde çalışır' + ((cfg.sameDayPairs || []).filter((p) => Array.isArray(p) && p.length > 1).length ? '; istisna: ' + cfg.sameDayPairs.filter((p) => Array.isArray(p) && p.length > 1).map((p) => p.map((id) => esc(candLabel(cfg, id))).join(' + ')).join(', ') + ' aynı gün olabilir (saatler ve aradaki yol yetişirse). Sabit işle aynı gün başka iş olmaz' : '') + '. ' + C + "'in nöbet/rezerv günleri mümkün olduğunca kullanılmaz (yıldız düşer).",
         'Yağış tahmini olan saatlerde yol süreleri +%' + Number(cfg.travel?.rainExtraPct ?? 50) + '.',
         C + ', ' + esc(placeLabel(cfg, cfg.crewDuty.commutePlace || 'crewBase')) + "'da uçuş kalkışından " + (Number(cfg.crewDuty.reportBeforeDepMin) || 0) + ' dk önce olur (PDF görev başlangıcı daha erkense o); öncesine evden yol eklenir.',
         ...((cfg.unlikelyWeekdays || []).length ? [(cfg.unlikelyWeekdays || []).map((d) => DAY_NAMES[d]).join(', ') + ': İstanbul trafiği çok yoğun, «unlikely» (−' + Number(cfg.unlikelyPenalty ?? 2) + ' yıldız).'] : []),
@@ -1633,9 +1678,9 @@
         const d = res.days.find((x) => x.ymd === ymd);
         const opt = d && d.opts.find((x) => x.key === key);
         if (!opt) return;
-        const cur = st.draft[ymd];
-        if (cur && cur.cand === opt.cand && cur.v === opt.v) delete st.draft[ymd];
-        else st.draft[ymd] = { cand: opt.cand, v: opt.v, place: opt.place, label: opt.label, short: opt.short, start: fmt(opt.s), end: fmt(opt.e) };
+        const cur = picksOf(st.draft[ymd]);
+        if (cur.some((p) => p.cand === opt.cand && p.v === opt.v)) setPicks(ymd, cur.filter((p) => p.cand !== opt.cand));
+        else setPicks(ymd, [...cur.filter((p) => p.cand !== opt.cand && fitsWith(res.cfg, ymd, opt, p)), draftOf(opt)]);
         st.draftDirty = true;
         render();
         return;
@@ -1664,14 +1709,20 @@
       if (!res) return;
       const draft = suggest(res);
       if (!Object.keys(draft).length) { $('selStatus').textContent = 'Boş kutu yok ya da uygun gün kalmadı'; return; }
-      Object.assign(st.draft, draft);
+      for (const [ymd, v] of Object.entries(draft)) setPicks(ymd, [...picksOf(st.draft[ymd]), ...picksOf(v)]);
       st.draftDirty = true;
       st.activeGroup = null;
       render();
     });
     $('goals').addEventListener('click', (e) => {
       const un = e.target.closest('[data-unpick]');
-      if (un) { delete st.draft[un.getAttribute('data-unpick')]; st.draftDirty = true; render(); return; }
+      if (un) {
+        const [ymd, cand] = un.getAttribute('data-unpick').split('|');
+        if (cand) setPicks(ymd, picksOf(st.draft[ymd]).filter((p) => p.cand !== cand)); else delete st.draft[ymd];
+        st.draftDirty = true;
+        render();
+        return;
+      }
       const add = e.target.closest('[data-add]');
       if (add) { const [gi, ymd] = add.getAttribute('data-add').split('|'); addToGroup(Number(gi), ymd); return; }
       const act = e.target.closest('[data-activate]');
