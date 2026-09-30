@@ -128,7 +128,6 @@
     .cell.vac { background: linear-gradient(165deg, #fff7ed 0%, #fef3c7 45%, #cffafe 100%); border-color: #fcd34d; }
     .cell.vac::after { content: '🏖️'; position: absolute; right: 4px; bottom: 2px; font-size: 30px; opacity: .55; pointer-events: none; }
     .cell.vac .d small { color: #b45309; font-weight: 800; }
-    .cell.vac .tl, .cell.vac .crew { opacity: .4; }
     .vac-tag { margin-top: auto; align-self: flex-start; font-size: 10px; font-weight: 800; letter-spacing: .02em; color: #92400e; background: rgba(255,255,255,.75); border: 1px dashed #f59e0b; border-radius: 999px; padding: 1px 7px; }
     .out.vac { opacity: .6; }
     .cell.today { box-shadow: inset 0 0 0 2px var(--brand); }
@@ -201,7 +200,6 @@
     .lrow { display: grid; grid-template-columns: 56px 1fr; gap: 10px; align-items: stretch; padding: 8px 10px 8px 0; border: 1px solid var(--line); border-left: 5px solid transparent; border-radius: 12px; background: #fff; cursor: pointer; }
     .lrow.we { background: #fafbfd; } .lrow.hol { background: #fff7ed; } .lrow.vac { position: relative; overflow: hidden; background: linear-gradient(100deg, #fff7ed 0%, #fef3c7 55%, #cffafe 100%); border-color: #fcd34d; border-left-color: #f59e0b !important; }
     .lrow.vac::after { content: '🏖️'; position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-size: 34px; opacity: .5; pointer-events: none; }
-    .lrow.vac .tl, .lrow.vac .ln.crew { opacity: .45; }
     .lrow .ln.vacl { color: #92400e; font-weight: 800; }
     .lrow.today { box-shadow: inset 0 0 0 2px var(--brand); }
     .lrow .dt { display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.1; }
@@ -298,7 +296,7 @@
           <span class="vac-emoji">🏖️</span>
           <div>
             <b id="vacJoke">Bu ay nereye gidiyoruz kankam?</b>
-            <div class="small muted" id="vacSub">Tatil günlerinde okul ve iş yok; takvimde kapalı görünür.</div>
+            <div class="small muted" id="vacSub">Tatil günlerinde okul ve iş yok.</div>
           </div>
         </div>
         <div class="row vac-form">
@@ -1056,7 +1054,7 @@
       renderSummary(res);
       renderFrame(cfg, res.claims);
       renderTravel(cfg);
-      renderVacations(cfg);
+      renderVacations(cfg, res);
       if (st.openDay) openDay(st.openDay, res);
       const n = Object.keys(st.draft).filter((d) => d.slice(0, 7) === st.month).length;
       $('selStatus').innerHTML = n + ' gün seçili' + (st.draftDirty ? ' · <span class="dirty">fixlenmedi</span>' : '');
@@ -1327,6 +1325,7 @@
       const rules = [
         CH + ' okul: ' + wds(sc.weekdays) + ' ' + esc(sc.start) + '–' + esc(sc.end) + ', resmi tatiller ve girilen tatil günleri hariç.',
         'Götürme / alma yalnız ' + C + ' veya ' + PA + '; ' + CH + ' okul dışında ' + C + ' veya ' + PA + ' ile.',
+        'Tatil günleri ' + PA + ' ve ' + CH + ' içindir: okul ve iş yok. ' + C + ' tatilde de uçabilir; roster aynen gösterilir.',
         PA + ' günde tek yerde çalışır' + ((cfg.sameDayPairs || []).filter((p) => Array.isArray(p) && p.length > 1).length ? '; istisna: ' + cfg.sameDayPairs.filter((p) => Array.isArray(p) && p.length > 1).map((p) => p.map((id) => esc(candLabel(cfg, id))).join(' + ')).join(', ') + ' aynı gün olabilir (saatler ve aradaki yol yetişirse). Sabit işle aynı gün başka iş olmaz' : '') + '. ' + C + "'in nöbet/rezerv günleri mümkün olduğunca kullanılmaz (yıldız düşer).",
         'Yağış tahmini olan saatlerde yol süreleri +%' + Number(cfg.travel?.rainExtraPct ?? 50) + '.',
         C + ', ' + esc(placeLabel(cfg, cfg.crewDuty.commutePlace || 'crewBase')) + "'da uçuş kalkışından " + (Number(cfg.crewDuty.reportBeforeDepMin) || 0) + ' dk önce olur (PDF görev başlangıcı daha erkense o); öncesine evden yol eklenir.',
@@ -1382,16 +1381,18 @@
       }
       $('travelStatus').innerHTML = st.travelDirty ? '<span class="dirty">kaydedilmedi</span>' : '';
     }
-    function renderVacations(cfg) {
+    function renderVacations(cfg, res) {
       const list = cfg.vacations || [];
       const partner = String(cfg.people?.partner || '').trim();
       $('vacJoke').textContent = (partner ? partner + ' bu ay' : 'Bu ay') + ' nereye gidiyoruz kankam?';
       const [y, m] = st.month.split('-').map(Number);
       const mFrom = st.month + '-01', mTo = new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10);
       const thisMonth = list.filter((v) => !vacationProblem(v.from, v.to) && v.from <= mTo && v.to >= mFrom);
+      const crew = esc(String(cfg.people?.crew || 'Crew'));
+      const flyDays = (v) => ((res && res.days) || []).filter((d) => d.inMonth && d.ymd >= v.from && d.ymd <= v.to && d.segs.crew.some((s) => s.kind === 'duty' || s.kind === 'away')).length;
       $('vacSub').innerHTML = thisMonth.length
-        ? 'Bu ay: ' + thisMonth.map((v) => '<b>' + esc(v.label || 'Tatil') + '</b> (' + esc(shortRange(v.from, v.to)) + ')').join(', ') + ' · iyi tatiller! ✈️'
-        : 'Tatil günlerinde okul ve iş yok; takvimde kapalı görünür.';
+        ? 'Bu ay: ' + thisMonth.map((v) => { const n = flyDays(v); return '<b>' + esc(v.label || 'Tatil') + '</b> (' + esc(shortRange(v.from, v.to)) + (n ? ' · ' + crew + ' ' + n + ' gün uçuşta' : '') + ')'; }).join(', ') + ' · iyi tatiller! ✈️'
+        : 'Tatil günlerinde okul ve iş yok; ' + crew + ' uçabilir, uçuşları takvimde görünür.';
       const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Istanbul' });
       $('vacList').innerHTML = list.length ? list.map((v, i) => {
         const bad = vacationProblem(v.from, v.to);
