@@ -172,8 +172,14 @@
     .sum { border-radius: 14px; border: 1px solid var(--line); overflow: hidden; background: #fff; }
     .sum header { display: flex; align-items: center; gap: 8px; padding: 10px 12px; color: #fff; }
     .sum header b { flex: 1; }
-    .sum ul { margin: 0; padding: 8px 12px 4px 30px; font-size: 13px; }
+    .sum ul { margin: 0; padding: 8px 12px 4px; font-size: 13px; list-style: none; }
     .sum li.bad { color: var(--bad); font-weight: 700; } .sum li.warn { color: #b45309; }
+    .sum li { display: flex; align-items: center; justify-content: space-between; gap: 6px; flex-wrap: wrap; margin: 3px 0; }
+    .sum li .tv { display: inline-flex; align-items: center; gap: 4px; margin-left: auto; }
+    .tm { display: inline-flex; align-items: center; gap: 3px; white-space: nowrap; }
+    .tm input { width: auto; padding: 3px 5px; font-variant-numeric: tabular-nums; }
+    .tedit { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 8px; padding: 8px 10px; border-radius: 12px; background: #f8fafc; border: 1px dashed var(--line); font-size: 13px; }
+    button.mini { min-height: 0; padding: 2px 6px; }
     .sum footer { display: flex; gap: 6px; padding: 8px 12px 12px; flex-wrap: wrap; }
     .wa { background: #25d366; color: #fff; border: 0; font-weight: 700; }
 
@@ -813,7 +819,7 @@
           if (!day.schoolDay || day.holHalf) return;
           const S = day.sStart, E = day.sEnd, sch = day.schoolPlace;
           const stdS = up(S + T(sch, place, S) + buf);
-          const stdE = down(E - buf - T(place, sch, E - 30));
+          const stdE = down(E - Math.max(buf + T(place, sch, E - 30), Number(c.pickupLeadMin) || 0));
           if (stdE - stdS >= minMin) { const r = workNeeds(ctx, day, place, stdS, stdE); if (r.worst !== 'bad') push('std', stdS, stdE, r); }
           else rejected.push(meta.short + ': okul saatinde ' + (minMin / 60) + ' sa kalmıyor');
           const exS = c.extendedStart ? up(hm(c.extendedStart)) : null, exE = c.extendedEnd ? down(hm(c.extendedEnd)) : null;
@@ -876,10 +882,14 @@
         const s = hm(sel.start), e = hm(sel.end);
         const place = sel.place || c.place || sel.cand;
         const r = workNeeds(ctx, day, place, s, e);
-        const plan = { ...sel, ...meta, s, e, place, needs: r.needs, worst: r.worst, label: sel.label || meta.short };
+        const def = opts.find((o) => o.cand === sel.cand && o.v === sel.v) || opts.find((o) => o.cand === sel.cand) || null;
+        const edited = !!def && (def.s !== s || def.e !== e);
+        const plan = { ...sel, ...meta, s, e, place, needs: r.needs, worst: r.worst, label: sel.label || meta.short, def, edited };
         Object.assign(plan, rate(ctx, day, plan));
         segs.partner.push({ s, e, kind: 'plan', color: meta.color, title: plan.label });
-        notes.push({ k: 'ok', t: '✓ ' + plan.label + ' ' + sel.start + '–' + sel.end });
+        notes.push({ k: 'ok', t: '✓ ' + plan.label + ' ' + sel.start + '–' + sel.end + (edited ? ' (elle; varsayılan ' + fmt(def.s) + '–' + fmt(def.e) + ')' : '') });
+        if (edited && s < def.s) notes.push({ k: 'warn', t: plan.label + ': varsayılan en erken başlangıç ' + fmt(def.s) + '; daha erken girildi' });
+        if (e <= s) { notes.push({ k: 'bad', t: plan.label + ': bitiş başlangıçtan sonra olmalı' }); conflict = true; }
         for (const n of r.needs) notes.push({ k: needKind(n), t: needText(cfg, n) });
         if (r.worst === 'bad') conflict = true;
         plans.push(plan);
@@ -1216,25 +1226,52 @@
             '<span><span class="t">' + esc(o.label) + ' ' + fmt(o.s) + '–' + fmt(o.e) + (o.v === 'ext' ? ' ↔' : '') + (withOthers ? ' <span class="muted">(+ aynı gün eklenir)</span>' : '') + '</span><br><span class="why">' + esc(o.why.join(' · ')) + '</span></span>' + starsHtml(o.stars) + '</button>';
         }).join('') + ev.rejected.map((t) => '<div class="small muted">✕ ' + esc(t) + '</div>').join('') + '</div>' +
           (pairs.length ? '<p class="small muted" style="margin:8px 0 0;">Aynı gün yalnız ' + pairs.map((p) => p.map((id) => esc(candLabel(cfg, id))).join(' + ')).join(', ') + ' birlikte olabilir (saatler ve yol yetişirse).</p>' : '') +
-          (ev.plans.length ? '<div class="row" style="margin-top:10px;"><button type="button" data-unpick="' + ev.ymd + '">' + (ev.plans.length > 1 ? 'Seçimleri kaldır' : 'Seçimi kaldır') + '</button></div>' : '');
+          ev.plans.map((p) => '<div class="tedit">' + icHtml(p) + '<b>' + esc(p.label) + '</b>' + timeInputs(ev.ymd, p) +
+            (p.edited ? '<button type="button" class="ghost" data-timereset="' + esc(ev.ymd + '|' + p.cand) + '">↺ varsayılan ' + fmt(p.def.s) + '–' + fmt(p.def.e) + '</button>' : '<span class="muted small">varsayılan saat</span>') + '</div>').join('') +
+          (ev.plans.length ? '<p class="small muted" style="margin:6px 0 0;">Saatleri değiştirebilirsin; sonra «✓ Fixle».</p><div class="row" style="margin-top:10px;"><button type="button" data-unpick="' + ev.ymd + '">' + (ev.plans.length > 1 ? 'Seçimleri kaldır' : 'Seçimi kaldır') + '</button></div>' : '');
       } else opts = '<p class="muted small">Bu gün için uygun klinik yok.</p>';
       $('sheet').innerHTML = '<div class="sheet"><h3><span>' + esc(dateLong(ev.ymd)) + '</span><button type="button" class="ghost" data-close="1" aria-label="Kapat">✕</button></h3>' +
         timeline(ev, cfg, true) + '<ul class="notes">' + items.join('') + '</ul>' + opts + '</div>';
       $('sheet').hidden = false;
     }
     function closeDay() { st.openDay = null; $('sheet').hidden = true; $('sheet').innerHTML = ''; }
+    const timeInputs = (ymd, p) => {
+      const k = esc(ymd + '|' + p.cand);
+      return '<span class="tm"><input type="time" step="300" value="' + fmt(p.s) + '" data-time="' + k + '|start" aria-label="Başlangıç" />–<input type="time" step="300" value="' + fmt(p.e) + '" data-time="' + k + '|end" aria-label="Bitiş" /></span>';
+    };
+    /** Seçimin saatini elle değiştirir (taslakta kalır, «Fixle» ile kaydedilir). */
+    function editPickTime(el) {
+      const [ymd, cand, which] = el.getAttribute('data-time').split('|');
+      const cur = picksOf(st.draft[ymd]);
+      const pick = cur.find((p) => p.cand === cand);
+      if (!pick || !/^\d{1,2}:\d{2}$/.test(el.value)) { render(); return; }
+      const next = { ...pick, [which]: el.value.padStart(5, '0') };
+      if (hm(next.end) <= hm(next.start)) { render(); $('selStatus').innerHTML = '<span class="dirty">Bitiş saati başlangıçtan sonra olmalı</span>'; return; }
+      setPicks(ymd, cur.map((p) => (p === pick ? next : p)));
+      st.draftDirty = true;
+      render();
+    }
+    function resetPickTime(key) {
+      const [ymd, cand] = key.split('|');
+      const d = (compute() || { days: [] }).days.find((x) => x.ymd === ymd);
+      const p = d && planOf(d, cand);
+      if (!p || !p.def) return;
+      setPicks(ymd, picksOf(st.draft[ymd]).map((x) => (x.cand === cand ? { ...x, start: fmt(p.def.s), end: fmt(p.def.e) } : x)));
+      st.draftDirty = true;
+      render();
+    }
 
     function renderSummary(res) {
       const { cfg, days } = res;
       const groups = new Map();
-      const add = (place, meta, ymd, s, e, fixed, warn) => {
+      const add = (place, meta, ymd, s, e, fixed, warn, plan) => {
         if (!groups.has(place)) groups.set(place, { place, label: placeLabel(cfg, place), meta, items: [] });
-        groups.get(place).items.push({ ymd, s, e, fixed, warn });
+        groups.get(place).items.push({ ymd, s, e, fixed, warn, plan });
       };
       for (const d of days) {
         if (!d.inMonth) continue;
         for (const f of d.fixed) add(f.place, f, d.ymd, f.s, f.e, true, f.worst === 'bad' ? 'bad' : '');
-        for (const p of d.plans) add(p.place, p, d.ymd, p.s, p.e, false, p.worst === 'bad' ? 'bad' : p.stars <= 2 ? 'warn' : '');
+        for (const p of d.plans) add(p.place, p, d.ymd, p.s, p.e, false, p.worst === 'bad' || d.conflict ? 'bad' : p.stars <= 2 ? 'warn' : '', p);
       }
       st.summaryGroups = [...groups.values()];
       if (!groups.size) { $('summary').innerHTML = 'Kutulara gün yerleştir (sürükle, dokun ya da «★ Önerileri kutulara koy»), sonra «✓ Fixle».'; return; }
@@ -1243,8 +1280,9 @@
         g.items.sort((a, b) => a.ymd.localeCompare(b.ymd));
         g.hours = Math.round(g.items.reduce((a, x) => a + (x.e - x.s), 0) / 6) / 10;
         return '<div class="sum"><header style="background:' + g.meta.color + '">' + '<span class="ic" style="background:rgba(255,255,255,.25)">' + esc(g.meta.icon) + '</span><b>' + esc(g.label) + '</b><span>' + g.items.length + ' gün · ' + String(g.hours).replace('.', ',') + ' sa</span></header><ul>' +
-          g.items.map((x) => '<li class="' + x.warn + '">' + esc(dateLong(x.ymd)) + ' · ' + fmt(x.s) + '–' + fmt(x.e) + (x.fixed ? ' <span class="muted">(sabit)</span>' : '') + '</li>').join('') +
-          '</ul><footer><button type="button" class="wa" data-share="' + gi + '">WhatsApp ile gönder</button><button type="button" data-img="' + gi + '">🖼 Resim</button><button type="button" data-copy="' + gi + '">Kopyala</button></footer></div>';
+          g.items.map((x) => '<li class="' + x.warn + '"><span>' + esc(dateLong(x.ymd)) + '</span><span class="tv">' +
+            (x.plan ? timeInputs(x.ymd, x.plan) + (x.plan.edited ? '<button type="button" class="ghost mini" data-timereset="' + esc(x.ymd + '|' + x.plan.cand) + '" title="Varsayılan ' + fmt(x.plan.def.s) + '–' + fmt(x.plan.def.e) + '">↺</button>' : '') : fmt(x.s) + '–' + fmt(x.e) + ' <span class="muted">(sabit)</span>') + '</span></li>').join('') +
+          '</ul>' + (g.items.some((x) => x.plan) ? '<p class="small muted" style="margin:0;padding:0 12px;">Saatler varsayılan; göndermeden önce değiştirebilirsin, sonra «✓ Fixle». ↺ varsayılana döner.</p>' : '') + '<footer><button type="button" class="wa" data-share="' + gi + '">WhatsApp ile gönder</button><button type="button" data-img="' + gi + '">🖼 Resim</button><button type="button" data-copy="' + gi + '">Kopyala</button></footer></div>';
       }).join('') + '</div>';
       $('summary').innerHTML = html;
     }
@@ -1331,6 +1369,16 @@
         C + ', ' + esc(placeLabel(cfg, cfg.crewDuty.commutePlace || 'crewBase')) + "'da uçuş kalkışından " + (Number(cfg.crewDuty.reportBeforeDepMin) || 0) + ' dk önce olur (PDF görev başlangıcı daha erkense o); öncesine evden yol eklenir.',
         ...((cfg.unlikelyWeekdays || []).length ? [(cfg.unlikelyWeekdays || []).map((d) => DAY_NAMES[d]).join(', ') + ': İstanbul trafiği çok yoğun, «unlikely» (−' + Number(cfg.unlikelyPenalty ?? 2) + ' yıldız).'] : []),
         PA + ' işe giriş/çıkış ' + (Number(cfg.slotMin) || 30) + ' dk dilimlerinde: giriş sonraki dilime, çıkış önceki dilime yuvarlanır (güvenlik payı).',
+        ...(cfg.partnerCandidates || []).flatMap((c) => {
+          const out = [];
+          if (c.mode === 'school_hours' && Number(c.pickupLeadMin) > 0) out.push(esc(c.label || c.id) + ': okuldan alma için okul çıkışından en az ' + Number(c.pickupLeadMin) + ' dk önce biter.');
+          if (c.mode === 'evening') {
+            const sat = (c.dayOverrides || {})[6] || {};
+            out.push(esc(c.label || c.id) + ': hafta içi en erken ' + esc(c.start || '16:00') + (sat.start ? ', Cumartesi en erken ' + esc(sat.start) : '') + ' başlar (varsayılan).');
+          }
+          return out;
+        }),
+        'Önerilen saatler varsayılandır; gün detayında veya özette değiştirilip «✓ Fixle» ile kaydedilir.',
       ];
       for (const [id, g] of Object.entries(cfg.goals || {})) {
         const c = (cfg.partnerCandidates || []).find((x) => x.id === id);
@@ -1686,6 +1734,8 @@
         render();
         return;
       }
+      const tr = e.target.closest('[data-timereset]');
+      if (tr) return void resetPickTime(tr.getAttribute('data-timereset'));
       const u = e.target.closest('[data-unpick]');
       if (u) { delete st.draft[u.getAttribute('data-unpick')]; st.draftDirty = true; render(); return; }
       const sh = e.target.closest('[data-share]');
@@ -1693,7 +1743,10 @@
       const dl = e.target.closest('[data-dl]');
       if (dl) { const g = st.summaryGroups[Number(dl.getAttribute('data-dl'))]; if (g) groupImage(g).then((b) => downloadBlob(b, slug(g.label) + '-' + st.month + '.png')); }
     });
+    ['sheet', 'summary'].forEach((id) => $(id).addEventListener('change', (e) => { if (e.target.matches('[data-time]')) editPickTime(e.target); }));
     $('summary').addEventListener('click', async (e) => {
+      const tr = e.target.closest('[data-timereset]');
+      if (tr) return void resetPickTime(tr.getAttribute('data-timereset'));
       const sh = e.target.closest('[data-share]');
       if (sh) return void shareGroup(Number(sh.getAttribute('data-share')));
       const im = e.target.closest('[data-img]');
