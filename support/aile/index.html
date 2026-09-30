@@ -56,6 +56,17 @@
     .month strong { min-width: 104px; text-align: center; text-transform: capitalize; }
     .wx { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; padding: 4px 10px; border-radius: 999px; background: var(--soft); white-space: nowrap; }
     .wx.rain { background: #dbeafe; color: #1e40af; font-weight: 700; }
+    .net { font-size: 12px; padding: 4px 10px; border-radius: 999px; white-space: nowrap; font-weight: 700; background: #fef3c7; color: #92400e; }
+    .net.ok { background: #dcfce7; color: #166534; }
+    .vh { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; pointer-events: none; }
+    .rc-head { display: flex; align-items: center; gap: 12px; }
+    .rc-info { flex: 1; min-width: 0; }
+    .rc-info .small { margin-top: 2px; }
+    .rc-last b { color: var(--text); }
+    label.upload { cursor: pointer; border-radius: 10px; padding: 9px 14px; background: linear-gradient(135deg, var(--brand), var(--brand-2)); color: #fff; font-weight: 700; white-space: nowrap; }
+    #pdfStatus:empty, #rosterSrc:empty { display: none; }
+    #pdfStatus, #rosterSrc { margin-top: 6px; }
+    .rc-list { padding-left: 18px; margin: 4px 0 0; }
     main { max-width: 1180px; margin: 0 auto; padding: 12px; display: grid; gap: 12px; }
     .card { background: var(--panel); border-radius: var(--radius); border: 1px solid var(--line); padding: 12px; }
 
@@ -245,8 +256,22 @@
         <button type="button" id="next" aria-label="Sonraki ay">›</button>
       </div>
       <span id="wx" class="wx" title="İstanbul hava durumu">…</span>
+      <span id="net" class="net" hidden></span>
     </header>
     <main>
+      <section class="card roster-card">
+        <div class="rc-head">
+          <div class="rc-info">
+            <b>📄 Roster PDF</b>
+            <div id="rosterLast" class="small muted">—</div>
+          </div>
+          <label class="upload" for="pdf">PDF yükle</label>
+          <input type="file" id="pdf" class="vh" accept="application/pdf,.pdf" />
+        </div>
+        <div id="pdfStatus" class="small muted"></div>
+        <div id="rosterSrc" class="small"></div>
+      </section>
+
       <section class="card">
         <div class="plan" id="goals"></div>
         <div class="actions" id="actionBar" style="margin-top:10px;">
@@ -294,15 +319,9 @@
       </details>
 
       <details class="card">
-        <summary>ℹ️ Bilgiler · roster, konumlar, kurallar</summary>
+        <summary>ℹ️ Bilgiler · konumlar, kurallar</summary>
         <div class="inner">
-          <div class="row">
-            <label class="small" for="pdf">Roster PDF</label>
-            <input type="file" id="pdf" accept="application/pdf,.pdf" />
-            <span id="pdfStatus" class="small muted"></span>
-          </div>
-          <div id="rosterSrc" class="small" style="margin-top:6px;"></div>
-          <div id="frame" class="small" style="margin-top:10px;"></div>
+          <div id="frame" class="small"></div>
         </div>
       </details>
 
@@ -354,6 +373,9 @@
     const ADMIN_SESSION_KEY = 'flyfam_admin_dashboard_session_v2';
     const TOKEN_KEY = 'flyfam_family_plan_token_v1';
     const VIEW_KEY = 'flyfam_family_plan_view_v1';
+    const CACHE_KEY = 'flyfam_family_plan_cache_v1';
+    const WX_CACHE_KEY = 'flyfam_family_plan_wx_v1';
+    const REFRESH_MS = 60 * 1000;
     const WX_URL = 'https://api.open-meteo.com/v1/forecast?latitude=41.01&longitude=29.03&timezone=Europe%2FIstanbul&forecast_days=16' +
       '&current=temperature_2m,precipitation,weather_code&hourly=precipitation,precipitation_probability&daily=weather_code,temperature_2m_max,precipitation_sum,precipitation_probability_max';
 
@@ -462,19 +484,30 @@
     }
     async function loadWeather() {
       try {
-        const res = await fetch(WX_URL);
-        const j = await res.json();
+        let j, at = new Date();
+        try {
+          const res = await fetch(WX_URL);
+          j = await res.json();
+          if (!res.ok || !j.hourly) throw new Error('wx');
+          try { localStorage.setItem(WX_CACHE_KEY, JSON.stringify({ at: at.getTime(), j })); } catch (_) { /* yok say */ }
+        } catch (e) {
+          if (st.wx) throw e;
+          const c = JSON.parse(localStorage.getItem(WX_CACHE_KEY) || 'null');
+          if (!c || !c.j) throw e;
+          j = c.j;
+          at = new Date(c.at);
+        }
         const hourly = {};
         (j.hourly?.time || []).forEach((t, i) => { hourly[t.slice(0, 13)] = { p: j.hourly.precipitation?.[i], pp: j.hourly.precipitation_probability?.[i] }; });
         const daily = {};
         (j.daily?.time || []).forEach((t, i) => { daily[t] = { code: j.daily.weather_code?.[i], tmax: j.daily.temperature_2m_max?.[i], sum: j.daily.precipitation_sum?.[i], pmax: j.daily.precipitation_probability_max?.[i] }; });
         const prev = JSON.stringify(Object.keys(st.wx?.hourly || {}).filter((k) => wxRainyAt(k.slice(0, 10), Number(k.slice(11, 13)) * 60)));
-        st.wx = { current: j.current || {}, hourly, daily, at: new Date() };
+        st.wx = { current: j.current || {}, hourly, daily, at };
         renderWeather();
         const next = JSON.stringify(Object.keys(hourly).filter((k) => wxRainyAt(k.slice(0, 10), Number(k.slice(11, 13)) * 60)));
         if (prev !== next && st.config) render();
       } catch (_) {
-        $('wx').textContent = 'Hava durumu alınamadı';
+        if (!st.wx) $('wx').textContent = 'Hava durumu alınamadı';
       }
     }
     function renderWeather() {
@@ -1242,8 +1275,23 @@
       const [y, m] = st.month.split('-').map(Number);
       let covered = 0, total = 0;
       for (let d = st.month + '-01'; d <= new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10); d = addDays(d, 1)) { total += 1; if (claims[d]) covered += 1; }
-      const head = covered === total ? 'Bu ay PDF rosterdan.' : covered ? 'Bu ayın ' + covered + '/' + total + ' günü PDF, kalanı uygulama verisi.' : 'Bu ay için PDF yok; uygulamadaki roster kullanılıyor.';
-      $('rosterSrc').innerHTML = esc(head) + (list.length ? '<ul style="padding-left:18px;margin:4px 0;">' + list.map((imp) => '<li>' + esc(imp.file || 'PDF') + ' · ' + esc(imp.from) + ' → ' + esc(imp.to) + ' · ' + (imp.rows || []).length + ' satır <button type="button" class="ghost small" data-delroster="' + esc(imp.id) + '">kaldır</button></li>').join('') + '</ul>' : '');
+      const appN = (st.data?.entries || []).length;
+      const head = covered === total ? 'Bu ay tamamen PDF rosterdan.' : covered ? 'Bu ayın ' + covered + '/' + total + ' günü PDF, kalanı uygulamadaki rosterdan (' + appN + ' kayıt).' : 'Bu ay için PDF yok; uygulamadaki roster kullanılıyor (' + appN + ' kayıt).';
+      const sorted = list.slice().sort((a, b) => String(b.importedAt || '').localeCompare(String(a.importedAt || '')));
+      const last = sorted[0];
+      $('rosterLast').innerHTML = last
+        ? '<span class="rc-last">Son yükleme: <b>' + esc(fmtStamp(last.importedAt)) + '</b> · ' + esc(shortRange(last.from, last.to)) + ' · ' + (last.rows || []).length + ' satır</span>'
+        : 'Henüz PDF yüklenmedi · uygulamadaki roster kullanılıyor';
+      $('rosterSrc').innerHTML = '<div class="muted">' + esc(head) + '</div>' + (sorted.length ? '<ul class="rc-list">' + sorted.map((imp) => '<li>' + esc(imp.file || 'PDF') + ' · ' + esc(shortRange(imp.from, imp.to)) + ' · ' + (imp.rows || []).length + ' satır · <span class="muted">' + esc(fmtStamp(imp.importedAt)) + '</span> <button type="button" class="ghost small" data-delroster="' + esc(imp.id) + '">kaldır</button></li>').join('') + '</ul>' : '');
+    }
+    function fmtStamp(iso) {
+      const d = iso ? new Date(iso) : null;
+      if (!d || isNaN(d)) return '—';
+      return d.toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul', day: 'numeric', month: 'short', year: d.getFullYear() === new Date().getFullYear() ? undefined : 'numeric', hour: '2-digit', minute: '2-digit' });
+    }
+    function shortRange(a, b) {
+      const f = (x) => { const d = new Date(String(x) + 'T12:00:00Z'); return isNaN(d) ? String(x || '?') : d.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short', timeZone: 'UTC' }); };
+      return f(a) + ' → ' + f(b);
     }
     function renderTravel(cfg) {
       const el = $('travel');
@@ -1274,35 +1322,104 @@
     // ---------- veri ----------
     function rebuildConfig() { st.config = merge(DEFAULT_CONFIG, settingsOf(st.full)); }
     async function api(action, payload) {
-      const res = await fetch(API, { method: 'POST', headers: { apikey: ANON_KEY, Authorization: 'Bearer ' + (st.bearer || ANON_KEY), 'Content-Type': 'application/json' }, body: JSON.stringify({ action, ...(payload || {}) }) });
+      let res;
+      try {
+        res = await fetch(API, { method: 'POST', headers: { apikey: ANON_KEY, Authorization: 'Bearer ' + (st.bearer || ANON_KEY), 'Content-Type': 'application/json' }, body: JSON.stringify({ action, ...(payload || {}) }) });
+      } catch (_) {
+        const e = new Error('İnternet bağlantısı yok');
+        e.net = true;
+        throw e;
+      }
       const j = await res.json().catch(() => ({}));
-      if (res.status === 401 && action !== 'pin_login') { showGate(); throw new Error('Giriş gerekli'); }
+      if (res.status === 401 && action !== 'pin_login') { clearCache(); showGate(); throw new Error('Giriş gerekli'); }
       if (!res.ok) throw new Error(j.error || 'HTTP ' + res.status);
       return j;
     }
     async function persist(statusId, okText) {
       const el = statusId ? $(statusId) : null;
       if (el) el.textContent = 'Kaydediliyor…';
-      try { await api('save_config', { config: st.full }); if (el) el.textContent = okText || 'Kaydedildi'; return true; }
-      catch (err) { if (el) el.textContent = String(err.message || err); return false; }
+      try { await api('save_config', { config: st.full }); st.selfSaveAt = Date.now(); if (el) el.textContent = okText || 'Kaydedildi'; return true; }
+      catch (err) { if (el) el.textContent = err.net ? 'Çevrimdışı · kaydedilemedi, internet gelince tekrar dene' : String(err.message || err); return false; }
     }
-    async function load() {
+
+    // Son veriler cihazda tutulur; çevrimdışı açılışta bunlar gösterilir. Çıkışta silinir.
+    function readCacheAll() { try { return JSON.parse(localStorage.getItem(CACHE_KEY) || '{}') || {}; } catch (_) { return {}; } }
+    function readCache(month) { const c = readCacheAll()[month]; return c && c.data ? c : null; }
+    function saveCache(month, data) {
+      const all = readCacheAll();
+      all[month] = { at: Date.now(), data };
+      const keep = Object.keys(all).sort((a, b) => all[b].at - all[a].at).slice(0, 4);
+      const out = {};
+      for (const k of keep) out[k] = all[k];
+      try { localStorage.setItem(CACHE_KEY, JSON.stringify(out)); } catch (_) { /* kota dolu: önbelleksiz devam */ }
+    }
+    function clearCache() { try { localStorage.removeItem(CACHE_KEY); localStorage.removeItem(WX_CACHE_KEY); } catch (_) { /* yok say */ } }
+    const sigOf = (j) => String(j.config_updated_at || '') + '|' + JSON.stringify(j.entries || []);
+    let netFlashTimer = null;
+    function renderNet(flash) {
+      const el = $('net');
+      clearTimeout(netFlashTimer);
+      if (st.offline) {
+        el.hidden = false;
+        el.className = 'net';
+        el.textContent = '⚡ Çevrimdışı' + (st.cachedAt ? ' · ' + fmtStamp(new Date(st.cachedAt).toISOString()) : '');
+        el.title = 'İnternet yok; son indirilen plan gösteriliyor. Bağlantı gelince otomatik yenilenir.';
+      } else if (flash) {
+        el.hidden = false;
+        el.className = 'net ok';
+        el.textContent = '↻ ' + flash;
+        el.title = '';
+        netFlashTimer = setTimeout(() => { el.hidden = true; }, 5000);
+      } else {
+        el.hidden = true;
+      }
+    }
+    function applyData(j) {
+      st.data = j;
+      st.via = j.via;
+      const server = j.config && typeof j.config === 'object' && !Array.isArray(j.config) ? j.config : null;
+      if (!st.cfgDirty && !st.travelDirty) st.full = server ? { ...server } : { ...DEFAULT_CONFIG };
+      if (!st.draftDirty) st.draft = { ...((st.full.plans || {})[st.month] || {}) };
+      rebuildConfig();
+      if (!st.cfgDirty) $('cfg').value = JSON.stringify(settingsOf(st.full), null, 2);
+      $('status').textContent = (st.via === 'admin' ? 'Admin girişi' : 'PIN girişi') + ' · uygulama ' + (j.entries || []).length + ' kayıt';
+      renderIcons();
+      renderWeather();
+      render();
+    }
+    /** quiet: arka plan yenilemesi — yalnız sunucuda değişiklik varsa ve kullanıcı bir şey düzenlemiyorsa ekranı günceller. */
+    async function load(opts) {
+      const quiet = !!(opts && opts.quiet);
       if (!st.month) st.month = defaultMonth();
-      $('status').textContent = 'Yükleniyor…';
+      const month = st.month;
+      if (!quiet) $('status').textContent = 'Yükleniyor…';
+      let j;
       try {
-        const j = await api('get', { month: st.month });
-        st.data = j;
-        st.via = j.via;
-        const server = j.config && typeof j.config === 'object' && !Array.isArray(j.config) ? j.config : null;
-        if (!st.cfgDirty && !st.travelDirty) st.full = server ? { ...server } : { ...DEFAULT_CONFIG };
-        if (!st.draftDirty) st.draft = { ...((st.full.plans || {})[st.month] || {}) };
-        rebuildConfig();
-        if (!st.cfgDirty) $('cfg').value = JSON.stringify(settingsOf(st.full), null, 2);
-        $('status').textContent = (st.via === 'admin' ? 'Admin girişi' : 'PIN girişi') + ' · uygulama ' + (j.entries || []).length + ' kayıt';
-        renderIcons();
-        renderWeather();
-        render();
-      } catch (err) { $('status').textContent = String(err.message || err); }
+        j = await api('get', { month });
+        saveCache(month, j);
+        st.offline = false;
+        st.cachedAt = null;
+      } catch (err) {
+        if (!err.net) { if (!quiet) $('status').textContent = String(err.message || err); return; }
+        const c = readCache(month);
+        st.offline = true;
+        st.cachedAt = c ? c.at : null;
+        renderNet();
+        if (!c) { if (!quiet) { $('status').textContent = 'Çevrimdışı · bu ay cihazda kayıtlı değil'; if (!st.data || st.data.month !== month) { $('grid').innerHTML = ''; $('list').innerHTML = '<div class="muted small" style="padding:10px;">Bu ay için kayıtlı veri yok. İnternet gelince otomatik yüklenir.</div>'; $('mLabel').textContent = monthName(month); } } return; }
+        j = c.data;
+      }
+      if (month !== st.month) return;
+      renderNet();
+      const sig = sigOf(j);
+      if (quiet) {
+        if (sig === st.sig) return;
+        if (st.cfgDirty || st.travelDirty || st.draftDirty || st.openDay || st.activeGroup != null || document.querySelector('#app input:focus, #app textarea:focus, #app select:focus')) return;
+      }
+      const own = Date.now() - (st.selfSaveAt || 0) < 120000;
+      applyData(j);
+      const changed = quiet && st.sig && !st.offline && !own;
+      st.sig = sig;
+      if (changed) renderNet('güncellendi ' + new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }));
     }
     function renderIcons() {
       const cfg = st.config;
@@ -1402,14 +1519,14 @@
         } catch (_) { /* PIN'e düş */ }
       }
       st.bearer = sess.access_token;
-      try { await api('session'); return true; } catch (_) { st.bearer = null; return false; }
+      try { await api('session'); return true; } catch (err) { if (err.net) return true; st.bearer = null; return false; }
     }
     async function boot() {
       if (await tryAdminSession()) return enterApp();
       const tok = localStorage.getItem(TOKEN_KEY);
       if (tok) {
         st.bearer = tok;
-        try { await api('session'); return enterApp(); } catch (_) { localStorage.removeItem(TOKEN_KEY); st.bearer = null; }
+        try { await api('session'); return enterApp(); } catch (err) { if (err.net) return enterApp(); localStorage.removeItem(TOKEN_KEY); st.bearer = null; }
       }
       showGate();
     }
@@ -1432,7 +1549,7 @@
     });
     $('prev').addEventListener('click', () => shiftMonth(-1));
     $('next').addEventListener('click', () => shiftMonth(1));
-    $('logout').addEventListener('click', () => { localStorage.removeItem(TOKEN_KEY); st.bearer = null; showGate('Çıkış yapıldı'); });
+    $('logout').addEventListener('click', () => { localStorage.removeItem(TOKEN_KEY); clearCache(); st.bearer = null; st.sig = null; showGate('Çıkış yapıldı'); });
     const onDayPick = (ymd) => { if (st.activeGroup != null) addToGroup(st.activeGroup, ymd); else openDay(ymd); };
     ['grid', 'list'].forEach((id) => {
       $(id).addEventListener('click', (e) => { const c = e.target.closest('[data-day]'); if (c) onDayPick(c.getAttribute('data-day')); });
@@ -1598,7 +1715,12 @@
     });
     if (new URLSearchParams(location.search).get('embed') === '1') { document.body.classList.add('embed'); $('logout').hidden = true; }
     setInterval(loadWeather, 10 * 60 * 1000);
-    document.addEventListener('visibilitychange', () => { if (!document.hidden && !$('app').hidden) loadWeather(); });
+    const bgRefresh = () => { if (!document.hidden && !$('app').hidden && st.bearer) load({ quiet: true }); };
+    setInterval(bgRefresh, REFRESH_MS);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden && !$('app').hidden) { loadWeather(); bgRefresh(); } });
+    window.addEventListener('online', () => { if (!$('app').hidden) { loadWeather(); bgRefresh(); } });
+    window.addEventListener('offline', () => { if (!$('app').hidden) { st.offline = true; st.cachedAt = readCache(st.month)?.at || null; renderNet(); } });
+    if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('/aile/sw.js', { scope: '/aile/' }).catch(() => { /* SW yoksa normal web */ });
 
     boot();
   </script>
