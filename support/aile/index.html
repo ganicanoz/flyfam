@@ -67,6 +67,16 @@
     #pdfStatus:empty, #rosterSrc:empty { display: none; }
     #pdfStatus, #rosterSrc { margin-top: 6px; }
     .rc-list { padding-left: 18px; margin: 4px 0 0; }
+    .vac-card { background: linear-gradient(120deg, #fff7ed 0%, #fffbeb 50%, #ecfeff 100%); border-color: #fde68a; }
+    .vac-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+    .vac-head b { font-size: 15px; color: #92400e; }
+    .vac-emoji { font-size: 30px; line-height: 1; }
+    .vac-form input[type="text"] { flex: 1 1 160px; min-width: 0; }
+    #vacStatus:empty, #vacList:empty { display: none; }
+    #vacStatus, #vacList { margin-top: 8px; }
+    #vacList > div { padding: 4px 0; }
+    #vacList .past { opacity: .5; }
+    .vac-bad { color: var(--bad); }
     main { max-width: 1180px; margin: 0 auto; padding: 12px; display: grid; gap: 12px; }
     .card { background: var(--panel); border-radius: var(--radius); border: 1px solid var(--line); padding: 12px; }
 
@@ -114,7 +124,12 @@
     .cell.out { opacity: .38; }
     .cell.we { background: #fafbfd; }
     .cell.hol { background: #fff7ed; }
-    .cell.vac { background: repeating-linear-gradient(135deg, #f0fdfa 0 8px, #fff 8px 16px); }
+    .cell.vac { background: linear-gradient(165deg, #fff7ed 0%, #fef3c7 45%, #cffafe 100%); border-color: #fcd34d; }
+    .cell.vac::after { content: '🏖️'; position: absolute; right: 4px; bottom: 2px; font-size: 30px; opacity: .55; pointer-events: none; }
+    .cell.vac .d small { color: #b45309; font-weight: 800; }
+    .cell.vac .tl, .cell.vac .crew { opacity: .4; }
+    .vac-tag { margin-top: auto; align-self: flex-start; font-size: 10px; font-weight: 800; letter-spacing: .02em; color: #92400e; background: rgba(255,255,255,.75); border: 1px dashed #f59e0b; border-radius: 999px; padding: 1px 7px; }
+    .out.vac { opacity: .6; }
     .cell.today { box-shadow: inset 0 0 0 2px var(--brand); }
     .cell.bad { border-color: #fca5a5; box-shadow: inset 0 0 0 1px #fca5a5; }
     .cell.picked { border-width: 2px; }
@@ -183,7 +198,10 @@
     .list { display: grid; gap: 6px; }
     .wk { font-size: 11px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; margin: 8px 2px 0; }
     .lrow { display: grid; grid-template-columns: 56px 1fr; gap: 10px; align-items: stretch; padding: 8px 10px 8px 0; border: 1px solid var(--line); border-left: 5px solid transparent; border-radius: 12px; background: #fff; cursor: pointer; }
-    .lrow.we { background: #fafbfd; } .lrow.hol { background: #fff7ed; } .lrow.vac { background: repeating-linear-gradient(135deg, #f0fdfa 0 8px, #fff 8px 16px); }
+    .lrow.we { background: #fafbfd; } .lrow.hol { background: #fff7ed; } .lrow.vac { position: relative; overflow: hidden; background: linear-gradient(100deg, #fff7ed 0%, #fef3c7 55%, #cffafe 100%); border-color: #fcd34d; border-left-color: #f59e0b !important; }
+    .lrow.vac::after { content: '🏖️'; position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-size: 34px; opacity: .5; pointer-events: none; }
+    .lrow.vac .tl, .lrow.vac .ln.crew { opacity: .45; }
+    .lrow .ln.vacl { color: #92400e; font-weight: 800; }
     .lrow.today { box-shadow: inset 0 0 0 2px var(--brand); }
     .lrow .dt { display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.1; }
     .lrow .dt b { font-size: 22px; }
@@ -222,6 +240,8 @@
       .grid, .weekdays { gap: 3px; }
       .cell { min-height: 76px; padding: 3px; border-radius: 9px; }
       .cell .crew, .cell .flag, .cell .d small, .cell .opt-mini .stars { display: none; }
+      .cell.vac::after { font-size: 20px; right: 2px; bottom: 1px; }
+      .vac-tag { font-size: 8px; padding: 0 4px; letter-spacing: 0; }
       .cell .tl-row { height: 4px; }
       .pick { padding: 1px; gap: 1px; flex-direction: column; font-size: 9px; }
       .pick .stars { font-size: 8px; }
@@ -272,6 +292,24 @@
         <div id="rosterSrc" class="small"></div>
       </section>
 
+      <section class="card vac-card" id="boxVac">
+        <div class="vac-head">
+          <span class="vac-emoji">🏖️</span>
+          <div>
+            <b id="vacJoke">Bu ay nereye gidiyoruz kankam?</b>
+            <div class="small muted" id="vacSub">Tatil günlerinde okul ve iş yok; takvimde kapalı görünür.</div>
+          </div>
+        </div>
+        <div class="row vac-form">
+          <label class="small">Başlangıç <input type="date" id="vacFrom" /></label>
+          <label class="small">Bitiş <input type="date" id="vacTo" /></label>
+          <input type="text" id="vacLabel" placeholder="Nereye? (ör. Kapadokya)" />
+          <button type="button" class="primary" id="vacAdd">Tatil ekle</button>
+        </div>
+        <div id="vacStatus" class="small muted"></div>
+        <div id="vacList" class="small"></div>
+      </section>
+
       <section class="card">
         <div class="plan" id="goals"></div>
         <div class="actions" id="actionBar" style="margin-top:10px;">
@@ -302,21 +340,6 @@
         <div style="font-weight:800;margin-bottom:8px;">Özet · kliniklerle paylaş</div>
         <div id="summary" class="small muted">—</div>
       </section>
-
-      <details class="card" id="boxVac">
-        <summary>🏖️ Tatil günleri</summary>
-        <div class="inner">
-          <p class="small muted" style="margin-top:0;">Bu günlerde okul ve iş planlanmaz; takvimde boş kalır.</p>
-          <div class="row">
-            <label class="small">Başlangıç <input type="date" id="vacFrom" /></label>
-            <label class="small">Bitiş <input type="date" id="vacTo" /></label>
-            <input type="text" id="vacLabel" placeholder="Açıklama (ör. Kasım tatili)" />
-            <button type="button" id="vacAdd">Ekle</button>
-          </div>
-          <div id="vacList" class="small" style="margin-top:8px;"></div>
-          <div id="vacStatus" class="small muted"></div>
-        </div>
-      </details>
 
       <details class="card">
         <summary>ℹ️ Bilgiler · konumlar, kurallar</summary>
@@ -684,7 +707,7 @@
       if (f.monthlyNth && Number(f.monthlyNth.weekday) === wd) return Math.floor((Number(ymd.slice(8, 10)) - 1) / 7) + 1 === Number(f.monthlyNth.n);
       return false;
     }
-    function vacationOf(cfg, ymd) { return (cfg.vacations || []).find((v) => v && v.from && v.to && ymd >= v.from && ymd <= v.to) || null; }
+    function vacationOf(cfg, ymd) { return (cfg.vacations || []).find((v) => v && v.from && v.to && ymd >= v.from && ymd <= v.to && !vacationProblem(v.from, v.to)) || null; }
 
     // ---------- kurallar ----------
     function dayBase(cfg, ymd) {
@@ -990,7 +1013,7 @@
         if (ev.inMonth && (cfg.unlikelyWeekdays || []).includes(ev.wd) && !ev.hol && !ev.vac) cls.push('unl');
         return '<div class="' + cls.join(' ') + '" style="' + style + '" data-day="' + ev.ymd + '"' + (ev.inMonth ? ' draggable="true" data-drag-day="' + ev.ymd + '"' : '') + ' role="button" tabindex="0">' +
           '<div class="d"><b>' + Number(ev.ymd.slice(8, 10)) + '</b>' + (top ? '<small>' + esc(top) + '</small>' : cls.includes('unl') ? '<small class="u">unlikely</small>' : '') + '</div>' +
-          timeline(ev, cfg, false) + crew + bad + '<div class="work">' + work + '</div></div>';
+          timeline(ev, cfg, false) + crew + bad + (ev.vac && ev.inMonth ? '<span class="vac-tag">okul yok · iş yok</span>' : '<div class="work">' + work + '</div>') + '</div>';
       }).join('');
       renderList(res, today);
       applyViewMode();
@@ -1024,7 +1047,7 @@
         const strip = ev.conflict ? '#dc2626' : ev.plan ? STAR_COLORS[ev.plan.stars] : ev.fixed.length ? ev.fixed[0].color : 'transparent';
         const bg = ev.plan ? 'background:' + STAR_COLORS[ev.plan.stars] + '10;' : '';
         const lines = [];
-        if (ev.vac) lines.push('<div class="ln hol">🏖️ ' + esc(ev.vac.label || 'Tatil') + '</div>');
+        if (ev.vac) lines.push('<div class="ln vacl">🏖️ ' + esc(ev.vac.label || 'Tatil') + ' · okul yok · iş yok</div>');
         else if (ev.hol) lines.push('<div class="ln hol">' + esc(ev.hol[0]) + '</div>');
         for (const l of ev.crewLabels.slice(0, 2)) lines.push('<div class="ln ' + l.k + '">' + esc(l.t) + '</div>');
         for (const n of ev.notes.filter((x) => x.k === 'bad').slice(0, 1)) lines.push('<div class="ln bad">⚠ ' + esc(n.t) + '</div>');
@@ -1316,7 +1339,46 @@
     }
     function renderVacations(cfg) {
       const list = cfg.vacations || [];
-      $('vacList').innerHTML = list.length ? list.map((v, i) => '<div>🏖️ ' + esc(v.from) + ' → ' + esc(v.to) + (v.label ? ' · ' + esc(v.label) : '') + ' <button type="button" class="ghost small" data-delvac="' + i + '">sil</button></div>').join('') : '<span class="muted">Tatil girilmedi.</span>';
+      const partner = String(cfg.people?.partner || '').trim();
+      $('vacJoke').textContent = (partner ? partner + ' bu ay' : 'Bu ay') + ' nereye gidiyoruz kankam?';
+      const [y, m] = st.month.split('-').map(Number);
+      const mFrom = st.month + '-01', mTo = new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10);
+      const thisMonth = list.filter((v) => !vacationProblem(v.from, v.to) && v.from <= mTo && v.to >= mFrom);
+      $('vacSub').innerHTML = thisMonth.length
+        ? 'Bu ay: ' + thisMonth.map((v) => '<b>' + esc(v.label || 'Tatil') + '</b> (' + esc(shortRange(v.from, v.to)) + ')').join(', ') + ' · iyi tatiller! ✈️'
+        : 'Tatil günlerinde okul ve iş yok; takvimde kapalı görünür.';
+      const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Istanbul' });
+      $('vacList').innerHTML = list.length ? list.map((v, i) => {
+        const bad = vacationProblem(v.from, v.to);
+        const n = bad ? 0 : Math.round((Date.parse(v.to) - Date.parse(v.from)) / 86400000) + 1;
+        return '<div' + (bad ? ' class="vac-bad"' : v.to < today ? ' class="past"' : '') + '>🏖️ <b>' + esc(longDate(v.from)) + ' → ' + esc(longDate(v.to)) + '</b>' + (n ? ' · ' + n + ' gün' : '') + (v.label ? ' · ' + esc(v.label) : '') +
+          (bad ? ' <span class="dirty">⚠ ' + esc(bad) + ' — silip yeniden gir</span>' : '') + ' <button type="button" class="ghost small" data-delvac="' + i + '">sil</button></div>';
+      }).join('') : '<span class="muted">Tatil girilmedi.</span>';
+    }
+    function longDate(ymd) { const d = new Date(String(ymd) + 'T12:00:00Z'); return isNaN(d) ? String(ymd || '?') : d.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }); }
+    /** Telefon tarih seçicisinde yıl kayması gibi hataları yakalar. */
+    function vacationProblem(from, to) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(from || '') || !/^\d{4}-\d{2}-\d{2}$/.test(to || '')) return 'geçersiz tarih';
+      if (to < from) return 'bitiş başlangıçtan önce';
+      const y = new Date().getFullYear();
+      if (Number(from.slice(0, 4)) < y - 1 || Number(to.slice(0, 4)) > y + 2) return 'yıl hatalı görünüyor';
+      if ((Date.parse(to) - Date.parse(from)) / 86400000 > 62) return '2 aydan uzun';
+      return '';
+    }
+    /** Tatile denk gelen seçili/fixli iş günlerini çıkarır; çıkarılan gün sayısını döner. */
+    function dropVacationPicks() {
+      const cfg = st.config;
+      let n = 0;
+      for (const d of Object.keys(st.draft)) if (vacationOf(cfg, d)) { delete st.draft[d]; n += 1; }
+      const plans = { ...(st.full.plans || {}) };
+      for (const [m, p] of Object.entries(plans)) {
+        const next = { ...p };
+        let changed = false;
+        for (const d of Object.keys(next)) if (vacationOf(cfg, d)) { delete next[d]; changed = true; if (m !== st.month) n += 1; }
+        if (changed) { if (Object.keys(next).length) plans[m] = next; else delete plans[m]; }
+      }
+      st.full.plans = plans;
+      return n;
     }
 
     // ---------- veri ----------
@@ -1688,11 +1750,12 @@
     $('travelSave').addEventListener('click', async () => { if (await persist('travelStatus', 'Kaydedildi ✓')) { st.travelDirty = false; } });
     $('vacAdd').addEventListener('click', async () => {
       const from = $('vacFrom').value, to = $('vacTo').value || $('vacFrom').value;
-      if (!from || to < from) { $('vacStatus').textContent = 'Geçerli bir tarih aralığı seç'; return; }
+      const bad = vacationProblem(from, to);
+      if (bad) { $('vacStatus').innerHTML = '<span class="dirty">Tarihleri kontrol et: ' + esc(bad) + ' (' + esc(longDate(from)) + ' → ' + esc(longDate(to)) + ')</span>'; return; }
       st.full.vacations = [...(st.full.vacations || []), { from, to, label: $('vacLabel').value.trim() }].sort((a, b) => a.from.localeCompare(b.from));
-      for (const d of Object.keys(st.draft)) if (d >= from && d <= to) delete st.draft[d];
       rebuildConfig();
-      if (await persist('vacStatus', 'Tatil eklendi ✓')) { $('vacFrom').value = ''; $('vacTo').value = ''; $('vacLabel').value = ''; render(); }
+      const dropped = dropVacationPicks();
+      if (await persist('vacStatus', 'Tatil eklendi ✓' + (dropped ? ' · tatile denk gelen ' + dropped + ' iş günü çıkarıldı' : ''))) { $('vacFrom').value = ''; $('vacTo').value = ''; $('vacLabel').value = ''; render(); }
     });
     $('vacList').addEventListener('click', async (e) => {
       const b = e.target.closest('[data-delvac]');
