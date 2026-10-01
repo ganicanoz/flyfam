@@ -2166,23 +2166,26 @@ Deno.serve(async (req) => {
           return tb - ta;
         });
 
-      const recent = (eventRows ?? [])
-        .slice(0, 120)
-        .map((ev) => {
-          const prof = profileById.get(ev.user_id);
-          if (roleFilter !== 'all' && String(prof?.role ?? '') !== roleFilter) return null;
-          const auth = authById.get(ev.user_id);
-          return {
-            id: ev.id,
-            occurred_at: ev.occurred_at,
-            event_type: ev.event_type,
-            user_id: ev.user_id,
-            full_name: prof?.full_name ?? null,
-            email: auth?.email ?? null,
-            role: prof?.role ?? null,
-            meta: ev.meta ?? {},
-          };
-        })
+      const toRecentRow = (ev: NonNullable<typeof eventRows>[number]) => {
+        const prof = profileById.get(ev.user_id);
+        if (roleFilter !== 'all' && String(prof?.role ?? '') !== roleFilter) return null;
+        const auth = authById.get(ev.user_id);
+        return {
+          id: ev.id,
+          occurred_at: ev.occurred_at,
+          event_type: ev.event_type,
+          user_id: ev.user_id,
+          full_name: prof?.full_name ?? null,
+          email: auth?.email ?? null,
+          role: prof?.role ?? null,
+          meta: ev.meta ?? {},
+        };
+      };
+      const recent = (eventRows ?? []).slice(0, 120).map(toRecentRow).filter(Boolean);
+      const recent_pushes = (eventRows ?? [])
+        .filter((ev) => ev.event_type === 'admin_push' || ev.event_type === 'family_push')
+        .slice(0, 150)
+        .map(toRecentRow)
         .filter(Boolean);
 
       const rosterImportsPeriod = (eventRows ?? []).filter((e) => e.event_type === 'roster_import').length;
@@ -2218,6 +2221,7 @@ Deno.serve(async (req) => {
           top_screens,
           users,
           recent,
+          recent_pushes,
         }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );

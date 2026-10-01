@@ -13,7 +13,7 @@
   <meta http-equiv="Expires" content="0" />
   <script>
     (function () {
-      var UI = '60';
+      var UI = '61';
       var p = new URLSearchParams(location.search);
       if (p.get('ui') !== UI) {
         p.set('ui', UI);
@@ -851,6 +851,9 @@
     .occ-sug-grid input, .occ-sug-grid select, .occ-sug-grid textarea { font: inherit; font-size: 13px; color: var(--text); }
     .occ-sug-warn { background: #FFF7E6; border: 1px solid #F5C26B; color: #8A5300; border-radius: 8px; padding: 8px 10px; font-size: 12px; margin: 0 0 10px; }
     @media (max-width: 560px) { .occ-sug-grid { grid-template-columns: 1fr; } }
+    .occ-save-bar { position: sticky; bottom: 12px; z-index: 20; margin-top: 12px; display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; padding: 10px 12px; border-radius: 10px; background: #FFF7E6; border: 1px solid #F5C26B; box-shadow: 0 6px 18px rgba(15, 23, 42, 0.12); }
+    .occ-save-bar-text { margin-right: auto; font-size: 13px; font-weight: 600; color: #8A5300; }
+    #btnOccSave.occ-dirty { border-color: #F5C26B; background: #FFF7E6; color: #8A5300; font-weight: 700; }
     .nav-badge {
       display: none;
       min-width: 18px;
@@ -1290,6 +1293,15 @@
             </table>
           </div>
           <h3 style="margin:16px 0 8px;">Son olaylar <span class="mini">(sütun başlığına tıkla → sırala)</span></h3>
+          <div style="display:flex; gap:8px; align-items:center; margin-bottom:8px;">
+            <label class="mini" for="activityRecentType" style="white-space:nowrap;">Olay türü</label>
+            <select id="activityRecentType" style="width:auto; min-width:200px;">
+              <option value="all" selected>Tümü (son 120)</option>
+              <option value="push">Yalnız bildirimler (son 150)</option>
+              <option value="admin_push">Admin push</option>
+              <option value="family_push">Aile push</option>
+            </select>
+          </div>
           <div class="users-table-wrap">
             <table class="users-table" id="activityRecentTable">
               <thead>
@@ -2071,6 +2083,12 @@
               </tbody>
             </table>
           </div>
+          <div id="occSaveBar" class="occ-save-bar hidden" role="region" aria-label="Kaydedilmemiş değişiklikler">
+            <span class="occ-save-bar-text">Kaydedilmemiş değişiklikler var</span>
+            <button type="button" id="btnOccBarDiscard" class="btnSmall">Vazgeç</button>
+            <button type="button" id="btnOccBarSave">Kaydet (taslak)</button>
+            <button type="button" id="btnOccBarSaveDeploy" class="btnPrimary">Kaydet + yayınla</button>
+          </div>
           </div>
         </div>
       </section>
@@ -2299,6 +2317,11 @@
     let occDraftRows = [];
     let occLegend = null;
     let occDirty = false;
+    function setOccDirty(v) {
+      occDirty = !!v;
+      document.getElementById('occSaveBar')?.classList.toggle('hidden', !occDirty);
+      document.getElementById('btnOccSave')?.classList.toggle('occ-dirty', occDirty);
+    }
     let usersSortKey = 'last_sign_in_at';
     let usersSortDir = 'desc';
     let flightsSortKey = 'phase';
@@ -3535,6 +3558,7 @@
       const idx = Number(tr.getAttribute('data-occ-idx'));
       if (!Number.isFinite(idx) || !occDraftRows[idx]) return;
       const r = occDraftRows[idx];
+      const before = JSON.stringify(r);
       tr.querySelectorAll('[data-occ]').forEach((el) => {
         const key = el.getAttribute('data-occ');
         if (key === 'active') r.active = !!el.checked;
@@ -3546,7 +3570,7 @@
       r.airline_icao = String(r.airline_icao || '')
         .trim()
         .toUpperCase();
-      occDirty = true;
+      if (JSON.stringify(r) !== before) setOccDirty(true);
     }
 
     function syncAllOccFromDom() {
@@ -3578,7 +3602,7 @@
         sort_order: 0,
         active: true,
       });
-      occDirty = true;
+      setOccDirty(true);
       renderOccupationTable();
       if (els.occMetaLine) {
         els.occMetaLine.textContent =
@@ -3596,9 +3620,23 @@
 
     async function loadOccupationCodes() {
       const json = await callAdminAction('list_roster_occupation_codes', {});
-      occDraftRows = Array.isArray(json.codes) ? json.codes.map((r) => ({ ...r })) : [];
+      occDraftRows = Array.isArray(json.codes)
+        ? json.codes.map((r) => ({
+            ...r,
+            code: String(r.code || '').replace(/\s/g, '').toUpperCase(),
+            airline_icao: String(r.airline_icao || '').trim().toUpperCase(),
+            category: OCC_CATEGORIES.includes(r.category) ? r.category : 'other',
+            label_tr: String(r.label_tr ?? ''),
+            label_en: String(r.label_en ?? ''),
+            description_tr: String(r.description_tr || r.description_en || ''),
+            card_accent: OCC_ACCENTS.includes(r.card_accent) ? r.card_accent : 'other',
+            calendar_mark: OCC_CALS.includes(r.calendar_mark) ? r.calendar_mark : 'none',
+            special_notes: String(r.special_notes ?? ''),
+            active: r.active !== false,
+          }))
+        : [];
       occLegend = json.legend || null;
-      occDirty = false;
+      setOccDirty(false);
       const m = json.meta || {};
       if (els.occMetaLine) {
         els.occMetaLine.textContent =
@@ -3636,7 +3674,7 @@
         }))
         .filter((r) => r.code);
       const json = await callAdminAction('save_roster_occupation_codes', { codes: payload });
-      occDirty = false;
+      setOccDirty(false);
       setStatus('Görev kodları kaydedildi (' + (json.saved ?? payload.length) + ' — henüz yayınlanmadı)', 'ok');
       await loadOccupationCodes();
     }
@@ -3653,6 +3691,11 @@
         'ok',
       );
       await loadOccupationCodes();
+    }
+
+    async function saveAndDeployOccupationCodes() {
+      await saveOccupationCodes();
+      await deployOccupationCodes();
     }
 
     async function loadOccupationSuggestions() {
@@ -3850,6 +3893,13 @@
         special_notes: String(f.special_notes.value || '').trim(),
         sort_order: Number.isFinite(sortNum) ? Math.floor(sortNum) : 500,
       };
+      if (occDirty) {
+        const ok = confirm(
+          'Katalogda kaydedilmemiş değişiklikler var. Onay tüm taslağı yayınlar ve katalog yeniden yüklenir.\n\nÖnce katalog değişiklikleri kaydedilsin mi? (İptal = onaylama)',
+        );
+        if (!ok) return;
+        await saveOccupationCodes();
+      }
       const btn = document.getElementById('btnOccSugEditApprove');
       if (btn) btn.disabled = true;
       try {
@@ -5137,28 +5187,54 @@
       activitySortDir = 'desc';
       renderActivityUsersTable();
 
-      lastActivityRecent = (json.recent || []).map((r) => {
-        const meta = r.meta && typeof r.meta === 'object' ? r.meta : {};
-        const bits = [];
-        if (meta.screen) bits.push(normalizeActivityScreen(meta.screen));
-        if (meta.kind) bits.push(String(meta.kind));
-        if (meta.sent != null) bits.push('sent ' + meta.sent);
-        if (meta.ok != null) bits.push('ok ' + meta.ok);
-        if (meta.imported_flights != null) bits.push('flights ' + meta.imported_flights);
-        if (meta.url) bits.push(String(meta.url).slice(0, 40));
-        if (meta.platform) bits.push(String(meta.platform));
-        if (meta.app_version) bits.push('v' + meta.app_version);
-        return {
-          occurred_at: r.occurred_at,
-          event_type: r.event_type,
-          event_label: eventTypeLabel(r.event_type),
-          user: (r.full_name || r.email || r.user_id || '—') + (r.role ? ' · ' + r.role : ''),
-          detail: bits.join(' · ') || '—',
-        };
-      });
+      lastActivityRecentAll = (json.recent || []).map(mapActivityRecentRow);
+      lastActivityRecentPushes = (json.recent_pushes || []).map(mapActivityRecentRow);
+      applyActivityRecentType();
       activityRecentSortKey = 'occurred_at';
       activityRecentSortDir = 'desc';
       paintActivityRecentTable();
+    }
+
+    const ACTIVITY_PUSH_SOURCE_LABELS = {
+      occupation_suggestion_approved: 'öneri teşekkürü',
+      admin_single: 'tekil admin push',
+    };
+    let lastActivityRecentAll = [];
+    let lastActivityRecentPushes = [];
+
+    function applyActivityRecentType() {
+      const t = document.getElementById('activityRecentType')?.value || 'all';
+      if (t === 'all') {
+        lastActivityRecent = lastActivityRecentAll;
+        return;
+      }
+      const pool = lastActivityRecentPushes.length
+        ? lastActivityRecentPushes
+        : lastActivityRecentAll.filter((r) => r.event_type === 'admin_push' || r.event_type === 'family_push');
+      lastActivityRecent = t === 'push' ? pool : pool.filter((r) => r.event_type === t);
+    }
+
+    function mapActivityRecentRow(r) {
+      const meta = r.meta && typeof r.meta === 'object' ? r.meta : {};
+      const bits = [];
+      if (meta.title) bits.push('«' + String(meta.title).slice(0, 60) + '»');
+      if (meta.body) bits.push(String(meta.body).slice(0, 90) + (String(meta.body).length > 90 ? '…' : ''));
+      if (meta.source) bits.push(ACTIVITY_PUSH_SOURCE_LABELS[meta.source] || String(meta.source));
+      if (meta.screen) bits.push(normalizeActivityScreen(meta.screen));
+      if (meta.kind) bits.push(String(meta.kind));
+      if (meta.sent != null) bits.push('sent ' + meta.sent);
+      if (meta.ok != null) bits.push('ok ' + meta.ok);
+      if (meta.imported_flights != null) bits.push('flights ' + meta.imported_flights);
+      if (meta.url) bits.push(String(meta.url).slice(0, 40));
+      if (meta.platform) bits.push(String(meta.platform));
+      if (meta.app_version) bits.push('v' + meta.app_version);
+      return {
+        occurred_at: r.occurred_at,
+        event_type: r.event_type,
+        event_label: eventTypeLabel(r.event_type),
+        user: (r.full_name || r.email || r.user_id || '—') + (r.role ? ' · ' + r.role : ''),
+        detail: bits.join(' · ') || '—',
+      };
     }
 
     function paintActivityRecentTable() {
@@ -6509,7 +6585,23 @@
       }
     });
     els.btnOccReload?.addEventListener('click', () => {
+      if (occDirty && !confirm('Kaydedilmemiş değişiklikler kaybolacak. Yine de yenilensin mi?')) return;
       void loadOccupationCodes().catch((err) => setStatus(String(err?.message || err), 'bad'));
+    });
+    document.getElementById('btnOccBarSave')?.addEventListener('click', () => {
+      void saveOccupationCodes().catch((err) => setStatus(String(err?.message || err), 'bad'));
+    });
+    document.getElementById('btnOccBarSaveDeploy')?.addEventListener('click', () => {
+      void saveAndDeployOccupationCodes().catch((err) => setStatus(String(err?.message || err), 'bad'));
+    });
+    document.getElementById('btnOccBarDiscard')?.addEventListener('click', () => {
+      if (!confirm('Kaydedilmemiş değişiklikler silinsin ve katalog yeniden yüklensin mi?')) return;
+      void loadOccupationCodes().catch((err) => setStatus(String(err?.message || err), 'bad'));
+    });
+    window.addEventListener('beforeunload', (ev) => {
+      if (!occDirty) return;
+      ev.preventDefault();
+      ev.returnValue = '';
     });
     document.getElementById('btnOccSugReload')?.addEventListener('click', () => {
       void loadOccupationSuggestions().catch((err) => setStatus(String(err?.message || err), 'bad'));
@@ -6599,6 +6691,12 @@
       syncAllOccFromDom();
       renderOccupationTable();
     });
+    els.occBody?.addEventListener('input', (ev) => {
+      const t = ev.target;
+      if (!(t instanceof HTMLElement)) return;
+      const tr = t.closest('tr[data-occ-idx]');
+      if (tr) syncOccRowFromDom(tr);
+    });
     els.occBody?.addEventListener('change', (ev) => {
       const t = ev.target;
       if (!(t instanceof HTMLElement)) return;
@@ -6615,7 +6713,7 @@
       if (!Number.isFinite(idx)) return;
       syncAllOccFromDom();
       occDraftRows.splice(idx, 1);
-      occDirty = true;
+      setOccDirty(true);
       renderOccupationTable();
     });
 
@@ -7021,6 +7119,10 @@
     });
     els.activityRole?.addEventListener('change', () => {
       loadActivity().catch(() => {});
+    });
+    document.getElementById('activityRecentType')?.addEventListener('change', () => {
+      applyActivityRecentType();
+      paintActivityRecentTable();
     });
     els.activityUsersHead?.addEventListener('click', (ev) => {
       const th = ev.target && ev.target.closest ? ev.target.closest('th.sortable') : null;
