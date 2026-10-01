@@ -153,6 +153,31 @@
     .opt-mini { display: inline-flex; align-items: center; gap: 1px; font-size: 10px; }
     .opt-mini .ic { width: 16px; height: 16px; font-size: 9px; }
     .flag { font-size: 10.5px; color: var(--bad); font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .run { font-size: 10.5px; font-weight: 700; color: #0f766e; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .run.bad, .lrow .ln.run.bad { color: var(--bad); }
+    .lrow .ln.run { color: #0f766e; font-weight: 600; }
+    .runbox { display: grid; gap: 6px; margin: 4px 0 12px; padding: 10px 12px; border-radius: 12px; background: #f0fdfa; border: 1px solid #99f6e4; font-size: 13px; }
+    .runbox .bad { color: var(--bad); font-weight: 700; } .runbox .warn { color: #b45309; }
+    .runbox .taxi { font-size: 12px; color: #854d0e; }
+    table.runs td.num, table.runs th.num { text-align: right; white-space: nowrap; }
+    table.runs tr.bad td { background: #fef2f2; }
+    table.runs tfoot td { border-bottom: 0; padding-top: 8px; font-size: 13px; }
+    table.runs tr[data-runday] { cursor: pointer; }
+    .who { display: inline-block; padding: 1px 8px; border-radius: 999px; font-weight: 700; font-size: 12px; white-space: nowrap; }
+    .who.family { background: #dcfce7; color: #166534; } .who.crew { background: #dbeafe; color: #1e40af; } .who.partner { background: #fce7f3; color: #9d174d; }
+    .who.none { background: #fee2e2; color: #991b1b; } .who.risk { box-shadow: inset 0 0 0 1px #f59e0b; }
+    .run-sum { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 8px; font-size: 12.5px; color: var(--text); }
+    .newtag { display: inline-block; font-size: 9.5px; font-weight: 800; color: #fff; background: var(--bad); border-radius: 999px; padding: 0 6px; line-height: 1.5; }
+    .cell.newconf, .lrow.newconf { border-color: var(--bad) !important; border-width: 2px; animation: confPulse 1.4s ease-in-out infinite; }
+    table.runs tr.newconf td { background: #fee2e2; }
+    @keyframes confPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(220,38,38,.6); } 50% { box-shadow: 0 0 0 6px rgba(220,38,38,.12); } }
+    @media (prefers-reduced-motion: reduce) { .cell.newconf, .lrow.newconf { animation: none; box-shadow: 0 0 0 3px rgba(220,38,38,.35); } }
+    .sheet-bg.conf-bg { z-index: 50; align-items: center; padding: 12px; }
+    .sheet-bg.conf-bg .sheet { border-radius: 20px; border-top: 6px solid var(--bad); }
+    .conf-list { list-style: none; padding: 0; margin: 10px 0; display: grid; gap: 8px; }
+    .conf-list li { display: flex; gap: 10px; align-items: center; padding: 8px 10px; border-radius: 12px; background: #fef2f2; border: 1px solid #fecaca; }
+    .conf-list li > div { flex: 1; min-width: 0; }
+    .conf-list .small { color: #991b1b; }
     .legend { display: flex; flex-wrap: wrap; gap: 6px 12px; font-size: 11.5px; color: var(--muted); margin: 8px 0 2px; }
     .legend i.sw { display: inline-block; width: 14px; height: 6px; border-radius: 3px; margin-right: 4px; vertical-align: middle; }
 
@@ -249,7 +274,8 @@
       main { padding: 8px; padding-bottom: 96px; }
       .grid, .weekdays { gap: 3px; }
       .cell { min-height: 76px; padding: 3px; border-radius: 9px; }
-      .cell .crew, .cell .flag, .cell .d small, .cell .opt-mini .stars { display: none; }
+      .cell .crew, .cell .flag, .cell .run, .cell .d small, .cell .opt-mini .stars { display: none; }
+      .cell .newtag { font-size: 8px; padding: 0 3px; }
       .cell.vac::after { font-size: 20px; right: 2px; bottom: 1px; }
       .vac-tag { font-size: 8px; padding: 0 4px; letter-spacing: 0; }
       .cell .tl-row { height: 4px; }
@@ -352,6 +378,11 @@
         <div id="summary" class="small muted">—</div>
       </section>
 
+      <section class="card">
+        <div style="font-weight:800;margin-bottom:8px;">🏫 Okul yolu · kim bırakır, kim alır · taksi</div>
+        <div id="runs" class="small muted">—</div>
+      </section>
+
       <details class="card">
         <summary>ℹ️ Bilgiler · konumlar, kurallar</summary>
         <div class="inner">
@@ -398,6 +429,7 @@
   </div>
 
   <div id="sheet" class="sheet-bg" hidden></div>
+  <div id="confAlert" class="sheet-bg conf-bg" hidden></div>
 
   <script>
     'use strict';
@@ -411,6 +443,7 @@
     const WX_CACHE_KEY = 'flyfam_family_plan_wx_v1';
     const REFRESH_MS = 60 * 1000;
     const DEVICE_KEY = 'flyfam_family_plan_device_v1';
+    const CONF_KEY = 'flyfam_family_plan_conf_v1';
     const WX_URL = 'https://api.open-meteo.com/v1/forecast?latitude=41.01&longitude=29.03&timezone=Europe%2FIstanbul&forecast_days=16' +
       '&current=temperature_2m,precipitation,weather_code&hourly=precipitation,precipitation_probability&daily=weather_code,temperature_2m_max,precipitation_sum,precipitation_probability_max';
 
@@ -452,9 +485,10 @@
       partnerCandidates: [],
       goals: {},
       vacations: [],
+      taxi: { tariff: 'İstanbul sarı taksi, 20.07.2026', open: 71.94, perKm: 47.92, perMin: 9.98, minFare: 230, freeKmh: 25 },
     };
 
-    const st = { month: null, data: null, full: {}, config: null, draft: {}, draftDirty: false, travelDirty: false, cfgDirty: false, wx: null, openDay: null, activeGroup: null, viewMode: (() => { try { return localStorage.getItem('flyfam_family_plan_view_v1'); } catch (_) { return null; } })(), bearer: null, via: null, summaryGroups: [] };
+    const st = { month: null, data: null, full: {}, config: null, draft: {}, draftDirty: false, travelDirty: false, cfgDirty: false, wx: null, openDay: null, activeGroup: null, viewMode: (() => { try { return localStorage.getItem('flyfam_family_plan_view_v1'); } catch (_) { return null; } })(), bearer: null, via: null, summaryGroups: [], newConf: new Set(), lastRes: null };
 
     // ---------- yardımcılar ----------
     const $ = (id) => document.getElementById(id);
@@ -750,8 +784,8 @@
         const pStart = E - pre - T('home', sch, E - 30), pEnd = E + T(sch, 'home', E);
         const mineDrops = leave >= dEnd || S + T(sch, place, S) <= start;
         const minePicks = back <= pStart || leave >= pEnd || end + T(place, sch, end) <= E;
-        if (!mineDrops) needs.push({ what: 'okula götürme', s: Math.min(leave, dStart), e: dEnd, run: true });
-        if (!minePicks) needs.push({ what: 'okuldan alma + evde', s: pStart, e: Math.max(pEnd, back), run: true });
+        if (!mineDrops) needs.push({ what: 'okula götürme', s: Math.min(leave, dStart), e: dEnd, run: true, slot: 'drop' });
+        if (!minePicks) needs.push({ what: 'okuldan alma + evde', s: pStart, e: Math.max(pEnd, back), run: true, slot: 'pick' });
         else if (leave >= E) needs.push({ what: 'evde bakım', s: leave, e: back });
       } else needs.push({ what: 'evde bakım', s: leave, e: back });
       let worst = 'ok';
@@ -770,6 +804,96 @@
       return CH + ' ' + n.what + ' ' + fmt(n.s) + '–' + fmt(n.e) + ': ' + s;
     }
     const needKind = (n) => (!n.st ? 'ok' : n.st === 'home' ? (n.run ? 'warn' : 'ok') : n.st === 'standby' ? 'warn' : 'bad');
+
+    // ---------- okul yolu + taksi ----------
+    /** Okula bırakma / okuldan alma: ikisi müsaitse ailece, biri müsaitse o. Crew nöbet/rezervde müsait sayılır; ev görevinde yalnız eş yapamıyorsa (riskli). */
+    function schoolRun(ctx, day, works) {
+      const cfg = ctx.cfg;
+      const T = (a, b, at) => travel(cfg, a, b, day.ymd, at);
+      const S = day.sStart, E = day.sEnd, sch = day.schoolPlace;
+      const pre = Number.isFinite(Number(cfg.school.dropBeforeMin)) ? Number(cfg.school.dropBeforeMin) : 10;
+      const win = { drop: [S - pre - T('home', sch, S - 30), S + T(sch, 'home', S), S], pick: [E - pre - T('home', sch, E - 30), E + T(sch, 'home', E), E] };
+      const out = {};
+      for (const slot of ['drop', 'pick']) {
+        const [s, e, at] = win[slot];
+        const cs = crewState(ctx.crew.intervals, day.base + s, day.base + e);
+        const crewFree = !cs || cs === 'standby';
+        const block = works.find((w) => (w.needs || []).some((n) => n.slot === slot)) || null;
+        const who = crewFree && !block ? 'family' : !block ? 'partner' : cs !== 'duty' && cs !== 'away' ? 'crew' : 'none';
+        out[slot] = { slot, at, cs, block, who, risk: who === 'crew' && cs === 'home', taxi: who === 'partner' ? taxiFare(cfg, slot, day) : null };
+      }
+      return out;
+    }
+    /** İstanbul taksimetre tahmini: açılış + km + (trafikte bekleme dk) ; indi-bindi altına inmez. */
+    function taxiFare(cfg, slot, day) {
+      const tx = cfg.taxi || {};
+      const r = tx[slot];
+      const km = Number(r && r.km);
+      if (!r || !(km > 0) || !r.from || !r.to) return null;
+      const at = slot === 'drop' ? day.sStart - 30 : day.sEnd + (Number(r.afterMin) || 45);
+      const min = travel(cfg, r.from, r.to, day.ymd, at);
+      const wait = Math.max(0, min - km / (Number(tx.freeKmh) || 25) * 60);
+      const raw = (Number(tx.open) || 0) + km * (Number(tx.perKm) || 0) + wait * (Number(tx.perMin) || 0);
+      return { fare: Math.round(Math.max(Number(tx.minFare) || 0, raw) / 5) * 5, km, min, from: r.from, to: r.to };
+    }
+    const tl = (n) => Math.round(n).toLocaleString('tr-TR') + ' ₺';
+    const shortPlace = (cfg, key) => (key === 'home' ? 'ev' : key === ((cfg.school || {}).place || 'school') ? 'okul' : placeLabel(cfg, key));
+    function runWho(cfg, r, short) {
+      const P = cfg.people || {};
+      const nm = (s) => (short ? String(s).split(' ')[0] : s);
+      return r.who === 'family' ? 'Ailece' : r.who === 'partner' ? nm(P.partner || 'Eş') : r.who === 'crew' ? nm(P.crew || 'Crew') : '⚠ kimse yok';
+    }
+    function runWhy(cfg, r) {
+      const P = cfg.people || {};
+      const C = P.crew || 'Crew', PA = P.partner || 'Eş';
+      const cw = (cs) => (cs === 'standby' ? 'nöbet/rezervde (müsait sayıldı)' : cs === 'home' ? 'ev görevinde' : cs === 'away' ? 'yatıda' : cs === 'duty' ? 'görevde' : 'müsait');
+      const pw = r.block ? PA + ' ' + (r.block.short || r.block.label || 'işte') + ' işinde' : '';
+      if (r.who === 'family') return 'ikisi de müsait' + (r.cs === 'standby' ? ' · ' + C + ' nöbet/rezervde' : '');
+      if (r.who === 'partner') return C + ' ' + cw(r.cs);
+      if (r.who === 'crew') return pw + (r.cs ? ' · ' + C + ' ' + cw(r.cs) + (r.risk ? ', riskli' : '') : '');
+      return C + ' ' + cw(r.cs) + ', ' + pw;
+    }
+    const taxiText = (cfg, t) => '🚕 ' + shortPlace(cfg, t.from) + '→' + shortPlace(cfg, t.to) + ' ~' + tl(t.fare);
+    const runTaxi = (run) => (run ? (run.drop.taxi ? run.drop.taxi.fare : 0) + (run.pick.taxi ? run.pick.taxi.fare : 0) : 0);
+    function runMini(cfg, ev) {
+      if (!ev.run) return '';
+      const r = ev.run;
+      const t = (x, arrow) => arrow + ' ' + runWho(cfg, x, true) + ' (' + runWhy(cfg, x) + ')' + (x.taxi ? ' ' + taxiText(cfg, x.taxi) : '');
+      return '<div class="run' + (r.drop.who === 'none' || r.pick.who === 'none' ? ' bad' : '') + '" title="' + esc(t(r.drop, 'Bırakma') + '\n' + t(r.pick, 'Alma')) + '">↓' + esc(runWho(cfg, r.drop, true)) + ' ↑' + esc(runWho(cfg, r.pick, true)) + (runTaxi(r) ? ' 🚕' : '') + '</div>';
+    }
+    function runSheet(cfg, ev) {
+      if (!ev.run) return '';
+      const row = (x, label) => '<div class="' + (x.who === 'none' ? 'bad' : x.risk ? 'warn' : '') + '">' + label + ' ' + fmt(x.at) + ' — <b>' + esc(runWho(cfg, x)) + '</b> <span class="muted">(' + esc(runWhy(cfg, x)) + ')</span>' +
+        (x.taxi ? '<br><span class="taxi">' + esc(taxiText(cfg, x.taxi)) + ' · ' + String(x.taxi.km).replace('.', ',') + ' km, ~' + x.taxi.min + ' dk' + (x.slot === 'pick' ? ' · okuldan istasyona toplu taşıma' : '') + '</span>' : '') + '</div>';
+      return '<div class="runbox"><b>🏫 Okul yolu</b>' + row(ev.run.drop, '↓ Bırakma') + row(ev.run.pick, '↑ Alma') + '</div>';
+    }
+    function renderRuns(res) {
+      const { cfg, days } = res;
+      const list = days.filter((d) => d.inMonth && d.run);
+      if (!list.length) { $('runs').innerHTML = 'Bu ay okul günü yok.'; return; }
+      const P = cfg.people || {};
+      const keys = ['family', 'crew', 'partner', 'none'];
+      const cnt = { drop: {}, pick: {} };
+      let total = 0, rides = 0;
+      const pill = (x) => '<span class="who ' + x.who + (x.risk ? ' risk' : '') + '" title="' + esc(runWhy(cfg, x)) + '">' + esc(runWho(cfg, x)) + '</span>';
+      const rows = list.map((d) => {
+        for (const s of ['drop', 'pick']) { const x = d.run[s]; cnt[s][x.who] = (cnt[s][x.who] || 0) + 1; if (x.taxi) { total += x.taxi.fare; rides += 1; } }
+        const fares = ['drop', 'pick'].map((s) => d.run[s].taxi).filter(Boolean);
+        const bad = d.run.drop.who === 'none' || d.run.pick.who === 'none';
+        return '<tr class="' + (bad ? 'bad' : '') + (st.newConf.has(d.ymd) ? ' newconf' : '') + '" data-runday="' + d.ymd + '"><td><b>' + Number(d.ymd.slice(8, 10)) + '</b> ' + DAY_SHORT[d.wd] + (d.holHalf ? ' <span class="muted">(arife)</span>' : '') + '</td><td>' + pill(d.run.drop) + '</td><td>' + pill(d.run.pick) + '</td><td class="num">' +
+          (fares.length ? fares.map((f) => tl(f.fare)).join(' + ') : '<span class="muted">—</span>') + '</td></tr>';
+      }).join('');
+      const counts = (s) => keys.filter((k) => cnt[s][k]).map((k) => esc(runWho(cfg, { who: k })) + ' <b>' + cnt[s][k] + '</b>').join(' · ');
+      const tx = cfg.taxi || {};
+      const routes = ['drop', 'pick'].filter((s) => tx[s] && Number(tx[s].km) > 0).map((s) => (s === 'drop' ? 'bırakırken ' : 'alırken ') + shortPlace(cfg, tx[s].from) + '→' + shortPlace(cfg, tx[s].to) + ' ~' + String(tx[s].km).replace('.', ',') + ' km' + (s === 'pick' ? ' (okuldan oraya toplu taşıma)' : ''));
+      $('runs').innerHTML = (st.draftDirty ? '<p class="dirty" style="margin-top:0;">Seçimler henüz fixlenmedi; tablo taslağa göre.</p>' : '') +
+        '<table class="t runs"><thead><tr><th>Gün</th><th>↓ Bırakma</th><th>↑ Alma</th><th class="num">🚕 Taksi</th></tr></thead><tbody>' + rows + '</tbody>' +
+        '<tfoot><tr><td colspan="3">Ay sonu taksi toplamı (' + rides + ' yolculuk)</td><td class="num"><b>~' + tl(total) + '</b></td></tr></tfoot></table>' +
+        '<div class="run-sum"><span>↓ Bırakma: ' + counts('drop') + '</span><span>↑ Alma: ' + counts('pick') + '</span></div>' +
+        '<p class="small muted" style="margin:6px 0 0;">Ailece = ' + esc(P.crew || 'Crew') + ' ve ' + esc(P.partner || 'Eş') + ' ikisi de müsait. ' + esc(P.crew || 'Crew') + ' nöbet/rezervde müsait sayılır. Taksi yalnız ' + esc(P.partner || 'Eş') + ' tek başına yaptığında: ' + esc(routes.join('; ') || 'güzergâh girilmedi') +
+        '. İstanbul sarı taksi tarifesi' + (tx.tariff ? ' (' + esc(tx.tariff) + ')' : '') + ': açılış ' + tl2(tx.open) + ', km ' + tl2(tx.perKm) + ', trafikte dakika ' + tl2(tx.perMin) + ', en az ' + tl2(tx.minFare) + '. Yoğun saat/yağışta bekleme eklenir; tahmini.</p>';
+    }
+    const tl2 = (n) => Number(n || 0).toLocaleString('tr-TR', { minimumFractionDigits: 0, maximumFractionDigits: 2 }) + ' ₺';
 
     /** 1–5 yıldız: 5 = kimseye bağlı değil, rahat. */
     function rate(ctx, day, o) {
@@ -908,7 +1032,8 @@
         notes.push({ k: 'bad', t: canShareDay(cfg, plans[i].cand, plans[j].cand) ? plans[i].label + ' ve ' + plans[j].label + ' saatleri/yolu çakışıyor' : plans[i].label + ' ve ' + plans[j].label + ' aynı gün olmaz' });
         conflict = true;
       }
-      return { ...day, segs, notes, fixed, opts, rejected, plans, plan: plans[0] || null, conflict, crewLabels: ctx.crew.labels[ymd] || [] };
+      const run = day.schoolDay ? schoolRun(ctx, day, [...fixed, ...plans]) : null;
+      return { ...day, segs, notes, fixed, opts, rejected, plans, plan: plans[0] || null, conflict, run, crewLabels: ctx.crew.labels[ymd] || [] };
     }
 
     function compute() {
@@ -1061,15 +1186,19 @@
         const bad = ev.notes.filter((n) => n.k === 'bad').slice(0, 1).map((n) => '<div class="flag">⚠ ' + esc(n.t.split(':')[0]) + '</div>').join('');
         const top = ev.vac ? '🏖️ ' + (ev.vac.label || 'Tatil') : ev.hol ? ev.hol[0] : '';
         if (ev.inMonth && (cfg.unlikelyWeekdays || []).includes(ev.wd) && !ev.hol && !ev.vac) cls.push('unl');
+        const isNew = ev.inMonth && st.newConf.has(ev.ymd);
+        if (isNew) cls.push('newconf');
         return '<div class="' + cls.join(' ') + '" style="' + style + '" data-day="' + ev.ymd + '"' + (ev.inMonth ? ' draggable="true" data-drag-day="' + ev.ymd + '"' : '') + ' role="button" tabindex="0">' +
-          '<div class="d"><b>' + Number(ev.ymd.slice(8, 10)) + '</b>' + (top ? '<small>' + esc(top) + '</small>' : cls.includes('unl') ? '<small class="u">unlikely</small>' : '') + '</div>' +
-          timeline(ev, cfg, false) + crew + bad + (ev.vac && ev.inMonth ? '<span class="vac-tag">okul yok · iş yok</span>' : '<div class="work">' + work + '</div>') + '</div>';
+          '<div class="d"><b>' + Number(ev.ymd.slice(8, 10)) + '</b>' + (isNew ? '<span class="newtag">YENİ ⚠</span>' : top ? '<small>' + esc(top) + '</small>' : cls.includes('unl') ? '<small class="u">unlikely</small>' : '') + '</div>' +
+          timeline(ev, cfg, false) + crew + bad + (ev.inMonth ? runMini(cfg, ev) : '') + (ev.vac && ev.inMonth ? '<span class="vac-tag">okul yok · iş yok</span>' : '<div class="work">' + work + '</div>') + '</div>';
       }).join('');
+      st.lastRes = res;
       renderList(res, today);
       applyViewMode();
       renderGoals(res);
       renderLegend(cfg);
       renderSummary(res);
+      renderRuns(res);
       renderFrame(cfg, res.claims);
       renderTravel(cfg);
       renderVacations(cfg, res);
@@ -1102,6 +1231,11 @@
         else if (ev.hol) lines.push('<div class="ln hol">' + esc(ev.hol[0]) + '</div>');
         for (const l of ev.crewLabels.slice(0, 2)) lines.push('<div class="ln ' + l.k + '">' + esc(l.t) + '</div>');
         for (const n of ev.notes.filter((x) => x.k === 'bad').slice(0, 1)) lines.push('<div class="ln bad">⚠ ' + esc(n.t) + '</div>');
+        if (ev.run) {
+          const fare = runTaxi(ev.run);
+          lines.push('<div class="ln run' + (ev.run.drop.who === 'none' || ev.run.pick.who === 'none' ? ' bad' : '') + '">🏫 ↓ ' + esc(runWho(cfg, ev.run.drop)) + ' · ↑ ' + esc(runWho(cfg, ev.run.pick)) + (fare ? ' · 🚕 ~' + tl(fare) : '') + '</div>');
+        }
+        if (st.newConf.has(ev.ymd)) { cls.push('newconf'); lines.unshift('<div class="ln bad"><span class="newtag">YENİ ⚠</span> yeni çakışma</div>'); }
         const badges = [];
         for (const f of ev.fixed) badges.push('<span class="pill" style="background:' + f.color + '1f">' + icHtml(f) + esc(f.short || '') + ' ' + fmt(f.s) + '–' + fmt(f.e) + '</span>');
         for (const p of ev.plans) badges.push('<span class="pill" style="background:' + p.color + '1f">' + icHtml(p) + fmt(p.s) + '–' + fmt(p.e) + ' ' + starsHtml(p.stars) + '</span>');
@@ -1239,7 +1373,7 @@
           (ev.plans.length ? '<p class="small muted" style="margin:6px 0 0;">Saatleri değiştirebilirsin; sonra «✓ Fixle».</p><div class="row" style="margin-top:10px;"><button type="button" data-unpick="' + ev.ymd + '">' + (ev.plans.length > 1 ? 'Seçimleri kaldır' : 'Seçimi kaldır') + '</button></div>' : '');
       } else opts = '<p class="muted small">Bu gün için uygun klinik yok.</p>';
       $('sheet').innerHTML = '<div class="sheet"><h3><span>' + esc(dateLong(ev.ymd)) + '</span><button type="button" class="ghost" data-close="1" aria-label="Kapat">✕</button></h3>' +
-        timeline(ev, cfg, true) + '<ul class="notes">' + items.join('') + '</ul>' + opts + '</div>';
+        timeline(ev, cfg, true) + '<ul class="notes">' + items.join('') + '</ul>' + runSheet(cfg, ev) + opts + '</div>';
       $('sheet').hidden = false;
     }
     function closeDay() { st.openDay = null; $('sheet').hidden = true; $('sheet').innerHTML = ''; }
@@ -1584,6 +1718,7 @@
       const changed = quiet && st.sig && !st.offline && !own;
       st.sig = sig;
       if (changed) renderNet('güncellendi ' + new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }));
+      checkNewConflicts();
     }
     function renderIcons() {
       const cfg = st.config;
@@ -1628,7 +1763,7 @@
         for (const r of rows) counts[r.fd.slice(0, 7)] = (counts[r.fd.slice(0, 7)] || 0) + 1;
         const bestMonth = Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0];
         if (await persist('pdfStatus', rows.length + ' satır alındı (' + imp.from + ' → ' + imp.to + ')')) {
-          if (bestMonth !== st.month && !st.draftDirty) { st.month = bestMonth; await load(); } else render();
+          if (bestMonth !== st.month && !st.draftDirty) { st.month = bestMonth; await load(); } else { render(); checkNewConflicts(); }
         }
       } catch (err) { $('pdfStatus').textContent = String(err.message || err); }
     }
@@ -1707,6 +1842,55 @@
         else if (kind === 'test') { const r = await api('push_test', { device_id: deviceId() }); $('pushMsg').textContent = r.ok ? 'Gönderildi ✓ birkaç saniye içinde gelir' : 'Gönderilemedi (' + (r.statuses || []).join(',') + ')'; }
       } catch (err) { $('pushMsg').textContent = String(err.message || err); updateBell(); }
     }
+    // ---------- yeni çakışma uyarısı ----------
+    function readConfSeen() { try { return JSON.parse(localStorage.getItem(CONF_KEY) || '{}') || {}; } catch (_) { return {}; } }
+    function writeConfSeen(month, days) {
+      const all = { ...readConfSeen(), [month]: days };
+      const out = {};
+      for (const k of Object.keys(all).sort().slice(-6)) out[k] = all[k];
+      try { localStorage.setItem(CONF_KEY, JSON.stringify(out)); } catch (_) { /* yok say */ }
+    }
+    function confDays(res) {
+      const t = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Istanbul' });
+      return res ? res.days.filter((d) => d.inMonth && d.conflict && d.ymd >= t).map((d) => d.ymd) : [];
+    }
+    /** Roster/plan değişince ortaya çıkan yeni çakışma günleri: ayın ilk görülüşü sessiz taban, sonrakiler açılır pencere + yanıp sönen gün. */
+    function checkNewConflicts() {
+      const res = st.lastRes;
+      if (!res || st.draftDirty || st.offline) return;
+      const cur = confDays(res);
+      for (const d of [...st.newConf]) if (d.slice(0, 7) === st.month && !cur.includes(d)) st.newConf.delete(d);
+      const seen = readConfSeen()[st.month];
+      const fresh = Array.isArray(seen) ? cur.filter((d) => !seen.includes(d)) : [];
+      if (!fresh.length) { writeConfSeen(st.month, cur); return; }
+      fresh.forEach((d) => st.newConf.add(d));
+      render();
+      showConfAlert(st.lastRes, fresh, cur);
+    }
+    function ackConflicts(days) { writeConfSeen(st.month, days || confDays(st.lastRes)); }
+    function showConfAlert(res, fresh, cur) {
+      const items = fresh.map((ymd) => {
+        const d = res.days.find((x) => x.ymd === ymd);
+        const why = d ? d.notes.filter((n) => n.k === 'bad').slice(0, 2).map((n) => esc(n.t)) : [];
+        return '<li><div><b>' + esc(dateLong(ymd)) + '</b><div class="small">' + why.join('<br>') + '</div></div><button type="button" data-confgo="' + ymd + '">Göster</button></li>';
+      });
+      st.confPending = cur;
+      $('confAlert').innerHTML = '<div class="sheet" role="alertdialog" aria-labelledby="confTitle"><h3><span id="confTitle">⚠️ Yeni çakışma</span><button type="button" class="ghost" data-confok="1" aria-label="Kapat">✕</button></h3>' +
+        '<p style="margin:0;">Roster ya da plan değişti; ' + (fresh.length > 1 ? 'şu ' + fresh.length + ' günde' : 'bu günde') + ' yeni çakışma var. Takvimde kırmızı yanıp sönüyor.</p><ul class="conf-list">' + items.join('') + '</ul>' +
+        '<div class="row"><button type="button" class="primary" data-confok="1">Tamam, gördüm</button></div></div>';
+      $('confAlert').hidden = false;
+    }
+    function closeConfAlert() {
+      if ($('confAlert').hidden) return;
+      ackConflicts(st.confPending);
+      st.confPending = null;
+      $('confAlert').hidden = true;
+      $('confAlert').innerHTML = '';
+    }
+    function goToDay(ymd) {
+      const el = [...document.querySelectorAll('#grid [data-day="' + ymd + '"], #list [data-day="' + ymd + '"]')].find((x) => x.offsetParent);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
     function openFromUrl(u) {
       const m = /[?&]month=(\d{4}-\d{2})/.exec(u || '');
       if (!m || m[1] === st.month || (st.draftDirty && !confirm('Fixlenmemiş seçimler var. Ay değiştirilsin mi?'))) return;
@@ -1782,7 +1966,7 @@
       if (pin.length === 4) submitPin();
     });
     document.addEventListener('keydown', (e) => {
-      if ($('gate').hidden) { if (e.key === 'Escape') { closeDay(); if (st.activeGroup != null) { st.activeGroup = null; render(); } } return; }
+      if ($('gate').hidden) { if (e.key === 'Escape') { closeConfAlert(); closeDay(); if (st.activeGroup != null) { st.activeGroup = null; render(); } } return; }
       if (/^\d$/.test(e.key) && pin.length < 4) { pin += e.key; paintDots(); if (pin.length === 4) submitPin(); }
       else if (e.key === 'Backspace') { pin = pin.slice(0, -1); paintDots(); }
     });
@@ -1833,6 +2017,12 @@
       if (dl) { const g = st.summaryGroups[Number(dl.getAttribute('data-dl'))]; if (g) groupImage(g).then((b) => downloadBlob(b, slug(g.label) + '-' + st.month + '.png')); }
     });
     ['sheet', 'summary'].forEach((id) => $(id).addEventListener('change', (e) => { if (e.target.matches('[data-time]')) editPickTime(e.target); }));
+    $('confAlert').addEventListener('click', (e) => {
+      const go = e.target.closest('[data-confgo]');
+      if (go) { closeConfAlert(); goToDay(go.getAttribute('data-confgo')); return; }
+      if (e.target === $('confAlert') || e.target.closest('[data-confok]')) closeConfAlert();
+    });
+    $('runs').addEventListener('click', (e) => { const r = e.target.closest('[data-runday]'); if (r) openDay(r.getAttribute('data-runday')); });
     $('summary').addEventListener('click', async (e) => {
       const tr = e.target.closest('[data-timereset]');
       if (tr) return void resetPickTime(tr.getAttribute('data-timereset'));
@@ -1901,7 +2091,7 @@
       for (const [d, v] of Object.entries(st.draft)) if (d.slice(0, 7) === st.month) monthSel[d] = v;
       if (Object.keys(monthSel).length) plans[st.month] = monthSel; else delete plans[st.month];
       st.full.plans = plans;
-      if (await persist('selStatus', Object.keys(monthSel).length + ' gün fixlendi ✓')) { st.draftDirty = false; setTimeout(render, 900); }
+      if (await persist('selStatus', Object.keys(monthSel).length + ' gün fixlendi ✓')) { st.draftDirty = false; ackConflicts(confDays(compute())); setTimeout(render, 900); }
     });
     $('btnClear').addEventListener('click', () => {
       if (!Object.keys(st.draft).length || !confirm('Bu ayın seçimleri temizlensin mi? («Fixle» ile kaydedilir)')) return;
