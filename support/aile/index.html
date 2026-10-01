@@ -577,13 +577,14 @@
     }
 
     // ---------- crew roster ----------
-    function rosterClaims(full) {
+    /** PDF yalnız uygulama verisi (FlyFam DB) olmayan günleri doldurur; aynı günde ikisi varsa DB geçerlidir. */
+    function rosterClaims(full, dbDays) {
       const claims = {};
       const list = Array.isArray(full && full.rosters) ? full.rosters.slice() : [];
       list.sort((a, b) => String(b.importedAt || '').localeCompare(String(a.importedAt || '')));
       for (const imp of list) {
         if (!imp || !imp.from || !imp.to || !Array.isArray(imp.rows)) continue;
-        for (let d = imp.from; d <= imp.to; d = addDays(d, 1)) if (!claims[d]) claims[d] = imp;
+        for (let d = imp.from; d <= imp.to; d = addDays(d, 1)) if (!claims[d] && !(dbDays && dbDays.has(d))) claims[d] = imp;
       }
       return claims;
     }
@@ -914,7 +915,7 @@
       if (!st.data || !st.config) return null;
       const cfg = st.config;
       const homeBase = String(cfg.crewDuty.homeBase || (st.data.crew && st.data.crew.home_base_iata) || '').toUpperCase();
-      const claims = rosterClaims(st.full);
+      const claims = rosterClaims(st.full, new Set((st.data.entries || []).map((e) => e.flight_date).filter(Boolean)));
       const crew = buildCrew(cfg, st.data.entries || [], claims, homeBase);
       const ctx = { cfg, crew };
       const [y, m] = st.month.split('-').map(Number);
@@ -1398,7 +1399,7 @@
       let covered = 0, total = 0;
       for (let d = st.month + '-01'; d <= new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10); d = addDays(d, 1)) { total += 1; if (claims[d]) covered += 1; }
       const appN = (st.data?.entries || []).length;
-      const head = covered === total ? 'Bu ay tamamen PDF rosterdan.' : covered ? 'Bu ayın ' + covered + '/' + total + ' günü PDF, kalanı uygulamadaki rosterdan (' + appN + ' kayıt).' : 'Bu ay için PDF yok; uygulamadaki roster kullanılıyor (' + appN + ' kayıt).';
+      const head = 'Uygulamadaki roster birincil (' + appN + ' kayıt); ' + (covered ? 'uygulamada kaydı olmayan ' + covered + '/' + total + ' gün PDF\'ten.' : list.length ? 'bu ay PDF\'e gerek kalmadı.' : 'boş günler için PDF yüklenebilir.') + ' Aynı günde ikisi varsa uygulama geçerli.';
       const sorted = list.slice().sort((a, b) => String(b.importedAt || '').localeCompare(String(a.importedAt || '')));
       const last = sorted[0];
       $('rosterLast').innerHTML = last
