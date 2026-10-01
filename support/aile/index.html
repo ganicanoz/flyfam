@@ -112,6 +112,9 @@
     .fin-row .lbl { flex: 1 1 180px; min-width: 0; font-size: 13px; }
     .fin-in { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
     .fin-in input { width: 120px; text-align: right; font-variant-numeric: tabular-nums; }
+    .fin-amount { display: inline-flex; align-items: center; gap: 6px; }
+    .fin-unit { color: var(--muted); font-weight: 700; font-size: 13px; }
+    .fin-actions { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
     .debt-form { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
     .debt-form #debtLabel { flex: 1 1 180px; min-width: 0; }
     .fin-row.paid { opacity: .7; }
@@ -338,14 +341,18 @@
       .fin-row.debt { display: grid; grid-template-columns: 1fr auto; gap: 8px 10px; align-items: center; }
       .fin-row.debt .lbl { grid-column: 1 / -1; }
       .fin-row.debt .debt-amt { justify-self: start; font-size: 16px; }
-      .fin-in { display: grid; grid-template-columns: minmax(0, 1fr) auto; width: 100%; gap: 8px; align-items: center; }
-      .fin-in input { width: 100%; min-width: 0; min-height: 44px; }
-      .fin-in button { min-height: 44px; white-space: nowrap; }
-      .fin-in button.primary { grid-column: 1 / -1; }
+      .fin-row.debt .fin-actions, .fin-row.debt > button { justify-self: end; }
+      .fin-in { display: flex; flex-direction: column; align-items: stretch; width: 100%; gap: 8px; }
+      .fin-in .fin-amount { display: flex; align-items: center; gap: 8px; width: 100%; }
+      .fin-in .fin-amount input { flex: 1 1 auto; width: auto; min-width: 0; min-height: 44px; }
+      .fin-actions { display: grid; grid-template-columns: 1fr 1fr; width: 100%; gap: 8px; }
+      .fin-actions button { min-height: 44px; width: 100%; white-space: nowrap; }
+      .fin-actions button.ghost { grid-column: 1 / -1; }
       .fin-sum { text-align: left; padding: 8px 2px 0; line-height: 1.45; }
       .debt-form { flex-direction: column; align-items: stretch; }
       .debt-form #debtLabel, .debt-form select, .debt-form .fin-in { width: 100%; flex: none; }
-      .debt-form .fin-in { display: grid; grid-template-columns: minmax(0, 1fr) auto; }
+      .debt-form .fin-in { display: flex; flex-direction: row; align-items: center; gap: 8px; }
+      .debt-form .fin-in input { flex: 1; width: auto; min-width: 0; min-height: 44px; }
       .debt-form label.small { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; }
       .debt-form label.small input { flex: 1; min-width: 0; }
       .debt-form [data-debtadd] { width: 100%; }
@@ -2076,14 +2083,14 @@
       };
       const row = (d) => '<div class="fin-row debt' + (!d.paid_on && d.due_date <= today ? ' miss' : '') + (d.paid_on ? ' paid' : '') + '" data-debt="' + esc(d.id) + '" data-plan="' + esc(d.plan_id) + '" data-n="' + d.total_n + '">' +
         '<div class="lbl"><b>' + esc(dshort(d.due_date)) + '</b> · ' + esc(name(d)) + ' ' + chip(d) + '</div><b class="debt-amt">' + tl(d.amount) + '</b>' +
-        (d.paid_on ? '<button type="button" class="ghost" data-debtunpaid="1">geri al</button>' : '<button type="button" class="primary" data-debtpaid="1">✓ Ödendi</button>') +
-        '<button type="button" class="ghost" data-debtdel="1" title="Sil" aria-label="Sil">✕</button></div>';
+        '<span class="fin-actions">' + (d.paid_on ? '<button type="button" class="ghost" data-debtunpaid="1">geri al</button>' : '<button type="button" class="primary" data-debtpaid="1">✓ Ödendi</button>') +
+        '<button type="button" class="ghost" data-debtdel="1" title="Sil" aria-label="Sil">✕</button></span></div>';
       const src = multi ? '<select id="debtSrc">' + dc.sources.map((s) => '<option value="' + esc(s) + '">' + esc(finPlaceName(cfg, s)) + '</option>').join('') + '</select>' : '';
       return '<section class="card"><div class="card-h">💳 ' + esc(dc.label) + ' ödemeleri · ' + esc(dc.sources.map((s) => finPlaceName(cfg, s)).join(', ')) + '</div>' +
         '<p class="small" style="margin:0 0 10px;">Kalan borç <b>' + tl(left) + '</b> · bu ay vadesi <b>' + tl(thisM) + '</b>' + (late ? ' · <b style="color:var(--bad);">gecikmiş ' + tl(late) + '</b>' : '') + '</p>' +
         '<div class="debt-form" id="debtForm">' + src +
         '<input type="text" id="debtLabel" maxlength="80" placeholder="Açıklama (ör. hasta / vaka)" />' +
-        '<span class="fin-in"><input type="text" id="debtAmt" inputmode="decimal" placeholder="Toplam tutar" aria-label="Toplam tutar (TL)" />TL</span>' +
+        '<span class="fin-in"><span class="fin-amount"><input type="text" id="debtAmt" inputmode="decimal" placeholder="Toplam tutar" aria-label="Toplam tutar (TL)" /><span class="fin-unit">TL</span></span></span>' +
         '<label class="small">Taksit <input type="number" id="debtN" min="1" max="36" value="1" style="width:58px;" /></label>' +
         '<label class="small">İlk vade <input type="date" id="debtDue" value="' + esc(today) + '" /></label>' +
         '<button type="button" class="primary" data-debtadd="1">Ekle</button><span id="debtStatus" class="small muted"></span></div>' +
@@ -2135,8 +2142,8 @@
     const ciroRow = (x) => {
       const v = st.fin[finKey(x.source, x.period)];
       if (x.future) return '<div class="fin-row future"><div class="lbl">' + esc(x.label) + '</div><span class="small muted">iş günü bitince girilir</span></div>';
-      return '<div class="fin-row' + (v == null ? ' miss' : '') + '" data-ck="' + esc(x.source + '|' + x.period) + '"><div class="lbl">' + esc(x.label) + '</div><span class="fin-in"><input type="text" inputmode="decimal" placeholder="Tutar" value="' + (v != null ? esc(fmtNum(v)) : '') + '" aria-label="Ciro (TL)" />TL' +
-        '<button type="button" class="primary" data-cirosave="1">Kaydet</button><button type="button" data-cirozero="1">0 TL</button>' + (x.canDelete && v != null ? '<button type="button" class="ghost" data-cirodel="1" title="Girişi sil">✕</button>' : '') + '</span></div>';
+      return '<div class="fin-row' + (v == null ? ' miss' : '') + '" data-ck="' + esc(x.source + '|' + x.period) + '"><div class="lbl">' + esc(x.label) + '</div><span class="fin-in"><span class="fin-amount"><input type="text" inputmode="decimal" placeholder="Tutar" value="' + (v != null ? esc(fmtNum(v)) : '') + '" aria-label="Ciro (TL)" /><span class="fin-unit">TL</span></span>' +
+        '<span class="fin-actions"><button type="button" class="primary" data-cirosave="1">Kaydet</button><button type="button" data-cirozero="1">0 TL</button>' + (x.canDelete && v != null ? '<button type="button" class="ghost" data-cirodel="1" title="Girişi sil">✕</button>' : '') + '</span></span></div>';
     };
     function devicePerson() { try { return localStorage.getItem(PERSON_KEY) || ''; } catch (_) { return ''; } }
     const finOn = () => (finCfg().daily || []).length + (finCfg().monthly || []).length > 0;
