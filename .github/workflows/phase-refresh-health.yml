@@ -1,9 +1,9 @@
 name: Phase Refresh Health
 
+# Manual only: phase refresh runs in pg_cron every 2 min and records system_health_pings.
+# Requires repo secrets SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "*/5 * * * *"
 
 jobs:
   health-check:
