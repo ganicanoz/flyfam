@@ -32,6 +32,7 @@ import { radius, shadow } from '../theme/tokens';
 import * as DocumentPicker from 'expo-document-picker';
 import { extractText, isAvailable } from 'expo-pdf-text-extract';
 import { importPdfFlightsViaRpc, isRosterPdfImportSupportedForCrewAirline } from '../lib/pdfRosterImport';
+import { flushPendingRosterClear } from '../lib/rosterFlightClear';
 import { mergePdfRowsFromTextParse } from '../lib/pdfRowMerge';
 import { parseRosterPdfFromDevice, pdfParseSourceDevLabel } from '../lib/rosterPdfParse';
 import { materializeSharedPdfToCache } from '../lib/sharedPdfImport';
@@ -794,6 +795,7 @@ export default function AddFlight() {
       setLoading(false);
       setLoadingMessage('');
     };
+    await flushPendingRosterClear();
     const payloads: Record<string, unknown>[] = validRows.map((row) => {
       const info = row.flightInfo;
       const origin = (info?.origin || row.manualOrigin.trim()) || null;

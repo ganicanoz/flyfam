@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -8,21 +8,30 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
-  ActivityIndicator,
   Image,
   Modal,
   Pressable,
   ScrollView,
 } from 'react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useTranslation } from 'react-i18next';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSession } from '../contexts/SessionContext';
 import { supabase } from '../lib/supabase';
-import { colors } from '../theme/colors';
+import { colors, useThemeMode } from '../theme/colors';
+import { radius } from '../theme/tokens';
 import { AIRLINES, Airline } from '../constants/airlines';
 import { getAirportDisplay } from '../constants/airports';
+import KeyboardSafeScroll from '../components/KeyboardSafeScroll';
+import { ScreenPageHeader } from '../components/ScreenPageHeader';
+import { FormCard, FormSectionTitle } from '../components/FormCard';
+import { PrimaryButton } from '../components/PrimaryButton';
 
 export default function CompleteProfile() {
   const { t } = useTranslation();
+  const themeMode = useThemeMode();
+  const insets = useSafeAreaInsets();
+  const styles = useMemo(() => createStyles(), [themeMode]);
   const [selectedAirline, setSelectedAirline] = useState<Airline | null>(null);
   const [icaoEdit, setIcaoEdit] = useState('');
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -30,6 +39,11 @@ export default function CompleteProfile() {
   const [homeBaseIata, setHomeBaseIata] = useState('');
   const { profile, refreshProfile } = useSession();
   const isCrew = profile?.role === 'crew';
+
+  const sortedAirlines = useMemo(
+    () => [...AIRLINES].sort((a, b) => a.name.localeCompare(b.name, 'en', { sensitivity: 'base' })),
+    [],
+  );
 
   useEffect(() => {
     if (selectedAirline) setIcaoEdit(selectedAirline.icao);
@@ -99,157 +113,237 @@ export default function CompleteProfile() {
 
   if (!profile) return null;
 
+  const footerPad = Math.max(insets.bottom, 10);
+
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={[styles.container, { backgroundColor: colors.background }]}
-    >
-      <Text style={[styles.title, { color: colors.text }]}>{t('completeProfile.title')}</Text>
-      <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-        {isCrew ? t('completeProfile.subtitleCrew') : t('completeProfile.subtitleFamily')}
-      </Text>
-
-      {isCrew && (
-        <>
-          <Text style={[styles.label, { color: colors.textSecondary }]}>{t('completeProfile.airline')}</Text>
-          <TouchableOpacity
-            style={styles.dropdown}
-            onPress={() => setDropdownOpen(true)}
-            activeOpacity={0.7}
-          >
-            {selectedAirline ? (
-              <View style={styles.dropdownSelected}>
-                <Image source={{ uri: selectedAirline.logoUrl }} style={styles.logo} />
-                <View style={styles.dropdownText}>
-                  <Text style={[styles.airlineName, { color: colors.text }]}>{selectedAirline.name}</Text>
-                  <Text style={[styles.airlineIcao, { color: colors.textMuted }]}>{selectedAirline.icao}</Text>
-                </View>
-              </View>
-            ) : (
-              <Text style={[styles.placeholder, { color: colors.textMuted }]}>{t('completeProfile.selectAirline')}</Text>
-            )}
-            <Text style={[styles.chevron, { color: colors.textMuted }]}>▼</Text>
-          </TouchableOpacity>
-
-          <Text style={[styles.label, { color: colors.textSecondary }]}>ICAO</Text>
-          <TextInput
-            style={[
-              styles.icaoInput,
-              { color: colors.text, borderColor: colors.border, backgroundColor: colors.surface },
-            ]}
-            value={icaoEdit}
-            onChangeText={(s) => setIcaoEdit(s.toUpperCase())}
-            placeholder="PGT, THY, …"
-            placeholderTextColor={colors.textMuted}
-            autoCapitalize="characters"
-            maxLength={12}
-            editable={!loading}
-          />
-
-          <Text style={[styles.label, { color: colors.textSecondary }]}>{t('completeProfile.homeBaseIata')}</Text>
-          <TextInput
-            style={[
-              styles.icaoInput,
-              { color: colors.text, borderColor: colors.border, backgroundColor: colors.surface },
-            ]}
-            value={homeBaseIata}
-            onChangeText={(s) => setHomeBaseIata(s.toUpperCase())}
-            placeholder={t('completeProfile.homeBasePlaceholder')}
-            placeholderTextColor={colors.textMuted}
-            autoCapitalize="characters"
-            maxLength={4}
-            editable={!loading}
-          />
-          <Text style={[styles.helper, { color: colors.textMuted }]}>{t('completeProfile.homeBaseExample')}</Text>
-
-          <Modal visible={dropdownOpen} transparent animationType="fade">
-            <Pressable style={styles.modalOverlay} onPress={() => setDropdownOpen(false)}>
-              <View style={styles.modalContent}>
-                <Text style={[styles.modalTitle, { color: colors.text }]}>{t('completeProfile.selectAirlineTitle')}</Text>
-                <ScrollView style={styles.dropdownList}>
-                  {AIRLINES.map((airline) => (
-                    <TouchableOpacity
-                      key={airline.icao}
-                      style={[styles.dropdownItem, selectedAirline?.icao === airline.icao && styles.dropdownItemActive]}
-                      onPress={() => {
-                        setSelectedAirline(airline);
-                        setDropdownOpen(false);
-                      }}
-                    >
-                      <Image source={{ uri: airline.logoUrl }} style={styles.logo} />
-                      <View style={styles.dropdownItemText}>
-                        <Text style={[styles.airlineName, { color: colors.text }]}>{airline.name}</Text>
-                        <Text style={[styles.airlineIcao, { color: colors.textMuted }]}>{airline.icao}</Text>
-                      </View>
-                      {selectedAirline?.icao === airline.icao && (
-                        <Text style={[styles.check, { color: colors.primary }]}>✓</Text>
-                      )}
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              </View>
-            </Pressable>
-          </Modal>
-        </>
-      )}
-
-      <TouchableOpacity
-        style={[styles.button, loading && styles.buttonDisabled]}
-        onPress={handleComplete}
-        disabled={loading}
+    <View style={[styles.screen, { backgroundColor: colors.background }]}>
+      <ScreenPageHeader
+        title={t('completeProfile.title')}
+        subtitle={isCrew ? t('completeProfile.subtitleCrew') : t('completeProfile.subtitleFamily')}
+        showBack={false}
+      />
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={8}
       >
-        {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>{t('common.continue')}</Text>}
-      </TouchableOpacity>
-    </KeyboardAvoidingView>
+        <KeyboardSafeScroll
+          style={styles.flex}
+          contentContainerStyle={[styles.scroll, { paddingBottom: 100 + footerPad }]}
+          bottomOffset={40}
+        >
+          {isCrew ? (
+            <>
+              <FormSectionTitle>{t('completeProfile.airline')}</FormSectionTitle>
+              <FormCard>
+                <TouchableOpacity
+                  style={styles.airlineRow}
+                  onPress={() => setDropdownOpen(true)}
+                  activeOpacity={0.7}
+                  disabled={loading}
+                >
+                  {selectedAirline ? (
+                    <View style={styles.airlineSelected}>
+                      <Image source={{ uri: selectedAirline.logoUrl }} style={styles.logo} />
+                      <Text style={styles.airlineName} numberOfLines={1}>
+                        {selectedAirline.name}
+                      </Text>
+                    </View>
+                  ) : (
+                    <Text style={styles.placeholder}>{t('completeProfile.selectAirline')}</Text>
+                  )}
+                  <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+                </TouchableOpacity>
+                <View style={styles.divider} />
+                <View style={styles.row}>
+                  <Text style={styles.rowLabel}>{t('editProfile.homeBase')}</Text>
+                  <TextInput
+                    style={[styles.rowInput, styles.rowInputCode, { backgroundColor: colors.inputFill }]}
+                    value={homeBaseIata}
+                    onChangeText={(s) => setHomeBaseIata(s.toUpperCase())}
+                    placeholder={t('completeProfile.homeBasePlaceholder')}
+                    placeholderTextColor={colors.textMuted}
+                    autoCapitalize="characters"
+                    autoCorrect={false}
+                    maxLength={4}
+                    editable={!loading}
+                  />
+                </View>
+                <View style={styles.divider} />
+                <View style={styles.row}>
+                  <Text style={styles.rowLabel}>{t('editProfile.icao')}</Text>
+                  <TextInput
+                    style={[styles.rowInput, styles.rowInputCode, { backgroundColor: colors.inputFill }]}
+                    value={icaoEdit}
+                    onChangeText={(s) => setIcaoEdit(s.toUpperCase())}
+                    placeholder="PGT, THY, …"
+                    placeholderTextColor={colors.textMuted}
+                    autoCapitalize="characters"
+                    autoCorrect={false}
+                    maxLength={12}
+                    editable={!loading}
+                  />
+                </View>
+              </FormCard>
+              <Text style={styles.helper}>{t('completeProfile.homeBaseExample')}</Text>
+
+              <Modal visible={dropdownOpen} transparent animationType="fade">
+                <Pressable style={styles.modalOverlay} onPress={() => setDropdownOpen(false)}>
+                  <Pressable style={styles.modalContent} onPress={() => {}}>
+                    <Text style={styles.modalTitle}>{t('completeProfile.selectAirlineTitle')}</Text>
+                    <ScrollView style={styles.dropdownList}>
+                      {sortedAirlines.map((airline) => (
+                        <TouchableOpacity
+                          key={airline.icao}
+                          style={[
+                            styles.dropdownItem,
+                            selectedAirline?.icao === airline.icao && styles.dropdownItemActive,
+                          ]}
+                          onPress={() => {
+                            setSelectedAirline(airline);
+                            setDropdownOpen(false);
+                          }}
+                        >
+                          <Image source={{ uri: airline.logoUrl }} style={styles.logo} />
+                          <View style={styles.dropdownItemText}>
+                            <Text style={styles.airlineName}>{airline.name}</Text>
+                          </View>
+                          {selectedAirline?.icao === airline.icao ? (
+                            <Ionicons name="checkmark" size={18} color={colors.primary} />
+                          ) : null}
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </Pressable>
+                </Pressable>
+              </Modal>
+            </>
+          ) : null}
+        </KeyboardSafeScroll>
+
+        <View style={[styles.saveBar, { paddingBottom: footerPad, backgroundColor: colors.background }]}>
+          <PrimaryButton
+            title={t('common.continue')}
+            onPress={() => void handleComplete()}
+            loading={loading}
+          />
+        </View>
+      </KeyboardAvoidingView>
+    </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, padding: 24 },
-  title: { fontSize: 28, fontWeight: '700', marginTop: 80, marginBottom: 4 },
-  subtitle: { fontSize: 16, marginBottom: 32 },
-  label: { fontSize: 14, marginBottom: 8 },
-  helper: { fontSize: 12, marginTop: -16, marginBottom: 18 },
-  icaoInput: {
-    fontSize: 16,
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 24,
-  },
-  dropdown: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 24,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  dropdownSelected: { flexDirection: 'row', alignItems: 'center', flex: 1 },
-  dropdownText: { marginLeft: 12 },
-  airlineName: { fontSize: 16, fontWeight: '600' },
-  airlineIcao: { fontSize: 12 },
-  placeholder: { fontSize: 16 },
-  chevron: { fontSize: 10 },
-  logo: { width: 32, height: 32, borderRadius: 4 },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 24 },
-  modalContent: { backgroundColor: colors.surface, borderRadius: 16, padding: 20, maxHeight: 400 },
-  modalTitle: { fontSize: 18, fontWeight: '600', marginBottom: 16 },
-  dropdownList: { maxHeight: 280 },
-  dropdownItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 14,
-    borderRadius: 10,
-    marginBottom: 4,
-  },
-  dropdownItemActive: { backgroundColor: colors.surfaceAlt },
-  dropdownItemText: { marginLeft: 12, flex: 1 },
-  check: { fontSize: 16 },
-  button: { backgroundColor: colors.primary, padding: 16, borderRadius: 12, alignItems: 'center' },
-  buttonDisabled: { opacity: 0.7 },
-  buttonText: { color: colors.white, fontSize: 16, fontWeight: '600' },
-});
+function createStyles() {
+  return StyleSheet.create({
+    screen: { flex: 1 },
+    flex: { flex: 1 },
+    scroll: { paddingHorizontal: 16, paddingTop: 12 },
+    row: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      minHeight: 52,
+    },
+    rowLabel: {
+      width: 72,
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.textMuted,
+    },
+    rowInput: {
+      flex: 1,
+      fontSize: 16,
+      fontWeight: '700',
+      color: colors.text,
+      borderRadius: 10,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.border,
+    },
+    rowInputCode: {
+      textAlign: 'right',
+      letterSpacing: 0.5,
+      fontVariant: ['tabular-nums'],
+    },
+    divider: {
+      height: StyleSheet.hairlineWidth,
+      backgroundColor: colors.border,
+      marginLeft: 14,
+    },
+    helper: {
+      marginTop: -4,
+      paddingHorizontal: 4,
+      fontSize: 12,
+      fontWeight: '500',
+      color: colors.textMuted,
+    },
+    airlineRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+      minHeight: 56,
+      gap: 8,
+    },
+    airlineSelected: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flex: 1,
+      minWidth: 0,
+      gap: 12,
+    },
+    airlineName: {
+      flex: 1,
+      fontSize: 16,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    placeholder: { flex: 1, fontSize: 16, color: colors.textMuted, fontWeight: '500' },
+    logo: { width: 32, height: 32, borderRadius: 6 },
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(15,27,61,0.45)',
+      justifyContent: 'center',
+      padding: 24,
+    },
+    modalContent: {
+      borderRadius: radius.card,
+      padding: 16,
+      maxHeight: 420,
+      backgroundColor: colors.surface,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.border,
+    },
+    modalTitle: {
+      fontSize: 17,
+      fontWeight: '800',
+      marginBottom: 12,
+      color: colors.text,
+    },
+    dropdownList: { maxHeight: 320 },
+    dropdownItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      padding: 12,
+      borderRadius: 10,
+      marginBottom: 4,
+      backgroundColor: colors.background,
+    },
+    dropdownItemActive: {
+      backgroundColor: colors.primaryLight,
+      borderWidth: 1,
+      borderColor: colors.primary,
+    },
+    dropdownItemText: { marginLeft: 12, flex: 1 },
+    saveBar: {
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: colors.border,
+      paddingHorizontal: 16,
+      paddingTop: 10,
+    },
+  });
+}

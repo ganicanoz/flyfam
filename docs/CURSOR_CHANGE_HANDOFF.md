@@ -12,6 +12,40 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+### 2026-09-27 — Pegasus Plan (Z): gece yarısı sonrası kalkış +1 gün (parser)
+
+- **Dosyalar:** `supabase/functions/_shared/roster-pdf/airlines/pegasus/dutyTable.ts`; Edge `parse-roster-pdf` deploy
+- **Amaç:** Lokal plan için `prepareImportRows` düzeltmesinin Z karşılığı. Z satırları (`dep_schedule_utc_iso`) import’taki `dutyFix`’i atladığı için duty 23:05Z → 00:15Z kalkış duty gününde kalıyordu.
+- **Uygulama:** Yalnız `treatAsUtcPair` satırlarında, rest-end kuralı uygulanmadıysa: `dutyStart − dep ≥ 6 saat` → `flight_date` +1 gün (UTC çifti o tarihten üretilir). Lokal satırlar değişmedi (çift kaydırma yok).
+- **Veri taraması (salt okunur):** Gelecek 104 uçuş / 10 ekip. Gece yarısı kayması başka ekipte yok. 6 «tarih ≠ lokal kalkış günü» satırı UTC-tarih konvansiyonu (hata değil; FR24 ±2 gün penceresi). `a3cc…` ekibinde 2 şüpheli bitişik gün kopyası (PC2261 / PC2381 30.09) — kullanıcı kararıyla dokunulmadı.
+- **Doğrulama:** Sentetik Z metni → `importPdfFlightsViaRpc` (sahte istemci): PC2678/PC2677 10-02 (00:15Z/01:45Z), PC318 10-07, PC319 10-07 23:10Z, PC1311/1312 aynı. Lokal plan çıktısı değişmedi. `tsc` 0 hata. Deploy OK; OPTIONS 200, auth’suz POST 401.
+- **Açık:** Gerçek Pegasus Z PDF’iyle doğrulanmadı. Mobil yerel metin birleştirmesi (Metro) aynı paylaşılan kodu kullanır; store build 49 Edge sonucunu alır.
+- **Koruma:** Lokal plan, rest-end layover kuralı, SIM/duty/FSF satırları, THY/SXS/FHY/IGO parser’ları aynı.
+
+### 2026-09-27 — Pegasus import: gece yarısı sonrası ilk uçuş +1 gün (PC2678 / PC319)
+
+- **Dosyalar:** `mobile/lib/pdfRosterImport.ts` (`prepareImportRows`); canlı DB Gani `PC2678`, `PC319`
+- **Kök neden:** 2026-09-24 kaydında eklenen `midnightOutbound` istisnası (duty ≥20:00 + kalkış <04:00 → +1 yapma) yanlış varsayıma dayanıyordu. PDF `flight_date` = duty başlangıç günü; duty kalkıştan önce başlar (≈1s10dk). Kullanıcı teyidi: duty 01.10 23:05 → PC2678 kalkış **02.10 00:15**. Aynı istisna PC319’u (TBS 03:10) PC318’den önceki güne atıyordu.
+- **Uygulama:** İstisna kaldırıldı; `dutyStart > dep` → +1 gün (eski kural). 04:00 sonrası gece dönüşleri (PC2677/583/551) zaten bu yoldan +1 alıyordu, davranışları aynı.
+- **Doğrulama:** `importPdfFlightsViaRpc` sahte istemciyle (esbuild + RN stub) çalıştırıldı: PC2678 10-02 STD 10-01T21:15Z, PC2677 10-02, PC318 10-07, PC319 10-08, PC979/980 09-28, PC582 10-14, PC583 10-15; `failed 0`. `npx tsc --noEmit` 0 hata. DB: PC2678 → 10-02 (21:15Z), PC319 → 10-08 (10-07T23:10Z); tek crew (Gani), çakışan satır yoktu.
+- **Açık:** Plan (Z) PDF’lerde (`dep_schedule_utc_iso`) ilk uçuşun gece yarısı geçişi `dutyTable.ts`’te ayrıca ele alınmıyor; gerçek Z PDF’iyle doğrulanmadı.
+- **Koruma:** Rest-end layover kuralı, kronolojik overnight, UTC çiftli satırlar ve duty/off satırları aynı.
+
+### 2026-09-27 — Swipe silme / biten uçuş silme / temizle–import yarışı (Gani roster boşaldı)
+
+- **Dosyalar:** `mobile/screens/Roster.tsx`, `mobile/lib/rosterFlightClear.ts`, `mobile/lib/pdfRosterImport.ts`, `mobile/screens/AddFlight.tsx`, `supabase/migrations/20260927180000_remove_me_from_flight_strips_archive_card.sql`
+- **Olay (Gani, 27 Eyl ~20:28–20:31 TR):** Deep link PDF import (`ok 38`, `failed 26`) sonrası `flight_ops_log`’da 33 `deleted`; import’un yeniden kullandığı mevcut uçuşlar import’tan hemen sonra tarih sırasıyla ~1 sn arayla silindi, 20:30:48’de yeni oluşan 6 uçuş da silindi → canlı `flight_crew` = 0. Aynı saatte tek aktif oturum iPhone FlyFam/49; cron/trigger/admin yolu silme yapmıyor. Desen «Uçuşları temizle (geri al)» commit döngüsüyle uyumlu (kesin aktör log API `Backend error` nedeniyle doğrulanamadı).
+- **Kök nedenler:**
+  1. Undo-clear 5 sn sonra satır satır `remove_me_from_flight` çalıştırıyor; import/manuel ekleme bunu beklemiyordu. `add_me_to_flight` numara+tarih ile aynı satırı yeniden kullandığı için arkadan gelen silme yeni import’u da siliyordu.
+  2. Biten (takip edilmiş) uçuş silinince `tg_flights_ops_log_bd` onu `past_12h_slim_card` olarak arşive yazıyor → roster arşiv kartını geri getiriyordu. Arşiv kartı (`_archived`) silme RPC’de no-op idi.
+  3. Swipe: aynı anda birden çok satır açık kalabiliyordu, `leftThreshold=20` küçük sağa kaydırmada sync’i otomatik tetikliyordu.
+- **Uygulama:** `flushPendingRosterClear` (bekleyen undo’yu hemen commit + süren döngüyü bekle) → `importPdfFlightsViaRpc` başında ve `AddFlight.handleSave`’de. Clear commit takip edilir, satır hatası döngüyü kesmez. Tekli silmede `archivedFlightsRef` + disk cache güncellenir. Swipe: tek açık satır, liste kaydırınca kapanır, eşik 45, kenar ofseti 16. Migration: `remove_me_from_flight` canlı temizlikten sonra çağıranı `flights_archive` kartından çıkarır; ekip kalmazsa kartı siler (cron arşiv yolu aynı).
+- **Doğrulama:** `npx tsc --noEmit` 0 hata. Migration canlı DB’de `begin … rollback` ile Gani’nin arşiv kartında denendi: kart 1→0, rollback sonrası üretim değişmedi. Kullanıcı onayıyla fonksiyon production’a `db query -f` ile uygulandı: canlı tanım `flights_archive` içeriyor, `authenticated` execute OK. Swipe/import akışı cihazda denenmedi (Metro ⌘R).
+- **Migration geçmişi:** `20260927180000` remote history’ye **kaydedilmedi** (önünde uygulanmamış `20260927120000_harden_privileged_rpc_access` var; `db push` onu da gönderirdi). Sonraki `db push` ikisini sırayla uygular/kaydeder; bu dosya idempotent `create or replace`.
+- **Kullanıcı teyidi:** Import öncesi/sonrası «Uçuşları temizle» kullanıldı → yarış kök nedeni doğrulandı.
+- **Açık:** Gani’nin canlı roster’ı şu an boş; PDF yeniden import edilmeli. Import’taki 26 başarısız satır (eklenen >0 olunca kullanıcıya gösterilmiyor) PDF olmadan incelenemedi.
+- **Koruma:** Cron `archive_and_cleanup_old_flights`, trigger arşiv davranışı, paylaşılan uçuşta diğer ekip üyeleri ve undo penceresi aynı.
+
 ### 2026-09-27 — Admin toplu seçim (kullanıcı + uçuş) + aktivite «Peer review» (ui=58)
 
 - **Dosyalar:** `docs/ADMIN_STATUS_DASHBOARD.html` (+ kopya `support/admin/index.html`), `support/index.html`, `supabase/functions/admin-dashboard/index.ts`, `supabase/functions/admin-panel-ui/index.ts`
@@ -1002,6 +1036,77 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - Deployların tamamı hatasız sonuçlandı. Son production envanterinde sırasıyla sürümler 75, 8, 127, 97, 109, 134, 32 ve 47; sekizinin de durumu `ACTIVE`, güncelleme tarihi 2026-09-27.
 - `subscription-status`, `validate-apple-subscription` ve `validate-google-subscription` yerelde dosya içermeyen eski klasörlerdir; deploy edilmedi. Aktif satın alma doğrulama fonksiyonu `verify-store-purchase` production'da mevcuttur.
 - Docker'ın çalışmıyor uyarısı deployu engellemedi; Supabase CLI varlıkları doğrudan paketleyip production'a yükledi. Route to Live `functions-prod` maddesi OK yapıldı.
+
+## 2026-09-27 — Crew peer "kaldır" sunucuda takibi iptal ediyor
+
+- Sorun: Family ekranındaki crew peer "kaldır" işlemi yalnız `dismissDemoPeer` ile cihazda gizliyordu; `crew_peer_links` satırı `approved` kaldığı için `notify-family` takip edilen crew'un uçuş bildirimlerini göndermeye devam ediyordu.
+- `supabase/migrations/20260927210000_unfollow_crew_peer.sql`: `unfollow_crew_peer(p_peer_crew_id)` security definer RPC; yalnız `auth.uid()` takipçisinin satırını `revoked` yapar. anon=false, authenticated=true. Production'a `db query -f` ile uygulandı ve `migration repair` ile geçmişe işlendi (başka oturumun `20260927200000_restore_…` dosyasıyla sürüm çakışmasın diye 210000 kullanıldı).
+- `mobile/lib/crewPeerDemo.ts`: `unfollowCrewPeer(userId, peer)` RPC'yi çağırır; başarısızlık/offline durumda yerel dismiss'e düşer. `hydrateCrewPeersFromServer`, daha önce yerelde gizlenmiş ama sunucuda hâlâ approved olan bağlantıları otomatik revoke eder (eski build'lerde kaldırılanlar yeni JS ile temizlenir). `hydrateDismissedPeers` memoize edildi.
+- `mobile/screens/Family.tsx`: `unlinkCrewPeer(peer)` artık `unfollowCrewPeer` çağırıyor.
+- Veri: kullanıcı talebiyle ilgili tek takip bağlantısı (`d0c1343c…`) production'da `revoked` yapıldı; o peer için bu takipçiden approved kayıt kalmadı.
+- Doğrulama: rollback transaction içinde takipçi JWT'siyle RPC 1 satır revoke etti (OK); `npx tsc --noEmit` OK.
+- Korunacak davranış: `request_crew_peer_follow` revoked→pending yeniden takip akışı değişmedi; peer tarafı onayı yine gerekli. Store build 49'daki "kaldır" hâlâ yalnız yerel; yeni JS/build gelene kadar sunucu revoke olmaz.
+
+## 2026-09-27 — Şifre yenileme ve Kurulumu tamamla ekranları yeni temaya taşındı
+
+- `mobile/screens/ResetPassword.tsx`: eski düz input/buton yerine `ScreenPageHeader` (başlık + alt başlık, geri yok), kilit ikonlu hero, `FormField` (göz toggle, `newPassword` autofill), `PrimaryButton` ve iOS `FormKeyboardAccessory`. Doğrulama/`updateUser`/`clearPasswordRecovery` mantığı aynı.
+- `mobile/screens/CompleteProfile.tsx`: `EditProfile` ile aynı `FormCard` satır düzeni (havayolu seçici, Base, ICAO), tema modal, alt sabit `PrimaryButton`. Kayıt mantığı (`crew_profiles` update / `create_crew_profile` RPC, ICAO 12, base 4 karakter) aynı; havayolu listesi EditProfile gibi alfabetik.
+- `mobile/components/ScreenPageHeader.tsx`: opsiyonel `showBack` (varsayılan `true`); mevcut çağıranlar değişmedi.
+- `mobile/App.tsx`: iki ekranın eski mavi stack header'ı `headerShown: false` ile kapatıldı (auth ekranlarıyla aynı).
+- Doğrulama: `npx tsc --noEmit` OK. Cihazda görsel kontrol yapılmadı (ekranlar recovery linki / crew profili olmayan hesap gerektiriyor).
+
+## 2026-09-27 — Roster "indi" kartında kaydırınca şeffaflık düzeltildi
+
+- Sorun: `RosterFlightCard` landed arka planı yarı saydam yeşil (`rgba(…,0.06)`), geçmiş kartlar `opacity 0.72`. Swipeable aksiyon panelleri (Sil/Senkronize) kartın arkasında olduğundan kaydırırken kart şeffaf görünüyor, kırmızı panel içinden karışık görünüyordu.
+- `mobile/screens/Roster.tsx`: Swipeable içindeki kart sarmalayıcısına sayfa arka planıyla aynı opak zemin (`swipeCardBase`, `radius.card`) eklendi. Dinlenme hâlindeki görünüm aynı (renk sayfa arka planı), kaydırmada panel kartın içinden görünmüyor. Swipe yükseklik ölçümü (`swipeCardHeights`) aynı View'da korunuyor.
+- Doğrulama: `npx tsc --noEmit` OK. Cihazda görsel kontrol kullanıcıya bırakıldı (Metro reload yeterli).
+
+## 2026-09-27 — Roster boş gün (OFF) kartı yükseltildi
+
+- `mobile/components/roster/RosterFlightCard.tsx`: tek satırlı OFF kompakt kartına `compactBodyOff` (`minHeight: 60`, dikey ortalama) eklendi; iki satırlı nöbet/eğitim kartlarına yakın yükseklik. Yatı ve diğer kompakt kartlar değişmedi; büyük font ölçeğinde kart doğal olarak uzamaya devam eder.
+- Liste konumlandırma ölçülen yükseklikleri kullandığı için `estimateListItemHeight` değiştirilmedi.
+- Doğrulama: `npx tsc --noEmit` OK. Cihazda görsel kontrol kullanıcıya bırakıldı.
+
+## 2026-09-27 — Roster kompakt kartlarında yazı ve yükseklik birleştirildi
+
+- `mobile/components/roster/RosterFlightCard.tsx` (önceki OFF-only `compactBodyOff` kaydının yerini alır): tüm kompakt kartlar (Boş gün, Yatı, Nöbet, Eğitim) için rozet 12→13 (padding 9/3), ana satır `fs(15)`→`fs(17)`, saat satırı `fs(14)`→`fs(15)`; `compactBody` ortak `minHeight: 66` ve dikey ortalama. Uçuş kartları değişmedi.
+- `fs` hâlâ `scaleListBodyText` ile kullanıcı yazı ölçeğine bağlı; büyük ölçekte kartlar uzamaya devam eder.
+- Kart yalnız `Roster.tsx` içinde kullanılıyor. Doğrulama: `npx tsc --noEmit` OK. Cihazda görsel kontrol kullanıcıya bırakıldı.
+
+## 2026-09-27 — Roster'da istemeden bugüne dönüş düzeltildi
+
+- Sorun 1: Roster `useFocusEffect` her odakta listeyi bugüne sıfırlayıp FlatList'i remount ediyordu; karta basıp EditFlight/EditDuty/AdminFlightApiDebug'dan geri dönmek de odak sayıldığı için kullanıcı gezdiği günden bugüne atılıyordu.
+- Sorun 2: Aynı callback `route.params.addedFlightDate` dep'ine bağlıydı; anchor effect paramı `setParams(undefined)` ile temizleyince callback odaktayken yeniden çalışıp uçuş eklenen günden bugüne atıyordu.
+- `mobile/screens/Roster.tsx`: `preserveListOnNextFocusRef` kart `onCardPress`'te set edilir; sonraki odakta (addedFlightDate yoksa) reset atlanır. `addedFlightDate` ref'ten okunur, focus callback dep'i `[]`.
+- Korunacak davranış: sekme dönüşü ve Bugün FAB bugüne hizalar; AddFlight dönüşü eklenen güne hizalar; veri yükleme focus effect'i değişmedi.
+- Doğrulama: `npx tsc --noEmit` OK. Cihazda davranış testi kullanıcıya bırakıldı.
+
+## 2026-09-27 — Roster'da kaydırırken kendiliğinden bugüne atlama düzeltildi
+
+- Kök neden: açılış anchor effect'i `scrollTargetDateRef = today` değerini hemen yazıp pin'i `InteractionManager` ile erteliyordu. Geçiş sırasında `listData` değişince effect cleanup handle'ı iptal ediyor, pin hiç çalışmıyor ama hedef takılı kalıyordu (`pendingRosterAnchorRef` de tüketilmiş). Sonra her `listData` değişiminde (3 dk API poll, realtime) "boş gün başlığı" effect'i ve `recordListItemHeight` listeyi bugüne çekiyor; `onViewableItemsChanged` takvim senkronunu da engelliyordu.
+- `mobile/screens/Roster.tsx`:
+  - Anchor effect: pin çalışmadan iptal edilirse hedef temizlenir ve `pendingRosterAnchorRef` geri konur (bir sonraki çalıştırmada tek sefer pin).
+  - `onListScrollBeginDrag`: kullanıcı sürüklemeye başlayınca `listUserDragEpochRef` artar; `scrollTargetDateRef`, `pendingListScrollDateRef`, `pendingRosterAnchorRef`, pin süresi ve bekleyen timer'lar temizlenir. Bekleyen anchor pin'leri epoch değiştiyse çalışmaz. Swipe kapatma aynı handler'da korunuyor.
+- Korunacak davranış: açılış/sekme dönüşü, Bugün FAB, takvim gününe basma ve AddFlight dönüşü hizalamaları; kullanıcı sürüklemesi her zaman önceliklidir.
+- Doğrulama: `npx tsc --noEmit` OK. Cihazda davranış testi kullanıcıya bırakıldı.
+
+## 2026-09-27 — Store 1.3.0 (50) build + submit (iOS + Android)
+
+- **Dosyalar:** `mobile/app.config.js` (buildNumber/versionCode 50), `mobile/android/app/build.gradle` (versionCode 50), `mobile/ios/FlyFam.xcodeproj/project.pbxproj` (CURRENT_PROJECT_VERSION 50 ×6). Marketing 1.3.0 değişmedi.
+- **İçerik:** peer unfollow sunucu revoke, ResetPassword/CompleteProfile yeni tema, landed kart swipe şeffaflık düzeltmesi, kompakt kart yazı/yükseklik, roster'da istemeden bugüne dönüş düzeltmeleri, swipe/clear/import race düzeltmeleri.
+- **Ön kontrol:** `npx tsc --noEmit` OK, `verify:android:icon` OK, `test:capacity` OK, `git diff --check` OK.
+- **Komut:** `eas build --platform all --profile production --auto-submit --non-interactive` (exit 0).
+  - Android build `40a87375…` FINISHED 1.3.0/50 — submission `92e0132a…` tamamlandı (Play internal).
+  - iOS build `0471a8d6…` FINISHED 1.3.0/50 — submission `8a795857…` App Store Connect'e yüklendi (Apple işliyor).
+- **Not:** Fingerprint ExpoConfigLoader uyarısı yine non-fatal. EAS build kredisinin %80'i kullanıldı uyarısı görüldü.
+- **Koruma:** Marketing 1.3.0 / build 50; sonraki yükleme ≥51 olmalı.
+
+## 2026-09-29 — Admin Ops Console ui=58 yayınlandı (yalnız admin commit)
+
+- Kullanıcı kararı: yerel `main`'deki 15 push edilmemiş commit (RLS, StoreKit trial, demo hesaplar, release dokümanları, `support/CNAME` vb.) **yerelde bırakıldı**; yalnız ui=58 dosyaları push edildi.
+- Yöntem: `origin/main` üzerinde geçici worktree; `docs/ADMIN_STATUS_DASHBOARD.html`, `support/admin/index.html`, `support/index.html`, `supabase/functions/admin-panel-ui/index.ts` çalışma ağacından; `supabase/functions/admin-dashboard/index.ts` için yalnız «Peer review» hunk'ı (yerel `f012557`'deki e-posta/check_access/occupation değişiklikleri dahil edilmedi). Commit `132a47b` → `origin/main` (fast-forward).
+- Doğrulama: `git diff --check` OK; "Deploy support site" run `36523683860` success; `app.flyfamapp.com/admin/` 200 ve `var UI = '58'`, `runBulkAction`/`Peer review` mevcut; destek sayfası `adminUi = '58'`; `admin-panel-ui` 302 → `app.flyfamapp.com/admin/?ui=58`.
+- Not: Yerel `main` artık `origin/main` ile ayrıştı (yerel 15 commit, uzak 1 commit). Sonraki push öncesi `git pull --rebase` gerekir; ui=58 yaması çalışma ağacındakiyle aynı olduğu için çakışma beklenmez. Toplu aksiyonlar gerçek veriyle canlıda henüz denenmedi.
 
 ## 2026-09-29 — Roster: Rezerv rozeti + CFR rezerv gibi gösteriliyor
 

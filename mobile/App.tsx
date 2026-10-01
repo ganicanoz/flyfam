@@ -457,7 +457,7 @@ function RootNavigator() {
         <Stack.Screen
           name="ResetPassword"
           component={ResetPassword}
-          options={{ title: t('resetPassword.title'), headerBackVisible: false }}
+          options={{ headerShown: false }}
         />
       </Stack.Navigator>
     );
@@ -481,7 +481,7 @@ function RootNavigator() {
         <Stack.Screen
           name="CompleteProfile"
           component={CompleteProfile}
-          options={{ title: t('nav.completeSetup'), headerBackVisible: false }}
+          options={{ headerShown: false }}
         />
       </Stack.Navigator>
     );

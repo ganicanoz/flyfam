@@ -20,6 +20,7 @@ import {
 export * from '../../supabase/functions/_shared/pdfRosterImport';
 
 import { trackActivityEvent } from './userActivity';
+import { flushPendingRosterClear } from './rosterFlightClear';
 import { airportIanaForCode } from '../../supabase/functions/_shared/airportIanaByCode';
 import {
   filterPdfRowsForCrewAirline,
@@ -393,13 +394,9 @@ function prepareImportRows(
     }
     const dep = timeToMinutes(e.row.dep_time_local);
     const dutyStart = timeToMinutes(e.row.duty_start_time_local);
-    // Gece yarısı sonrası kalkış + akşam duty start: PDF flight_date zaten işletme sabahı (ör. 01.10 00:15) — +1 yapma.
-    const midnightOutbound =
-      dep != null && dutyStart != null && dep < 4 * 60 && dutyStart >= 20 * 60;
-    dutyFixByIdx.set(
-      e.idx,
-      !midnightOutbound && dep != null && dutyStart != null && dutyStart > dep,
-    );
+    // PDF flight_date = duty başlangıç günü. Duty kalkıştan önce başlar; kalkış saati duty
+    // başlangıcından küçükse gece yarısı geçilmiştir (ör. duty 01.10 23:05 → PC2678 02.10 00:15).
+    dutyFixByIdx.set(e.idx, dep != null && dutyStart != null && dutyStart > dep);
   }
 
   const baseDateByIdx = new Map<number, string>();
@@ -565,6 +562,7 @@ export async function importPdfFlightsViaRpc(
     crewHomeBaseIata?: string | null;
   }
 ): Promise<PdfImportRpcResult> {
+  await flushPendingRosterClear();
   const failed: PdfImportRpcResult['failed'] = [];
   const icaoOpt = normalizeCrewAirlineIcaoTypo(options?.crewAirlineIcao?.trim());
   const homeBaseIata = (options?.crewHomeBaseIata ?? '').trim().toUpperCase().slice(0, 3);

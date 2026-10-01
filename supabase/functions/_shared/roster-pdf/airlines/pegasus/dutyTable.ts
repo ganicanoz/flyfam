@@ -6,8 +6,13 @@ import type { PdfFlightRow } from '../../types.ts';
 import { rosterOccupationLabelEn, rosterOccupationLabelTr, isStandbyOccupationCode } from '../../occupationLabels.ts';
 import { isSimulatorOccupationCode, simulatorFlightNumberLabel, PEGASUS_SIM_OR_IPT_OCC } from '../../simulatorDuty.ts';
 import { isLikelyFlightNumber } from '../../textUtils.ts';
-import { pegasusUtcSchedulePairFromFlightDate, restEndOperatingYmd } from '../../timeAndSchedule.ts';
+import { addCalendarDays, pegasusUtcSchedulePairFromFlightDate, restEndOperatingYmd } from '../../timeAndSchedule.ts';
 import { detectPegasusPlanTimeBasis } from '../../normalize.ts';
+
+function hhmmToMinutes(hhmm: string): number | null {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(hhmm.trim());
+  return m ? Number(m[1]) * 60 + Number(m[2]) : null;
+}
 
 /** PDF’te `DD/MM/YYYY` + (sonraki satır) `HH:MM` veya `HH:MM:SS` — iki çift (duty end + resting end veya SIM duty start + duty end). */
 type SlashDateTimePair = { ymd: string; hhmm: string };
@@ -300,6 +305,17 @@ export function parseFlightsFromPdfText_DutyLocalTableCore(text: string): PdfFli
       depH < prevDepInDutyBlock
     ) {
       rowDate = restOp;
+    }
+
+    // Plan (Z): duty saati de Zulu. Kalkış duty başlangıcından ≥6 saat "erken" görünüyorsa gece
+    // yarısı geçilmiştir (duty 23:05Z → 00:15Z kalkış ertesi gün). Lokal satırlarda bu +1 gün
+    // import tarafında (`prepareImportRows` dutyFix) yapılır; burada tekrarlanmaz.
+    if (treatAsUtcPair && rowDate === pendingDate && pendingDutyStartTime) {
+      const dutyMin = hhmmToMinutes(pendingDutyStartTime);
+      const depMin = hhmmToMinutes(depH);
+      if (dutyMin != null && depMin != null && dutyMin - depMin >= 6 * 60) {
+        rowDate = addCalendarDays(pendingDate, 1);
+      }
     }
 
     if (treatAsUtcPair) {

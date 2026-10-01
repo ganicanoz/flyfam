@@ -156,6 +156,39 @@ export async function fetchCrewClearableFlights(
   return [];
 }
 
+let pendingRosterClearFlush: (() => Promise<void>) | null = null;
+let rosterClearCommitInFlight: Promise<void> | null = null;
+
+/** Roster undo-clear: register the "commit now" handler while the undo window is open. */
+export function setPendingRosterClearFlush(flush: (() => Promise<void>) | null): void {
+  pendingRosterClearFlush = flush;
+}
+
+/** Roster undo-clear: track the sequential delete loop so imports can wait for it. */
+export function trackRosterClearCommit(commit: Promise<void>): Promise<void> {
+  const previous = rosterClearCommitInFlight;
+  const tracked = Promise.all([previous, commit]).then(() => undefined).finally(() => {
+    if (rosterClearCommitInFlight === tracked) rosterClearCommitInFlight = null;
+  });
+  rosterClearCommitInFlight = tracked;
+  return tracked;
+}
+
+/**
+ * Must run before adding flights: add_me_to_flight reuses rows by number+date, so a
+ * clear still deleting in the background would remove freshly imported flights.
+ */
+export async function flushPendingRosterClear(): Promise<void> {
+  const flush = pendingRosterClearFlush;
+  pendingRosterClearFlush = null;
+  try {
+    if (flush) await flush();
+    if (rosterClearCommitInFlight) await rosterClearCommitInFlight;
+  } catch {
+    // Import must still run; clear errors are per-row and non-fatal.
+  }
+}
+
 export async function removeCrewFlightMembership(
   client: SupabaseClient,
   crewId: string,

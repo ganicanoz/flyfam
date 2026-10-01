@@ -87,6 +87,8 @@ import { ClearFlightsConfirmModal } from '../components/ClearFlightsConfirmModal
 import FlightOperationOverlay from '../components/FlightOperationOverlay';
 import {
   isLiveAirborneFlight,
+  setPendingRosterClearFlush,
+  trackRosterClearCommit,
 } from '../lib/rosterFlightClear';
 import { getAirportDisplay, getAirportTimezone } from '../constants/airports';
 import { AIRLINES } from '../constants/airlines';
@@ -1194,6 +1196,13 @@ export default function Roster({
   const lastDashRefreshMsRef = useRef<number>(0);
   const autoRefreshInFlightRef = useRef<boolean>(false);
   const swipeableRefs = useRef<Record<string, Swipeable | null>>({});
+  const openSwipeableIdRef = useRef<string | null>(null);
+  const closeOpenSwipeable = useCallback((exceptId?: string) => {
+    const openId = openSwipeableIdRef.current;
+    if (!openId || openId === exceptId) return;
+    openSwipeableIdRef.current = null;
+    swipeableRefs.current[openId]?.close();
+  }, []);
   const [updatingFlightIds, setUpdatingFlightIds] = useState<Record<string, boolean>>({});
   const [swipeCardHeights, setSwipeCardHeights] = useState<Record<string, number>>({});
   const [shareToastMessage, setShareToastMessage] = useState<string | null>(null);
@@ -1251,6 +1260,8 @@ export default function Roster({
   /** Focus sonrası açılış hizası: `auto` = bugün tepeye; `added` = AddFlight günü. */
   const openRosterAnchorRef = useRef<null | { kind: 'auto' } | { kind: 'added'; ymd: string }>(null);
   const [rosterAnchorNonce, setRosterAnchorNonce] = useState(0);
+  /** Bumped when the user starts dragging the list; pending programmatic pins must not fire afterwards. */
+  const listUserDragEpochRef = useRef(0);
   /**
    * Sekme dönüşünde FlatList eski contentOffset’i tutar; past shrink üstten satır silince
    * aynı offset ileriki güne (ör. 30 Eyl) kayar. key değişince liste offset 0’da doğar.
@@ -3043,9 +3054,18 @@ export default function Roster({
   }, [navigation, showAdminFr24Debug, t]);
 
 
+  /** Ref, not a focus-callback dep: clearing the param would re-run the callback and jump to today. */
+  const addedFlightDateParamRef = useRef<string | undefined>(undefined);
+  addedFlightDateParamRef.current = route?.params?.addedFlightDate as string | undefined;
+  /** Kart → EditFlight/EditDuty dönüşünde liste konumu korunur; yalnız sekme dönüşü bugüne sıfırlar. */
+  const preserveListOnNextFocusRef = useRef(false);
+
   useFocusEffect(
     React.useCallback(() => {
-      const addedDate = route?.params?.addedFlightDate as string | undefined;
+      const addedDate = addedFlightDateParamRef.current;
+      const preserveList = preserveListOnNextFocusRef.current;
+      preserveListOnNextFocusRef.current = false;
+      if (preserveList && !addedDate) return;
       itemHeightsRef.current = [];
       const todayNow = rosterTodayYmdRef.current;
       setListEnsureEmptyYmd(null);
@@ -3074,7 +3094,7 @@ export default function Roster({
       listScrollPinUntilRef.current = Date.now() + 400;
       lastCalendarWeekIdxRef.current = -1;
       setRosterAnchorNonce((n) => n + 1);
-    }, [route?.params?.addedFlightDate]),
+    }, []),
   );
 
   /** Roster açılınca / focus: yalnız bu path + Bugün FAB bugüne pin eder. */
@@ -3741,7 +3761,10 @@ export default function Roster({
         Alert.alert(t('common.error'), err);
         return;
       }
+      archivedFlightsRef.current = archivedFlightsRef.current.filter((a) => a.id !== id);
+      const remaining = flightsRef.current.filter((f) => f.id !== id);
       setFlights((prev) => prev.filter((f) => f.id !== id));
+      persistRosterCache(remaining);
       Alert.alert('', t('roster.deleteFlightsSuccessOne'), [{ text: t('common.ok') }]);
     } finally {
       setFlightOpBusyMessage(null);
@@ -4212,10 +4235,20 @@ export default function Roster({
     setAddFlightMenuVisible(true);
   }, []);
 
-  const commitPendingClearDeletes = useCallback(async (rows: Flight[]) => {
-    for (const f of rows) {
-      await removeFlightForCrew(f.id);
-    }
+  const commitPendingClearDeletes = useCallback((rows: Flight[]) => {
+    const ids = new Set(rows.map((f) => f.id));
+    archivedFlightsRef.current = archivedFlightsRef.current.filter((a) => !ids.has(a.id));
+    return trackRosterClearCommit(
+      (async () => {
+        for (const f of rows) {
+          try {
+            await removeFlightForCrew(f.id);
+          } catch {
+            // Keep deleting the rest; a failed row reappears on next refresh.
+          }
+        }
+      })(),
+    );
   }, [removeFlightForCrew]);
 
   const undoPendingClear = useCallback(() => {
@@ -4223,6 +4256,7 @@ export default function Roster({
     if (!pending) return;
     clearTimeout(pending.timer);
     pendingClearRef.current = null;
+    setPendingRosterClearFlush(null);
     setFlights((prev) => {
       const ids = new Set(prev.map((f) => f.id));
       const restored = pending.rows.filter((r) => !ids.has(r.id));
@@ -4248,10 +4282,19 @@ export default function Roster({
       setClearUndoToast(t('roster.clearUndoToast', { count: toDelete.length }));
       const timer = setTimeout(() => {
         pendingClearRef.current = null;
+        setPendingRosterClearFlush(null);
         setClearUndoToast(null);
         void commitPendingClearDeletes(toDelete);
       }, 5000);
       pendingClearRef.current = { rows: toDelete, timer };
+      setPendingRosterClearFlush(async () => {
+        const pending = pendingClearRef.current;
+        if (!pending) return;
+        clearTimeout(pending.timer);
+        pendingClearRef.current = null;
+        setClearUndoToast(null);
+        await commitPendingClearDeletes(pending.rows);
+      });
     },
     [commitPendingClearDeletes, t],
   );
@@ -4304,6 +4347,7 @@ export default function Roster({
       if (!pending) return;
       clearTimeout(pending.timer);
       pendingClearRef.current = null;
+      setPendingRosterClearFlush(null);
       void commitPendingClearDeletes(pending.rows);
     };
   }, [commitPendingClearDeletes]);
@@ -4513,6 +4557,25 @@ export default function Roster({
     [applyScrollToDate],
   );
 
+  /** User drag wins over any pending programmatic target (open pin, calendar tap, Today FAB). */
+  const onListScrollBeginDrag = useCallback(() => {
+    closeOpenSwipeable();
+    listUserDragEpochRef.current += 1;
+    if (pendingListScrollClearTimerRef.current) {
+      clearTimeout(pendingListScrollClearTimerRef.current);
+      pendingListScrollClearTimerRef.current = null;
+    }
+    if (scrollCorrectTimerRef.current) {
+      clearTimeout(scrollCorrectTimerRef.current);
+      scrollCorrectTimerRef.current = null;
+    }
+    scrollTargetDateRef.current = null;
+    pendingListScrollDateRef.current = null;
+    pendingRosterAnchorRef.current = null;
+    programmaticListScrollRef.current = false;
+    listScrollPinUntilRef.current = 0;
+  }, [closeOpenSwipeable]);
+
   const recordListItemHeight = useCallback(
     (index: number, height: number) => {
       if (height <= 0) return;
@@ -4635,6 +4698,7 @@ export default function Roster({
     programmaticListScrollRef.current = true;
     scrollTargetDateRef.current = target;
     const pinOnce = () => {
+      if (listUserDragEpochRef.current !== dragEpoch) return;
       if (pinTodayTop) {
         try {
           listRef.current?.scrollToOffset({ offset: 0, animated: false });
@@ -4647,7 +4711,15 @@ export default function Roster({
       syncCalendarToTarget();
     };
 
+    let ran = false;
+    const dragEpoch = listUserDragEpochRef.current;
     const handle = InteractionManager.runAfterInteractions(() => {
+      if (listUserDragEpochRef.current !== dragEpoch) {
+        if (scrollTargetDateRef.current === target) scrollTargetDateRef.current = null;
+        programmaticListScrollRef.current = false;
+        return;
+      }
+      ran = true;
       pinOnce();
       setTimeout(pinOnce, 40);
       setTimeout(() => {
@@ -4662,7 +4734,16 @@ export default function Roster({
         }
       }
     });
-    return () => handle.cancel();
+    return () => {
+      handle.cancel();
+      if (ran) return;
+      // Cancelled before pinning: a stuck scrollTargetDateRef makes later listData updates snap back to target.
+      if (scrollTargetDateRef.current === target) scrollTargetDateRef.current = null;
+      programmaticListScrollRef.current = false;
+      if (listUserDragEpochRef.current === dragEpoch && !pendingRosterAnchorRef.current) {
+        pendingRosterAnchorRef.current = target;
+      }
+    };
   }, [rosterAnchorNonce, loading, listData, listMinYmd, applyScrollToDate, calendarWeeks, navigation, route?.params?.addedFlightDate]);
 
   /** Nöbet → görev tebliği: ilgili günleri kalıcı kırmızı (uçuş) işaretle. */
@@ -5790,6 +5871,7 @@ export default function Roster({
               listMvpEnabled ? { minIndexForVisible: 0 } : undefined
             }
             onScroll={onListScrollMaybeShowPastFab}
+            onScrollBeginDrag={onListScrollBeginDrag}
             scrollEventThrottle={16}
             onViewableItemsChanged={onViewableItemsChanged}
             viewabilityConfig={viewabilityConfig}
@@ -5935,8 +6017,15 @@ export default function Roster({
               }
             };
             /** RNGH: 'left' = sol aksiyon paneli (Sync). 'right' = silme paneli — ikisinde sync çalışırsa panel hemen kapanır, silme kullanılamaz. */
+            const onSwipeableWillOpen = () => {
+              closeOpenSwipeable(item.id);
+              openSwipeableIdRef.current = item.id;
+            };
             const onSwipeableOpen = (direction: 'left' | 'right') => {
               if (direction === 'left') runUpdateAndClose();
+            };
+            const onSwipeableClose = () => {
+              if (openSwipeableIdRef.current === item.id) openSwipeableIdRef.current = null;
             };
             const swipeH = swipeCardHeights[item.id];
             const renderLeftActions = () => {
@@ -6227,6 +6316,7 @@ export default function Roster({
             const canConvertToOffDay = isStandbyBlock && (isCfrDuty || isReserveDutyCode);
 
             const onCardPress = () => {
+              preserveListOnNextFocusRef.current = true;
               if (isCrew) {
                 if (showAdminFr24Debug && !isNonFlightBlock) {
                   navigation.navigate('AdminFlightApiDebug', { flightId: item.id });
@@ -6353,12 +6443,18 @@ export default function Roster({
                   ref={(r) => { swipeableRefs.current[item.id] = r; }}
                   renderLeftActions={renderLeftActions}
                   renderRightActions={renderRightActions}
-                  leftThreshold={20}
+                  leftThreshold={45}
+                  rightThreshold={45}
+                  dragOffsetFromLeftEdge={16}
+                  dragOffsetFromRightEdge={16}
+                  onSwipeableWillOpen={onSwipeableWillOpen}
                   onSwipeableOpen={onSwipeableOpen}
+                  onSwipeableClose={onSwipeableClose}
                   overshootLeft={false}
                   overshootRight={false}
                 >
                   <View
+                    style={[styles.swipeCardBase, { backgroundColor: colors.background }]}
                     onLayout={(e) => {
                       const h = Math.round(e.nativeEvent.layout.height);
                       if (h <= 0) return;
@@ -7402,6 +7498,8 @@ function createRosterStyles(fs: (n: number) => number, themeMode: 'light' | 'dar
   depArrPrefix: { fontWeight: '600' },
   depArrTimes: { fontWeight: '400', fontSize: fs(13) },
   /** Tek katman RectButton: width + backgroundColor + ölçülen height. */
+  /** Landed tint and past-card opacity are translucent; keep swipe action panels from showing through. */
+  swipeCardBase: { borderRadius: radius.card },
   swipeUpdate: {
     width: 90,
     backgroundColor: colors.primary,

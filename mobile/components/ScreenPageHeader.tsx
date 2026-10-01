@@ -11,13 +11,15 @@ type Props = {
   title: string;
   subtitle?: string;
   onBack?: () => void;
+  /** Gate screens (password reset, setup) have nowhere to go back to. */
+  showBack?: boolean;
 };
 
 /**
  * Roster-style page chrome: no blue stack header —
  * round back chip + large dark title (+ optional muted subtitle).
  */
-export function ScreenPageHeader({ title, subtitle, onBack }: Props) {
+export function ScreenPageHeader({ title, subtitle, onBack, showBack = true }: Props) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const themeMode = useThemeMode();
@@ -26,15 +28,17 @@ export function ScreenPageHeader({ title, subtitle, onBack }: Props) {
 
   return (
     <View style={[styles.wrap, { paddingTop: Math.max(insets.top, 8) }]}>
-      <TouchableOpacity
-        onPress={onBack ?? goBack}
-        style={styles.backBtn}
-        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        accessibilityRole="button"
-        accessibilityLabel={t('common.back')}
-      >
-        <Ionicons name="chevron-back" size={20} color={colors.text} />
-      </TouchableOpacity>
+      {showBack ? (
+        <TouchableOpacity
+          onPress={onBack ?? goBack}
+          style={styles.backBtn}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          accessibilityRole="button"
+          accessibilityLabel={t('common.back')}
+        >
+          <Ionicons name="chevron-back" size={20} color={colors.text} />
+        </TouchableOpacity>
+      ) : null}
       <View style={styles.titleCol}>
         <Text style={styles.title} numberOfLines={2}>
           {title}

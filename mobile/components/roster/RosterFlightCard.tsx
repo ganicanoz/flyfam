@@ -277,7 +277,7 @@ export function RosterFlightCard({
               <View style={styles.standbyLeft}>
                 <View style={styles.standbyRow}>
                   <View style={[styles.kindBadge, { backgroundColor: kindBadge.bg }]}>
-                    <Text style={[styles.kindBadgeText, { color: kindBadge.text, fontSize: chip(12) }]}>
+                    <Text style={[styles.kindBadgeText, { color: kindBadge.text, fontSize: chip(13) }]}>
                       {kindLabel}
                     </Text>
                   </View>
@@ -286,7 +286,7 @@ export function RosterFlightCard({
                       style={[
                         styles.standbyStation,
                         typography.tabularNums,
-                        { color: ink.primary, fontSize: fs(15) },
+                        { color: ink.primary, fontSize: fs(17) },
                       ]}
                       numberOfLines={1}
                     >
@@ -298,7 +298,7 @@ export function RosterFlightCard({
                   style={[
                     styles.standbySchedule,
                     typography.tabularNums,
-                    { color: ink.primary, fontSize: fs(14) },
+                    { color: ink.primary, fontSize: fs(15) },
                   ]}
                   numberOfLines={1}
                 >
@@ -350,12 +350,12 @@ export function RosterFlightCard({
               <View style={styles.standbyLeft}>
                 <View style={styles.standbyRow}>
                   <View style={[styles.kindBadge, { backgroundColor: kindBadge.bg }]}>
-                    <Text style={[styles.kindBadgeText, { color: kindBadge.text, fontSize: chip(12) }]}>
+                    <Text style={[styles.kindBadgeText, { color: kindBadge.text, fontSize: chip(13) }]}>
                       {kindLabel}
                     </Text>
                   </View>
                   <Text
-                    style={[styles.standbyStation, { color: ink.primary, fontSize: fs(15) }]}
+                    style={[styles.standbyStation, { color: ink.primary, fontSize: fs(17) }]}
                     numberOfLines={1}
                   >
                     {model.blockTitle?.trim() || model.flightNumber || '—'}
@@ -366,7 +366,7 @@ export function RosterFlightCard({
                     style={[
                       styles.standbySchedule,
                       typography.tabularNums,
-                      { color: ink.primary, fontSize: fs(14) },
+                      { color: ink.primary, fontSize: fs(15) },
                     ]}
                     numberOfLines={1}
                   >
@@ -407,7 +407,7 @@ export function RosterFlightCard({
                 <View style={styles.standbyTop}>
                   {isLayover ? null : (
                     <View style={[styles.kindBadge, { backgroundColor: kindBadge.bg }]}>
-                      <Text style={[styles.kindBadgeText, { color: kindBadge.text, fontSize: chip(12) }]}>
+                      <Text style={[styles.kindBadgeText, { color: kindBadge.text, fontSize: chip(13) }]}>
                         {kindLabel}
                       </Text>
                     </View>
@@ -416,7 +416,7 @@ export function RosterFlightCard({
                     style={[
                       styles.standbyTimes,
                       typography.tabularNums,
-                      { color: ink.primary, fontSize: fs(15) },
+                      { color: ink.primary, fontSize: fs(17) },
                     ]}
                     numberOfLines={1}
                   >
@@ -691,7 +691,14 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     flexDirection: 'row',
   },
-  compactBody: { flex: 1, paddingHorizontal: pad, paddingVertical: 10, gap: 6 },
+  compactBody: {
+    flex: 1,
+    paddingHorizontal: pad,
+    paddingVertical: 10,
+    gap: 6,
+    minHeight: 66,
+    justifyContent: 'center',
+  },
   standbyColumns: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -713,7 +720,7 @@ const styles = StyleSheet.create({
   standbyStation: { fontWeight: '700', flexShrink: 1, minWidth: 0 },
   standbyTimes: { flex: 1, fontWeight: '700' },
   standbySchedule: { fontWeight: '700' },
-  kindBadge: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 2 },
+  kindBadge: { borderRadius: 8, paddingHorizontal: 9, paddingVertical: 3 },
   kindBadgeText: { fontWeight: '700' },
   assignTextBtn: {
     alignSelf: 'center',

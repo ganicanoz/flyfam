@@ -23,7 +23,7 @@ import { supabase } from '../lib/supabase';
 import { getPushTokenWithReason, registerPushTokenForFamilyUser } from '../lib/pushNotifications';
 import { colors, useThemeMode } from '../theme/colors';
 import { fetchMySubscriptionAccess, type SubscriptionAccess } from '../lib/subscriptionAccess';
-import { demoPeersForUser, peerInitials, dismissDemoPeer, hydrateDismissedPeers, hydrateCrewPeersFromServer, subscribeDismissedPeers, subscribeCrewPeers } from '../lib/crewPeerDemo';
+import { demoPeersForUser, peerInitials, unfollowCrewPeer, hydrateDismissedPeers, hydrateCrewPeersFromServer, subscribeDismissedPeers, subscribeCrewPeers, type DemoCrewPeer } from '../lib/crewPeerDemo';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { radius, shadow } from '../theme/tokens';
@@ -387,14 +387,14 @@ export default function Family() {
     );
   };
 
-  const unlinkCrewPeer = (peerId: string, peerName: string) => {
-    Alert.alert(t('family.unlinkCrewConfirmTitle'), t('family.unlinkCrewConfirmMessage', { name: peerName }), [
+  const unlinkCrewPeer = (peer: DemoCrewPeer) => {
+    Alert.alert(t('family.unlinkCrewConfirmTitle'), t('family.unlinkCrewConfirmMessage', { name: peer.name }), [
       { text: t('common.cancel'), style: 'cancel' },
       {
         text: t('family.unlinkCrew'),
         style: 'destructive',
         onPress: () => {
-          void dismissDemoPeer(peerId);
+          void unfollowCrewPeer(profile?.id, peer);
         },
       },
     ]);
@@ -718,7 +718,7 @@ export default function Family() {
                       style={styles.swipeDelete}
                       onPress={() => {
                         markSwipeHintSeen();
-                        unlinkCrewPeer(p.id, p.name);
+                        unlinkCrewPeer(p);
                       }}
                     >
                       <Text style={styles.swipeDeleteText}>{t('family.unlinkCrew')}</Text>
