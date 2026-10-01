@@ -1,6 +1,6 @@
 // Aile planı — çevrimdışı açılış. Sayfa önce ağdan (güncel sürüm), ağ yoksa önbellekten.
 // Plan verisi (POST API) burada tutulmaz; sayfa kendi cihaz önbelleğini kullanır.
-const CACHE = 'aile-shell-v1';
+const CACHE = 'aile-shell-v2';
 const SHELL = '/aile/';
 const ASSETS = [SHELL, '/aile/manifest.webmanifest', '/aile/icon-180.png', '/aile/icon-192.png', '/aile/icon-512.png', '/aile/icon-maskable-512.png'];
 const NET_TIMEOUT_MS = 4000;
@@ -50,5 +50,35 @@ self.addEventListener('fetch', (event) => {
   event.respondWith((async () => {
     const hit = await caches.match(req, { ignoreSearch: true });
     return hit || (await net) || Response.error();
+  })());
+});
+
+// Bildirimler: sunucu (family-planner) şifreli { title, body, url, tag } gönderir.
+self.addEventListener('push', (event) => {
+  let d = {};
+  try { d = event.data ? event.data.json() : {}; } catch (_) { d = { body: event.data ? event.data.text() : '' }; }
+  event.waitUntil(self.registration.showNotification(d.title || 'Aile planı', {
+    body: d.body || '',
+    icon: '/aile/icon-192.png',
+    badge: '/aile/icon-192.png',
+    tag: d.tag || 'aile',
+    renotify: true,
+    data: { url: d.url || SHELL },
+  }));
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const target = new URL((event.notification.data && event.notification.data.url) || SHELL, self.location.origin);
+  if (target.origin !== self.location.origin || !target.pathname.startsWith('/aile/')) target.href = new URL(SHELL, self.location.origin).href;
+  event.waitUntil((async () => {
+    const wins = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    const win = wins.find((w) => new URL(w.url).pathname.startsWith('/aile/'));
+    if (win) {
+      await win.focus();
+      win.postMessage({ type: 'open', url: target.pathname + target.search });
+      return;
+    }
+    await self.clients.openWindow(target.href);
   })());
 });

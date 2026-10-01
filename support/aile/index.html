@@ -57,6 +57,11 @@
     .wx { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; padding: 4px 10px; border-radius: 999px; background: var(--soft); white-space: nowrap; }
     .wx.rain { background: #dbeafe; color: #1e40af; font-weight: 700; }
     .net { font-size: 12px; padding: 4px 10px; border-radius: 999px; white-space: nowrap; font-weight: 700; background: #fef3c7; color: #92400e; }
+    .bell { padding: 4px 9px; min-height: 0; border-radius: 999px; font-size: 15px; line-height: 1.2; background: var(--soft); border: 0; }
+    .bell.on { background: #ccfbf1; }
+    body.embed .bell { display: none; }
+    .push-list { margin: 8px 0; padding-left: 18px; font-size: 13px; }
+    .push-list li { margin: 3px 0; }
     .net.ok { background: #dcfce7; color: #166534; }
     .vh { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; pointer-events: none; }
     .rc-head { display: flex; align-items: center; gap: 12px; }
@@ -282,6 +287,7 @@
       </div>
       <span id="wx" class="wx" title="İstanbul hava durumu">…</span>
       <span id="net" class="net" hidden></span>
+      <button type="button" id="bell" class="bell" aria-label="Bildirimler" title="Bildirimler">🔕</button>
     </header>
     <main>
       <section class="card roster-card">
@@ -404,6 +410,7 @@
     const CACHE_KEY = 'flyfam_family_plan_cache_v1';
     const WX_CACHE_KEY = 'flyfam_family_plan_wx_v1';
     const REFRESH_MS = 60 * 1000;
+    const DEVICE_KEY = 'flyfam_family_plan_device_v1';
     const WX_URL = 'https://api.open-meteo.com/v1/forecast?latitude=41.01&longitude=29.03&timezone=Europe%2FIstanbul&forecast_days=16' +
       '&current=temperature_2m,precipitation,weather_code&hourly=precipitation,precipitation_probability&daily=weather_code,temperature_2m_max,precipitation_sum,precipitation_probability_max';
 
@@ -1494,7 +1501,7 @@
     async function persist(statusId, okText) {
       const el = statusId ? $(statusId) : null;
       if (el) el.textContent = 'Kaydediliyor…';
-      try { await api('save_config', { config: st.full }); st.selfSaveAt = Date.now(); if (el) el.textContent = okText || 'Kaydedildi'; return true; }
+      try { await api('save_config', { config: st.full, device_id: deviceId() }); st.selfSaveAt = Date.now(); if (el) el.textContent = okText || 'Kaydedildi'; return true; }
       catch (err) { if (el) el.textContent = err.net ? 'Çevrimdışı · kaydedilemedi, internet gelince tekrar dene' : String(err.message || err); return false; }
     }
 
@@ -1631,6 +1638,80 @@
       }).filter(Boolean);
     }
 
+    // ---------- bildirimler ----------
+    function deviceId() {
+      let id = null;
+      try { id = localStorage.getItem(DEVICE_KEY); } catch (_) { id = null; }
+      if (!id || !/^[A-Za-z0-9_-]{8,64}$/.test(id)) {
+        const b = crypto.getRandomValues(new Uint8Array(16));
+        id = Array.from(b, (x) => x.toString(16).padStart(2, '0')).join('');
+        try { localStorage.setItem(DEVICE_KEY, id); } catch (_) { /* yok say */ }
+      }
+      return id;
+    }
+    const isIos = () => /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const isStandalone = () => window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+    const pushSupported = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+    const keyBytes = (b64) => { const s = atob(b64.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(b64.length / 4) * 4, '=')); return Uint8Array.from(s, (c) => c.charCodeAt(0)); };
+    async function currentSub() {
+      if (!pushSupported()) return null;
+      const reg = await navigator.serviceWorker.getRegistration('/aile/');
+      return reg ? reg.pushManager.getSubscription() : null;
+    }
+    async function updateBell() {
+      let on = false;
+      try { on = !!(await currentSub()) && Notification.permission === 'granted'; } catch (_) { on = false; }
+      $('bell').textContent = on ? '🔔' : '🔕';
+      $('bell').classList.toggle('on', on);
+      return on;
+    }
+    async function pushOn() {
+      if (await Notification.requestPermission() !== 'granted') throw new Error('Bildirim izni verilmedi. Telefon ayarlarından bu uygulamaya izin ver.');
+      const { publicKey } = await api('push_key');
+      const reg = await navigator.serviceWorker.ready;
+      let sub = await reg.pushManager.getSubscription();
+      if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(publicKey) });
+      const label = isIos() ? 'iPhone/iPad' : /Android/.test(navigator.userAgent) ? 'Android' : 'Tarayıcı';
+      await api('push_subscribe', { subscription: sub.toJSON(), device_id: deviceId(), label });
+    }
+    async function pushOff() {
+      const sub = await currentSub();
+      try { await api('push_unsubscribe', sub ? { endpoint: sub.endpoint } : { device_id: deviceId() }); } catch (_) { /* sunucu yoksa da yerelde kapat */ }
+      if (sub) await sub.unsubscribe();
+    }
+    async function openBell(msg) {
+      st.openDay = null;
+      const on = await updateBell();
+      let body;
+      if (!pushSupported() || (isIos() && !isStandalone())) {
+        body = isIos()
+          ? '<p>iPhone\'da bildirim için sayfa ana ekrandan açılmalı:</p><ol class="push-list"><li>Safari\'de <b>Paylaş</b> → <b>Ana Ekrana Ekle</b></li><li>Ana ekrandaki <b>Aile planı</b> simgesinden aç</li><li>Buradaki 🔔 → <b>Bildirimleri aç</b></li></ol><p class="small muted">iOS 16.4 veya üstü gerekir.</p>'
+          : '<p>Bu tarayıcı web bildirimlerini desteklemiyor. Chrome veya Safari ile dene.</p>';
+      } else {
+        const C = esc((st.config && st.config.people && st.config.people.crew) || 'Crew');
+        body = '<p>' + (on ? '✅ Bu cihazda bildirimler <b>açık</b>.' : 'Bu cihazda bildirimler kapalı.') + '</p>' +
+          '<ul class="push-list"><li>📅 Plan fixlenince / saat değişince (değişikliği yapan cihaza gelmez)</li><li>⏰ Akşam 20:00: yarın iş varsa hatırlatma</li><li>✈️ Roster (' + C + ') plan günlerinde değişirse, yeni PDF yüklenince</li><li>☔ Sabah: iş günü yağış bekleniyorsa</li><li>🏖️ Tatilden 1 hafta önce, tatil eklenince</li></ul>' +
+          (Notification.permission === 'denied' ? '<p class="dirty small">Bildirim izni reddedilmiş; telefon ayarlarından bu uygulamaya izin ver.</p>' : '') +
+          '<div class="row">' + (on ? '<button type="button" data-push="test">Deneme bildirimi</button><button type="button" data-push="off">Kapat</button>' : '<button type="button" class="primary" data-push="on">🔔 Bildirimleri aç</button>') + '</div>';
+      }
+      $('sheet').innerHTML = '<div class="sheet"><h3><span>🔔 Bildirimler</span><button type="button" class="ghost" data-close="1" aria-label="Kapat">✕</button></h3>' + body +
+        '<p id="pushMsg" class="small muted">' + esc(msg || '') + '</p></div>';
+      $('sheet').hidden = false;
+    }
+    async function pushAction(kind) {
+      $('pushMsg').textContent = 'Bekle…';
+      try {
+        if (kind === 'on') { await pushOn(); await openBell('Açıldı. Deneme bildirimi gönderiliyor…'); const r = await api('push_test', { device_id: deviceId() }); $('pushMsg').textContent = r.ok ? 'Deneme bildirimi gönderildi ✓' : 'Gönderilemedi (' + (r.statuses || []).join(',') + ')'; }
+        else if (kind === 'off') { await pushOff(); await openBell('Kapatıldı.'); }
+        else if (kind === 'test') { const r = await api('push_test', { device_id: deviceId() }); $('pushMsg').textContent = r.ok ? 'Gönderildi ✓ birkaç saniye içinde gelir' : 'Gönderilemedi (' + (r.statuses || []).join(',') + ')'; }
+      } catch (err) { $('pushMsg').textContent = String(err.message || err); updateBell(); }
+    }
+    function openFromUrl(u) {
+      const m = /[?&]month=(\d{4}-\d{2})/.exec(u || '');
+      if (!m || m[1] === st.month || (st.draftDirty && !confirm('Fixlenmemiş seçimler var. Ay değiştirilsin mi?'))) return;
+      st.month = m[1]; st.draftDirty = false; st.activeGroup = null; closeDay(); load();
+    }
+
     // ---------- giriş ----------
     let pin = '';
     function showGate(msg) {
@@ -1658,6 +1739,7 @@
       $('app').hidden = false;
       load();
       loadWeather();
+      updateBell();
     }
     async function tryAdminSession() {
       let sess = null;
@@ -1705,7 +1787,11 @@
     });
     $('prev').addEventListener('click', () => shiftMonth(-1));
     $('next').addEventListener('click', () => shiftMonth(1));
-    $('logout').addEventListener('click', () => { localStorage.removeItem(TOKEN_KEY); clearCache(); st.bearer = null; st.sig = null; showGate('Çıkış yapıldı'); });
+    $('bell').addEventListener('click', () => { openBell(); });
+    if ('serviceWorker' in navigator) navigator.serviceWorker.addEventListener('message', (e) => { if (e.data && e.data.type === 'open') openFromUrl(e.data.url); });
+    $('logout').addEventListener('click', async () => {
+      if (await currentSub().catch(() => null)) await pushOff().catch(() => { /* yok say */ });
+      localStorage.removeItem(TOKEN_KEY); clearCache(); st.bearer = null; st.sig = null; showGate('Çıkış yapıldı'); });
     const onDayPick = (ymd) => { if (st.activeGroup != null) addToGroup(st.activeGroup, ymd); else openDay(ymd); };
     ['grid', 'list'].forEach((id) => {
       $(id).addEventListener('click', (e) => { const c = e.target.closest('[data-day]'); if (c) onDayPick(c.getAttribute('data-day')); });
@@ -1720,6 +1806,8 @@
     });
     $('sheet').addEventListener('click', (e) => {
       if (e.target === $('sheet') || e.target.closest('[data-close]')) return closeDay();
+      const pb = e.target.closest('[data-push]');
+      if (pb) return void pushAction(pb.getAttribute('data-push'));
       const o = e.target.closest('[data-opt]');
       if (o) {
         const [ymd, key] = o.getAttribute('data-opt').split('|');
@@ -1882,6 +1970,7 @@
       if (await persist('cfgStatus', 'Kaydedildi ✓')) { st.cfgDirty = false; st.travelDirty = false; renderIcons(); render(); }
     });
     if (new URLSearchParams(location.search).get('embed') === '1') { document.body.classList.add('embed'); $('logout').hidden = true; }
+    { const um = /^(\d{4})-(\d{2})$/.exec(new URLSearchParams(location.search).get('month') || ''); if (um && Number(um[2]) >= 1 && Number(um[2]) <= 12) st.month = um[0]; }
     setInterval(loadWeather, 10 * 60 * 1000);
     const bgRefresh = () => { if (!document.hidden && !$('app').hidden && st.bearer) load({ quiet: true }); };
     setInterval(bgRefresh, REFRESH_MS);
