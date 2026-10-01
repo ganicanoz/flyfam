@@ -109,6 +109,14 @@
     .fin-in { display: inline-flex; align-items: center; gap: 6px; }
     .fin-in input { width: 120px; text-align: right; font-variant-numeric: tabular-nums; }
     .fin-in input.pct { width: 70px; }
+    .debt-form { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+    .debt-form #debtLabel { flex: 1 1 180px; min-width: 0; }
+    .fin-row.paid { opacity: .7; }
+    .debt-amt { font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .debt-chip { display: inline-block; font-size: 11px; font-weight: 700; padding: 1px 7px; border-radius: 999px; margin-left: 4px; }
+    .debt-chip.late { background: #fee2e2; color: var(--bad); }
+    .debt-chip.soon { background: #fef3c7; color: var(--warn); }
+    .debt-chip.ok { background: #dcfce7; color: var(--ok); }
     .sheet-bg.ciro-bg .sheet { border-top-color: var(--brand); }
     .ciro-lead { font-size: 17px; font-weight: 800; margin: 0 0 4px; }
     .who-btns { display: grid; gap: 8px; margin-top: 10px; }
@@ -527,7 +535,7 @@
       goals: {},
       vacations: [],
       taxi: { tariff: 'İstanbul sarı taksi, 20.07.2026', open: 71.94, perKm: 47.92, perMin: 9.98, minFare: 230, freeKmh: 25 },
-      finance: { daily: [], monthly: [], share: {}, since: '' },
+      finance: { daily: [], monthly: [], share: {}, since: '', debt: { sources: [], label: '' } },
     };
 
     const st = { month: null, data: null, full: {}, config: null, draft: {}, draftDirty: false, travelDirty: false, cfgDirty: false, wx: null, openDay: null, activeGroup: null, viewMode: (() => { try { return localStorage.getItem('flyfam_family_plan_view_v1'); } catch (_) { return null; } })(), bearer: null, via: null, summaryGroups: [], newConf: new Set(), lastRes: null, fin: {}, tab: 'plan', ciroForce: false };
@@ -1873,7 +1881,8 @@
         const C = esc((st.config && st.config.people && st.config.people.crew) || 'Crew');
         body = '<p>' + (on ? '✅ Bu cihazda bildirimler <b>açık</b>.' : 'Bu cihazda bildirimler kapalı.') + '</p>' +
           '<ul class="push-list"><li>📅 Plan fixlenince / saat değişince (değişikliği yapan cihaza gelmez)</li><li>⏰ Akşam 20:00: yarın iş varsa hatırlatma</li><li>✈️ Roster (' + C + ') plan günlerinde değişirse, yeni PDF yüklenince</li><li>☔ Sabah: iş günü yağış bekleniyorsa</li><li>🏖️ Tatilden 1 hafta önce, tatil eklenince</li>' +
-          (finOn() ? '<li>💰 Ciro hatırlatması (yalnız ' + esc((st.config.people || {}).partner || 'Eş') + ' seçili cihaz)</li>' : '') + '</ul>' +
+          (finOn() ? '<li>💰 Ciro hatırlatması (yalnız ' + esc((st.config.people || {}).partner || 'Eş') + ' seçili cihaz)</li>' : '') +
+          (debtCfg().sources.length ? '<li>💳 ' + esc(debtCfg().label) + ' vade günü hatırlatması (aynı cihaz)</li>' : '') + '</ul>' +
           (Notification.permission === 'denied' ? '<p class="dirty small">Bildirim izni reddedilmiş; telefon ayarlarından bu uygulamaya izin ver.</p>' : '') +
           '<div class="row">' + (on ? '<button type="button" data-push="test">Deneme bildirimi</button><button type="button" data-push="off">Kapat</button>' : '<button type="button" class="primary" data-push="on">🔔 Bildirimleri aç</button>') + '</div>';
       }
@@ -2005,6 +2014,90 @@
       rebuildFin();
       saveCache(st.month, st.data);
     }
+    // Ödemeler (borç): vade ayında net gelirden düşülür; ödenmemişler kalan borçtur.
+    const debtCfg = () => { const d = finCfg().debt || {}; return { sources: (d.sources || []).map(String), label: d.label || 'Ödeme' }; };
+    const debtList = () => ((st.data && st.data.debts) || []).map((d) => ({ ...d, amount: Number(d.amount) }));
+    const debtDue = (s, m) => debtList().filter((d) => d.source === s && d.due_date.slice(0, 7) === m).reduce((a, d) => a + d.amount, 0);
+    const dshort = (ymd) => new Date(ymd + 'T12:00:00Z').toLocaleDateString('tr-TR', { day: 'numeric', month: 'short', year: ymd.slice(0, 4) === nowLocal().ymd.slice(0, 4) ? undefined : 'numeric', timeZone: 'UTC' });
+    const debtLate = () => { const t = nowLocal().ymd; return debtList().filter((d) => !d.paid_on && d.due_date <= t); };
+    function putDebts(rows, removeIds) {
+      const drop = new Set([...(removeIds || []), ...rows.map((r) => r.id)]);
+      st.data.debts = [...debtList().filter((d) => !drop.has(d.id)), ...rows].sort((a, b) => a.due_date.localeCompare(b.due_date) || a.seq - b.seq);
+      saveCache(st.month, st.data);
+    }
+    function debtCard(cfg) {
+      const dc = debtCfg();
+      const today = nowLocal().ymd;
+      const all = debtList().filter((d) => dc.sources.includes(d.source));
+      const open = all.filter((d) => !d.paid_on), paid = all.filter((d) => d.paid_on).reverse();
+      const left = open.reduce((a, d) => a + d.amount, 0);
+      const late = open.filter((d) => d.due_date < today).reduce((a, d) => a + d.amount, 0);
+      const thisM = open.filter((d) => d.due_date.slice(0, 7) === today.slice(0, 7)).reduce((a, d) => a + d.amount, 0);
+      const multi = dc.sources.length > 1;
+      const name = (d) => (d.label || dc.label) + (d.total_n > 1 ? ' · ' + d.seq + '/' + d.total_n : '') + (multi ? ' · ' + finPlaceName(cfg, d.source) : '');
+      const chip = (d) => {
+        if (d.paid_on) return '<span class="debt-chip ok">ödendi ' + esc(dshort(d.paid_on)) + '</span>';
+        const n = dayIndex(d.due_date) - dayIndex(today);
+        return n < 0 ? '<span class="debt-chip late">' + -n + ' gün gecikti</span>' : n === 0 ? '<span class="debt-chip late">bugün</span>' : n <= 7 ? '<span class="debt-chip soon">' + n + ' gün</span>' : '';
+      };
+      const row = (d) => '<div class="fin-row debt' + (!d.paid_on && d.due_date <= today ? ' miss' : '') + (d.paid_on ? ' paid' : '') + '" data-debt="' + esc(d.id) + '" data-plan="' + esc(d.plan_id) + '" data-n="' + d.total_n + '">' +
+        '<div class="lbl"><b>' + esc(dshort(d.due_date)) + '</b> · ' + esc(name(d)) + ' ' + chip(d) + '</div><b class="debt-amt">' + tl(d.amount) + '</b>' +
+        (d.paid_on ? '<button type="button" class="ghost" data-debtunpaid="1">geri al</button>' : '<button type="button" class="primary" data-debtpaid="1">✓ Ödendi</button>') +
+        '<button type="button" class="ghost" data-debtdel="1" title="Sil" aria-label="Sil">✕</button></div>';
+      const src = multi ? '<select id="debtSrc">' + dc.sources.map((s) => '<option value="' + esc(s) + '">' + esc(finPlaceName(cfg, s)) + '</option>').join('') + '</select>' : '';
+      return '<section class="card"><div class="card-h">💳 ' + esc(dc.label) + ' ödemeleri · ' + esc(dc.sources.map((s) => finPlaceName(cfg, s)).join(', ')) + '</div>' +
+        '<p class="small" style="margin:0 0 10px;">Kalan borç <b>' + tl(left) + '</b> · bu ay vadesi <b>' + tl(thisM) + '</b>' + (late ? ' · <b style="color:var(--bad);">gecikmiş ' + tl(late) + '</b>' : '') + '</p>' +
+        '<div class="debt-form" id="debtForm">' + src +
+        '<input type="text" id="debtLabel" maxlength="80" placeholder="Açıklama (ör. hasta / vaka)" />' +
+        '<span class="fin-in"><input type="text" id="debtAmt" inputmode="decimal" placeholder="Toplam tutar" aria-label="Toplam tutar (TL)" />TL</span>' +
+        '<label class="small">Taksit <input type="number" id="debtN" min="1" max="36" value="1" style="width:58px;" /></label>' +
+        '<label class="small">İlk vade <input type="date" id="debtDue" value="' + esc(today) + '" /></label>' +
+        '<button type="button" class="primary" data-debtadd="1">Ekle</button><span id="debtStatus" class="small muted"></span></div>' +
+        '<p class="small muted" style="margin:6px 0 10px;">Taksitler aylık aynı güne bölünür; her taksit vade ayında net gelirden düşülür.</p>' +
+        (open.length ? '<div class="fin-rows">' + open.map(row).join('') + '</div>' : '<p class="small muted" style="margin:0;">Bekleyen ödeme yok.</p>') +
+        (paid.length ? '<details style="margin-top:10px;"><summary class="small">Ödenenler (' + paid.length + ')</summary><div class="fin-rows" style="margin-top:6px;">' + paid.slice(0, 60).map(row).join('') + '</div></details>' : '') +
+        '</section>';
+    }
+    async function onDebtClick(e) {
+      if (e.target.closest('[data-debtadd]')) return void addDebt();
+      const row = e.target.closest('[data-debt]');
+      if (!row) return;
+      const id = row.getAttribute('data-debt');
+      const paidBtn = e.target.closest('[data-debtpaid]'), unpaid = e.target.closest('[data-debtunpaid]'), del = e.target.closest('[data-debtdel]');
+      if (!paidBtn && !unpaid && !del) return;
+      row.querySelectorAll('button').forEach((b) => { b.disabled = true; });
+      try {
+        if (del) {
+          const n = Number(row.getAttribute('data-n')) || 1;
+          const all = n > 1 && confirm('Bu girişin tüm taksitleri (' + n + ') silinsin mi?\nTamam: hepsi · İptal: yalnız bu taksit');
+          if (!all && !confirm(n > 1 ? 'Yalnız bu taksit silinsin mi?' : 'Bu ödeme silinsin mi?')) { row.querySelectorAll('button').forEach((b) => { b.disabled = false; }); return; }
+          const planId = row.getAttribute('data-plan');
+          await api('debt_delete', all ? { plan_id: planId } : { id });
+          putDebts([], all ? debtList().filter((d) => d.plan_id === planId).map((d) => d.id) : [id]);
+        } else {
+          const r = await api('debt_update', { id, paid_on: paidBtn ? nowLocal().ymd : null });
+          putDebts([r.row]);
+        }
+      } catch (err) { rowMsg(row, String(err.message || err)); row.querySelectorAll('button').forEach((b) => { b.disabled = false; }); return; }
+      render();
+    }
+    async function addDebt() {
+      const msg = (t) => { $('debtStatus').textContent = t; };
+      const amount = parseTL($('debtAmt').value), n = Number($('debtN').value), due = $('debtDue').value;
+      if (!Number.isFinite(amount) || amount <= 0) { msg('Geçerli bir tutar yaz (ör. 45.000)'); $('debtAmt').focus(); return; }
+      if (!Number.isInteger(n) || n < 1 || n > 36) { msg('Taksit 1–36 olmalı'); $('debtN').focus(); return; }
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(due)) { msg('İlk vade tarihini seç'); $('debtDue').focus(); return; }
+      const source = $('debtSrc') ? $('debtSrc').value : debtCfg().sources[0];
+      const btn = document.querySelector('[data-debtadd]');
+      btn.disabled = true;
+      msg('Kaydediliyor…');
+      try {
+        const r = await api('debt_add', { source, label: $('debtLabel').value.trim(), amount, count: n, first_due: due, device_id: deviceId() });
+        putDebts(r.rows || []);
+      } catch (err) { btn.disabled = false; msg(String(err.message || err)); return; }
+      document.activeElement && document.activeElement.blur();
+      render();
+    }
     const ciroRow = (x) => {
       const v = st.fin[finKey(x.source, x.period)];
       return '<div class="fin-row' + (v == null ? ' miss' : '') + '" data-ck="' + esc(x.source + '|' + x.period) + '"><div class="lbl">' + esc(x.label) + '</div><span class="fin-in"><input type="text" inputmode="decimal" placeholder="Tutar" value="' + (v != null ? esc(fmtNum(v)) : '') + '" aria-label="Ciro (TL)" />TL' +
@@ -2081,7 +2174,7 @@
       document.querySelectorAll('[data-tab]').forEach((b) => b.classList.toggle('on', b.getAttribute('data-tab') === st.tab));
     }
     function renderFinance(res) {
-      const n = devicePerson() === 'partner' ? pendingCiro().length : 0;
+      const n = devicePerson() === 'partner' ? pendingCiro().length + debtLate().length : 0;
       document.querySelector('[data-tab="fin"]').innerHTML = '💰 Finans' + (n ? '<span class="dot">' + n + '</span>' : '');
       const el = $('tabFin');
       if (st.tab !== 'fin' || (el.contains(document.activeElement) && document.activeElement.tagName === 'INPUT')) return;
@@ -2095,6 +2188,8 @@
       const daily = (fin.daily || []).map(String), monthly = (fin.monthly || []).map(String);
       if (!daily.length && !monthly.length) { el.innerHTML = '<section class="card"><div class="card-h">💰 Finans</div><p class="small muted">Finans kaynakları ayarlı değil.</p></section>'; return; }
       const share = fin.share || {};
+      const dc = debtCfg();
+      const debtOn = dc.sources.length > 0;
       const rateOf = (s) => (share[s] === '' || share[s] == null || !Number.isFinite(Number(share[s])) ? null : Number(share[s]));
       const ciroOf = (s, m) => {
         if (monthly.includes(s)) return st.fin[finKey(s, m)] ?? null;
@@ -2125,18 +2220,25 @@
         }
         r.rate = rateOf(r.s);
         r.income = r.proj != null && r.rate != null ? r.proj * r.rate / 100 : null;
+        r.pay = dc.sources.includes(r.s) ? debtDue(r.s, M) : 0;
+        r.net = r.income != null ? r.income - r.pay : null;
         return r;
       });
       const sum = (k) => rows.reduce((a, r) => a + (r[k] || 0), 0);
       const noRate = rows.filter((r) => r.rate == null).map((r) => r.name);
       const money = (v) => (v == null ? '<span class="muted">—</span>' : tl(v));
-      const tiles = '<div class="fin-tiles"><div class="fin-tile main"><span>Tahmini gelir · ' + esc(PA) + '</span><b>' + (rows.some((r) => r.income != null) ? tl(sum('income')) : '—') + '</b><small>' +
-        (noRate.length ? 'pay oranı yok: ' + esc(noRate.join(', ')) : 'pay oranlarıyla, ay sonu tahmini') + '</small></div>' +
-        '<div class="fin-tile"><span>Tahmini ay sonu ciro</span><b>' + tl(sum('proj')) + '</b><small>girilen + kalan günler tahmini</small></div>' +
-        '<div class="fin-tile"><span>Girilen ciro</span><b>' + tl(sum('entered')) + '</b><small>' + esc(monthName(M)) + '</small></div></div>';
-      const table = '<table class="t fin"><thead><tr><th>Yer</th><th class="num">Girilen</th><th class="num">Tahmin</th><th class="num">Pay</th><th class="num">Gelir</th></tr></thead><tbody>' +
-        rows.map((r) => '<tr><td><b>' + esc(r.name) + '</b> <span class="muted small">' + (r.mode === 'daily' ? 'günlük' : 'aylık') + '</span><div class="small muted">' + esc(r.note) + '</div></td><td class="num">' + money(r.entered) + '</td><td class="num">' + money(r.proj) + '</td><td class="num">' + (r.rate == null ? '<span class="muted">—</span>' : '%' + fmtNum(r.rate)) + '</td><td class="num">' + money(r.income) + '</td></tr>').join('') +
-        '</tbody><tfoot><tr><td>Toplam</td><td class="num">' + tl(sum('entered')) + '</td><td class="num">' + tl(sum('proj')) + '</td><td></td><td class="num">' + (rows.some((r) => r.income != null) ? tl(sum('income')) : '—') + '</td></tr></tfoot></table>';
+      const anyInc = rows.some((r) => r.income != null);
+      const payM = sum('pay');
+      const openDebt = debtList().filter((d) => !d.paid_on && dc.sources.includes(d.source)).reduce((a, d) => a + d.amount, 0);
+      const tiles = '<div class="fin-tiles"><div class="fin-tile main"><span>' + (debtOn ? 'Net gelir · ' : 'Tahmini gelir · ') + esc(PA) + '</span><b>' + (anyInc ? tl(sum('income') - payM) : '—') + '</b><small>' +
+        (noRate.length ? 'pay oranı yok: ' + esc(noRate.join(', ')) : debtOn && payM ? 'gelir ' + tl(sum('income')) + ' − ödeme ' + tl(payM) : 'pay oranlarıyla, ay sonu tahmini') + '</small></div>' +
+        '<div class="fin-tile"><span>Tahmini ay sonu ciro</span><b>' + tl(sum('proj')) + '</b><small>girilen ' + tl(sum('entered')) + ' + kalan tahmini</small></div>' +
+        (debtOn ? '<div class="fin-tile"><span>Kalan borç · ' + esc(dc.label) + '</span><b>' + tl(openDebt) + '</b><small>bu ay vadesi ' + tl(payM) + '</small></div>' : '<div class="fin-tile"><span>Girilen ciro</span><b>' + tl(sum('entered')) + '</b><small>' + esc(monthName(M)) + '</small></div>') + '</div>';
+      const payCells = (r) => (debtOn ? '<td class="num">' + (r.pay ? '−' + tl(r.pay) : '<span class="muted">—</span>') + '</td><td class="num"><b>' + money(r.net) + '</b></td>' : '');
+      const table = '<table class="t fin"><thead><tr><th>Yer</th><th class="num">Girilen</th><th class="num">Tahmin</th><th class="num">Pay</th><th class="num">Gelir</th>' + (debtOn ? '<th class="num">Ödeme</th><th class="num">Net</th>' : '') + '</tr></thead><tbody>' +
+        rows.map((r) => '<tr><td><b>' + esc(r.name) + '</b> <span class="muted small">' + (r.mode === 'daily' ? 'günlük' : 'aylık') + '</span><div class="small muted">' + esc(r.note) + '</div></td><td class="num">' + money(r.entered) + '</td><td class="num">' + money(r.proj) + '</td><td class="num">' + (r.rate == null ? '<span class="muted">—</span>' : '%' + fmtNum(r.rate)) + '</td><td class="num">' + money(r.income) + '</td>' + payCells(r) + '</tr>').join('') +
+        '</tbody><tfoot><tr><td>Toplam</td><td class="num">' + tl(sum('entered')) + '</td><td class="num">' + tl(sum('proj')) + '</td><td></td><td class="num">' + (anyInc ? tl(sum('income')) : '—') + '</td>' +
+        (debtOn ? '<td class="num">' + (payM ? '−' + tl(payM) : '—') + '</td><td class="num">' + (anyInc ? tl(sum('income') - payM) : '—') + '</td>' : '') + '</tr></tfoot></table>';
       const items = [];
       for (const s of monthly) for (const p of [prevMonthOf(M), M]) if (p < curM) items.push({ source: s, period: p, label: finPlaceName(cfg, s) + ' · ' + monthName(p) + ' cirosu', canDelete: true });
       for (const s of daily) {
@@ -2147,12 +2249,15 @@
       const months = [];
       for (let m = M, i = 0; i < 6; i += 1, m = prevMonthOf(m)) months.unshift(m);
       const srcs = [...daily, ...monthly];
-      let hc = 0, hi = 0;
+      let hc = 0, hi = 0, hp = 0;
+      const hasRate = srcs.some((s) => rateOf(s) != null);
       const hist = months.map((m) => {
         let c = 0, inc = 0, any = false;
         const cells = srcs.map((s) => { const v = ciroOf(s, m); if (v != null) { any = true; c += v; if (rateOf(s) != null) inc += v * rateOf(s) / 100; } return '<td class="num">' + money(v) + '</td>'; }).join('');
-        hc += c; hi += inc;
-        return '<tr><td>' + esc(monthName(m)) + '</td>' + cells + '<td class="num"><b>' + (any ? tl(c) : '—') + '</b></td><td class="num">' + (any && srcs.some((s) => rateOf(s) != null) ? tl(inc) : '—') + '</td></tr>';
+        const p = dc.sources.reduce((a, s) => a + debtDue(s, m), 0);
+        hc += c; hi += inc; hp += p;
+        return '<tr><td>' + esc(monthName(m)) + '</td>' + cells + '<td class="num"><b>' + (any ? tl(c) : '—') + '</b></td><td class="num">' + (any && hasRate ? tl(inc) : '—') + '</td>' +
+          (debtOn ? '<td class="num">' + (p ? '−' + tl(p) : '—') + '</td><td class="num"><b>' + ((any && hasRate) || p ? tl(inc - p) : '—') + '</b></td>' : '') + '</tr>';
       }).join('');
       const who = devicePerson();
       const whoName = who === 'partner' ? PA : who === 'crew' ? P.crew || 'Crew' : who === 'none' ? 'ortak cihaz' : 'seçilmedi';
@@ -2160,8 +2265,9 @@
       el.innerHTML =
         '<section class="card"><div class="card-h">💰 ' + esc(monthName(M)) + ' · finansal durum</div>' + tiles + '<div style="margin-top:12px;overflow-x:auto;">' + table + '</div></section>' +
         '<section class="card"><div class="card-h">✍️ Ciro girişleri</div>' + (items.length ? '<div class="fin-rows">' + items.map(ciroRow).join('') + '</div>' : '<p class="small muted" style="margin:0;">Bu ay için girilecek ciro yok.</p>') + '<p class="small muted" style="margin:8px 0 0;">Sorulur: ' + esc(ask) + '.</p></section>' +
-        '<section class="card"><div class="card-h">📈 Son 6 ay</div><div style="overflow-x:auto;"><table class="t fin"><thead><tr><th>Ay</th>' + srcs.map((s) => '<th class="num">' + esc(finPlaceName(cfg, s)) + '</th>').join('') + '<th class="num">Ciro</th><th class="num">Gelir</th></tr></thead><tbody>' + hist +
-        '</tbody><tfoot><tr><td>Toplam</td>' + srcs.map(() => '<td></td>').join('') + '<td class="num">' + tl(hc) + '</td><td class="num">' + tl(hi) + '</td></tr></tfoot></table></div></section>' +
+        (debtOn ? debtCard(cfg) : '') +
+        '<section class="card"><div class="card-h">📈 Son 6 ay</div><div style="overflow-x:auto;"><table class="t fin"><thead><tr><th>Ay</th>' + srcs.map((s) => '<th class="num">' + esc(finPlaceName(cfg, s)) + '</th>').join('') + '<th class="num">Ciro</th><th class="num">Gelir</th>' + (debtOn ? '<th class="num">Ödeme</th><th class="num">Net</th>' : '') + '</tr></thead><tbody>' + hist +
+        '</tbody><tfoot><tr><td>Toplam</td>' + srcs.map(() => '<td></td>').join('') + '<td class="num">' + tl(hc) + '</td><td class="num">' + tl(hi) + '</td>' + (debtOn ? '<td class="num">' + (hp ? '−' + tl(hp) : '—') + '</td><td class="num">' + tl(hi - hp) + '</td>' : '') + '</tr></tfoot></table></div></section>' +
         '<section class="card"><div class="card-h">⚙️ Pay oranları · bu cihaz</div><div class="fin-rows">' + srcs.map((s) => '<div class="fin-row"><div class="lbl"><b>' + esc(finPlaceName(cfg, s)) + '</b> · ' + esc(PA) + ' payı</div><span class="fin-in">%<input type="text" inputmode="decimal" class="pct" data-share="' + esc(s) + '" value="' + (rateOf(s) == null ? '' : esc(fmtNum(rateOf(s)))) + '" placeholder="—" /></span></div>').join('') + '</div>' +
         '<div class="row" style="margin-top:8px;"><button type="button" class="primary" data-finshare="1">Oranları kaydet</button><span id="finStatus" class="small muted"></span></div>' +
         '<p class="small" style="margin:12px 0 0;">Bu cihaz: <b>' + esc(whoName) + '</b>' + (who === 'partner' ? ' · ciro soruları burada çıkar' : '') + ' <button type="button" class="ghost mini" data-personreset="1">değiştir</button></p></section>';
@@ -2181,6 +2287,7 @@
     }
     function openFromUrl(u) {
       if (/[?&]ciro=1/.test(u || '')) { st.ciroForce = true; checkCiro(true); }
+      if (/[?&]tab=fin/.test(u || '')) setTab('fin');
       const m = /[?&]month=(\d{4}-\d{2})/.exec(u || '');
       if (!m || m[1] === st.month || (st.draftDirty && !confirm('Fixlenmemiş seçimler var. Ay değiştirilsin mi?'))) return;
       st.month = m[1]; st.draftDirty = false; st.activeGroup = null; closeDay(); load();
@@ -2322,7 +2429,11 @@
     $('tabFin').addEventListener('click', (e) => {
       if (e.target.closest('[data-finshare]')) return void saveShares();
       if (e.target.closest('[data-personreset]')) return void askPerson(true);
+      if (e.target.closest('[data-debtadd], [data-debt]')) return void onDebtClick(e);
       onCiroClick(e, false);
+    });
+    $('tabFin').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && e.target.closest('#debtForm') && e.target.tagName === 'INPUT') { e.preventDefault(); addDebt(); }
     });
     ['ciroAlert', 'tabFin'].forEach((id) => $(id).addEventListener('keydown', (e) => {
       if (e.key !== 'Enter' || !e.target.matches('[data-ck] input')) return;
@@ -2469,7 +2580,7 @@
     if (new URLSearchParams(location.search).get('embed') === '1') { document.body.classList.add('embed'); $('logout').hidden = true; }
     { const um = /^(\d{4})-(\d{2})$/.exec(new URLSearchParams(location.search).get('month') || ''); if (um && Number(um[2]) >= 1 && Number(um[2]) <= 12) st.month = um[0]; }
     if (new URLSearchParams(location.search).get('ciro') === '1') st.ciroForce = true;
-    try { st.tab = location.hash === '#finans' ? 'fin' : localStorage.getItem(TAB_KEY) === 'fin' && !document.body.classList.contains('embed') ? 'fin' : 'plan'; } catch (_) { st.tab = 'plan'; }
+    try { st.tab = location.hash === '#finans' || /[?&]tab=fin/.test(location.search) ? 'fin' : localStorage.getItem(TAB_KEY) === 'fin' && !document.body.classList.contains('embed') ? 'fin' : 'plan'; } catch (_) { st.tab = 'plan'; }
     applyTab();
     setInterval(loadWeather, 10 * 60 * 1000);
     const bgRefresh = () => { if (!document.hidden && !$('app').hidden && st.bearer) load({ quiet: true }); };
