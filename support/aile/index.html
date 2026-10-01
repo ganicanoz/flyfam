@@ -108,7 +108,6 @@
     .fin-row .lbl { flex: 1 1 180px; min-width: 0; font-size: 13px; }
     .fin-in { display: inline-flex; align-items: center; gap: 6px; }
     .fin-in input { width: 120px; text-align: right; font-variant-numeric: tabular-nums; }
-    .fin-in input.pct { width: 70px; }
     .debt-form { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
     .debt-form #debtLabel { flex: 1 1 180px; min-width: 0; }
     .fin-row.paid { opacity: .7; }
@@ -535,7 +534,7 @@
       goals: {},
       vacations: [],
       taxi: { tariff: 'İstanbul sarı taksi, 20.07.2026', open: 71.94, perKm: 47.92, perMin: 9.98, minFare: 230, freeKmh: 25 },
-      finance: { daily: [], monthly: [], share: {}, since: '', debt: { sources: [], label: '' } },
+      finance: { daily: [], monthly: [], since: '', debt: { sources: [], label: '' } },
     };
 
     const st = { month: null, data: null, full: {}, config: null, draft: {}, draftDirty: false, travelDirty: false, cfgDirty: false, wx: null, openDay: null, activeGroup: null, viewMode: (() => { try { return localStorage.getItem('flyfam_family_plan_view_v1'); } catch (_) { return null; } })(), bearer: null, via: null, summaryGroups: [], newConf: new Set(), lastRes: null, fin: {}, tab: 'plan', ciroForce: false };
@@ -2187,10 +2186,8 @@
       const curM = now.ymd.slice(0, 7);
       const daily = (fin.daily || []).map(String), monthly = (fin.monthly || []).map(String);
       if (!daily.length && !monthly.length) { el.innerHTML = '<section class="card"><div class="card-h">💰 Finans</div><p class="small muted">Finans kaynakları ayarlı değil.</p></section>'; return; }
-      const share = fin.share || {};
       const dc = debtCfg();
       const debtOn = dc.sources.length > 0;
-      const rateOf = (s) => (share[s] === '' || share[s] == null || !Number.isFinite(Number(share[s])) ? null : Number(share[s]));
       const ciroOf = (s, m) => {
         if (monthly.includes(s)) return st.fin[finKey(s, m)] ?? null;
         const ent = finRows(s).filter((x) => x.period.length === 10 && x.period.slice(0, 7) === m);
@@ -2218,27 +2215,25 @@
           r.proj = v != null ? v : avg;
           r.note = v != null ? 'girildi' : (M < curM ? 'girilmedi' : 'ay bitince sorulur') + (avg != null ? ' · tahmin son ' + prevs.length + ' ay ort.' : '');
         }
-        r.rate = rateOf(r.s);
-        r.income = r.proj != null && r.rate != null ? r.proj * r.rate / 100 : null;
         r.pay = dc.sources.includes(r.s) ? debtDue(r.s, M) : 0;
-        r.net = r.income != null ? r.income - r.pay : null;
+        r.net = r.proj != null ? r.proj - r.pay : r.pay ? -r.pay : null;
         return r;
       });
       const sum = (k) => rows.reduce((a, r) => a + (r[k] || 0), 0);
-      const noRate = rows.filter((r) => r.rate == null).map((r) => r.name);
       const money = (v) => (v == null ? '<span class="muted">—</span>' : tl(v));
-      const anyInc = rows.some((r) => r.income != null);
+      const minus = (v) => (v ? '−' + tl(v) : '<span class="muted">—</span>');
       const payM = sum('pay');
+      const netM = rows.some((r) => r.net != null) ? sum('net') : null;
       const openDebt = debtList().filter((d) => !d.paid_on && dc.sources.includes(d.source)).reduce((a, d) => a + d.amount, 0);
-      const tiles = '<div class="fin-tiles"><div class="fin-tile main"><span>' + (debtOn ? 'Net gelir · ' : 'Tahmini gelir · ') + esc(PA) + '</span><b>' + (anyInc ? tl(sum('income') - payM) : '—') + '</b><small>' +
-        (noRate.length ? 'pay oranı yok: ' + esc(noRate.join(', ')) : debtOn && payM ? 'gelir ' + tl(sum('income')) + ' − ödeme ' + tl(payM) : 'pay oranlarıyla, ay sonu tahmini') + '</small></div>' +
-        '<div class="fin-tile"><span>Tahmini ay sonu ciro</span><b>' + tl(sum('proj')) + '</b><small>girilen ' + tl(sum('entered')) + ' + kalan tahmini</small></div>' +
-        (debtOn ? '<div class="fin-tile"><span>Kalan borç · ' + esc(dc.label) + '</span><b>' + tl(openDebt) + '</b><small>bu ay vadesi ' + tl(payM) + '</small></div>' : '<div class="fin-tile"><span>Girilen ciro</span><b>' + tl(sum('entered')) + '</b><small>' + esc(monthName(M)) + '</small></div>') + '</div>';
-      const payCells = (r) => (debtOn ? '<td class="num">' + (r.pay ? '−' + tl(r.pay) : '<span class="muted">—</span>') + '</td><td class="num"><b>' + money(r.net) + '</b></td>' : '');
-      const table = '<table class="t fin"><thead><tr><th>Yer</th><th class="num">Girilen</th><th class="num">Tahmin</th><th class="num">Pay</th><th class="num">Gelir</th>' + (debtOn ? '<th class="num">Ödeme</th><th class="num">Net</th>' : '') + '</tr></thead><tbody>' +
-        rows.map((r) => '<tr><td><b>' + esc(r.name) + '</b> <span class="muted small">' + (r.mode === 'daily' ? 'günlük' : 'aylık') + '</span><div class="small muted">' + esc(r.note) + '</div></td><td class="num">' + money(r.entered) + '</td><td class="num">' + money(r.proj) + '</td><td class="num">' + (r.rate == null ? '<span class="muted">—</span>' : '%' + fmtNum(r.rate)) + '</td><td class="num">' + money(r.income) + '</td>' + payCells(r) + '</tr>').join('') +
-        '</tbody><tfoot><tr><td>Toplam</td><td class="num">' + tl(sum('entered')) + '</td><td class="num">' + tl(sum('proj')) + '</td><td></td><td class="num">' + (anyInc ? tl(sum('income')) : '—') + '</td>' +
-        (debtOn ? '<td class="num">' + (payM ? '−' + tl(payM) : '—') + '</td><td class="num">' + (anyInc ? tl(sum('income') - payM) : '—') + '</td>' : '') + '</tr></tfoot></table>';
+      const tiles = '<div class="fin-tiles"><div class="fin-tile main"><span>Net gelir · ' + esc(PA) + '</span><b>' + money(netM) + '</b><small>' +
+        (payM ? 'ciro ' + tl(sum('proj')) + ' − ' + esc(dc.label) + ' ' + tl(payM) : 'ay sonu tahmini') + '</small></div>' +
+        '<div class="fin-tile"><span>Girilen ciro</span><b>' + tl(sum('entered')) + '</b><small>tahmini ay sonu ' + tl(sum('proj')) + '</small></div>' +
+        (debtOn ? '<div class="fin-tile"><span>Kalan borç · ' + esc(dc.label) + '</span><b>' + tl(openDebt) + '</b><small>bu ay vadesi ' + tl(payM) + '</small></div>' : '') + '</div>';
+      const table = '<table class="t fin"><thead><tr><th>Yer</th><th class="num">Girilen</th><th class="num">Tahmin</th>' + (debtOn ? '<th class="num">Ödeme</th><th class="num">Net</th>' : '') + '</tr></thead><tbody>' +
+        rows.map((r) => '<tr><td><b>' + esc(r.name) + '</b> <span class="muted small">' + (r.mode === 'daily' ? 'günlük' : 'aylık') + '</span><div class="small muted">' + esc(r.note) + '</div></td><td class="num">' + money(r.entered) + '</td><td class="num">' + money(r.proj) + '</td>' +
+          (debtOn ? '<td class="num">' + minus(r.pay) + '</td><td class="num"><b>' + money(r.net) + '</b></td>' : '') + '</tr>').join('') +
+        '</tbody><tfoot><tr><td>Toplam</td><td class="num">' + tl(sum('entered')) + '</td><td class="num">' + tl(sum('proj')) + '</td>' +
+        (debtOn ? '<td class="num">' + minus(payM) + '</td><td class="num">' + money(netM) + '</td>' : '') + '</tr></tfoot></table>';
       const items = [];
       for (const s of monthly) for (const p of [prevMonthOf(M), M]) if (p < curM) items.push({ source: s, period: p, label: finPlaceName(cfg, s) + ' · ' + monthName(p) + ' cirosu', canDelete: true });
       for (const s of daily) {
@@ -2249,15 +2244,14 @@
       const months = [];
       for (let m = M, i = 0; i < 6; i += 1, m = prevMonthOf(m)) months.unshift(m);
       const srcs = [...daily, ...monthly];
-      let hc = 0, hi = 0, hp = 0;
-      const hasRate = srcs.some((s) => rateOf(s) != null);
+      let hc = 0, hp = 0;
       const hist = months.map((m) => {
-        let c = 0, inc = 0, any = false;
-        const cells = srcs.map((s) => { const v = ciroOf(s, m); if (v != null) { any = true; c += v; if (rateOf(s) != null) inc += v * rateOf(s) / 100; } return '<td class="num">' + money(v) + '</td>'; }).join('');
+        let c = 0, any = false;
+        const cells = srcs.map((s) => { const v = ciroOf(s, m); if (v != null) { any = true; c += v; } return '<td class="num">' + money(v) + '</td>'; }).join('');
         const p = dc.sources.reduce((a, s) => a + debtDue(s, m), 0);
-        hc += c; hi += inc; hp += p;
-        return '<tr><td>' + esc(monthName(m)) + '</td>' + cells + '<td class="num"><b>' + (any ? tl(c) : '—') + '</b></td><td class="num">' + (any && hasRate ? tl(inc) : '—') + '</td>' +
-          (debtOn ? '<td class="num">' + (p ? '−' + tl(p) : '—') + '</td><td class="num"><b>' + ((any && hasRate) || p ? tl(inc - p) : '—') + '</b></td>' : '') + '</tr>';
+        hc += c; hp += p;
+        return '<tr><td>' + esc(monthName(m)) + '</td>' + cells + '<td class="num"><b>' + (any ? tl(c) : '—') + '</b></td>' +
+          (debtOn ? '<td class="num">' + minus(p) + '</td><td class="num"><b>' + (any || p ? tl(c - p) : '—') + '</b></td>' : '') + '</tr>';
       }).join('');
       const who = devicePerson();
       const whoName = who === 'partner' ? PA : who === 'crew' ? P.crew || 'Crew' : who === 'none' ? 'ortak cihaz' : 'seçilmedi';
@@ -2266,24 +2260,9 @@
         '<section class="card"><div class="card-h">💰 ' + esc(monthName(M)) + ' · finansal durum</div>' + tiles + '<div style="margin-top:12px;overflow-x:auto;">' + table + '</div></section>' +
         '<section class="card"><div class="card-h">✍️ Ciro girişleri</div>' + (items.length ? '<div class="fin-rows">' + items.map(ciroRow).join('') + '</div>' : '<p class="small muted" style="margin:0;">Bu ay için girilecek ciro yok.</p>') + '<p class="small muted" style="margin:8px 0 0;">Sorulur: ' + esc(ask) + '.</p></section>' +
         (debtOn ? debtCard(cfg) : '') +
-        '<section class="card"><div class="card-h">📈 Son 6 ay</div><div style="overflow-x:auto;"><table class="t fin"><thead><tr><th>Ay</th>' + srcs.map((s) => '<th class="num">' + esc(finPlaceName(cfg, s)) + '</th>').join('') + '<th class="num">Ciro</th><th class="num">Gelir</th>' + (debtOn ? '<th class="num">Ödeme</th><th class="num">Net</th>' : '') + '</tr></thead><tbody>' + hist +
-        '</tbody><tfoot><tr><td>Toplam</td>' + srcs.map(() => '<td></td>').join('') + '<td class="num">' + tl(hc) + '</td><td class="num">' + tl(hi) + '</td>' + (debtOn ? '<td class="num">' + (hp ? '−' + tl(hp) : '—') + '</td><td class="num">' + tl(hi - hp) + '</td>' : '') + '</tr></tfoot></table></div></section>' +
-        '<section class="card"><div class="card-h">⚙️ Pay oranları · bu cihaz</div><div class="fin-rows">' + srcs.map((s) => '<div class="fin-row"><div class="lbl"><b>' + esc(finPlaceName(cfg, s)) + '</b> · ' + esc(PA) + ' payı</div><span class="fin-in">%<input type="text" inputmode="decimal" class="pct" data-share="' + esc(s) + '" value="' + (rateOf(s) == null ? '' : esc(fmtNum(rateOf(s)))) + '" placeholder="—" /></span></div>').join('') + '</div>' +
-        '<div class="row" style="margin-top:8px;"><button type="button" class="primary" data-finshare="1">Oranları kaydet</button><span id="finStatus" class="small muted"></span></div>' +
-        '<p class="small" style="margin:12px 0 0;">Bu cihaz: <b>' + esc(whoName) + '</b>' + (who === 'partner' ? ' · ciro soruları burada çıkar' : '') + ' <button type="button" class="ghost mini" data-personreset="1">değiştir</button></p></section>';
-    }
-    async function saveShares() {
-      const share = {};
-      for (const inp of document.querySelectorAll('[data-share]')) {
-        const raw = inp.value.trim();
-        if (!raw) continue;
-        const v = parseTL(raw);
-        if (!Number.isFinite(v) || v > 100) { $('finStatus').textContent = 'Oran 0–100 arası olmalı'; inp.focus(); return; }
-        share[inp.getAttribute('data-share')] = v;
-      }
-      st.full.finance = { ...(st.full.finance || {}), share };
-      rebuildConfig();
-      if (await persist('finStatus', 'Kaydedildi ✓')) { document.activeElement && document.activeElement.blur(); render(); }
+        '<section class="card"><div class="card-h">📈 Son 6 ay</div><div style="overflow-x:auto;"><table class="t fin"><thead><tr><th>Ay</th>' + srcs.map((s) => '<th class="num">' + esc(finPlaceName(cfg, s)) + '</th>').join('') + '<th class="num">Ciro</th>' + (debtOn ? '<th class="num">Ödeme</th><th class="num">Net</th>' : '') + '</tr></thead><tbody>' + hist +
+        '</tbody><tfoot><tr><td>Toplam</td>' + srcs.map(() => '<td></td>').join('') + '<td class="num">' + tl(hc) + '</td>' + (debtOn ? '<td class="num">' + minus(hp) + '</td><td class="num">' + tl(hc - hp) + '</td>' : '') + '</tr></tfoot></table></div></section>' +
+        '<p class="small muted" style="margin:0 4px;">Bu cihaz: <b>' + esc(whoName) + '</b>' + (who === 'partner' ? ' · ciro soruları burada çıkar' : '') + ' <button type="button" class="ghost mini" data-personreset="1">değiştir</button></p>';
     }
     function openFromUrl(u) {
       if (/[?&]ciro=1/.test(u || '')) { st.ciroForce = true; checkCiro(true); }
@@ -2427,7 +2406,6 @@
       onCiroClick(e, true);
     });
     $('tabFin').addEventListener('click', (e) => {
-      if (e.target.closest('[data-finshare]')) return void saveShares();
       if (e.target.closest('[data-personreset]')) return void askPerson(true);
       if (e.target.closest('[data-debtadd], [data-debt]')) return void onDebtClick(e);
       onCiroClick(e, false);
