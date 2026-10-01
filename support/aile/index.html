@@ -48,8 +48,8 @@
     .gate-msg { min-height: 20px; color: var(--bad); font-size: 13px; }
 
     /* Üst çubuk */
-    .top { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; gap: 10px; padding: 10px 14px; padding-top: max(10px, env(safe-area-inset-top));
-      background: rgba(255,255,255,.92); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
+    .sticky-head { position: sticky; top: 0; z-index: 20; background: rgba(255,255,255,.92); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
+    .top { display: flex; align-items: center; gap: 10px; padding: 10px 14px; padding-top: max(10px, env(safe-area-inset-top)); }
     .top .title { font-weight: 800; font-size: 16px; display: flex; align-items: center; gap: 6px; }
     .month { display: flex; align-items: center; gap: 4px; margin-left: auto; }
     .month button { padding: 4px 10px; font-size: 18px; line-height: 1; }
@@ -87,10 +87,13 @@
     .card-h { font-weight: 800; font-size: 15px; margin: -2px 0 10px; padding-bottom: 8px; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 8px; }
     .tabpane { display: grid; gap: 14px; }
     .tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 5px; border-radius: 14px; background: #e2e8f0; }
-    .tabs button { border: 0; border-radius: 10px; padding: 9px 12px; font-weight: 800; font-size: 15px; background: transparent; color: #475569; }
+    .tabs-wrap { padding: 0 14px 10px; max-width: 1180px; margin: 0 auto; }
+    body.embed .tabs-wrap { display: none; }
+    .tabs button { border: 0; border-radius: 10px; padding: 9px 12px; font-weight: 800; font-size: 15px; background: transparent; color: #475569; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
     .tabs button.on { background: #fff; color: var(--brand); box-shadow: 0 1px 4px rgba(15,23,42,.12); }
     .tabs button .dot { display: inline-block; min-width: 18px; padding: 0 5px; margin-left: 6px; border-radius: 999px; background: var(--bad); color: #fff; font-size: 11px; line-height: 18px; }
     body.embed .tabs { display: none; }
+    body.tab-fin #actionBar { display: none !important; }
 
     /* Finans */
     .fin-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; }
@@ -102,11 +105,12 @@
     .fin-tile.main span, .fin-tile.main small { color: rgba(255,255,255,.85); }
     table.fin td.num, table.fin th.num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
     table.fin tfoot td { font-weight: 800; border-bottom: 0; }
+    .fin-scroll { margin-top: 12px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
     .fin-rows { display: grid; gap: 6px; }
     .fin-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 10px; border-radius: 12px; background: #f8fafc; border: 1px solid var(--line); }
     .fin-row.miss { background: #fffbeb; border-color: #fde68a; }
     .fin-row .lbl { flex: 1 1 180px; min-width: 0; font-size: 13px; }
-    .fin-in { display: inline-flex; align-items: center; gap: 6px; }
+    .fin-in { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
     .fin-in input { width: 120px; text-align: right; font-variant-numeric: tabular-nums; }
     .debt-form { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
     .debt-form #debtLabel { flex: 1 1 180px; min-width: 0; }
@@ -265,7 +269,7 @@
     table.t select { padding: 2px 4px; }
     .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
     textarea.cfg { width: 100%; min-height: 260px; font-family: ui-monospace, Menlo, monospace; font-size: 12px; }
-    body.embed .top { position: static; }
+    body.embed .sticky-head, body.embed .top { position: static; }
     .modal-img { max-width: 100%; border-radius: 12px; border: 1px solid var(--line); display: block; margin: 8px auto; }
 
     .cal-head { display: flex; align-items: center; gap: 8px; }
@@ -298,21 +302,22 @@
       input, select, textarea { font-size: 16px; }
       button { min-height: 40px; }
       .month button { min-width: 44px; }
-      main { padding-bottom: 96px; }
+      main { padding: 8px; padding-bottom: 96px; }
+      body.tab-fin main { padding-bottom: max(16px, env(safe-area-inset-bottom)); }
       #actionBar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; margin: 0 !important; padding: 8px 10px max(8px, env(safe-area-inset-bottom));
         background: rgba(255,255,255,.97); border-top: 1px solid var(--line); box-shadow: 0 -6px 20px rgba(15,23,42,.08); flex-wrap: wrap; }
       #actionBar button { flex: 1 1 auto; }
       #actionBar #selStatus { flex-basis: 100%; text-align: center; order: -1; }
-      body.embed #actionBar { position: static; box-shadow: none; }
+      body.embed #actionBar, body.tab-fin #actionBar { position: static; box-shadow: none; border-top: 0; }
       .box { flex: 1 1 calc(50% - 6px); min-width: 0; }
       .chip { padding: 6px 10px; font-size: 13px; }
       .sum-grid { grid-template-columns: 1fr; }
       .rows { grid-template-columns: 48px 1fr; }
-    }
-    @media (max-width: 640px) {
       .top { flex-wrap: wrap; }
       .month { order: 3; width: 100%; justify-content: center; margin-left: 0; }
-      main { padding: 8px; padding-bottom: 96px; }
+      .tabs-wrap { padding: 0 8px 8px; }
+      .tabs { margin: 0; padding: 5px; border-radius: 12px; background: #e2e8f0; }
+      .tabs button { min-height: 44px; font-size: 16px; }
       .grid, .weekdays { gap: 3px; }
       .cell { min-height: 76px; padding: 3px; border-radius: 9px; }
       .cell .crew, .cell .flag, .cell .run, .cell .d small, .cell .opt-mini .stars { display: none; }
@@ -324,6 +329,28 @@
       .pick .stars { font-size: 8px; }
       .pick .ic { width: 20px; height: 20px; }
       .opt-mini .ic { width: 14px; height: 14px; font-size: 8px; }
+
+      /* Finans — telefon düzeni */
+      .fin-tiles { grid-template-columns: 1fr; }
+      .fin-tile b { font-size: 20px; }
+      .fin-row { flex-direction: column; align-items: stretch; gap: 8px; padding: 10px; }
+      .fin-row .lbl { flex: none; width: 100%; font-size: 14px; }
+      .fin-row.debt { display: grid; grid-template-columns: 1fr auto; gap: 8px 10px; align-items: center; }
+      .fin-row.debt .lbl { grid-column: 1 / -1; }
+      .fin-row.debt .debt-amt { justify-self: start; font-size: 16px; }
+      .fin-in { display: grid; grid-template-columns: minmax(0, 1fr) auto; width: 100%; gap: 8px; align-items: center; }
+      .fin-in input { width: 100%; min-width: 0; min-height: 44px; }
+      .fin-in button { min-height: 44px; white-space: nowrap; }
+      .fin-in button.primary { grid-column: 1 / -1; }
+      .fin-sum { text-align: left; padding: 8px 2px 0; line-height: 1.45; }
+      .debt-form { flex-direction: column; align-items: stretch; }
+      .debt-form #debtLabel, .debt-form select, .debt-form .fin-in { width: 100%; flex: none; }
+      .debt-form .fin-in { display: grid; grid-template-columns: minmax(0, 1fr) auto; }
+      .debt-form label.small { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; }
+      .debt-form label.small input { flex: 1; min-width: 0; }
+      .debt-form [data-debtadd] { width: 100%; }
+      table.fin { font-size: 12px; min-width: 420px; }
+      table.fin th, table.fin td { padding: 6px 5px; }
     }
   </style>
 </head>
@@ -345,6 +372,7 @@
   </div>
 
   <div id="app" hidden>
+    <div class="sticky-head">
     <header class="top">
       <div class="title"><span id="titleIcons"></span>Aile planı</div>
       <div class="month">
@@ -356,13 +384,16 @@
       <span id="net" class="net" hidden></span>
       <button type="button" id="bell" class="bell" aria-label="Bildirimler" title="Bildirimler">🔕</button>
     </header>
-    <main>
+    <div class="tabs-wrap">
       <nav class="tabs" id="tabs" role="tablist">
-        <button type="button" role="tab" data-tab="plan">📅 Plan</button>
-        <button type="button" role="tab" data-tab="fin">💰 Finans</button>
+        <button type="button" role="tab" data-tab="plan" aria-selected="true" aria-controls="tabPlan">📅 Plan</button>
+        <button type="button" role="tab" data-tab="fin" aria-selected="false" aria-controls="tabFin">💰 Finans</button>
       </nav>
-      <div id="tabFin" class="tabpane" hidden></div>
-      <div id="tabPlan" class="tabpane">
+    </div>
+    </div>
+    <main>
+      <div id="tabFin" class="tabpane" role="tabpanel" hidden></div>
+      <div id="tabPlan" class="tabpane" role="tabpanel">
       <section class="card roster-card">
         <div class="rc-head">
           <div class="rc-info">
@@ -2170,12 +2201,18 @@
       try { localStorage.setItem(TAB_KEY, st.tab); } catch (_) { /* yok say */ }
       applyTab();
       if (st.lastRes) renderFinance(st.lastRes);
+      else if (st.tab === 'fin') $('tabFin').innerHTML = '<section class="card"><p class="small muted" style="margin:0;">Yükleniyor…</p></section>';
       window.scrollTo(0, 0);
     }
     function applyTab() {
       $('tabPlan').hidden = st.tab !== 'plan';
       $('tabFin').hidden = st.tab !== 'fin';
-      document.querySelectorAll('[data-tab]').forEach((b) => b.classList.toggle('on', b.getAttribute('data-tab') === st.tab));
+      document.body.classList.toggle('tab-fin', st.tab === 'fin');
+      document.querySelectorAll('[data-tab]').forEach((b) => {
+        const on = b.getAttribute('data-tab') === st.tab;
+        b.classList.toggle('on', on);
+        b.setAttribute('aria-selected', on ? 'true' : 'false');
+      });
     }
     function renderFinance(res) {
       const n = devicePerson() === 'partner' ? pendingCiro().length + debtLate().length : 0;
@@ -2275,10 +2312,10 @@
       const whoName = who === 'partner' ? PA : who === 'crew' ? P.crew || 'Crew' : who === 'none' ? 'ortak cihaz' : 'seçilmedi';
       const ask = daily.map((s) => finPlaceName(cfg, s)).join(', ') + ': iş günü bitince · ' + monthly.map((s) => finPlaceName(cfg, s)).join(', ') + ': ayın ilk 5 günü önceki ay';
       el.innerHTML =
-        '<section class="card"><div class="card-h">💰 ' + esc(monthName(M)) + ' · finansal durum</div>' + tiles + '<div style="margin-top:12px;overflow-x:auto;">' + table + '</div></section>' +
+        '<section class="card"><div class="card-h">💰 ' + esc(monthName(M)) + ' · finansal durum</div>' + tiles + '<div class="fin-scroll">' + table + '</div></section>' +
         '<section class="card"><div class="card-h">✍️ Ciro girişleri</div>' + groupHtml + '<p class="small muted" style="margin:8px 0 0;">Sorulur: ' + esc(ask) + '. Girilen tutar değiştirilip yeniden kaydedilebilir.</p></section>' +
         (debtOn ? debtCard(cfg) : '') +
-        '<section class="card"><div class="card-h">📈 Son 6 ay</div><div style="overflow-x:auto;"><table class="t fin"><thead><tr><th>Ay</th>' + srcs.map((s) => '<th class="num">' + esc(finPlaceName(cfg, s)) + '</th>').join('') + '<th class="num">Ciro</th>' + (debtOn ? '<th class="num">Ödeme</th><th class="num">Net</th>' : '') + '</tr></thead><tbody>' + hist +
+        '<section class="card"><div class="card-h">📈 Son 6 ay</div><div class="fin-scroll"><table class="t fin"><thead><tr><th>Ay</th>' + srcs.map((s) => '<th class="num">' + esc(finPlaceName(cfg, s)) + '</th>').join('') + '<th class="num">Ciro</th>' + (debtOn ? '<th class="num">Ödeme</th><th class="num">Net</th>' : '') + '</tr></thead><tbody>' + hist +
         '</tbody><tfoot><tr><td>Toplam</td>' + srcs.map(() => '<td></td>').join('') + '<td class="num">' + tl(hc) + '</td>' + (debtOn ? '<td class="num">' + minus(hp) + '</td><td class="num">' + tl(hc - hp) + '</td>' : '') + '</tr></tfoot></table></div></section>' +
         '<p class="small muted" style="margin:0 4px;">Bu cihaz: <b>' + esc(whoName) + '</b>' + (who === 'partner' ? ' · ciro soruları burada çıkar' : '') + ' <button type="button" class="ghost mini" data-personreset="1">değiştir</button></p>';
     }
@@ -2416,7 +2453,24 @@
       if (e.target === $('confAlert') || e.target.closest('[data-confok]')) closeConfAlert();
     });
     $('runs').addEventListener('click', (e) => { const r = e.target.closest('[data-runday]'); if (r) openDay(r.getAttribute('data-runday')); });
-    $('tabs').addEventListener('click', (e) => { const b = e.target.closest('[data-tab]'); if (b) setTab(b.getAttribute('data-tab')); });
+    $('tabs').addEventListener('click', (e) => {
+      const b = e.target.closest('[data-tab]');
+      if (!b || b.classList.contains('on')) return;
+      setTab(b.getAttribute('data-tab'));
+    });
+    $('tabs').addEventListener('keydown', (e) => {
+      const cur = e.target.closest('[data-tab]');
+      if (!cur || !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) return;
+      const tabs = [...$('tabs').querySelectorAll('[data-tab]')];
+      let i = tabs.indexOf(cur);
+      if (e.key === 'ArrowLeft') i = (i + tabs.length - 1) % tabs.length;
+      else if (e.key === 'ArrowRight') i = (i + 1) % tabs.length;
+      else if (e.key === 'Home') i = 0;
+      else i = tabs.length - 1;
+      e.preventDefault();
+      tabs[i].focus();
+      setTab(tabs[i].getAttribute('data-tab'));
+    });
     $('ciroAlert').addEventListener('click', (e) => {
       const p = e.target.closest('[data-person]');
       if (p) return setPerson(p.getAttribute('data-person'));
