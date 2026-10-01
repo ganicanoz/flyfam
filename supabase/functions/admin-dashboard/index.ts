@@ -2571,11 +2571,41 @@ Deno.serve(async (req) => {
         description_en: noteText || labelEn || labelTr || '',
         card_accent: accentByCat[category] || 'other',
         calendar_mark: calByCat[category] || 'none',
-        special_notes: noteText || null,
+        special_notes: noteText,
         sort_order: 500,
         active: true,
         updated_at: new Date().toISOString(),
       };
+      // Admin-reviewed values from the approve dialog; same validation as save_roster_occupation_codes.
+      const ov =
+        body?.overrides && typeof body.overrides === 'object' ? (body.overrides as Record<string, unknown>) : null;
+      if (ov) {
+        const ovCode = String(ov.code ?? upsertRow.code).replace(/\s/g, '').toUpperCase();
+        const ovCategory = String(ov.category ?? upsertRow.category);
+        const ovAccent = String(ov.card_accent ?? upsertRow.card_accent);
+        const ovCal = String(ov.calendar_mark ?? upsertRow.calendar_mark);
+        const allowedCat = new Set(Object.keys(accentByCat));
+        const allowedCal = new Set(['flight_dot', 'standby_bar', 'off_bar', 'none']);
+        if (!ovCode || !allowedCat.has(ovCategory) || !allowedCat.has(ovAccent) || !allowedCal.has(ovCal)) {
+          return new Response(JSON.stringify({ error: 'Invalid code/category/accent/calendar in overrides' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+        const text = (v: unknown, fallback: string) => (v == null ? fallback : String(v).trim());
+        upsertRow.code = ovCode;
+        upsertRow.airline_icao = text(ov.airline_icao, upsertRow.airline_icao).toUpperCase();
+        upsertRow.category = ovCategory;
+        upsertRow.label_tr = text(ov.label_tr, upsertRow.label_tr) || ovCode;
+        upsertRow.label_en = text(ov.label_en, upsertRow.label_en) || upsertRow.label_tr;
+        upsertRow.description_tr = text(ov.description_tr, upsertRow.description_tr);
+        upsertRow.description_en = text(ov.description_en, upsertRow.description_en);
+        upsertRow.card_accent = ovAccent;
+        upsertRow.calendar_mark = ovCal;
+        upsertRow.special_notes = text(ov.special_notes, upsertRow.special_notes);
+        const ovSort = Number(ov.sort_order);
+        if (Number.isFinite(ovSort)) upsertRow.sort_order = Math.floor(ovSort);
+      }
       const { error: upsertErr } = await adminClient.from('roster_occupation_codes').upsert(upsertRow, {
         onConflict: 'code,airline_icao',
       });
@@ -2639,6 +2669,57 @@ Deno.serve(async (req) => {
         });
       }
 
+      // Thank-you push to the suggester; failures must not undo the approval.
+      let notified = false;
+      const suggesterId = sug.user_id ? String(sug.user_id) : '';
+      if (suggesterId) {
+        try {
+          const [{ data: sugProf }, { data: sugTokRows }] = await Promise.all([
+            adminClient.from('profiles').select('locale').eq('id', suggesterId).maybeSingle(),
+            adminClient.from('device_tokens').select('token').eq('user_id', suggesterId),
+          ]);
+          const sugTokens = Array.from(
+            new Set((sugTokRows ?? []).map((r: { token: string }) => String(r.token || '').trim()).filter(Boolean)),
+          );
+          if (sugTokens.length > 0) {
+            const isEn = String(sugProf?.locale || '').toLowerCase() === 'en';
+            const shownCode = upsertRow.code;
+            const shownLabel = isEn ? upsertRow.label_en || upsertRow.label_tr : upsertRow.label_tr;
+            const labelPart = shownLabel && shownLabel !== shownCode ? ` (${shownLabel})` : '';
+            const pushTitle = isEn ? 'Thank you for your suggestion!' : 'Öneriniz için teşekkürler!';
+            const pushBody = isEn
+              ? `Your duty code suggestion ${shownCode}${labelPart} was approved. Duty codes have been updated and your roster will now show it correctly.`
+              : `Önerdiğiniz ${shownCode}${labelPart} görev kodu onaylandı. Görev kodları güncellendi; roster'ınızda artık doğru görünecek.`;
+            const pushResult = await sendExpoPush(sugTokens, pushTitle, pushBody, {
+              type: 'occupation_suggestion_approved',
+              code: shownCode,
+            });
+            notified = pushResult.sent > 0;
+            console.log('[admin-dashboard] occupation suggestion thank-you push', {
+              user_id: suggesterId,
+              token_count: sugTokens.length,
+              sent: pushResult.sent,
+              errors: pushResult.errors,
+            });
+            if (notified) {
+              await adminClient.from('user_activity_events').insert({
+                user_id: suggesterId,
+                event_type: 'admin_push',
+                meta: {
+                  title: pushTitle,
+                  body: pushBody,
+                  sent: pushResult.sent,
+                  source: 'occupation_suggestion_approved',
+                  suggestion_id: suggestionId,
+                },
+              });
+            }
+          }
+        } catch (pushErr) {
+          console.warn('[admin-dashboard] occupation suggestion thank-you push failed', String(pushErr));
+        }
+      }
+
       return new Response(
         JSON.stringify({
           ok: true,
@@ -2646,7 +2727,8 @@ Deno.serve(async (req) => {
           decision: 'approved',
           suggestion_id: suggestionId,
           published_version: nextVersion,
-          code,
+          code: upsertRow.code,
+          notified,
         }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );

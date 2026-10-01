@@ -1159,3 +1159,34 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - **Doğrulama:** `npx tsc --noEmit` OK; locale JSON OK; `git diff --check` OK. esbuild + sahte `expo-notifications` ile: CFR (D) → (D−1)T02:00Z, RSV1 03:00Z → önceki gün 17:00Z; HSBY / geçmiş CFR / `flight` türü atlandı; listeden kalkınca iptal; `cancelStandbyDecisionReminders` 0 bırakıyor. Cihazda gerçek bildirim denenmedi.
 - **Sınırlar:** Yerel olduğu için yalnız roster'ı en son yükleyen cihazda çalar; uygulama açılmadan sunucuda değişen roster (ör. başka cihazda dönüştürme) bir sonraki açılışa kadar eski hatırlatmayı tutabilir. Aynı hesap birden fazla cihazda → her cihazda çalar.
 - **Koruma:** Aile push'ları, `scheduleLocalTestNotification`, bildirim handler'ı ve kanallar aynı.
+
+## 2026-10-01 — Cursor değişiklikleri commit + main rebase + push
+
+- Commit `89c98b7` (rebase öncesi `b5da737`): roster scroll/swipe/clear-import düzeltmeleri, kompakt kartlar, ResetPassword/CompleteProfile tema, peer unfollow, Pegasus gece yarısı parser/import, `20260927180000` + `20260927210000` migration'ları, build 50 (`build.gradle`, `pbxproj` yalnız sürüm satırları), ilgili handoff kayıtları. Hunk düzeyinde stage edildi; `App.tsx` Consent başlığı, `pbxproj` RevenueCat bundle satırları, admin HTML (origin ile aynı) ve diğer oturumların handoff kayıtları dahil edilmedi.
+- Kullanıcı kararı: commit tek başına `origin/main`'e uygulanamadığı için (bağımlı dosyalar push edilmemiş yerel commit'lerdeydi) yerel 17 commit `origin/main` (13 Aile planı commit'i) üzerine ayrı worktree'de rebase edildi. Tek çakışma `supabase/config.toml` (admin-panel-login/admin-panel-ui + family-planner blokları ikisi de korundu). Rebase ağacında `npx tsc --noEmit` OK; `origin/main` `d220073..89c98b7` fast-forward push.
+- Yerel `main` `git reset --mixed 89c98b7` ile senkron; çalışma ağacı dosyalarına dokunulmadı. Kalan değişiklikler diğer oturumların (RevenueCat, Consent, handoff kayıtları; `config.toml`'da yalnız blok sırası farkı).
+- Doğrulama: "Deploy support site" success; `app.flyfamapp.com/`, `/admin/` (ui=59), `/aile/`, `/auth-callback.html` 200.
+
+## 2026-10-01 — "Phase Refresh Health" GitHub zamanlaması kapatıldı
+
+- Sorun: `.github/workflows/phase-refresh-health.yml` her çalıştırmada `Missing env: SUPABASE_URL/SERVICE_KEY` ile düşüyordu (repo'da hiç Actions secret yok; listedeki 200 çalıştırmanın tamamı failure). GitHub `*/5` zamanlamasını pratikte 4–6 saatte bir çalıştırdığı için 6 dk eşikli kontrol zaten güvenilir değildi; her hata kullanıcıya e-posta gönderiyordu.
+- Asıl sistem sağlıklı: pg_cron `refresh-flight-api-phases` (`*/2`) aktif; `system_health_pings.phase_refresh` son başarı 0.5 dk önce, 204 satır.
+- Kullanıcı kararıyla `schedule` kaldırıldı, yalnız `workflow_dispatch` kaldı (secret'lar eklenirse elle çalıştırılabilir). Commit `5022808` → `origin/main`.
+- Doğrulama: push OK; uzak workflow dosyasında schedule yok.
+
+## 2026-10-01 — Görev kodu önerisi onayı: `special_notes` NOT NULL hatası
+
+- Sorun: Admin panelde öneri onayı `500: null value in column "special_notes" … violates not-null constraint`. `admin-dashboard` onay upsert'i not boşken `special_notes: null` yazıyordu; kolon `NOT NULL default ''`.
+- `supabase/functions/admin-dashboard/index.ts`: `special_notes: noteText` (boş not → `''`). `description_tr/en` boş olmayan değer kuralı aynı.
+- `admin-dashboard` production'a deploy edildi; OPTIONS 200, yetkisiz POST 401.
+- Doğrulama: bekleyen öneri `ROFP` (PGT, not boş) ile aynı satır rollback transaction içinde `roster_occupation_codes`'a hatasız upsert edildi (`special_notes = ''`). Panelden onay kullanıcıya bırakıldı.
+- Not: Deploy edildi; commit bir sonraki kayıtla (admin ui=60) birlikte.
+
+## 2026-10-01 — Görev kodu önerisi: onay öncesi inceleme/düzenleme + öneren kişiye teşekkür bildirimi (admin ui=60)
+
+- **Dosyalar:** `supabase/functions/admin-dashboard/index.ts` (`review_occupation_suggestion`), `docs/ADMIN_STATUS_DASHBOARD.html` → `support/admin/index.html` (kopya), `support/index.html` (`adminUi` 59 → 60).
+- **Panel:** «Onayla + yayınla» artık `confirm()` yerine `#occSugEditBackdrop` penceresini açar: kod, havayolu ICAO, kategori, sıra, TR/EN etiket, TR/EN açıklama, kart rengi, takvim işareti, özel not — öneriden dolu gelir (renk/takvim backend ile aynı kategori eşlemesi; kategori değişince ikisi yeniden önerilir, elle değiştirilebilir). Öneren kişi + not gösterilir; aynı kod+havayolu katalogda varsa «üzerine yazar» uyarısı (`occDraftRows`). Gönderimde `overrides` ile onaylanır. Reddet akışı değişmedi.
+- **Backend:** İsteğe bağlı `body.overrides`; kod/kategori/renk/takvim `save_roster_occupation_codes` ile aynı kümelerle doğrulanır (geçersizse 400). Metinler hiçbir zaman null değil (etiket boşsa kod). `overrides` yoksa eski davranış birebir. Yanıttaki `code` düzenlenmiş kod.
+- **Teşekkür bildirimi:** Onay + yayın + öneri `approved` işaretlendikten sonra öneren kullanıcının `device_tokens`'ına Expo push (`profiles.locale` en → İngilizce, aksi Türkçe): «Öneriniz için teşekkürler! — Önerdiğiniz KOD (etiket) görev kodu onaylandı. Görev kodları güncellendi; roster'ınızda artık doğru görünecek.» `data.type = occupation_suggestion_approved` (mobil yalnız `data.url` açar; bu alan yok sayılır). Gönderilirse `user_activity_events` `admin_push` / `source: occupation_suggestion_approved`. Push hatası onayı geri almaz; yanıtta `notified` ve panel durum satırı bunu gösterir. Mobil, ön plana gelince `refreshOccupationCatalog()` ile yeni yayını çeker.
+- **Doğrulama:** `esbuild` OK, panel inline script'leri derleme kontrolü OK, `admin-dashboard` deploy; OPTIONS 200, yetkisiz POST 401. Bekleyen öneriler `ROFP` ve `PTV`: öneren kullanıcıların 1'er push token'ı var (locale tr). Gerçek onay + bildirim uçtan uca henüz denenmedi (panelden ilk onayda görülecek). Panel `app.flyfamapp.com`'a ancak `support/**` main'e push edilince çıkar — henüz push edilmedi; o zamana kadar canlı panel eski `confirm()` akışıyla çalışır (backend geriye uyumlu, eski panelden onayda da teşekkür bildirimi gider).
+- **Koruma:** Katalog editörü, yayın (published_version+1), red akışı, diğer admin push aksiyonları değişmedi.

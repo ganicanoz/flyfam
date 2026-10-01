@@ -13,7 +13,7 @@
   <meta http-equiv="Expires" content="0" />
   <script>
     (function () {
-      var UI = '59';
+      var UI = '60';
       var p = new URLSearchParams(location.search);
       if (p.get('ui') !== UI) {
         p.set('ui', UI);
@@ -843,6 +843,14 @@
     .alert-card ul { margin: 0 0 14px; padding-left: 18px; color: var(--text); font-size: 13px; }
     .alert-card li { margin: 4px 0; }
     .alert-card .alert-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+    .occ-sug-edit { width: min(640px, 100%); max-height: 80vh; overflow: auto; }
+    .occ-sug-edit .alert-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+    .occ-sug-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 12px; }
+    .occ-sug-grid label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
+    .occ-sug-grid label.wide { grid-column: 1 / -1; }
+    .occ-sug-grid input, .occ-sug-grid select, .occ-sug-grid textarea { font: inherit; font-size: 13px; color: var(--text); }
+    .occ-sug-warn { background: #FFF7E6; border: 1px solid #F5C26B; color: #8A5300; border-radius: 8px; padding: 8px 10px; font-size: 12px; margin: 0 0 10px; }
+    @media (max-width: 560px) { .occ-sug-grid { grid-template-columns: 1fr; } }
     .nav-badge {
       display: none;
       min-width: 18px;
@@ -2114,6 +2122,31 @@
         <button type="button" id="btnOccSugAlertOpen" class="btnPrimary">Öneri kuyruğuna git</button>
       </div>
     </div>
+  </div>
+
+  <div id="occSugEditBackdrop" class="overlay-backdrop hidden" aria-hidden="true">
+    <form id="occSugEditForm" class="help-card occ-sug-edit" role="dialog" aria-labelledby="occSugEditTitle" aria-modal="true">
+      <h3 id="occSugEditTitle">Öneriyi incele ve onayla</h3>
+      <p id="occSugEditMeta" class="mini"></p>
+      <p id="occSugEditExisting" class="occ-sug-warn hidden"></p>
+      <div class="occ-sug-grid">
+        <label>Kod<input name="code" required autocomplete="off" /></label>
+        <label>Havayolu ICAO<input name="airline_icao" placeholder="(boş = ortak)" autocomplete="off" /></label>
+        <label>Kategori<select name="category"></select></label>
+        <label>Sıra<input name="sort_order" type="number" step="1" /></label>
+        <label>Etiket (TR)<input name="label_tr" required /></label>
+        <label>Etiket (EN)<input name="label_en" /></label>
+        <label class="wide">Açıklama (TR)<textarea name="description_tr" rows="2"></textarea></label>
+        <label class="wide">Açıklama (EN)<textarea name="description_en" rows="2"></textarea></label>
+        <label>Kart rengi<select name="card_accent"></select></label>
+        <label>Takvim işareti<select name="calendar_mark"></select></label>
+        <label class="wide">Özel not<textarea name="special_notes" rows="2"></textarea></label>
+      </div>
+      <div class="alert-actions" style="margin-top:12px;">
+        <button type="button" id="btnOccSugEditCancel" class="btnSmall">Vazgeç</button>
+        <button type="submit" id="btnOccSugEditApprove" class="btnPrimary">Onayla + yayınla</button>
+      </div>
+    </form>
   </div>
 
   <div id="drawerBackdrop" class="drawer-backdrop hidden" aria-hidden="true"></div>
@@ -3629,6 +3662,7 @@
       if (line) line.textContent = 'Yükleniyor…';
       const json = await callAdminAction('list_occupation_suggestions', { status: st });
       const rows = Array.isArray(json.suggestions) ? json.suggestions : [];
+      occSugRows = rows;
       if (line) line.textContent = rows.length + ' öneri';
       if (!body) return;
       if (!rows.length) {
@@ -3685,20 +3719,145 @@
         .join('');
     }
 
-    async function reviewOccupationSuggestion(id, decision) {
-      const json = await callAdminAction('review_occupation_suggestion', {
-        suggestion_id: id,
-        decision,
-      });
+    async function reviewOccupationSuggestion(id, decision, overrides) {
+      const payload = { suggestion_id: id, decision };
+      if (overrides) payload.overrides = overrides;
+      const json = await callAdminAction('review_occupation_suggestion', payload);
       setStatus(
         decision === 'approve'
-          ? 'Öneri onaylandı + yayın v' + (json.published_version ?? '?')
+          ? 'Öneri onaylandı + yayın v' +
+              (json.published_version ?? '?') +
+              (json.notified ? ' · kullanıcıya teşekkür bildirimi gitti' : ' · bildirim gönderilemedi (push token yok)')
           : 'Öneri reddedildi',
         'ok',
       );
       await loadOccupationSuggestions();
       if (decision === 'approve') await loadOccupationCodes();
       void checkPendingOccupationSuggestions({ mode: 'fresh' });
+    }
+
+    let occSugRows = [];
+    let occSugEditId = null;
+    const OCC_SUG_ACCENT_BY_CAT = {
+      standby: 'standby', off: 'off', leave: 'leave', training: 'training', office: 'office',
+      meeting: 'meeting', simulator: 'simulator', other: 'other', flight: 'flight',
+    };
+    const OCC_SUG_CAL_BY_CAT = {
+      standby: 'standby_bar', off: 'off_bar', leave: 'off_bar', flight: 'flight_dot',
+    };
+
+    function fillOccSugSelect(sel, options, value) {
+      if (!sel) return;
+      sel.innerHTML = options
+        .map((o) => '<option value="' + occEscape(o) + '">' + occEscape(o) + '</option>')
+        .join('');
+      sel.value = options.includes(value) ? value : options[options.length - 1];
+    }
+
+    async function openOccSugEdit(id) {
+      const s = occSugRows.find((r) => String(r.id) === String(id));
+      if (!s) {
+        setStatus('Öneri bulunamadı, listeyi yenileyin.', 'bad');
+        return;
+      }
+      if (!occDraftRows.length) {
+        await loadOccupationCodes().catch(() => {});
+      }
+      const form = document.getElementById('occSugEditForm');
+      const backdrop = document.getElementById('occSugEditBackdrop');
+      if (!form || !backdrop) return;
+      occSugEditId = s.id;
+      const code = String(s.code || '').trim().toUpperCase();
+      const airline = String(s.crew_airline_icao || '').trim().toUpperCase();
+      const category = OCC_CATEGORIES.includes(String(s.category)) ? String(s.category) : 'other';
+      const labelTr = String(s.label_tr || '').trim();
+      const labelEn = String(s.label_en || labelTr).trim();
+      const note = String(s.note || '').trim();
+      const f = form.elements;
+      f.code.value = code;
+      f.airline_icao.value = airline;
+      fillOccSugSelect(f.category, OCC_CATEGORIES, category);
+      f.sort_order.value = '500';
+      f.label_tr.value = labelTr;
+      f.label_en.value = labelEn;
+      f.description_tr.value = note || labelTr;
+      f.description_en.value = note || labelEn || labelTr;
+      fillOccSugSelect(f.card_accent, OCC_ACCENTS, OCC_SUG_ACCENT_BY_CAT[category] || 'other');
+      fillOccSugSelect(f.calendar_mark, OCC_CALS, OCC_SUG_CAL_BY_CAT[category] || 'none');
+      f.special_notes.value = note;
+      const who =
+        (s.user_custom_id ? s.user_custom_id + ' · ' : '') +
+        (s.user_full_name || '-') +
+        (s.user_email ? ' · ' + s.user_email : '');
+      const meta = document.getElementById('occSugEditMeta');
+      if (meta) meta.textContent = 'Öneren: ' + who + (note ? ' — Not: ' + note : '');
+      updateOccSugExistingWarning();
+      backdrop.classList.remove('hidden');
+      backdrop.setAttribute('aria-hidden', 'false');
+      f.code.focus();
+    }
+
+    function updateOccSugExistingWarning() {
+      const form = document.getElementById('occSugEditForm');
+      const warn = document.getElementById('occSugEditExisting');
+      if (!form || !warn) return;
+      const code = String(form.elements.code.value || '').replace(/\s/g, '').toUpperCase();
+      const airline = String(form.elements.airline_icao.value || '').trim().toUpperCase();
+      const hit = occDraftRows.find(
+        (r) =>
+          String(r.code || '').toUpperCase() === code &&
+          String(r.airline_icao || '').toUpperCase() === airline,
+      );
+      if (hit) {
+        warn.textContent =
+          'Bu kod katalogda zaten var (' + (hit.label_tr || hit.code) + ', ' + (hit.category || '-') +
+          '). Onay mevcut kaydın üzerine yazar.';
+        warn.classList.remove('hidden');
+      } else {
+        warn.textContent = '';
+        warn.classList.add('hidden');
+      }
+    }
+
+    function closeOccSugEdit() {
+      occSugEditId = null;
+      const backdrop = document.getElementById('occSugEditBackdrop');
+      if (!backdrop) return;
+      backdrop.classList.add('hidden');
+      backdrop.setAttribute('aria-hidden', 'true');
+    }
+
+    async function submitOccSugEdit() {
+      const form = document.getElementById('occSugEditForm');
+      if (!form || !occSugEditId) return;
+      const f = form.elements;
+      const code = String(f.code.value || '').replace(/\s/g, '').toUpperCase();
+      if (!code) {
+        setStatus('Kod boş olamaz.', 'bad');
+        return;
+      }
+      const sortNum = Number(f.sort_order.value);
+      const overrides = {
+        code,
+        airline_icao: String(f.airline_icao.value || '').trim().toUpperCase(),
+        category: f.category.value,
+        label_tr: String(f.label_tr.value || '').trim(),
+        label_en: String(f.label_en.value || '').trim(),
+        description_tr: String(f.description_tr.value || '').trim(),
+        description_en: String(f.description_en.value || '').trim(),
+        card_accent: f.card_accent.value,
+        calendar_mark: f.calendar_mark.value,
+        special_notes: String(f.special_notes.value || '').trim(),
+        sort_order: Number.isFinite(sortNum) ? Math.floor(sortNum) : 500,
+      };
+      const btn = document.getElementById('btnOccSugEditApprove');
+      if (btn) btn.disabled = true;
+      try {
+        await reviewOccupationSuggestion(occSugEditId, 'approve', overrides);
+        closeOccSugEdit();
+      } finally {
+        if (btn) btn.disabled = false;
+      }
     }
 
     const OCC_SUG_SEEN_KEY = 'flyfam.admin.occSugSeenIds.v1';
@@ -6380,10 +6539,7 @@
       const act = btn.getAttribute('data-action');
       if (!id) return;
       if (act === 'occ-sug-approve') {
-        if (!confirm('Onayla ve yayınla? (' + id.slice(0, 8) + '…)')) return;
-        void reviewOccupationSuggestion(id, 'approve').catch((err) =>
-          setStatus(String(err?.message || err), 'bad'),
-        );
+        void openOccSugEdit(id).catch((err) => setStatus(String(err?.message || err), 'bad'));
       }
       if (act === 'occ-sug-reject') {
         if (!confirm('Reddet?')) return;
@@ -6391,6 +6547,25 @@
           setStatus(String(err?.message || err), 'bad'),
         );
       }
+    });
+    document.getElementById('occSugEditForm')?.addEventListener('submit', (ev) => {
+      ev.preventDefault();
+      void submitOccSugEdit().catch((err) => setStatus(String(err?.message || err), 'bad'));
+    });
+    document.getElementById('btnOccSugEditCancel')?.addEventListener('click', closeOccSugEdit);
+    document.getElementById('occSugEditBackdrop')?.addEventListener('click', (ev) => {
+      if (ev.target === ev.currentTarget) closeOccSugEdit();
+    });
+    document.getElementById('occSugEditForm')?.addEventListener('input', (ev) => {
+      const n = ev.target?.name;
+      if (n === 'code' || n === 'airline_icao') updateOccSugExistingWarning();
+    });
+    document.getElementById('occSugEditForm')?.addEventListener('change', (ev) => {
+      if (ev.target?.name !== 'category') return;
+      const f = ev.currentTarget.elements;
+      const cat = f.category.value;
+      f.card_accent.value = OCC_SUG_ACCENT_BY_CAT[cat] || 'other';
+      f.calendar_mark.value = OCC_SUG_CAL_BY_CAT[cat] || 'none';
     });
     els.btnOccAdd?.addEventListener('click', (ev) => {
       ev.preventDefault();
