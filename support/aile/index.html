@@ -111,6 +111,10 @@
     .debt-form { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
     .debt-form #debtLabel { flex: 1 1 180px; min-width: 0; }
     .fin-row.paid { opacity: .7; }
+    .fin-row.future { opacity: .6; background: #fff; border-style: dashed; }
+    .fin-group + .fin-group { margin-top: 14px; }
+    .fin-gh { font-size: 13px; font-weight: 800; margin: 0 0 6px; }
+    .fin-sum { font-size: 13px; text-align: right; padding: 6px 10px 0; font-variant-numeric: tabular-nums; }
     .debt-amt { font-variant-numeric: tabular-nums; white-space: nowrap; }
     .debt-chip { display: inline-block; font-size: 11px; font-weight: 700; padding: 1px 7px; border-radius: 999px; margin-left: 4px; }
     .debt-chip.late { background: #fee2e2; color: var(--bad); }
@@ -2099,6 +2103,7 @@
     }
     const ciroRow = (x) => {
       const v = st.fin[finKey(x.source, x.period)];
+      if (x.future) return '<div class="fin-row future"><div class="lbl">' + esc(x.label) + '</div><span class="small muted">iş günü bitince girilir</span></div>';
       return '<div class="fin-row' + (v == null ? ' miss' : '') + '" data-ck="' + esc(x.source + '|' + x.period) + '"><div class="lbl">' + esc(x.label) + '</div><span class="fin-in"><input type="text" inputmode="decimal" placeholder="Tutar" value="' + (v != null ? esc(fmtNum(v)) : '') + '" aria-label="Ciro (TL)" />TL' +
         '<button type="button" class="primary" data-cirosave="1">Kaydet</button><button type="button" data-cirozero="1">0 TL</button>' + (x.canDelete && v != null ? '<button type="button" class="ghost" data-cirodel="1" title="Girişi sil">✕</button>' : '') + '</span></div>';
     };
@@ -2234,13 +2239,26 @@
           (debtOn ? '<td class="num">' + minus(r.pay) + '</td><td class="num"><b>' + money(r.net) + '</b></td>' : '') + '</tr>').join('') +
         '</tbody><tfoot><tr><td>Toplam</td><td class="num">' + tl(sum('entered')) + '</td><td class="num">' + tl(sum('proj')) + '</td>' +
         (debtOn ? '<td class="num">' + minus(payM) + '</td><td class="num">' + money(netM) + '</td>' : '') + '</tr></tfoot></table>';
-      const items = [];
-      for (const s of monthly) for (const p of [prevMonthOf(M), M]) if (p < curM) items.push({ source: s, period: p, label: finPlaceName(cfg, s) + ' · ' + monthName(p) + ' cirosu', canDelete: true });
+      const groups = [];
       for (const s of daily) {
-        const days = new Map(dailyDays(cfg, s, M).filter((x) => x.d <= now.ymd).map((x) => [x.d, x.w]));
+        const days = new Map(dailyDays(cfg, s, M).map((x) => [x.d, x.w]));
         for (const x of finRows(s)) if (x.period.length === 10 && x.period.slice(0, 7) === M && !days.has(x.period)) days.set(x.period, null);
-        for (const [d, w] of [...days.entries()].sort((a, b) => a[0].localeCompare(b[0]))) items.push({ source: s, period: d, label: dateLong(d) + ' · ' + (w ? w.name + ' ' + w.start + '–' + w.end : finPlaceName(cfg, s)), canDelete: true });
+        const list = [...days.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([d, w]) => ({ source: s, period: d, label: dateLong(d) + (w ? ' · ' + w.start + '–' + w.end : ''), canDelete: true, future: d > now.ymd && st.fin[finKey(s, d)] == null }));
+        const r = rows.find((x) => x.s === s);
+        const done = list.filter((x) => st.fin[finKey(s, x.period)] != null).length;
+        groups.push({
+          title: finPlaceName(cfg, s) + ' · ' + monthName(M) + ' · ' + list.length + ' gün',
+          list,
+          foot: 'Toplam <b>' + tl(r.entered || 0) + '</b> <span class="muted">(' + done + '/' + list.length + ' gün girildi' + (r.proj != null && done < list.length ? ' · ay sonu tahmini ' + tl(r.proj) : '') + ')</span>',
+        });
       }
+      const mList = [];
+      for (const s of monthly) for (const p of [prevMonthOf(M), M]) if (p < curM) mList.push({ source: s, period: p, label: finPlaceName(cfg, s) + ' · ' + monthName(p), canDelete: true });
+      if (mList.length) {
+        const per = [...new Set(mList.map((x) => x.period))].map((p) => monthName(p) + ' <b>' + tl(mList.filter((x) => x.period === p).reduce((a, x) => a + (st.fin[finKey(x.source, p)] || 0), 0)) + '</b>');
+        groups.push({ title: monthly.map((s) => finPlaceName(cfg, s)).join(', ') + ' · aylık', list: mList, foot: 'Toplam ' + per.join(' · ') });
+      }
+      const groupHtml = groups.map((g) => '<div class="fin-group"><div class="fin-gh">' + esc(g.title) + '</div>' + (g.list.length ? '<div class="fin-rows">' + g.list.map(ciroRow).join('') + '</div>' : '<p class="small muted" style="margin:0;">Bu ay planlı gün yok.</p>') + '<div class="fin-sum">' + g.foot + '</div></div>').join('');
       const months = [];
       for (let m = M, i = 0; i < 6; i += 1, m = prevMonthOf(m)) months.unshift(m);
       const srcs = [...daily, ...monthly];
@@ -2258,7 +2276,7 @@
       const ask = daily.map((s) => finPlaceName(cfg, s)).join(', ') + ': iş günü bitince · ' + monthly.map((s) => finPlaceName(cfg, s)).join(', ') + ': ayın ilk 5 günü önceki ay';
       el.innerHTML =
         '<section class="card"><div class="card-h">💰 ' + esc(monthName(M)) + ' · finansal durum</div>' + tiles + '<div style="margin-top:12px;overflow-x:auto;">' + table + '</div></section>' +
-        '<section class="card"><div class="card-h">✍️ Ciro girişleri</div>' + (items.length ? '<div class="fin-rows">' + items.map(ciroRow).join('') + '</div>' : '<p class="small muted" style="margin:0;">Bu ay için girilecek ciro yok.</p>') + '<p class="small muted" style="margin:8px 0 0;">Sorulur: ' + esc(ask) + '.</p></section>' +
+        '<section class="card"><div class="card-h">✍️ Ciro girişleri</div>' + groupHtml + '<p class="small muted" style="margin:8px 0 0;">Sorulur: ' + esc(ask) + '. Girilen tutar değiştirilip yeniden kaydedilebilir.</p></section>' +
         (debtOn ? debtCard(cfg) : '') +
         '<section class="card"><div class="card-h">📈 Son 6 ay</div><div style="overflow-x:auto;"><table class="t fin"><thead><tr><th>Ay</th>' + srcs.map((s) => '<th class="num">' + esc(finPlaceName(cfg, s)) + '</th>').join('') + '<th class="num">Ciro</th>' + (debtOn ? '<th class="num">Ödeme</th><th class="num">Net</th>' : '') + '</tr></thead><tbody>' + hist +
         '</tbody><tfoot><tr><td>Toplam</td>' + srcs.map(() => '<td></td>').join('') + '<td class="num">' + tl(hc) + '</td>' + (debtOn ? '<td class="num">' + minus(hp) + '</td><td class="num">' + tl(hc - hp) + '</td>' : '') + '</tr></tfoot></table></div></section>' +
