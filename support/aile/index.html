@@ -82,8 +82,37 @@
     #vacList > div { padding: 4px 0; }
     #vacList .past { opacity: .5; }
     .vac-bad { color: var(--bad); }
-    main { max-width: 1180px; margin: 0 auto; padding: 12px; display: grid; gap: 12px; }
-    .card { background: var(--panel); border-radius: var(--radius); border: 1px solid var(--line); padding: 12px; }
+    main { max-width: 1180px; margin: 0 auto; padding: 12px; display: grid; gap: 14px; }
+    .card { background: var(--panel); border-radius: var(--radius); border: 1px solid #d5dde8; padding: 14px; box-shadow: 0 1px 2px rgba(15,23,42,.05), 0 6px 18px rgba(15,23,42,.05); }
+    .card-h { font-weight: 800; font-size: 15px; margin: -2px 0 10px; padding-bottom: 8px; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 8px; }
+    .tabpane { display: grid; gap: 14px; }
+    .tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 5px; border-radius: 14px; background: #e2e8f0; }
+    .tabs button { border: 0; border-radius: 10px; padding: 9px 12px; font-weight: 800; font-size: 15px; background: transparent; color: #475569; }
+    .tabs button.on { background: #fff; color: var(--brand); box-shadow: 0 1px 4px rgba(15,23,42,.12); }
+    .tabs button .dot { display: inline-block; min-width: 18px; padding: 0 5px; margin-left: 6px; border-radius: 999px; background: var(--bad); color: #fff; font-size: 11px; line-height: 18px; }
+    body.embed .tabs { display: none; }
+
+    /* Finans */
+    .fin-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; }
+    .fin-tile { border-radius: 14px; padding: 12px 14px; background: var(--soft); }
+    .fin-tile span { display: block; font-size: 12px; color: var(--muted); font-weight: 600; }
+    .fin-tile b { display: block; font-size: 22px; margin-top: 2px; font-variant-numeric: tabular-nums; }
+    .fin-tile small { display: block; font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+    .fin-tile.main { background: linear-gradient(135deg, #0f766e, #14b8a6); color: #fff; }
+    .fin-tile.main span, .fin-tile.main small { color: rgba(255,255,255,.85); }
+    table.fin td.num, table.fin th.num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+    table.fin tfoot td { font-weight: 800; border-bottom: 0; }
+    .fin-rows { display: grid; gap: 6px; }
+    .fin-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 10px; border-radius: 12px; background: #f8fafc; border: 1px solid var(--line); }
+    .fin-row.miss { background: #fffbeb; border-color: #fde68a; }
+    .fin-row .lbl { flex: 1 1 180px; min-width: 0; font-size: 13px; }
+    .fin-in { display: inline-flex; align-items: center; gap: 6px; }
+    .fin-in input { width: 120px; text-align: right; font-variant-numeric: tabular-nums; }
+    .fin-in input.pct { width: 70px; }
+    .sheet-bg.ciro-bg .sheet { border-top-color: var(--brand); }
+    .ciro-lead { font-size: 17px; font-weight: 800; margin: 0 0 4px; }
+    .who-btns { display: grid; gap: 8px; margin-top: 10px; }
+    .who-btns button { padding: 12px; font-size: 16px; font-weight: 700; }
 
     /* İkonlar ve yıldızlar */
     .ic { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; color: #fff; font-weight: 800; font-size: 12px; flex: none; }
@@ -174,6 +203,7 @@
     @media (prefers-reduced-motion: reduce) { .cell.newconf, .lrow.newconf { animation: none; box-shadow: 0 0 0 3px rgba(220,38,38,.35); } }
     .sheet-bg.conf-bg { z-index: 50; align-items: center; padding: 12px; }
     .sheet-bg.conf-bg .sheet { border-radius: 20px; border-top: 6px solid var(--bad); }
+    .sheet-bg.conf-bg .sheet h3 { text-transform: none; }
     .conf-list { list-style: none; padding: 0; margin: 10px 0; display: grid; gap: 8px; }
     .conf-list li { display: flex; gap: 10px; align-items: center; padding: 8px 10px; border-radius: 12px; background: #fef2f2; border: 1px solid #fecaca; }
     .conf-list li > div { flex: 1; min-width: 0; }
@@ -227,7 +257,7 @@
     body.embed .top { position: static; }
     .modal-img { max-width: 100%; border-radius: 12px; border: 1px solid var(--line); display: block; margin: 8px auto; }
 
-    .cal-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+    .cal-head { display: flex; align-items: center; gap: 8px; }
     .seg-toggle { margin-left: auto; display: inline-flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
     .seg-toggle button { border: 0; border-radius: 0; padding: 6px 12px; background: #fff; }
     .seg-toggle button.on { background: var(--brand); color: #fff; font-weight: 700; }
@@ -316,6 +346,12 @@
       <button type="button" id="bell" class="bell" aria-label="Bildirimler" title="Bildirimler">🔕</button>
     </header>
     <main>
+      <nav class="tabs" id="tabs" role="tablist">
+        <button type="button" role="tab" data-tab="plan">📅 Plan</button>
+        <button type="button" role="tab" data-tab="fin">💰 Finans</button>
+      </nav>
+      <div id="tabFin" class="tabpane" hidden></div>
+      <div id="tabPlan" class="tabpane">
       <section class="card roster-card">
         <div class="rc-head">
           <div class="rc-info">
@@ -348,6 +384,7 @@
       </section>
 
       <section class="card">
+        <div class="card-h">🎯 Hedefler · gün seç, fixle</div>
         <div class="plan" id="goals"></div>
         <div class="actions" id="actionBar" style="margin-top:10px;">
           <button type="button" class="primary" id="btnSuggest">★ Önerileri kutulara koy</button>
@@ -358,8 +395,8 @@
       </section>
 
       <section class="card">
-        <div class="cal-head">
-          <b>Takvim</b>
+        <div class="cal-head card-h">
+          <span>🗓️ Takvim</span>
           <div class="seg-toggle" id="viewToggle">
             <button type="button" data-viewmode="list">☰ Liste</button>
             <button type="button" data-viewmode="grid">▦ Takvim</button>
@@ -374,12 +411,12 @@
       </section>
 
       <section class="card">
-        <div style="font-weight:800;margin-bottom:8px;">Özet · kliniklerle paylaş</div>
+        <div class="card-h">📤 Özet · kliniklerle paylaş</div>
         <div id="summary" class="small muted">—</div>
       </section>
 
       <section class="card">
-        <div style="font-weight:800;margin-bottom:8px;">🏫 Okul yolu · kim bırakır, kim alır · taksi</div>
+        <div class="card-h">🏫 Okul yolu · taksi</div>
         <div id="runs" class="small muted">—</div>
       </section>
 
@@ -393,7 +430,7 @@
       <details class="card">
         <summary>🚗 Ulaşım süreleri (manuel)</summary>
         <div class="inner">
-          <p class="small muted" style="margin-top:0;">Normal / yoğun saat dakikası. Sistem çıkış saatine göre seçer; İstanbul'da yağış varsa süreler otomatik artar.</p>
+          <p class="small muted" style="margin-top:0;">Normal / yoğun saat dakikası; yağışta otomatik artar.</p>
           <div id="travel"></div>
           <div class="row" style="margin-top:10px;">
             <label class="small">Yoğun · hafta içi <input type="text" id="peakWd" placeholder="07:00-10:00, 16:00-20:00" /></label>
@@ -411,7 +448,6 @@
       <details class="card">
         <summary>⚙️ Gelişmiş ayarlar (JSON)</summary>
         <div class="inner">
-          <p class="small muted" style="margin-top:0;">Kişiler, okul, sabit işler, aday klinikler, hedefler. Roster ve fixli seçimler ayrı saklanır.</p>
           <textarea id="cfg" class="cfg" spellcheck="false"></textarea>
           <div class="row" style="margin-top:8px;">
             <button type="button" class="primary" id="cfgSave">Kaydet</button>
@@ -420,6 +456,7 @@
           </div>
         </div>
       </details>
+      </div>
 
       <div class="row small muted" style="justify-content:space-between;">
         <span id="status"></span>
@@ -430,6 +467,7 @@
 
   <div id="sheet" class="sheet-bg" hidden></div>
   <div id="confAlert" class="sheet-bg conf-bg" hidden></div>
+  <div id="ciroAlert" class="sheet-bg conf-bg ciro-bg" hidden></div>
 
   <script>
     'use strict';
@@ -444,6 +482,9 @@
     const REFRESH_MS = 60 * 1000;
     const DEVICE_KEY = 'flyfam_family_plan_device_v1';
     const CONF_KEY = 'flyfam_family_plan_conf_v1';
+    const PERSON_KEY = 'flyfam_family_plan_person_v1';
+    const TAB_KEY = 'flyfam_family_plan_tab_v1';
+    const CIRO_SNOOZE_KEY = 'flyfam_family_plan_ciro_snooze_v1';
     const WX_URL = 'https://api.open-meteo.com/v1/forecast?latitude=41.01&longitude=29.03&timezone=Europe%2FIstanbul&forecast_days=16' +
       '&current=temperature_2m,precipitation,weather_code&hourly=precipitation,precipitation_probability&daily=weather_code,temperature_2m_max,precipitation_sum,precipitation_probability_max';
 
@@ -486,9 +527,10 @@
       goals: {},
       vacations: [],
       taxi: { tariff: 'İstanbul sarı taksi, 20.07.2026', open: 71.94, perKm: 47.92, perMin: 9.98, minFare: 230, freeKmh: 25 },
+      finance: { daily: [], monthly: [], share: {}, since: '' },
     };
 
-    const st = { month: null, data: null, full: {}, config: null, draft: {}, draftDirty: false, travelDirty: false, cfgDirty: false, wx: null, openDay: null, activeGroup: null, viewMode: (() => { try { return localStorage.getItem('flyfam_family_plan_view_v1'); } catch (_) { return null; } })(), bearer: null, via: null, summaryGroups: [], newConf: new Set(), lastRes: null };
+    const st = { month: null, data: null, full: {}, config: null, draft: {}, draftDirty: false, travelDirty: false, cfgDirty: false, wx: null, openDay: null, activeGroup: null, viewMode: (() => { try { return localStorage.getItem('flyfam_family_plan_view_v1'); } catch (_) { return null; } })(), bearer: null, via: null, summaryGroups: [], newConf: new Set(), lastRes: null, fin: {}, tab: 'plan', ciroForce: false };
 
     // ---------- yardımcılar ----------
     const $ = (id) => document.getElementById(id);
@@ -890,8 +932,8 @@
         '<table class="t runs"><thead><tr><th>Gün</th><th>↓ Bırakma</th><th>↑ Alma</th><th class="num">🚕 Taksi</th></tr></thead><tbody>' + rows + '</tbody>' +
         '<tfoot><tr><td colspan="3">Ay sonu taksi toplamı (' + rides + ' yolculuk)</td><td class="num"><b>~' + tl(total) + '</b></td></tr></tfoot></table>' +
         '<div class="run-sum"><span>↓ Bırakma: ' + counts('drop') + '</span><span>↑ Alma: ' + counts('pick') + '</span></div>' +
-        '<p class="small muted" style="margin:6px 0 0;">Ailece = ' + esc(P.crew || 'Crew') + ' ve ' + esc(P.partner || 'Eş') + ' ikisi de müsait. ' + esc(P.crew || 'Crew') + ' nöbet/rezervde müsait sayılır. Taksi yalnız ' + esc(P.partner || 'Eş') + ' tek başına yaptığında: ' + esc(routes.join('; ') || 'güzergâh girilmedi') +
-        '. İstanbul sarı taksi tarifesi' + (tx.tariff ? ' (' + esc(tx.tariff) + ')' : '') + ': açılış ' + tl2(tx.open) + ', km ' + tl2(tx.perKm) + ', trafikte dakika ' + tl2(tx.perMin) + ', en az ' + tl2(tx.minFare) + '. Yoğun saat/yağışta bekleme eklenir; tahmini.</p>';
+        '<p class="small muted" style="margin:6px 0 0;">Ailece = ikisi de müsait (' + esc(P.crew || 'Crew') + ' nöbette de müsait sayılır). 🚕 yalnız ' + esc(P.partner || 'Eş') + ' tek başınayken: ' + esc(routes.join('; ') || 'güzergâh yok') +
+        ' · tarife: açılış ' + tl2(tx.open) + ', km ' + tl2(tx.perKm) + ', dk ' + tl2(tx.perMin) + ', en az ' + tl2(tx.minFare) + ' (tahmini).</p>';
     }
     const tl2 = (n) => Number(n || 0).toLocaleString('tr-TR', { minimumFractionDigits: 0, maximumFractionDigits: 2 }) + ' ₺';
 
@@ -1199,6 +1241,7 @@
       renderLegend(cfg);
       renderSummary(res);
       renderRuns(res);
+      renderFinance(res);
       renderFrame(cfg, res.claims);
       renderTravel(cfg);
       renderVacations(cfg, res);
@@ -1311,7 +1354,7 @@
       const conf = inMonth.filter((d) => d.conflict).length;
       if (conf) extra.push('<span class="goal" style="background:#fee2e2;color:#991b1b;">⚠ <b>' + conf + '</b> çakışma</span>');
       $('goals').innerHTML = html + (extra.length ? '<div class="goals">' + extra.join('') + '</div>' : '') +
-        '<div class="small muted">Önerilen günler <span class="chip rec demo"><i>öneri</i></span> ile işaretli. Günü kutuya sürükle-bırak, dokun ya da boş kutuya dokunup takvimden seç; sonra «✓ Fixle».</div>';
+        '<div class="small muted"><span class="chip rec demo"><i>öneri</i></span> önerilen gün · kutuya sürükle ya da dokun, sonra «✓ Fixle».</div>';
     }
     function addToGroup(gi, ymd, replaceYmd) {
       const res = compute();
@@ -1424,7 +1467,7 @@
         return '<div class="sum"><header style="background:' + g.meta.color + '">' + '<span class="ic" style="background:rgba(255,255,255,.25)">' + esc(g.meta.icon) + '</span><b>' + esc(g.label) + '</b><span>' + g.items.length + ' gün · ' + String(g.hours).replace('.', ',') + ' sa</span></header><ul>' +
           g.items.map((x) => '<li class="' + x.warn + '"><span>' + esc(dateLong(x.ymd)) + '</span><span class="tv">' +
             (x.plan ? timeInputs(x.ymd, x.plan) + (x.plan.edited ? '<button type="button" class="ghost mini" data-timereset="' + esc(x.ymd + '|' + x.plan.cand) + '" title="Varsayılan ' + fmt(x.plan.def.s) + '–' + fmt(x.plan.def.e) + '">↺</button>' : '') : fmt(x.s) + '–' + fmt(x.e) + ' <span class="muted">(sabit)</span>') + '</span></li>').join('') +
-          '</ul>' + (g.items.some((x) => x.plan) ? '<p class="small muted" style="margin:0;padding:0 12px;">Saatler varsayılan; göndermeden önce değiştirebilirsin, sonra «✓ Fixle». ↺ varsayılana döner.</p>' : '') + '<footer><button type="button" class="wa" data-share="' + gi + '">WhatsApp ile gönder</button><button type="button" data-img="' + gi + '">🖼 Resim</button><button type="button" data-copy="' + gi + '">Kopyala</button></footer></div>';
+          '</ul><footer><button type="button" class="wa" data-share="' + gi + '">WhatsApp ile gönder</button><button type="button" data-img="' + gi + '">🖼 Resim</button><button type="button" data-copy="' + gi + '">Kopyala</button></footer></div>';
       }).join('') + '</div>';
       $('summary').innerHTML = html;
     }
@@ -1674,6 +1717,7 @@
     }
     function applyData(j) {
       st.data = j;
+      rebuildFin();
       st.via = j.via;
       const server = j.config && typeof j.config === 'object' && !Array.isArray(j.config) ? j.config : null;
       if (!st.cfgDirty && !st.travelDirty) st.full = server ? { ...server } : { ...DEFAULT_CONFIG };
@@ -1719,6 +1763,7 @@
       st.sig = sig;
       if (changed) renderNet('güncellendi ' + new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }));
       checkNewConflicts();
+      checkCiro();
     }
     function renderIcons() {
       const cfg = st.config;
@@ -1808,7 +1853,8 @@
       let sub = await reg.pushManager.getSubscription();
       if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(publicKey) });
       const label = isIos() ? 'iPhone/iPad' : /Android/.test(navigator.userAgent) ? 'Android' : 'Tarayıcı';
-      await api('push_subscribe', { subscription: sub.toJSON(), device_id: deviceId(), label });
+      const person = devicePerson();
+      await api('push_subscribe', { subscription: sub.toJSON(), device_id: deviceId(), label, person: person === 'crew' || person === 'partner' ? person : null });
     }
     async function pushOff() {
       const sub = await currentSub();
@@ -1826,7 +1872,8 @@
       } else {
         const C = esc((st.config && st.config.people && st.config.people.crew) || 'Crew');
         body = '<p>' + (on ? '✅ Bu cihazda bildirimler <b>açık</b>.' : 'Bu cihazda bildirimler kapalı.') + '</p>' +
-          '<ul class="push-list"><li>📅 Plan fixlenince / saat değişince (değişikliği yapan cihaza gelmez)</li><li>⏰ Akşam 20:00: yarın iş varsa hatırlatma</li><li>✈️ Roster (' + C + ') plan günlerinde değişirse, yeni PDF yüklenince</li><li>☔ Sabah: iş günü yağış bekleniyorsa</li><li>🏖️ Tatilden 1 hafta önce, tatil eklenince</li></ul>' +
+          '<ul class="push-list"><li>📅 Plan fixlenince / saat değişince (değişikliği yapan cihaza gelmez)</li><li>⏰ Akşam 20:00: yarın iş varsa hatırlatma</li><li>✈️ Roster (' + C + ') plan günlerinde değişirse, yeni PDF yüklenince</li><li>☔ Sabah: iş günü yağış bekleniyorsa</li><li>🏖️ Tatilden 1 hafta önce, tatil eklenince</li>' +
+          (finOn() ? '<li>💰 Ciro hatırlatması (yalnız ' + esc((st.config.people || {}).partner || 'Eş') + ' seçili cihaz)</li>' : '') + '</ul>' +
           (Notification.permission === 'denied' ? '<p class="dirty small">Bildirim izni reddedilmiş; telefon ayarlarından bu uygulamaya izin ver.</p>' : '') +
           '<div class="row">' + (on ? '<button type="button" data-push="test">Deneme bildirimi</button><button type="button" data-push="off">Kapat</button>' : '<button type="button" class="primary" data-push="on">🔔 Bildirimleri aç</button>') + '</div>';
       }
@@ -1886,12 +1933,254 @@
       st.confPending = null;
       $('confAlert').hidden = true;
       $('confAlert').innerHTML = '';
+      checkCiro();
     }
     function goToDay(ymd) {
       const el = [...document.querySelectorAll('#grid [data-day="' + ymd + '"], #list [data-day="' + ymd + '"]')].find((x) => x.offsetParent);
       if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
+    // ---------- finans ----------
+    const finCfg = () => (st.config && st.config.finance) || {};
+    const finKey = (s, p) => s + '|' + p;
+    const finRows = (s) => ((st.data && st.data.finance) || []).filter((r) => r.source === s).map((r) => ({ period: String(r.period), amount: Number(r.amount) }));
+    function rebuildFin() { st.fin = {}; for (const r of (st.data && st.data.finance) || []) st.fin[finKey(r.source, r.period)] = Number(r.amount); }
+    function nowLocal() { const a = absOf(new Date().toISOString(), (st.config && st.config.timezone) || 'Europe/Istanbul'); return { ymd: ymdOf(Math.floor(a / 1440)), min: a % 1440 }; }
+    const prevMonthOf = (m) => { const [y, mo] = m.split('-').map(Number); return new Date(Date.UTC(y, mo - 2, 1)).toISOString().slice(0, 7); };
+    const monthDays = (m) => { const out = []; for (let d = m + '-01'; d.slice(0, 7) === m; d = addDays(d, 1)) out.push(d); return out; };
+    const fmtNum = (n) => Number(n).toLocaleString('tr-TR', { maximumFractionDigits: 2 });
+    function finPlaceName(cfg, place) {
+      const c = [...(cfg.partnerCandidates || []), ...(cfg.partnerFixed || [])].find((x) => x && String(x.place || x.id) === place);
+      return (c && (c.short || c.label)) || placeLabel(cfg, place);
+    }
+    /** Fixlenmiş seçimler + sabit işler (taslak değil); tatil ve tam gün resmi tatil hariç. */
+    function savedWorks(cfg, ymd) {
+      const day = dayBase(cfg, ymd);
+      if (day.vac) return [];
+      const out = [];
+      for (const p of picksOf(((st.full.plans || {})[ymd.slice(0, 7)] || {})[ymd])) {
+        const c = (cfg.partnerCandidates || []).find((x, i) => String(x.id || 'c' + i) === p.cand);
+        out.push({ place: p.place || (c && c.place) || p.cand, name: p.short || (c && (c.short || c.label)) || p.cand, start: p.start, end: p.end });
+      }
+      for (const f of cfg.partnerFixed || []) {
+        if (day.holFull && f.skipPublicHolidays !== false) continue;
+        if (fixedApplies(f, ymd, day.wd)) out.push({ place: f.place, name: f.short || f.label || f.place, start: f.start, end: f.end });
+      }
+      return out;
+    }
+    const dailyDays = (cfg, src, month) => monthDays(month).map((d) => ({ d, w: savedWorks(cfg, d).find((x) => x.place === src) })).filter((x) => x.w);
+    /** Sorulacak cirolar: günlük kaynakta iş bitince (son 31 gün, başlangıç tarihinden), aylık kaynakta ayın 1–5'i önceki ay. */
+    function pendingCiro() {
+      const cfg = st.config;
+      if (!cfg) return [];
+      const fin = finCfg();
+      const daily = (fin.daily || []).map(String), monthly = (fin.monthly || []).map(String);
+      const { ymd: today, min } = nowLocal();
+      const out = [];
+      const seen = new Set();
+      const from = [fin.since || today, addDays(today, -31)].sort()[1];
+      for (let d = from; d <= today; d = addDays(d, 1)) for (const w of savedWorks(cfg, d)) {
+        const k = finKey(w.place, d);
+        if (!daily.includes(w.place) || st.fin[k] != null || seen.has(k) || (d === today && min < hm(w.end))) continue;
+        seen.add(k);
+        out.push({ source: w.place, period: d, today: d === today, label: (d === today ? 'Bugün' : dateLong(d)) + ' · ' + w.name + ' ' + w.start + '–' + w.end });
+      }
+      if (Number(today.slice(8, 10)) <= 5) {
+        const prev = prevMonthOf(today.slice(0, 7));
+        for (const s of monthly) if (st.fin[finKey(s, prev)] == null) out.push({ source: s, period: prev, label: finPlaceName(cfg, s) + ' · ' + monthName(prev) + ' cirosu' });
+      }
+      return out;
+    }
+    function parseTL(v) {
+      let s = String(v || '').replace(/\s|₺|TL/gi, '');
+      if (!s) return NaN;
+      if (s.includes(',')) s = s.replace(/\./g, '').replace(',', '.');
+      else if (/^\d{1,3}(\.\d{3})+$/.test(s)) s = s.replace(/\./g, '');
+      return /^\d+(\.\d{1,2})?$/.test(s) ? Number(s) : NaN;
+    }
+    async function saveCiro(source, period, amount) {
+      const r = await api('finance_set', { source, period, amount, device_id: deviceId() });
+      const list = ((st.data && st.data.finance) || []).filter((x) => !(x.source === source && x.period === period));
+      if (r.row) list.push(r.row);
+      st.data.finance = list;
+      rebuildFin();
+      saveCache(st.month, st.data);
+    }
+    const ciroRow = (x) => {
+      const v = st.fin[finKey(x.source, x.period)];
+      return '<div class="fin-row' + (v == null ? ' miss' : '') + '" data-ck="' + esc(x.source + '|' + x.period) + '"><div class="lbl">' + esc(x.label) + '</div><span class="fin-in"><input type="text" inputmode="decimal" placeholder="Tutar" value="' + (v != null ? esc(fmtNum(v)) : '') + '" aria-label="Ciro (TL)" />TL' +
+        '<button type="button" class="primary" data-cirosave="1">Kaydet</button><button type="button" data-cirozero="1">0 TL</button>' + (x.canDelete && v != null ? '<button type="button" class="ghost" data-cirodel="1" title="Girişi sil">✕</button>' : '') + '</span></div>';
+    };
+    function devicePerson() { try { return localStorage.getItem(PERSON_KEY) || ''; } catch (_) { return ''; } }
+    const finOn = () => (finCfg().daily || []).length + (finCfg().monthly || []).length > 0;
+    function askPerson(force) {
+      if (!st.config || !finOn() || document.body.classList.contains('embed') || (!force && (devicePerson() || st.personAsked))) return false;
+      st.personAsked = true;
+      const P = st.config.people || {};
+      $('ciroAlert').innerHTML = '<div class="sheet"><h3><span>👋 Bu cihazı kim kullanıyor?</span></h3><p class="small muted" style="margin:0;">Ciro soruları yalnız <b>' + esc(P.partner || 'Eş') + '</b> seçilen cihazda çıkar. Finans sekmesinden değiştirilebilir.</p>' +
+        '<div class="who-btns"><button type="button" class="primary" data-person="partner">' + esc(P.partner || 'Eş') + '</button><button type="button" data-person="crew">' + esc(P.crew || 'Crew') + '</button><button type="button" class="ghost" data-person="none">Ortak cihaz / diğer</button></div></div>';
+      $('ciroAlert').hidden = false;
+      return true;
+    }
+    function setPerson(p) {
+      try { localStorage.setItem(PERSON_KEY, p); } catch (_) { /* yok say */ }
+      closeCiro();
+      api('push_person', { device_id: deviceId(), person: p === 'none' ? null : p }).catch(() => { /* abonelik yoksa önemsiz */ });
+      render();
+      checkCiro();
+    }
+    function checkCiro(force) {
+      if (!st.config || st.offline || $('app').hidden || !$('confAlert').hidden || !$('ciroAlert').hidden) return;
+      if (askPerson()) return;
+      if (devicePerson() !== 'partner') return;
+      let snooze = 0;
+      try { snooze = Number(localStorage.getItem(CIRO_SNOOZE_KEY) || 0); } catch (_) { snooze = 0; }
+      if (!force && !st.ciroForce && Date.now() < snooze) return;
+      st.ciroForce = false;
+      const items = pendingCiro();
+      if (!items.length) return;
+      $('ciroAlert').innerHTML = '<div class="sheet" role="dialog" aria-labelledby="ciroTitle"><h3><span>💰 Ciro</span><button type="button" class="ghost" data-cirolater="1" aria-label="Kapat">✕</button></h3>' +
+        '<p class="ciro-lead" id="ciroTitle">' + (items.some((x) => x.today) ? 'Bugünkü ciro bilgisini girer misin?' : 'Ciro bilgisini girer misin?') + '</p><p class="small muted" style="margin:0 0 10px;">Tutarı yaz ya da 0 TL seç.</p>' +
+        '<div class="fin-rows">' + items.map(ciroRow).join('') + '</div><div class="row" style="margin-top:12px;"><button type="button" class="ghost" data-cirolater="1">Sonra hatırlat</button></div></div>';
+      $('ciroAlert').hidden = false;
+    }
+    function closeCiro() { $('ciroAlert').hidden = true; $('ciroAlert').innerHTML = ''; }
+    function snoozeCiro() { try { localStorage.setItem(CIRO_SNOOZE_KEY, String(Date.now() + 2 * 3600 * 1000)); } catch (_) { /* yok say */ } closeCiro(); }
+    function rowMsg(row, t) {
+      let m = row.querySelector('.fin-msg');
+      if (!m) { m = document.createElement('div'); m.className = 'fin-msg small dirty'; m.style.flexBasis = '100%'; row.appendChild(m); }
+      m.textContent = t;
+    }
+    /** Ciro satırı düğmeleri (açılır pencere ve Finans sekmesi ortak). */
+    async function onCiroClick(e, inPopup) {
+      const row = e.target.closest('[data-ck]');
+      const zero = e.target.closest('[data-cirozero]'), save = e.target.closest('[data-cirosave]'), del = e.target.closest('[data-cirodel]');
+      if (!row || (!zero && !save && !del)) return;
+      const [source, period] = row.getAttribute('data-ck').split('|');
+      const inp = row.querySelector('input');
+      const amount = del ? null : zero ? 0 : parseTL(inp.value);
+      if (amount !== null && !Number.isFinite(amount)) { rowMsg(row, 'Geçerli bir tutar yaz (ör. 12.500)'); inp.focus(); return; }
+      if (del && !confirm('Bu ciro girişi silinsin mi?')) return;
+      row.querySelectorAll('button').forEach((b) => { b.disabled = true; });
+      try { await saveCiro(source, period, amount); } catch (err) { rowMsg(row, String(err.message || err)); row.querySelectorAll('button').forEach((b) => { b.disabled = false; }); return; }
+      if (inPopup) {
+        row.remove();
+        if (!$('ciroAlert').querySelector('[data-ck]')) { $('ciroAlert').querySelector('.fin-rows').innerHTML = '<p class="ciro-lead" style="color:var(--ok);">Teşekkürler ✓</p>'; setTimeout(closeCiro, 1200); }
+      }
+      render();
+    }
+    function setTab(t) {
+      st.tab = t === 'fin' ? 'fin' : 'plan';
+      try { localStorage.setItem(TAB_KEY, st.tab); } catch (_) { /* yok say */ }
+      applyTab();
+      if (st.lastRes) renderFinance(st.lastRes);
+      window.scrollTo(0, 0);
+    }
+    function applyTab() {
+      $('tabPlan').hidden = st.tab !== 'plan';
+      $('tabFin').hidden = st.tab !== 'fin';
+      document.querySelectorAll('[data-tab]').forEach((b) => b.classList.toggle('on', b.getAttribute('data-tab') === st.tab));
+    }
+    function renderFinance(res) {
+      const n = devicePerson() === 'partner' ? pendingCiro().length : 0;
+      document.querySelector('[data-tab="fin"]').innerHTML = '💰 Finans' + (n ? '<span class="dot">' + n + '</span>' : '');
+      const el = $('tabFin');
+      if (st.tab !== 'fin' || (el.contains(document.activeElement) && document.activeElement.tagName === 'INPUT')) return;
+      const cfg = res.cfg;
+      const fin = finCfg();
+      const P = cfg.people || {};
+      const PA = P.partner || 'Eş';
+      const M = st.month;
+      const now = nowLocal();
+      const curM = now.ymd.slice(0, 7);
+      const daily = (fin.daily || []).map(String), monthly = (fin.monthly || []).map(String);
+      if (!daily.length && !monthly.length) { el.innerHTML = '<section class="card"><div class="card-h">💰 Finans</div><p class="small muted">Finans kaynakları ayarlı değil.</p></section>'; return; }
+      const share = fin.share || {};
+      const rateOf = (s) => (share[s] === '' || share[s] == null || !Number.isFinite(Number(share[s])) ? null : Number(share[s]));
+      const ciroOf = (s, m) => {
+        if (monthly.includes(s)) return st.fin[finKey(s, m)] ?? null;
+        const ent = finRows(s).filter((x) => x.period.length === 10 && x.period.slice(0, 7) === m);
+        return ent.length ? ent.reduce((a, x) => a + x.amount, 0) : null;
+      };
+      const rows = [...daily.map((s) => ({ s, mode: 'daily' })), ...monthly.map((s) => ({ s, mode: 'monthly' }))].map((r) => {
+        r.name = finPlaceName(cfg, r.s);
+        if (r.mode === 'daily') {
+          const days = dailyDays(cfg, r.s, M);
+          const ent = finRows(r.s).filter((x) => x.period.length === 10 && x.period.slice(0, 7) === M);
+          const entered = ent.reduce((a, x) => a + x.amount, 0);
+          const done = new Set(ent.map((x) => x.period));
+          const open = days.filter((x) => !done.has(x.d)).length;
+          const pool = ent.length ? ent : finRows(r.s).filter((x) => x.period.length === 10 && x.period >= addDays(now.ymd, -120));
+          const avg = pool.length ? pool.reduce((a, x) => a + x.amount, 0) / pool.length : null;
+          r.entered = ent.length ? entered : null;
+          r.proj = !open ? r.entered : avg == null ? null : entered + avg * open;
+          r.note = done.size + '/' + days.length + ' gün girildi' + (open && avg != null ? ' · kalan ' + open + ' gün × ~' + tl(avg) : open ? ' · ortalama için veri yok' : '');
+        } else {
+          const v = st.fin[finKey(r.s, M)];
+          const prevs = [];
+          for (let m = prevMonthOf(M), i = 0; i < 3; i += 1, m = prevMonthOf(m)) if (st.fin[finKey(r.s, m)] != null) prevs.push(st.fin[finKey(r.s, m)]);
+          const avg = prevs.length ? prevs.reduce((a, b) => a + b, 0) / prevs.length : null;
+          r.entered = v ?? null;
+          r.proj = v != null ? v : avg;
+          r.note = v != null ? 'girildi' : (M < curM ? 'girilmedi' : 'ay bitince sorulur') + (avg != null ? ' · tahmin son ' + prevs.length + ' ay ort.' : '');
+        }
+        r.rate = rateOf(r.s);
+        r.income = r.proj != null && r.rate != null ? r.proj * r.rate / 100 : null;
+        return r;
+      });
+      const sum = (k) => rows.reduce((a, r) => a + (r[k] || 0), 0);
+      const noRate = rows.filter((r) => r.rate == null).map((r) => r.name);
+      const money = (v) => (v == null ? '<span class="muted">—</span>' : tl(v));
+      const tiles = '<div class="fin-tiles"><div class="fin-tile main"><span>Tahmini gelir · ' + esc(PA) + '</span><b>' + (rows.some((r) => r.income != null) ? tl(sum('income')) : '—') + '</b><small>' +
+        (noRate.length ? 'pay oranı yok: ' + esc(noRate.join(', ')) : 'pay oranlarıyla, ay sonu tahmini') + '</small></div>' +
+        '<div class="fin-tile"><span>Tahmini ay sonu ciro</span><b>' + tl(sum('proj')) + '</b><small>girilen + kalan günler tahmini</small></div>' +
+        '<div class="fin-tile"><span>Girilen ciro</span><b>' + tl(sum('entered')) + '</b><small>' + esc(monthName(M)) + '</small></div></div>';
+      const table = '<table class="t fin"><thead><tr><th>Yer</th><th class="num">Girilen</th><th class="num">Tahmin</th><th class="num">Pay</th><th class="num">Gelir</th></tr></thead><tbody>' +
+        rows.map((r) => '<tr><td><b>' + esc(r.name) + '</b> <span class="muted small">' + (r.mode === 'daily' ? 'günlük' : 'aylık') + '</span><div class="small muted">' + esc(r.note) + '</div></td><td class="num">' + money(r.entered) + '</td><td class="num">' + money(r.proj) + '</td><td class="num">' + (r.rate == null ? '<span class="muted">—</span>' : '%' + fmtNum(r.rate)) + '</td><td class="num">' + money(r.income) + '</td></tr>').join('') +
+        '</tbody><tfoot><tr><td>Toplam</td><td class="num">' + tl(sum('entered')) + '</td><td class="num">' + tl(sum('proj')) + '</td><td></td><td class="num">' + (rows.some((r) => r.income != null) ? tl(sum('income')) : '—') + '</td></tr></tfoot></table>';
+      const items = [];
+      for (const s of monthly) for (const p of [prevMonthOf(M), M]) if (p < curM) items.push({ source: s, period: p, label: finPlaceName(cfg, s) + ' · ' + monthName(p) + ' cirosu', canDelete: true });
+      for (const s of daily) {
+        const days = new Map(dailyDays(cfg, s, M).filter((x) => x.d <= now.ymd).map((x) => [x.d, x.w]));
+        for (const x of finRows(s)) if (x.period.length === 10 && x.period.slice(0, 7) === M && !days.has(x.period)) days.set(x.period, null);
+        for (const [d, w] of [...days.entries()].sort((a, b) => a[0].localeCompare(b[0]))) items.push({ source: s, period: d, label: dateLong(d) + ' · ' + (w ? w.name + ' ' + w.start + '–' + w.end : finPlaceName(cfg, s)), canDelete: true });
+      }
+      const months = [];
+      for (let m = M, i = 0; i < 6; i += 1, m = prevMonthOf(m)) months.unshift(m);
+      const srcs = [...daily, ...monthly];
+      let hc = 0, hi = 0;
+      const hist = months.map((m) => {
+        let c = 0, inc = 0, any = false;
+        const cells = srcs.map((s) => { const v = ciroOf(s, m); if (v != null) { any = true; c += v; if (rateOf(s) != null) inc += v * rateOf(s) / 100; } return '<td class="num">' + money(v) + '</td>'; }).join('');
+        hc += c; hi += inc;
+        return '<tr><td>' + esc(monthName(m)) + '</td>' + cells + '<td class="num"><b>' + (any ? tl(c) : '—') + '</b></td><td class="num">' + (any && srcs.some((s) => rateOf(s) != null) ? tl(inc) : '—') + '</td></tr>';
+      }).join('');
+      const who = devicePerson();
+      const whoName = who === 'partner' ? PA : who === 'crew' ? P.crew || 'Crew' : who === 'none' ? 'ortak cihaz' : 'seçilmedi';
+      const ask = daily.map((s) => finPlaceName(cfg, s)).join(', ') + ': iş günü bitince · ' + monthly.map((s) => finPlaceName(cfg, s)).join(', ') + ': ayın ilk 5 günü önceki ay';
+      el.innerHTML =
+        '<section class="card"><div class="card-h">💰 ' + esc(monthName(M)) + ' · finansal durum</div>' + tiles + '<div style="margin-top:12px;overflow-x:auto;">' + table + '</div></section>' +
+        '<section class="card"><div class="card-h">✍️ Ciro girişleri</div>' + (items.length ? '<div class="fin-rows">' + items.map(ciroRow).join('') + '</div>' : '<p class="small muted" style="margin:0;">Bu ay için girilecek ciro yok.</p>') + '<p class="small muted" style="margin:8px 0 0;">Sorulur: ' + esc(ask) + '.</p></section>' +
+        '<section class="card"><div class="card-h">📈 Son 6 ay</div><div style="overflow-x:auto;"><table class="t fin"><thead><tr><th>Ay</th>' + srcs.map((s) => '<th class="num">' + esc(finPlaceName(cfg, s)) + '</th>').join('') + '<th class="num">Ciro</th><th class="num">Gelir</th></tr></thead><tbody>' + hist +
+        '</tbody><tfoot><tr><td>Toplam</td>' + srcs.map(() => '<td></td>').join('') + '<td class="num">' + tl(hc) + '</td><td class="num">' + tl(hi) + '</td></tr></tfoot></table></div></section>' +
+        '<section class="card"><div class="card-h">⚙️ Pay oranları · bu cihaz</div><div class="fin-rows">' + srcs.map((s) => '<div class="fin-row"><div class="lbl"><b>' + esc(finPlaceName(cfg, s)) + '</b> · ' + esc(PA) + ' payı</div><span class="fin-in">%<input type="text" inputmode="decimal" class="pct" data-share="' + esc(s) + '" value="' + (rateOf(s) == null ? '' : esc(fmtNum(rateOf(s)))) + '" placeholder="—" /></span></div>').join('') + '</div>' +
+        '<div class="row" style="margin-top:8px;"><button type="button" class="primary" data-finshare="1">Oranları kaydet</button><span id="finStatus" class="small muted"></span></div>' +
+        '<p class="small" style="margin:12px 0 0;">Bu cihaz: <b>' + esc(whoName) + '</b>' + (who === 'partner' ? ' · ciro soruları burada çıkar' : '') + ' <button type="button" class="ghost mini" data-personreset="1">değiştir</button></p></section>';
+    }
+    async function saveShares() {
+      const share = {};
+      for (const inp of document.querySelectorAll('[data-share]')) {
+        const raw = inp.value.trim();
+        if (!raw) continue;
+        const v = parseTL(raw);
+        if (!Number.isFinite(v) || v > 100) { $('finStatus').textContent = 'Oran 0–100 arası olmalı'; inp.focus(); return; }
+        share[inp.getAttribute('data-share')] = v;
+      }
+      st.full.finance = { ...(st.full.finance || {}), share };
+      rebuildConfig();
+      if (await persist('finStatus', 'Kaydedildi ✓')) { document.activeElement && document.activeElement.blur(); render(); }
+    }
     function openFromUrl(u) {
+      if (/[?&]ciro=1/.test(u || '')) { st.ciroForce = true; checkCiro(true); }
       const m = /[?&]month=(\d{4}-\d{2})/.exec(u || '');
       if (!m || m[1] === st.month || (st.draftDirty && !confirm('Fixlenmemiş seçimler var. Ay değiştirilsin mi?'))) return;
       st.month = m[1]; st.draftDirty = false; st.activeGroup = null; closeDay(); load();
@@ -1966,7 +2255,7 @@
       if (pin.length === 4) submitPin();
     });
     document.addEventListener('keydown', (e) => {
-      if ($('gate').hidden) { if (e.key === 'Escape') { closeConfAlert(); closeDay(); if (st.activeGroup != null) { st.activeGroup = null; render(); } } return; }
+      if ($('gate').hidden) { if (e.key === 'Escape') { if (!$('ciroAlert').hidden && $('ciroAlert').querySelector('[data-cirolater]')) snoozeCiro(); closeConfAlert(); closeDay(); if (st.activeGroup != null) { st.activeGroup = null; render(); } } return; }
       if (/^\d$/.test(e.key) && pin.length < 4) { pin += e.key; paintDots(); if (pin.length === 4) submitPin(); }
       else if (e.key === 'Backspace') { pin = pin.slice(0, -1); paintDots(); }
     });
@@ -2023,6 +2312,23 @@
       if (e.target === $('confAlert') || e.target.closest('[data-confok]')) closeConfAlert();
     });
     $('runs').addEventListener('click', (e) => { const r = e.target.closest('[data-runday]'); if (r) openDay(r.getAttribute('data-runday')); });
+    $('tabs').addEventListener('click', (e) => { const b = e.target.closest('[data-tab]'); if (b) setTab(b.getAttribute('data-tab')); });
+    $('ciroAlert').addEventListener('click', (e) => {
+      const p = e.target.closest('[data-person]');
+      if (p) return setPerson(p.getAttribute('data-person'));
+      if (e.target.closest('[data-cirolater]')) return snoozeCiro();
+      onCiroClick(e, true);
+    });
+    $('tabFin').addEventListener('click', (e) => {
+      if (e.target.closest('[data-finshare]')) return void saveShares();
+      if (e.target.closest('[data-personreset]')) return void askPerson(true);
+      onCiroClick(e, false);
+    });
+    ['ciroAlert', 'tabFin'].forEach((id) => $(id).addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter' || !e.target.matches('[data-ck] input')) return;
+      e.preventDefault();
+      e.target.closest('[data-ck]').querySelector('[data-cirosave]').click();
+    }));
     $('summary').addEventListener('click', async (e) => {
       const tr = e.target.closest('[data-timereset]');
       if (tr) return void resetPickTime(tr.getAttribute('data-timereset'));
@@ -2162,6 +2468,9 @@
     });
     if (new URLSearchParams(location.search).get('embed') === '1') { document.body.classList.add('embed'); $('logout').hidden = true; }
     { const um = /^(\d{4})-(\d{2})$/.exec(new URLSearchParams(location.search).get('month') || ''); if (um && Number(um[2]) >= 1 && Number(um[2]) <= 12) st.month = um[0]; }
+    if (new URLSearchParams(location.search).get('ciro') === '1') st.ciroForce = true;
+    try { st.tab = location.hash === '#finans' ? 'fin' : localStorage.getItem(TAB_KEY) === 'fin' && !document.body.classList.contains('embed') ? 'fin' : 'plan'; } catch (_) { st.tab = 'plan'; }
+    applyTab();
     setInterval(loadWeather, 10 * 60 * 1000);
     const bgRefresh = () => { if (!document.hidden && !$('app').hidden && st.bearer) load({ quiet: true }); };
     setInterval(bgRefresh, REFRESH_MS);
