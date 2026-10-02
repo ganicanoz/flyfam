@@ -1992,7 +1992,7 @@
       const from = [fin.since || today, addDays(today, -31)].sort()[1];
       for (let d = from; d <= today; d = addDays(d, 1)) for (const w of savedWorks(cfg, d)) {
         const k = finKey(w.place, d);
-        if (!daily.includes(w.place) || st.fin[k] != null || seen.has(k) || (d === today && min < hm(w.end))) continue;
+        if (!daily.includes(w.place) || st.fin[k] != null || st.fin[finKey(w.place, d.slice(0, 7))] != null || seen.has(k) || (d === today && min < hm(w.end))) continue;
         seen.add(k);
         out.push({ source: w.place, period: d, today: d === today, label: (d === today ? 'Bugün' : dateLong(d)) + ' · ' + w.name + ' ' + w.start + '–' + w.end });
       }
@@ -2103,6 +2103,11 @@
     }
     const ciroRow = (x) => {
       const v = st.fin[finKey(x.source, x.period)];
+      if (x.autoSum != null) {
+        const shown = v != null ? v : x.autoSum;
+        return '<div class="fin-row" data-ck="' + esc(x.source + '|' + x.period) + '" data-autosum="' + x.autoSum + '"><div class="lbl">' + esc(x.label) + '</div><span class="fin-in"><input type="text" inputmode="decimal" placeholder="Tutar" value="' + (shown ? esc(fmtNum(shown)) : '') + '" aria-label="Aylık toplam ciro (TL)" />TL' +
+          '<button type="button" class="primary" data-cirosave="1">Kaydet</button><button type="button" data-cirozero="1">0 TL</button>' + (v != null ? '<button type="button" class="ghost" data-cirodel="1" title="Elle girilen toplamı kaldır">✕</button>' : '') + '</span></div>';
+      }
       if (x.future) return '<div class="fin-row future"><div class="lbl">' + esc(x.label) + '</div><span class="small muted">iş günü bitince girilir</span></div>';
       return '<div class="fin-row' + (v == null ? ' miss' : '') + '" data-ck="' + esc(x.source + '|' + x.period) + '"><div class="lbl">' + esc(x.label) + '</div><span class="fin-in"><input type="text" inputmode="decimal" placeholder="Tutar" value="' + (v != null ? esc(fmtNum(v)) : '') + '" aria-label="Ciro (TL)" />TL' +
         '<button type="button" class="primary" data-cirosave="1">Kaydet</button><button type="button" data-cirozero="1">0 TL</button>' + (x.canDelete && v != null ? '<button type="button" class="ghost" data-cirodel="1" title="Girişi sil">✕</button>' : '') + '</span></div>';
@@ -2154,9 +2159,12 @@
       if (!row || (!zero && !save && !del)) return;
       const [source, period] = row.getAttribute('data-ck').split('|');
       const inp = row.querySelector('input');
-      const amount = del ? null : zero ? 0 : parseTL(inp.value);
+      let amount = del ? null : zero ? 0 : parseTL(inp.value);
       if (amount !== null && !Number.isFinite(amount)) { rowMsg(row, 'Geçerli bir tutar yaz (ör. 12.500)'); inp.focus(); return; }
-      if (del && !confirm('Bu ciro girişi silinsin mi?')) return;
+      const autoSum = row.hasAttribute('data-autosum') ? Number(row.getAttribute('data-autosum')) : null;
+      if (del && !confirm(autoSum != null ? 'Elle girilen aylık toplam kaldırılsın mı? (Günlüklerin toplamı geçerli olur)' : 'Bu ciro girişi silinsin mi?')) return;
+      // Günlüklerin toplamına eşit aylık değer saklanmaz; toplam günlüklerle güncellenmeye devam eder.
+      if (autoSum != null && amount !== null && Math.abs(amount - autoSum) < 0.005) amount = null;
       row.querySelectorAll('button').forEach((b) => { b.disabled = true; });
       try { await saveCiro(source, period, amount); } catch (err) { rowMsg(row, String(err.message || err)); row.querySelectorAll('button').forEach((b) => { b.disabled = false; }); return; }
       if (inPopup) {
@@ -2194,7 +2202,7 @@
       const dc = debtCfg();
       const debtOn = dc.sources.length > 0;
       const ciroOf = (s, m) => {
-        if (monthly.includes(s)) return st.fin[finKey(s, m)] ?? null;
+        if (monthly.includes(s) || st.fin[finKey(s, m)] != null) return st.fin[finKey(s, m)] ?? null;
         const ent = finRows(s).filter((x) => x.period.length === 10 && x.period.slice(0, 7) === m);
         return ent.length ? ent.reduce((a, x) => a + x.amount, 0) : null;
       };
@@ -2208,9 +2216,18 @@
           const open = days.filter((x) => !done.has(x.d)).length;
           const pool = ent.length ? ent : finRows(r.s).filter((x) => x.period.length === 10 && x.period >= addDays(now.ymd, -120));
           const avg = pool.length ? pool.reduce((a, x) => a + x.amount, 0) / pool.length : null;
-          r.entered = ent.length ? entered : null;
-          r.proj = !open ? r.entered : avg == null ? null : entered + avg * open;
-          r.note = done.size + '/' + days.length + ' gün girildi' + (open && avg != null ? ' · kalan ' + open + ' gün × ~' + tl(avg) : open ? ' · ortalama için veri yok' : '');
+          const manual = st.fin[finKey(r.s, M)];
+          r.daySum = entered;
+          r.manual = manual ?? null;
+          if (manual != null) {
+            r.entered = manual;
+            r.proj = manual;
+            r.note = 'aylık toplam elle girildi · günlüklerin toplamı ' + tl(entered);
+          } else {
+            r.entered = ent.length ? entered : null;
+            r.proj = !open ? r.entered : avg == null ? null : entered + avg * open;
+            r.note = done.size + '/' + days.length + ' gün girildi' + (open && avg != null ? ' · kalan ' + open + ' gün × ~' + tl(avg) : open ? ' · ortalama için veri yok' : '');
+          }
         } else {
           const v = st.fin[finKey(r.s, M)];
           const prevs = [];
@@ -2243,13 +2260,17 @@
       for (const s of daily) {
         const days = new Map(dailyDays(cfg, s, M).map((x) => [x.d, x.w]));
         for (const x of finRows(s)) if (x.period.length === 10 && x.period.slice(0, 7) === M && !days.has(x.period)) days.set(x.period, null);
-        const list = [...days.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([d, w]) => ({ source: s, period: d, label: dateLong(d) + (w ? ' · ' + w.start + '–' + w.end : ''), canDelete: true, future: d > now.ymd && st.fin[finKey(s, d)] == null }));
+        const list = [...days.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([d, w]) => ({ source: s, period: d, label: dateLong(d) + (w ? ' · ' + w.start + '–' + w.end : ''), canDelete: true }));
         const r = rows.find((x) => x.s === s);
         const done = list.filter((x) => st.fin[finKey(s, x.period)] != null).length;
+        const dayCount = list.length;
+        list.push({ source: s, period: M, label: finPlaceName(cfg, s) + ' · ' + monthName(M) + ' · aylık toplam', autoSum: r.daySum || 0 });
         groups.push({
-          title: finPlaceName(cfg, s) + ' · ' + monthName(M) + ' · ' + list.length + ' gün',
+          title: finPlaceName(cfg, s) + ' · ' + monthName(M) + ' · ' + dayCount + ' gün',
           list,
-          foot: 'Toplam <b>' + tl(r.entered || 0) + '</b> <span class="muted">(' + done + '/' + list.length + ' gün girildi' + (r.proj != null && done < list.length ? ' · ay sonu tahmini ' + tl(r.proj) : '') + ')</span>',
+          foot: r.manual != null
+            ? 'Aylık toplam <b>' + tl(r.manual) + '</b> <span class="muted">(elle girildi · günlüklerin toplamı ' + tl(r.daySum || 0) + ', ' + done + '/' + dayCount + ' gün)</span>'
+            : 'Toplam <b>' + tl(r.entered || 0) + '</b> <span class="muted">(' + done + '/' + dayCount + ' gün girildi' + (r.proj != null && done < dayCount ? ' · ay sonu tahmini ' + tl(r.proj) : '') + ')</span>',
         });
       }
       const mList = [];
@@ -2273,7 +2294,7 @@
       }).join('');
       const who = devicePerson();
       const whoName = who === 'partner' ? PA : who === 'crew' ? P.crew || 'Crew' : who === 'none' ? 'ortak cihaz' : 'seçilmedi';
-      const ask = daily.map((s) => finPlaceName(cfg, s)).join(', ') + ': iş günü bitince · ' + monthly.map((s) => finPlaceName(cfg, s)).join(', ') + ': ayın ilk 5 günü önceki ay';
+      const ask = daily.map((s) => finPlaceName(cfg, s)).join(', ') + ': iş günü bitince (kutular her an girilebilir; aylık toplam elle değiştirilebilir) · ' + monthly.map((s) => finPlaceName(cfg, s)).join(', ') + ': ayın ilk 5 günü önceki ay';
       el.innerHTML =
         '<section class="card"><div class="card-h">💰 ' + esc(monthName(M)) + ' · finansal durum</div>' + tiles + '<div style="margin-top:12px;overflow-x:auto;">' + table + '</div></section>' +
         '<section class="card"><div class="card-h">✍️ Ciro girişleri</div>' + groupHtml + '<p class="small muted" style="margin:8px 0 0;">Sorulur: ' + esc(ask) + '. Girilen tutar değiştirilip yeniden kaydedilebilir.</p></section>' +
