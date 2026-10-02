@@ -114,7 +114,9 @@ import { formatRelativeSyncedAt } from '../lib/relativeTime';
 import { demoPeersForUser } from '../lib/crewPeerDemo';
 import { extractText, isAvailable } from 'expo-pdf-text-extract';
 import { mergePdfRowsFromTextParse } from '../lib/pdfRowMerge';
-import { parseRosterPdfFromDevice, pdfParseSourceDevLabel } from '../lib/rosterPdfParse';
+import { parseRosterPdfFromDevice, pdfParseSourceDevLabel, type PdfRosterDeviceParseSource } from '../lib/rosterPdfParse';
+import type { PdfFlightRow, PdfImportRpcResult } from '../lib/pdfRosterImport';
+import { importRosterPdfViaServer } from '../lib/rosterServerImport';
 import { runPdfImportFollowUps } from '../lib/rosterPdfReport';
 import { materializeSharedPdfToCache } from '../lib/sharedPdfImport';
 import { maybePromptHomeBaseAfterRosterImport } from '../lib/homeBaseFromRoster';
@@ -4043,26 +4045,40 @@ export default function Roster({
         }
         const reportBase = { ...pdfReportBase, pdfUri: uri };
         setFlightOpBusyMessage(t('common.flightOpReadingPdf'));
-        const { flights, rawText, source, edgeFailureHint } = await parseRosterPdfFromDevice(uri, {
-          crewAirlineIcao: crewProfile.airline_icao,
-        });
-        let normalizedFlights = flights;
-        let normalizedRawText = rawText ?? null;
-        const canDeviceExtract =
-          isAvailable() && (crewProfile.airline_icao ?? '').toUpperCase() !== 'SXS';
-        if (canDeviceExtract) {
-          try {
-            const deviceText = await extractText(uri);
-            if (deviceText && deviceText.trim().length > 0) {
-              normalizedFlights = mergePdfRowsFromTextParse(normalizedFlights, deviceText);
-              if (!normalizedRawText) normalizedRawText = deviceText;
+        const server = await importRosterPdfViaServer(uri, { crewAirlineIcao: crewProfile.airline_icao });
+        let normalizedFlights: PdfFlightRow[];
+        let normalizedRawText: string | null = null;
+        let source: PdfRosterDeviceParseSource = 'edge_server_flights';
+        let edgeFailureHint: string | undefined;
+        let serverResult: PdfImportRpcResult | null = null;
+        if (server.kind === 'imported') {
+          normalizedFlights = server.flights;
+          serverResult = server.result;
+        } else {
+          if (__DEV__) console.warn('[PDF import] import-roster unavailable, device path:', server.reason);
+          const parsed = await parseRosterPdfFromDevice(uri, {
+            crewAirlineIcao: crewProfile.airline_icao,
+          });
+          source = parsed.source;
+          edgeFailureHint = parsed.edgeFailureHint;
+          normalizedFlights = parsed.flights;
+          normalizedRawText = parsed.rawText ?? null;
+          const canDeviceExtract =
+            isAvailable() && (crewProfile.airline_icao ?? '').toUpperCase() !== 'SXS';
+          if (canDeviceExtract) {
+            try {
+              const deviceText = await extractText(uri);
+              if (deviceText && deviceText.trim().length > 0) {
+                normalizedFlights = mergePdfRowsFromTextParse(normalizedFlights, deviceText);
+                if (!normalizedRawText) normalizedRawText = deviceText;
+              }
+            } catch {
+              /* best-effort merge only */
             }
-          } catch {
-            /* best-effort merge only */
           }
         }
         if (__DEV__) {
-          console.log('[PDF import]', pdfParseSourceDevLabel(source), '→', flights.length, 'satır');
+          console.log('[PDF import]', pdfParseSourceDevLabel(source), '→', normalizedFlights.length, 'satır');
           if (edgeFailureHint) console.warn('[PDF import] Edge hatası:', edgeFailureHint);
         }
         if (!normalizedFlights.length) {
@@ -4110,14 +4126,17 @@ export default function Roster({
           return;
         }
 
-        setFlightOpBusyMessage(t('common.flightOpImportingFlights'));
-        const importResult = await importPdfFlightsViaRpc(supabase, normalizedFlights, {
-          rawText: normalizedRawText,
-          crewAirlineIcao: crewProfile.airline_icao ?? null,
-          crewAirlineIata: airline?.iata ?? null,
-          crewHomeBaseIata: crewProfile.home_base_iata ?? null,
-          parseSource: source,
-        });
+        let importResult = serverResult;
+        if (!importResult) {
+          setFlightOpBusyMessage(t('common.flightOpImportingFlights'));
+          importResult = await importPdfFlightsViaRpc(supabase, normalizedFlights, {
+            rawText: normalizedRawText,
+            crewAirlineIcao: crewProfile.airline_icao ?? null,
+            crewAirlineIata: airline?.iata ?? null,
+            crewHomeBaseIata: crewProfile.home_base_iata ?? null,
+            parseSource: source,
+          });
+        }
         const { ok: added, failed, skippedNonFlights, skippedWrongAirline } = importResult;
         const skipSnippet =
           skippedNonFlights > 0

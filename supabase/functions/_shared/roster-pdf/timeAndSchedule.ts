@@ -43,20 +43,30 @@ export function restEndOperatingYmd(restYmd: string | null | undefined, restHhmm
   return ymd;
 }
 
+const calendarFormatters = new Map<string, Intl.DateTimeFormat>();
+
+function calendarFormatter(timeZone: string): Intl.DateTimeFormat {
+  let fmt = calendarFormatters.get(timeZone);
+  if (!fmt) {
+    fmt = new Intl.DateTimeFormat('en-GB', {
+      timeZone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hourCycle: 'h23',
+    });
+    calendarFormatters.set(timeZone, fmt);
+  }
+  return fmt;
+}
+
 function getCalendarPartsInTimeZone(
   utcMs: number,
   timeZone: string
 ): { year: number; month: number; day: number; hour: number; minute: number } {
-  const fmt = new Intl.DateTimeFormat('en-GB', {
-    timeZone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    hourCycle: 'h23',
-  });
-  const parts = fmt.formatToParts(new Date(utcMs));
+  const parts = calendarFormatter(timeZone).formatToParts(new Date(utcMs));
   const m: Record<string, string> = {};
   for (const p of parts) {
     if (p.type !== 'literal') m[p.type] = p.value;
@@ -82,7 +92,8 @@ export function utcIsoToLocalYmd(utcIso: string, timeZone: string): string | nul
 
 /**
  * Belirtilen IANA bölgesindeki takvim günü + HH:MM → UTC ISO.
- * ±72 saat pencerede dakika tarama (DST köşeleri için yeterli; performans: ~8k adım).
+ * ±72 saat penceredeki dakika ızgarasında hedef duvar saatini gösteren en erken an (DST çift saatinde ilki,
+ * DST boşluğunda null). Izgara taranmaz: penceredeki farklı ofsetler saatlik örneklenir, yalnız adaylar doğrulanır.
  */
 export function localDateTimeInTimezoneToUtcIso(
   dateYmd: string,
@@ -102,19 +113,31 @@ export function localDateTimeInTimezoneToUtcIso(
   const start = center - 72 * 3600 * 1000;
   const end = center + 72 * 3600 * 1000;
 
-  for (let utcMs = start; utcMs <= end; utcMs += 60 * 1000) {
+  const HOUR = 3600 * 1000;
+  const MINUTE = 60 * 1000;
+  const offsets = new Set<number>();
+  for (let t = start - 24 * HOUR; t <= end + 24 * HOUR; t += HOUR) {
+    const p = getCalendarPartsInTimeZone(t, tz);
+    offsets.add(Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute) - t);
+  }
+  const targetAsUtc = Date.UTC(target.year, target.month - 1, target.day, target.hour, target.minute);
+  let best: number | null = null;
+  for (const offset of offsets) {
+    const utcMs = start + Math.ceil((targetAsUtc - offset - start) / MINUTE) * MINUTE;
+    if (utcMs < start || utcMs > end) continue;
     const p = getCalendarPartsInTimeZone(utcMs, tz);
     if (
       p.year === target.year &&
       p.month === target.month &&
       p.day === target.day &&
       p.hour === target.hour &&
-      p.minute === target.minute
+      p.minute === target.minute &&
+      (best === null || utcMs < best)
     ) {
-      return new Date(utcMs).toISOString();
+      best = utcMs;
     }
   }
-  return null;
+  return best === null ? null : new Date(best).toISOString();
 }
 
 /**

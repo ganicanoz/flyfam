@@ -19,7 +19,7 @@ export type ActivityEventType =
 const APP_OPEN_THROTTLE_MS = 15 * 60 * 1000; // 15 min
 const SCREEN_VIEW_THROTTLE_MS = 2 * 60 * 1000; // 2 min per screen
 
-function appMeta(): Record<string, unknown> {
+export function appMeta(): Record<string, unknown> {
   const version =
     Constants.nativeApplicationVersion?.trim() ||
     Constants.expoConfig?.version?.trim() ||

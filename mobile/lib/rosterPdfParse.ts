@@ -46,7 +46,7 @@ type EdgeOutcome =
   | { ok: false };
 
 /** Edge JWT doğrulaması için güncel access_token (gerekirse refresh). */
-async function getAccessTokenForEdgeFunctions(): Promise<string | null> {
+export async function getAccessTokenForEdgeFunctions(): Promise<string | null> {
   const { data: { session }, error } = await supabase.auth.getSession();
   if (error || !session?.access_token) {
     if (__DEV__) console.warn('[PDF] Edge: oturum yok veya token alınamadı', error?.message);

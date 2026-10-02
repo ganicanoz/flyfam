@@ -34,10 +34,11 @@ import { extractText, isAvailable } from 'expo-pdf-text-extract';
 import { importPdfFlightsViaRpc, isRosterPdfImportSupportedForCrewAirline } from '../lib/pdfRosterImport';
 import { flushPendingRosterClear } from '../lib/rosterFlightClear';
 import { mergePdfRowsFromTextParse } from '../lib/pdfRowMerge';
-import { parseRosterPdfFromDevice, pdfParseSourceDevLabel } from '../lib/rosterPdfParse';
+import { parseRosterPdfFromDevice, pdfParseSourceDevLabel, type PdfRosterDeviceParseSource } from '../lib/rosterPdfParse';
+import { importRosterPdfViaServer } from '../lib/rosterServerImport';
 import { runPdfImportFollowUps } from '../lib/rosterPdfReport';
 import { materializeSharedPdfToCache } from '../lib/sharedPdfImport';
-import type { PdfFlightRow } from '../lib/pdfRosterImport';
+import type { PdfFlightRow, PdfImportRpcResult } from '../lib/pdfRosterImport';
 import { maybePromptHomeBaseAfterRosterImport } from '../lib/homeBaseFromRoster';
 import { triggerAirportBoardCacheRefreshIfDue } from '../lib/airportBoardCache';
 import { alertWithCopy } from '../lib/alertWithCopy';
@@ -352,6 +353,7 @@ export default function AddFlight() {
     rawText?: string | null,
     pdfUri?: string | null,
     parseSource?: string | null,
+    serverResult?: PdfImportRpcResult | null,
   ) => {
     if (!crewProfile?.id) {
       setLoading(false);
@@ -362,17 +364,19 @@ export default function AddFlight() {
     setLoading(true);
     const reportBase = { ...pdfReportBase(), pdfUri: pdfUri ?? null, parseSource: parseSource ?? null };
     try {
-      const importResult = await importPdfFlightsViaRpc(
-        supabase,
-        flights,
-        {
-          rawText,
-          crewAirlineIcao: crewProfile.airline_icao ?? null,
-          crewAirlineIata: airline?.iata ?? null,
-          crewHomeBaseIata: crewProfile.home_base_iata ?? null,
-          parseSource: parseSource ?? null,
-        },
-      );
+      const importResult =
+        serverResult ??
+        (await importPdfFlightsViaRpc(
+          supabase,
+          flights,
+          {
+            rawText,
+            crewAirlineIcao: crewProfile.airline_icao ?? null,
+            crewAirlineIata: airline?.iata ?? null,
+            crewHomeBaseIata: crewProfile.home_base_iata ?? null,
+            parseSource: parseSource ?? null,
+          },
+        ));
       const { ok: added, failed, skippedNonFlights, skippedWrongAirline } = importResult;
       const skipSnippet =
         skippedNonFlights > 0
@@ -494,26 +498,40 @@ export default function AddFlight() {
       }
       setLoadingMessage(t('common.flightOpReadingPdf'));
       setLoading(true);
-      const { flights, rawText, source, edgeFailureHint } = await parseRosterPdfFromDevice(uri, {
-        crewAirlineIcao: crewProfile.airline_icao,
-      });
-      let normalizedFlights = flights;
-      let normalizedRawText = rawText ?? null;
-      // Cihaz PDF çıkarması (simülatörde yok) Edge metninden farklı SIM satırları bulabilir.
-      const canDeviceExtract = isAvailable() && (crewProfile.airline_icao ?? '').toUpperCase() !== 'SXS';
-      if (canDeviceExtract) {
-        try {
-          const deviceText = await extractText(uri);
-          if (deviceText && deviceText.trim().length > 0) {
-            normalizedFlights = mergePdfRowsFromTextParse(normalizedFlights, deviceText);
-            if (!normalizedRawText) normalizedRawText = deviceText;
+      const server = await importRosterPdfViaServer(uri, { crewAirlineIcao: crewProfile.airline_icao });
+      let normalizedFlights: PdfFlightRow[];
+      let normalizedRawText: string | null = null;
+      let source: PdfRosterDeviceParseSource = 'edge_server_flights';
+      let edgeFailureHint: string | undefined;
+      let serverResult: PdfImportRpcResult | null = null;
+      if (server.kind === 'imported') {
+        normalizedFlights = server.flights;
+        serverResult = server.result;
+      } else {
+        if (__DEV__) console.warn('[PDF import] import-roster unavailable, device path:', server.reason);
+        const parsed = await parseRosterPdfFromDevice(uri, {
+          crewAirlineIcao: crewProfile.airline_icao,
+        });
+        source = parsed.source;
+        edgeFailureHint = parsed.edgeFailureHint;
+        normalizedFlights = parsed.flights;
+        normalizedRawText = parsed.rawText ?? null;
+        // Cihaz PDF çıkarması (simülatörde yok) Edge metninden farklı SIM satırları bulabilir.
+        const canDeviceExtract = isAvailable() && (crewProfile.airline_icao ?? '').toUpperCase() !== 'SXS';
+        if (canDeviceExtract) {
+          try {
+            const deviceText = await extractText(uri);
+            if (deviceText && deviceText.trim().length > 0) {
+              normalizedFlights = mergePdfRowsFromTextParse(normalizedFlights, deviceText);
+              if (!normalizedRawText) normalizedRawText = deviceText;
+            }
+          } catch {
+            // best-effort merge only
           }
-        } catch {
-          // best-effort merge only
         }
       }
       if (__DEV__) {
-        console.log('[PDF import]', pdfParseSourceDevLabel(source), '→', flights.length, 'satır');
+        console.log('[PDF import]', pdfParseSourceDevLabel(source), '→', normalizedFlights.length, 'satır');
         if (edgeFailureHint) console.warn('[PDF import] Edge hatası:', edgeFailureHint);
       }
       if (!normalizedFlights.length) {
@@ -568,7 +586,7 @@ export default function AddFlight() {
           return;
         }
         console.log('[AddFlight] PDF import via add_me_to_flight, rows:', normalizedFlights.length);
-        await runRosterImportFromRows(normalizedFlights, normalizedRawText, uri, source);
+        await runRosterImportFromRows(normalizedFlights, normalizedRawText, uri, source, serverResult);
       };
 
       if (__DEV__) console.log('[PDF import] normalized pipeline source:', pdfParseSourceDevLabel(source));
