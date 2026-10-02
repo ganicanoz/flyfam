@@ -387,6 +387,40 @@ export function parseLocalTimeProgramFromPdfText_THY(text: string): PdfFlightRow
     if ((lines[i] ?? '') === 'MB:') mbIdx.push(i);
   }
 
+  // GMT tablosunda her ayağın varış tarihi yazılı; lokal blokta çok günlü rotalarda (yerde konaklama,
+  // hatalı basılmış GMB) ayak günü saat sırasından çıkarılamıyor. Aynı uçuş + rota eşleşirse günü oradan al.
+  const gmtLegs = parseGmtFlightsFromPdfText_THY(text);
+  const gmtUsed = new Set<number>();
+  const dayDiff = (a: string, b: string) => Math.round((Date.parse(a + 'T00:00:00Z') - Date.parse(b + 'T00:00:00Z')) / 86400000);
+  // Lokal gün = UTC kalkış + (lokal saat − UTC saat); fark −12…+14 sa aralığına oturtulur (TZ tablosu gerekmez).
+  const localDepDate = (utcIso: string | null | undefined, localHm: string): string | null => {
+    const t = Date.parse(utcIso || '');
+    const lm = minutes(localHm);
+    if (!Number.isFinite(t) || !Number.isFinite(lm)) return null;
+    const u = new Date(t);
+    let off = lm - (u.getUTCHours() * 60 + u.getUTCMinutes());
+    if (off > 14 * 60) off -= 1440;
+    else if (off < -12 * 60) off += 1440;
+    return new Date(t + off * 60000).toISOString().slice(0, 10);
+  };
+  const gmtLocalDate = (fn: string, from: string, to: string, depHm: string, guess: string): string | null => {
+    let best = -1;
+    let bestDate = '';
+    for (let k = 0; k < gmtLegs.length; k += 1) {
+      const g = gmtLegs[k]!;
+      if (gmtUsed.has(k) || g.flight_number !== fn || g.origin_iata !== from || g.destination_iata !== to) continue;
+      const ymd = localDepDate(g.dep_schedule_utc_iso, depHm);
+      if (!ymd || Math.abs(dayDiff(ymd, guess)) > 3) continue;
+      if (best < 0 || Math.abs(dayDiff(ymd, guess)) < Math.abs(dayDiff(bestDate, guess))) {
+        best = k;
+        bestDate = ymd;
+      }
+    }
+    if (best < 0) return null;
+    gmtUsed.add(best);
+    return bestDate;
+  };
+
   for (let b = 0; b < mbIdx.length; b += 1) {
     const from = mbIdx[b]!;
     const to = b + 1 < mbIdx.length ? mbIdx[b + 1]! : lines.length;
@@ -484,6 +518,8 @@ export function parseLocalTimeProgramFromPdfText_THY(text: string): PdfFlightRow
         } else if (gmbs[gmbPtr] && gmbs[gmbPtr]!.ymd < dateYmd) {
           /* overnight roll already advanced dateYmd */
         }
+        const gmtDate = gmtLocalDate(leg.fn, leg.from, leg.to, leg.dep, dateYmd);
+        if (gmtDate) dateYmd = gmtDate;
         addDedup({
           roster_entry_kind: 'flight',
           flight_number: leg.fn,

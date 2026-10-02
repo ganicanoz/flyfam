@@ -115,6 +115,7 @@ import { demoPeersForUser } from '../lib/crewPeerDemo';
 import { extractText, isAvailable } from 'expo-pdf-text-extract';
 import { mergePdfRowsFromTextParse } from '../lib/pdfRowMerge';
 import { parseRosterPdfFromDevice, pdfParseSourceDevLabel } from '../lib/rosterPdfParse';
+import { runPdfImportFollowUps } from '../lib/rosterPdfReport';
 import { materializeSharedPdfToCache } from '../lib/sharedPdfImport';
 import { maybePromptHomeBaseAfterRosterImport } from '../lib/homeBaseFromRoster';
 import { alertWithCopy } from '../lib/alertWithCopy';
@@ -4040,6 +4041,7 @@ export default function Roster({
         ) {
           uri = await materializeSharedPdfToCache(pickUri);
         }
+        const reportBase = { ...pdfReportBase, pdfUri: uri };
         setFlightOpBusyMessage(t('common.flightOpReadingPdf'));
         const { flights, rawText, source, edgeFailureHint } = await parseRosterPdfFromDevice(uri, {
           crewAirlineIcao: crewProfile.airline_icao,
@@ -4070,7 +4072,7 @@ export default function Roster({
               t('common.error'),
               'PDF okunamadı veya uçuş yok. Supabase’te `parse-roster-pdf` edge function deploy edin; alternatif olarak geliştirme derlemesi (yerel metin) gerekir.',
               {
-                ...pdfReportBase,
+                ...reportBase,
                 parseSource: pdfParseSourceDevLabel(source),
                 edgeFailureHint,
                 rowCount: 0,
@@ -4084,7 +4086,7 @@ export default function Roster({
               t('common.info') || 'Bilgi',
               `${t('addFlight.importFlightsNoFlights')}${devHint}`,
               {
-                ...pdfReportBase,
+                ...reportBase,
                 parseSource: pdfParseSourceDevLabel(source),
                 edgeFailureHint,
                 rowCount: 0,
@@ -4109,13 +4111,14 @@ export default function Roster({
         }
 
         setFlightOpBusyMessage(t('common.flightOpImportingFlights'));
-        const { ok: added, failed, skippedNonFlights, skippedWrongAirline } =
-          await importPdfFlightsViaRpc(supabase, normalizedFlights, {
-            rawText: normalizedRawText,
-            crewAirlineIcao: crewProfile.airline_icao ?? null,
-            crewAirlineIata: airline?.iata ?? null,
-            crewHomeBaseIata: crewProfile.home_base_iata ?? null,
-          });
+        const importResult = await importPdfFlightsViaRpc(supabase, normalizedFlights, {
+          rawText: normalizedRawText,
+          crewAirlineIcao: crewProfile.airline_icao ?? null,
+          crewAirlineIata: airline?.iata ?? null,
+          crewHomeBaseIata: crewProfile.home_base_iata ?? null,
+          parseSource: source,
+        });
+        const { ok: added, failed, skippedNonFlights, skippedWrongAirline } = importResult;
         const skipSnippet =
           skippedNonFlights > 0
             ? `\n\n${t('addFlight.importFlightsSkippedNonFlight', { count: skippedNonFlights })}`
@@ -4148,7 +4151,18 @@ export default function Roster({
           await refreshCrewListFromDb();
           setRosterLastSyncedAt();
           setFlightOpBusyMessage(null);
-          Alert.alert(t('addFlight.importFlightsSuccessTitle'), t('addFlight.importFlightsSuccess'));
+          await runPdfImportFollowUps({
+            result: importResult,
+            pdfUri: uri,
+            successTitle: t('addFlight.importFlightsSuccessTitle'),
+            successMessage: t('addFlight.importFlightsSuccess'),
+            report: {
+              crewAirlineIcao: crewProfile.airline_icao ?? null,
+              parseSource: source,
+              rowCount: normalizedFlights.length,
+            },
+            onFlightsChanged: refreshCrewListFromDb,
+          });
         } else if (failed.length > 0) {
           setFlightOpBusyMessage(null);
           const failSnippet = `\n\n${failed
@@ -4158,28 +4172,28 @@ export default function Roster({
           showPdfImportAlert(
             t('common.error'),
             `${t('addFlight.importFlightsSomeFailed')}${failSnippet}${skipSnippet}${wrongAirlineSnippet}`,
-            { ...pdfReportBase, rowCount: normalizedFlights.length, failed },
+            { ...reportBase, parseSource: source, rowCount: normalizedFlights.length, failed },
           );
         } else if (skippedWrongAirline === normalizedFlights.length && normalizedFlights.length > 0) {
           setFlightOpBusyMessage(null);
           showPdfImportAlert(
             t('common.info') || 'Bilgi',
             t('addFlight.importFlightsAllSkippedWrongAirline'),
-            { ...pdfReportBase, rowCount: normalizedFlights.length },
+            { ...reportBase, parseSource: source, rowCount: normalizedFlights.length },
           );
         } else if (skippedNonFlights > 0 && normalizedFlights.length > 0) {
           setFlightOpBusyMessage(null);
           showPdfImportAlert(
             t('common.info') || 'Bilgi',
             `${t('addFlight.importFlightsOnlyNonFlights')}${skipSnippet}${wrongAirlineSnippet}`,
-            { ...pdfReportBase, rowCount: normalizedFlights.length },
+            { ...reportBase, parseSource: source, rowCount: normalizedFlights.length },
           );
         } else {
           setFlightOpBusyMessage(null);
           showPdfImportAlert(
             t('common.error'),
             `${t('addFlight.importFlightsError')}${wrongAirlineSnippet}`,
-            { ...pdfReportBase, rowCount: normalizedFlights.length },
+            { ...reportBase, parseSource: source, rowCount: normalizedFlights.length },
           );
         }
       } catch (e) {

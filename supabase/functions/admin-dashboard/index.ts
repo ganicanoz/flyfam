@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { sendExpoPush } from '../_shared/expoPush.ts';
+import { handleRosterReportAction, ROSTER_REPORT_ACTIONS } from './rosterReports.ts';
 
 type Json = Record<string, unknown>;
 
@@ -374,6 +375,15 @@ Deno.serve(async (req) => {
     });
   }
 
+  // verify_jwt=false: imza burada Auth sunucusuyla doğrulanır; decode tek başına sahte token'a açıktır.
+  const { data: verified, error: verifyErr } = await adminClient.auth.getUser(jwt);
+  if (verifyErr || !verified?.user || verified.user.id !== claims.sub) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
   const allowedEmailsRaw = Deno.env.get('ADMIN_DASHBOARD_ALLOWED_EMAILS') ?? '';
   const allowedEmails = new Set(
     allowedEmailsRaw
@@ -381,7 +391,7 @@ Deno.serve(async (req) => {
       .map((x) => normalizeEmail(x))
       .filter(Boolean),
   );
-  const requesterEmail = normalizeEmail(claims.email);
+  const requesterEmail = normalizeEmail(verified.user.email);
   if (!allowedEmails.has(requesterEmail)) {
     return new Response(JSON.stringify({ error: 'Forbidden' }), {
       status: 403,
@@ -400,6 +410,16 @@ Deno.serve(async (req) => {
     if (action === 'check_access') {
       return new Response(JSON.stringify({ ok: true }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    if (ROSTER_REPORT_ACTIONS.has(action)) {
+      return handleRosterReportAction(action, body, {
+        adminClient,
+        supabaseUrl,
+        anonKey,
+        jwt,
+        requesterEmail,
+        corsHeaders,
       });
     }
     if (action === 'list_ops_history') {

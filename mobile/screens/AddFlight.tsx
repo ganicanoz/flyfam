@@ -35,6 +35,7 @@ import { importPdfFlightsViaRpc, isRosterPdfImportSupportedForCrewAirline } from
 import { flushPendingRosterClear } from '../lib/rosterFlightClear';
 import { mergePdfRowsFromTextParse } from '../lib/pdfRowMerge';
 import { parseRosterPdfFromDevice, pdfParseSourceDevLabel } from '../lib/rosterPdfParse';
+import { runPdfImportFollowUps } from '../lib/rosterPdfReport';
 import { materializeSharedPdfToCache } from '../lib/sharedPdfImport';
 import type { PdfFlightRow } from '../lib/pdfRosterImport';
 import { maybePromptHomeBaseAfterRosterImport } from '../lib/homeBaseFromRoster';
@@ -349,6 +350,8 @@ export default function AddFlight() {
   const runRosterImportFromRows = async (
     flights: PdfFlightRow[],
     rawText?: string | null,
+    pdfUri?: string | null,
+    parseSource?: string | null,
   ) => {
     if (!crewProfile?.id) {
       setLoading(false);
@@ -357,8 +360,9 @@ export default function AddFlight() {
     }
     setLoadingMessage(t('common.flightOpImportingFlights'));
     setLoading(true);
+    const reportBase = { ...pdfReportBase(), pdfUri: pdfUri ?? null, parseSource: parseSource ?? null };
     try {
-      const { ok: added, failed, skippedNonFlights, skippedWrongAirline } = await importPdfFlightsViaRpc(
+      const importResult = await importPdfFlightsViaRpc(
         supabase,
         flights,
         {
@@ -366,8 +370,10 @@ export default function AddFlight() {
           crewAirlineIcao: crewProfile.airline_icao ?? null,
           crewAirlineIata: airline?.iata ?? null,
           crewHomeBaseIata: crewProfile.home_base_iata ?? null,
+          parseSource: parseSource ?? null,
         },
       );
+      const { ok: added, failed, skippedNonFlights, skippedWrongAirline } = importResult;
       const skipSnippet =
         skippedNonFlights > 0
           ? `\n\n${t('addFlight.importFlightsSkippedNonFlight', { count: skippedNonFlights })}`
@@ -396,19 +402,26 @@ export default function AddFlight() {
             },
           });
         }
-        Alert.alert(t('addFlight.importFlightsSuccessTitle'), t('addFlight.importFlightsSuccess'), [
-          {
-            text: t('common.ok'),
-            onPress: () =>
-              navigation.navigate('Main', {
-                screen: 'Roster',
-                params: {
-                  refresh: Date.now(),
-                  forceApiRefresh: true,
-                },
-              }),
+        setLoading(false);
+        setLoadingMessage('');
+        await runPdfImportFollowUps({
+          result: importResult,
+          pdfUri: pdfUri ?? null,
+          successTitle: t('addFlight.importFlightsSuccessTitle'),
+          successMessage: t('addFlight.importFlightsSuccess'),
+          report: {
+            crewAirlineIcao: crewProfile.airline_icao ?? null,
+            parseSource: parseSource ?? null,
+            rowCount: flights.length,
           },
-        ]);
+        });
+        navigation.navigate('Main', {
+          screen: 'Roster',
+          params: {
+            refresh: Date.now(),
+            forceApiRefresh: true,
+          },
+        });
       } else if (failed.length > 0) {
         const failSnippet =
           failed.length > 0
@@ -420,7 +433,7 @@ export default function AddFlight() {
         const errTitle = t('common.error');
         const errMsg = `${t('addFlight.importFlightsSomeFailed')}${failSnippet}${skipSnippet}${wrongAirlineSnippet}`;
         showPdfImportAlert(errTitle, errMsg, {
-          ...pdfReportBase(),
+          ...reportBase,
           rowCount: flights.length,
           failed,
         });
@@ -428,17 +441,17 @@ export default function AddFlight() {
         showPdfImportAlert(
           t('common.info') || 'Bilgi',
           t('addFlight.importFlightsAllSkippedWrongAirline'),
-          { ...pdfReportBase(), rowCount: flights.length },
+          { ...reportBase, rowCount: flights.length },
         );
       } else if (skippedNonFlights > 0 && flights.length > 0) {
         showPdfImportAlert(
           t('common.info') || 'Bilgi',
           `${t('addFlight.importFlightsOnlyNonFlights')}${skipSnippet}${wrongAirlineSnippet}`,
-          { ...pdfReportBase(), rowCount: flights.length },
+          { ...reportBase, rowCount: flights.length },
         );
       } else if (flights.length > 0) {
         showPdfImportAlert(t('common.error'), `${t('addFlight.importFlightsError')}${wrongAirlineSnippet}`, {
-          ...pdfReportBase(),
+          ...reportBase,
           rowCount: flights.length,
         });
       }
@@ -450,7 +463,7 @@ export default function AddFlight() {
         ? `${t('addFlight.importFlightsErrorHint')}\n\n${msg}`
         : t('addFlight.importFlightsErrorHint');
       showPdfImportAlert(errTitle, errMsg, {
-        ...pdfReportBase(),
+        ...reportBase,
         extra: { stack: e instanceof Error ? e.stack?.slice(0, 500) : undefined },
       });
     } finally {
@@ -512,6 +525,7 @@ export default function AddFlight() {
             'PDF okunamadı veya uçuş yok. Supabase’te `parse-roster-pdf` edge function deploy edin; alternatif olarak geliştirme derlemesi (yerel metin) gerekir.',
             {
               ...pdfReportBase(),
+              pdfUri: uri,
               parseSource: pdfParseSourceDevLabel(source),
               edgeFailureHint,
               rowCount: 0,
@@ -524,6 +538,7 @@ export default function AddFlight() {
               : '';
           showPdfImportAlert(t('common.info') || 'Bilgi', `${t('addFlight.importFlightsNoFlights')}${devHint}`, {
             ...pdfReportBase(),
+            pdfUri: uri,
             parseSource: pdfParseSourceDevLabel(source),
             edgeFailureHint,
             rowCount: 0,
@@ -553,7 +568,7 @@ export default function AddFlight() {
           return;
         }
         console.log('[AddFlight] PDF import via add_me_to_flight, rows:', normalizedFlights.length);
-        await runRosterImportFromRows(normalizedFlights, normalizedRawText);
+        await runRosterImportFromRows(normalizedFlights, normalizedRawText, uri, source);
       };
 
       if (__DEV__) console.log('[PDF import] normalized pipeline source:', pdfParseSourceDevLabel(source));

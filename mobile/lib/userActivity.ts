@@ -12,7 +12,8 @@ export type ActivityEventType =
   | 'roster_import'
   | 'family_push'
   | 'screen_view'
-  | 'admin_push';
+  | 'admin_push'
+  | 'roster_import_issue';
 
 /** More frequent than before so DAU / daily charts stay meaningful. */
 const APP_OPEN_THROTTLE_MS = 15 * 60 * 1000; // 15 min

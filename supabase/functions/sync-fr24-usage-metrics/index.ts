@@ -175,7 +175,15 @@ Deno.serve(async (req) => {
   let authorized = !!cronSecret && cronSecret === supplied;
   if (!authorized && bearer) {
     const claims = decodeJwtPayload(bearer);
-    const requesterEmail = normalizeEmail(claims?.email);
+    const url = Deno.env.get('SUPABASE_URL')?.trim();
+    const key = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')?.trim();
+    // verify_jwt=false: imza Auth sunucusuyla doğrulanmadan decode edilen e-postaya güvenilmez.
+    let verifiedEmail = '';
+    if (claims?.sub && url && key) {
+      const { data } = await createClient(url, key, { auth: { autoRefreshToken: false, persistSession: false } })
+        .auth.getUser(bearer);
+      if (data?.user?.id === claims.sub) verifiedEmail = normalizeEmail(data.user.email);
+    }
     const allowedEmailsRaw = Deno.env.get('ADMIN_DASHBOARD_ALLOWED_EMAILS') ?? '';
     const allowedEmails = new Set(
       allowedEmailsRaw
@@ -183,7 +191,7 @@ Deno.serve(async (req) => {
         .map((x) => normalizeEmail(x))
         .filter(Boolean),
     );
-    authorized = !!claims?.sub && !!requesterEmail && allowedEmails.has(requesterEmail);
+    authorized = !!verifiedEmail && allowedEmails.has(verifiedEmail);
   }
   if (!authorized) {
     return new Response(

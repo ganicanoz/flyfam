@@ -51,6 +51,15 @@ Deno.serve(async (req) => {
 
     const uid = user.id;
 
+    // Tablo satırları auth silinince cascade ile gider; private bucket'taki PDF'ler gitmez.
+    try {
+      const { data: reports } = await adminClient.from('roster_pdf_reports').select('storage_path').eq('user_id', uid);
+      const paths = (reports ?? []).map((r: { storage_path: string }) => r.storage_path);
+      if (paths.length) await adminClient.storage.from('roster-pdf-reports').remove(paths);
+    } catch (e) {
+      console.warn('[delete-my-account] roster pdf reports cleanup', e instanceof Error ? e.message : String(e));
+    }
+
     let deleteError = (await adminClient.auth.admin.deleteUser(uid)).error;
 
     if (deleteError) {

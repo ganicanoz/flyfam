@@ -1,6 +1,8 @@
 import Constants from 'expo-constants';
-import { Platform } from 'react-native';
+import { Platform, type AlertButton } from 'react-native';
 import { alertWithCopy } from './alertWithCopy';
+import i18n from './i18n';
+import { offerRosterPdfReport, trackRosterImportIssue } from './rosterPdfReport';
 
 export type PdfImportReportContext = {
   title: string;
@@ -57,12 +59,39 @@ export function buildPdfImportReport(ctx: PdfImportReportContext): string {
 export function showPdfImportAlert(
   title: string,
   message: string,
-  reportContext?: Omit<PdfImportReportContext, 'title' | 'message'>,
+  reportContext?: Omit<PdfImportReportContext, 'title' | 'message'> & { pdfUri?: string | null },
 ): void {
+  const { pdfUri, ...ctx } = reportContext ?? {};
   const copyText = buildPdfImportReport({
     title,
     message,
-    ...reportContext,
+    ...ctx,
   });
-  alertWithCopy(title, message, { copyText });
+  trackRosterImportIssue(title, {
+    crewAirlineIcao: ctx.crewAirlineIcao,
+    parseSource: ctx.parseSource,
+    rowCount: ctx.rowCount,
+    failedCount: ctx.failed?.length,
+    edgeFailureHint: ctx.edgeFailureHint,
+  });
+  const extraButtons: AlertButton[] = pdfUri
+    ? [
+        {
+          text: i18n.t('addFlight.pdfReportSend'),
+          onPress: () => {
+            void offerRosterPdfReport(pdfUri, 'failed', {
+              crewAirlineIcao: ctx.crewAirlineIcao,
+              parseSource: ctx.parseSource,
+              rowCount: ctx.rowCount,
+              meta: {
+                title: title.slice(0, 80),
+                failed: ctx.failed?.length ?? null,
+                edge_hint: ctx.edgeFailureHint ? String(ctx.edgeFailureHint).slice(0, 160) : null,
+              },
+            });
+          },
+        },
+      ]
+    : [];
+  alertWithCopy(title, message, { copyText, extraButtons });
 }

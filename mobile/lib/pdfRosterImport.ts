@@ -5,28 +5,30 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { PdfFlightRow } from '../../supabase/functions/_shared/pdfRosterImport';
 import {
-  rowFlightRestEndUtc,
-  rowRosterBlockDutyTimesUtc,
-  dutyClockToUtcIso,
-  detectPegasusPlanTimeBasis,
-  rowToScheduleIso,
-  restEndOperatingYmd,
-  isSimulatorOccupationCode,
-  isStandbyOccupationCode,
-  localDateTimeInTimezoneToUtcIso,
-  ROSTER_FALLBACK_TIMEZONE,
-} from '../../supabase/functions/_shared/pdfRosterImport';
+  buildRosterImportPlan,
+  findSuspectRosterLegs,
+  normalizeRosterCode,
+  type ChainLeg,
+  type RosterImportPlanItem,
+  type RosterStaleFlight,
+  type RosterSuspectLeg,
+} from '../../supabase/functions/_shared/roster-import/plan';
 
 export * from '../../supabase/functions/_shared/pdfRosterImport';
+export {
+  buildRosterImportPlan,
+  fetchAirportTimezonesByIata,
+  findSuspectRosterLegs,
+  type ChainLeg,
+  type RosterImportPlan,
+  type RosterImportPlanItem,
+  type RosterImportRpcArgs,
+  type RosterStaleFlight,
+  type RosterSuspectLeg,
+} from '../../supabase/functions/_shared/roster-import/plan';
 
 import { trackActivityEvent } from './userActivity';
 import { flushPendingRosterClear } from './rosterFlightClear';
-import { airportIanaForCode } from '../../supabase/functions/_shared/airportIanaByCode';
-import {
-  filterPdfRowsForCrewAirline,
-  isRosterPdfImportSupportedForCrewAirline,
-  normalizeCrewAirlineIcaoTypo,
-} from '../../supabase/functions/_shared/roster-pdf/crewAirlineFilter';
 
 /**
  * Roster PDF içe aktarma — ürün kilidi (filtre/ICAO listesi paylaşılan `crewAirlineFilter` modülünde).
@@ -43,507 +45,11 @@ export type PdfImportRpcResult = {
   importedNonFlights: number;
   /** THY’de TK dışı satırlar; desteklenmeyen havayolunda tüm satırlar (PGT’de 0) */
   skippedWrongAirline: number;
+  /** Bu import’un uçuşlarında rota/saat tutarsızlığı (parser şüphesi). */
+  suspectLegs: RosterSuspectLeg[];
+  /** Import tarih aralığında olup bu PDF’te bulunmayan mevcut uçuşlar (kaldırma kullanıcı onayıyla). */
+  staleFlights: RosterStaleFlight[];
 };
-
-/** `public.airports` (FR24 sync) — IATA → IANA timezone. */
-export async function fetchAirportTimezonesByIata(
-  supabase: SupabaseClient,
-  iatas: string[]
-): Promise<Map<string, string>> {
-  const uniq = [
-    ...new Set(
-      iatas
-        .map((x) => x.replace(/\s/g, '').toUpperCase())
-        .filter((x) => x.length >= 3)
-        .map((x) => x.slice(0, 3))
-    ),
-  ];
-  const out = new Map<string, string>();
-  if (uniq.length === 0) return out;
-  const { data, error } = await supabase.from('airports').select('iata,timezone_iana').in('iata', uniq);
-  if (error || !data) return out;
-  for (const r of data as { iata: string | null; timezone_iana: string | null }[]) {
-    const i = r.iata?.trim().toUpperCase();
-    const tz = r.timezone_iana?.trim();
-    if (i && tz) out.set(i, tz);
-  }
-  for (const i of uniq) {
-    if (!out.has(i)) {
-      const tz = airportIanaForCode(i);
-      if (tz) out.set(i, tz);
-    }
-  }
-  return out;
-}
-
-function normalizeCode(code: string | null | undefined): string {
-  const normalized = (code || '').replace(/\s/g, '').toUpperCase();
-  // OCR gürültüsü: bazı PDF'lerde "FSF12"/"FOF7"/"VAV30" gibi artıklar gelebiliyor.
-  // Bunlar yeni bir görev kodu değil; off-day koduna geri katla.
-  if (/^FSF\d{1,3}$/.test(normalized)) return 'FSF';
-  if (/^FOF\d{1,3}$/.test(normalized)) return 'FOF';
-  if (/^MSF\d{1,3}$/.test(normalized)) return 'MSF';
-  if (/^VAV\d{1,3}$/.test(normalized)) return 'VAV';
-  return normalized;
-}
-
-function isPcFlightCode(code: string): boolean {
-  return /^PC\d{2,4}$/.test(code);
-}
-
-function isTkFlightCode(code: string): boolean {
-  return /^TK\d{3,4}$/.test(code);
-}
-
-function isVfFlightCode(code: string): boolean {
-  return /^VF\d{2,4}$/.test(code);
-}
-
-function isXqFlightCode(code: string): boolean {
-  return /^XQ\d{2,4}$/.test(code);
-}
-
-function isFhFlightCode(code: string): boolean {
-  return /^FH\d{2,4}$/.test(code);
-}
-
-function is6eFlightCode(code: string): boolean {
-  return /^6E\d{3,4}$/i.test(code);
-}
-
-function isDhFlightCode(code: string): boolean {
-  return code === 'DH';
-}
-
-function isRosterFlightCode(code: string): boolean {
-  return (
-    isPcFlightCode(code) ||
-    isTkFlightCode(code) ||
-    isVfFlightCode(code) ||
-    isXqFlightCode(code) ||
-    isFhFlightCode(code) ||
-    is6eFlightCode(code)
-  );
-}
-
-function pcNumber(code: string): number | null {
-  const m = /^PC(\d{2,4})$/.exec(code);
-  return m ? Number(m[1]) : null;
-}
-
-function timeToMinutes(hhmm: string | null | undefined): number | null {
-  if (!hhmm) return null;
-  const m = hhmm.trim().match(/^(\d{2}):(\d{2})$/);
-  if (!m) return null;
-  return Number(m[1]) * 60 + Number(m[2]);
-}
-
-function addDaysIso(isoDate: string, days: number): string {
-  const d = new Date(`${isoDate}T00:00:00Z`);
-  d.setUTCDate(d.getUTCDate() + days);
-  return d.toISOString().slice(0, 10);
-}
-
-function endDateWithOvernight(startDateIso: string, startHhMm: string | null | undefined, endHhMm: string | null | undefined): string {
-  const s = timeToMinutes(startHhMm);
-  const e = timeToMinutes(endHhMm);
-  if (s != null && e != null && e < s) return addDaysIso(startDateIso, 1);
-  return startDateIso;
-}
-
-function calendarDaysBetweenYmd(fromYmd: string, toYmd: string): number {
-  const a = Date.parse(`${fromYmd}T00:00:00Z`);
-  const b = Date.parse(`${toYmd}T00:00:00Z`);
-  if (Number.isNaN(a) || Number.isNaN(b)) return 0;
-  return Math.round((b - a) / 86400000);
-}
-
-function utcIsoAddCalendarDays(utcIso: string, deltaDays: number): string | null {
-  if (deltaDays === 0) return utcIso;
-  const ms = Date.parse(utcIso);
-  if (Number.isNaN(ms)) return null;
-  const d = new Date(ms);
-  d.setUTCDate(d.getUTCDate() + deltaDays);
-  return d.toISOString();
-}
-
-function rowHasUtcSchedulePair(row: PdfFlightRow): boolean {
-  return !!(row.dep_schedule_utc_iso?.trim() && row.arr_schedule_utc_iso?.trim());
-}
-
-/** PC ardışık uçuş gecesi: yerel saat yoksa kalkışı UTC ISO’dan dakikaya çevir. */
-function depMinutesForPcOvernightHeuristic(row: PdfFlightRow): number | null {
-  const u = row.dep_schedule_utc_iso?.trim();
-  if (u) {
-    const ms = Date.parse(u);
-    if (!Number.isNaN(ms)) {
-      const d = new Date(ms);
-      return d.getUTCHours() * 60 + d.getUTCMinutes();
-    }
-  }
-  return timeToMinutes(row.dep_time_local);
-}
-
-function slashDateToIso(s: string | null | undefined): string | null {
-  if (!s) return null;
-  const m = s.trim().match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-  if (!m) return null;
-  return `${m[3]}-${m[2]}-${m[1]}`;
-}
-
-function localIstanbulToUtcIso(dateIso: string | null | undefined, hhmm: string | null | undefined): string | null {
-  if (!dateIso || !hhmm || !/^\d{4}-\d{2}-\d{2}$/.test(dateIso) || !/^\d{2}:\d{2}$/.test(hhmm)) return null;
-  const d = new Date(`${dateIso}T${hhmm}:00+03:00`);
-  if (Number.isNaN(d.getTime())) return null;
-  return d.toISOString();
-}
-
-function utcDayBoundaryIso(dateIso: string, hhmm: '00:00' | '23:59'): string {
-  if (hhmm === '00:00') return `${dateIso}T00:00:00.000Z`;
-  return `${dateIso}T23:59:00.000Z`;
-}
-
-/** THY GMT `…T06:00:00.000Z` → `06:00` (PDF satırındaki saatle aynı duvar saati). */
-function utcClockHhMmFromIso(iso: string | null | undefined): string | null {
-  if (!iso || typeof iso !== 'string') return null;
-  const m = iso.trim().match(/T(\d{2}):(\d{2})(?::\d{2})?/);
-  if (!m) return null;
-  return `${m[1]}:${m[2]}`;
-}
-
-/**
- * Edge JSON / eski yanıtlar: UTC plan dolu iken `dep_time_local` boş gelebilir.
- * İsteğe bağlı camelCase yedek (ileride veya araçlar).
- */
-function coercePdfFlightRowForImport(raw: PdfFlightRow): PdfFlightRow {
-  const x = raw as Record<string, unknown>;
-  const depUtcRaw =
-    (typeof raw.dep_schedule_utc_iso === 'string' ? raw.dep_schedule_utc_iso : null) ??
-    (typeof x.depScheduleUtcIso === 'string' ? (x.depScheduleUtcIso as string) : null);
-  const arrUtcRaw =
-    (typeof raw.arr_schedule_utc_iso === 'string' ? raw.arr_schedule_utc_iso : null) ??
-    (typeof x.arrScheduleUtcIso === 'string' ? (x.arrScheduleUtcIso as string) : null);
-  const depUtc = depUtcRaw?.trim() || null;
-  const arrUtc = arrUtcRaw?.trim() || null;
-
-  let depL =
-    (typeof raw.dep_time_local === 'string' && raw.dep_time_local.trim() ? raw.dep_time_local.trim() : null) ??
-    (typeof x.depTimeLocal === 'string' ? x.depTimeLocal.trim() : null);
-  let arrL =
-    (typeof raw.arr_time_local === 'string' && raw.arr_time_local.trim() ? raw.arr_time_local.trim() : null) ??
-    (typeof x.arrTimeLocal === 'string' ? x.arrTimeLocal.trim() : null);
-
-  if (!depL && depUtc) depL = utcClockHhMmFromIso(depUtc);
-  if (!arrL && arrUtc) arrL = utcClockHhMmFromIso(arrUtc);
-
-  return {
-    ...raw,
-    dep_schedule_utc_iso: depUtc ?? raw.dep_schedule_utc_iso ?? null,
-    arr_schedule_utc_iso: arrUtc ?? raw.arr_schedule_utc_iso ?? null,
-    dep_time_local: depL,
-    arr_time_local: arrL,
-  };
-}
-
-function extractStandbyRowsFromRawText(text: string): PdfFlightRow[] {
-  const out: PdfFlightRow[] = [];
-  const lines = text.replace(/\r/g, '').split('\n');
-  const planBasis = detectPegasusPlanTimeBasis(text);
-  const dutyClockBasis: 'local' | 'utc' = planBasis === 'Z' ? 'utc' : 'local';
-  for (let i = 0; i < lines.length; i += 1) {
-    const line = (lines[i] ?? '').replace(/\s/g, '');
-    const m =
-      line.match(/^(\d{1,2})\.(\d{1,2})\.(\d{2})(\d{1,2}:\d{2})(STBY[A-Z0-9]*)$/i) ??
-      line.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})(\d{1,2}:\d{2})(STBY[A-Z0-9]*)$/i);
-    if (!m) continue;
-    const dd = m[1]!.padStart(2, '0');
-    const mm = m[2]!.padStart(2, '0');
-    const yPart = m[3]!;
-    const tm = /^(\d{1,2}):(\d{2})$/.exec(m[4]!);
-    const start = tm ? `${tm[1]!.padStart(2, '0')}:${tm[2]}` : m[4]!;
-    const code = m[5]!.toUpperCase();
-    const year =
-      yPart.length === 4 ? yPart : Number(yPart) >= 70 ? `19${yPart}` : `20${yPart}`;
-    const flightDate = `${year}-${mm}-${dd}`;
-
-    let dutyEndDateIso: string | null = null;
-    let dutyEndTime: string | null = null;
-    for (let j = i + 1; j <= Math.min(i + 8, lines.length - 1); j += 1) {
-      const d = (lines[j] ?? '').trim();
-      const t = (lines[j + 1] ?? '').trim();
-      if (/^\d{2}\/\d{2}\/\d{4}$/.test(d) && /^\d{2}:\d{2}(:\d{2})?$/.test(t)) {
-        dutyEndDateIso = slashDateToIso(d);
-        dutyEndTime = t.slice(0, 5);
-        break;
-      }
-    }
-    out.push({
-      roster_entry_kind: undefined,
-      flight_number: code,
-      flight_date: flightDate,
-      duty_occupation_code: code,
-      duty_occupation_label_tr: 'Nöbet',
-      duty_occupation_label_en: 'Standby',
-      duty_clock_basis: dutyClockBasis,
-      duty_start_time_local: start,
-      duty_end_date_iso: dutyEndDateIso,
-      duty_end_time_local: dutyEndTime,
-    });
-  }
-  return out;
-}
-
-type PreparedImportRow = {
-  row: PdfFlightRow;
-  code: string;
-  effectiveDate: string;
-  rosterKind: 'flight' | 'duty_off' | 'sim';
-};
-
-function standbyRowScore(r: PdfFlightRow): number {
-  let s = 0;
-  if (r.duty_end_time_local?.trim()) s += 2;
-  if (r.duty_end_date_iso?.trim()) s += 1;
-  if (r.duty_start_time_local?.trim()) s += 1;
-  if (r.roster_entry_kind === 'duty_off') s += 1;
-  return s;
-}
-
-function dedupeStandbyRowsByDate(rows: PdfFlightRow[]): PdfFlightRow[] {
-  const standbyBest = new Map<string, PdfFlightRow>();
-  const rest: PdfFlightRow[] = [];
-  for (const r of rows) {
-    const code = normalizeCode(r.flight_number) || normalizeCode(r.duty_occupation_code);
-    if (!isStandbyOccupationCode(code) || !r.flight_date) {
-      rest.push(r);
-      continue;
-    }
-    const key = `${r.flight_date}|standby`;
-    const prev = standbyBest.get(key);
-    if (!prev || standbyRowScore(r) > standbyRowScore(prev)) standbyBest.set(key, r);
-  }
-  return [...rest, ...standbyBest.values()];
-}
-
-function prepareImportRows(
-  rows: PdfFlightRow[],
-  rawText?: string | null,
-  opts?: { injectPegasusStandbyFromRawText?: boolean }
-): { prepared: PreparedImportRow[]; skippedInvalid: number } {
-  let merged = dedupeStandbyRowsByDate([...rows]);
-  if (opts?.injectPegasusStandbyFromRawText && rawText && rawText.trim().length > 0) {
-    const stby = extractStandbyRowsFromRawText(rawText);
-    const standbyDates = new Set(
-      merged
-        .filter((r) => {
-          const code = normalizeCode(r.flight_number) || normalizeCode(r.duty_occupation_code);
-          return isStandbyOccupationCode(code);
-        })
-        .map((r) => r.flight_date),
-    );
-    for (const r of stby) {
-      if (!r.flight_date || standbyDates.has(r.flight_date)) continue;
-      merged.push(r);
-      standbyDates.add(r.flight_date);
-    }
-    merged = dedupeStandbyRowsByDate(merged);
-  }
-
-  const pcEntries: Array<{ idx: number; row: PdfFlightRow; code: string }> = [];
-  merged.forEach((r, idx) => {
-    const code = normalizeCode(r.flight_number);
-    if (isPcFlightCode(code)) pcEntries.push({ idx, row: r, code });
-  });
-  // Aynı DUTY gününde gidiş→dönüş sırası: parse sırası PC2677/PC2678 gibi ters gelebilir.
-  const pcEntriesChrono = [...pcEntries].sort((a, b) => {
-    const da = a.row.flight_date || '';
-    const db = b.row.flight_date || '';
-    if (da !== db) return da.localeCompare(db);
-    const ma = depMinutesForPcOvernightHeuristic(a.row) ?? 0;
-    const mb = depMinutesForPcOvernightHeuristic(b.row) ?? 0;
-    if (ma !== mb) return ma - mb;
-    return (pcNumber(a.code) ?? 0) - (pcNumber(b.code) ?? 0);
-  });
-
-  const restDateByIdx = new Map<number, string>();
-  for (let i = 1; i < pcEntriesChrono.length; i += 1) {
-    const prev = pcEntriesChrono[i - 1]!;
-    const e = pcEntriesChrono[i]!;
-    // Aynı DUTY günü: dönüş kalkışı gidişten erkense resting-end işletme günü (dutyTable.ts ile aynı).
-    if (prev.row.flight_date !== e.row.flight_date) continue;
-    const dep = depMinutesForPcOvernightHeuristic(e.row);
-    const prevDep = depMinutesForPcOvernightHeuristic(prev.row);
-    const restOp = restEndOperatingYmd(e.row.duty_rest_end_date_iso, e.row.duty_rest_end_time_local);
-    if (
-      restOp &&
-      dep != null &&
-      prevDep != null &&
-      dep < prevDep &&
-      restOp > e.row.flight_date &&
-      calendarDaysBetweenYmd(e.row.flight_date, restOp) <= 3
-    ) {
-      restDateByIdx.set(e.idx, restOp);
-    }
-  }
-
-  const dutyFixByIdx = new Map<number, boolean>();
-  for (const e of pcEntries) {
-    if (restDateByIdx.has(e.idx) || rowHasUtcSchedulePair(e.row)) {
-      dutyFixByIdx.set(e.idx, false);
-      continue;
-    }
-    const dep = timeToMinutes(e.row.dep_time_local);
-    const dutyStart = timeToMinutes(e.row.duty_start_time_local);
-    // PDF flight_date = duty başlangıç günü. Duty kalkıştan önce başlar; kalkış saati duty
-    // başlangıcından küçükse gece yarısı geçilmiştir (ör. duty 01.10 23:05 → PC2678 02.10 00:15).
-    dutyFixByIdx.set(e.idx, dep != null && dutyStart != null && dutyStart > dep);
-  }
-
-  const baseDateByIdx = new Map<number, string>();
-  for (const e of pcEntries) {
-    const restDate = restDateByIdx.get(e.idx);
-    if (restDate) {
-      baseDateByIdx.set(e.idx, restDate);
-      continue;
-    }
-    baseDateByIdx.set(e.idx, dutyFixByIdx.get(e.idx) ? addDaysIso(e.row.flight_date, 1) : e.row.flight_date);
-  }
-
-  const overnightByIdx = new Map<number, boolean>();
-  for (let i = 0; i < pcEntriesChrono.length - 1; i += 1) {
-    const a = pcEntriesChrono[i]!;
-    const b = pcEntriesChrono[i + 1]!;
-    if (restDateByIdx.has(b.idx)) continue;
-    if (baseDateByIdx.get(a.idx) !== baseDateByIdx.get(b.idx)) continue;
-    const an = pcNumber(a.code);
-    const bn = pcNumber(b.code);
-    // Ardışık PC veya aynı DUTY bloğunda gidiş→dönüş (saat sırası).
-    const consecutivePc = an != null && bn != null && bn === an + 1;
-    const aDep = depMinutesForPcOvernightHeuristic(a.row);
-    const bDep = depMinutesForPcOvernightHeuristic(b.row);
-    if (aDep == null || bDep == null) continue;
-    if (bDep < aDep && (consecutivePc || a.row.flight_date === b.row.flight_date)) {
-      overnightByIdx.set(b.idx, true);
-    }
-  }
-
-  const finalDateByIdx = new Map<number, string>();
-  for (const e of pcEntries) {
-    const base = baseDateByIdx.get(e.idx) ?? e.row.flight_date;
-    finalDateByIdx.set(e.idx, overnightByIdx.get(e.idx) ? addDaysIso(base, 1) : base);
-  }
-
-  const prepared: PreparedImportRow[] = [];
-  let skippedInvalid = 0;
-  for (let idx = 0; idx < merged.length; idx += 1) {
-    const r = merged[idx];
-    const code = normalizeCode(r.flight_number);
-    if (!code || !r.flight_date) {
-      skippedInvalid += 1;
-      continue;
-    }
-    const isFlight = isRosterFlightCode(code);
-    const effectiveDate = isPcFlightCode(code) ? finalDateByIdx.get(idx) ?? r.flight_date : r.flight_date;
-    const rosterKind: 'flight' | 'duty_off' | 'sim' =
-      isSimulatorOccupationCode(code) || r.roster_entry_kind === 'sim'
-        ? 'sim'
-        : isFlight
-          ? 'flight'
-          : 'duty_off';
-    prepared.push({ row: r, code, effectiveDate, rosterKind });
-  }
-  return { prepared, skippedInvalid };
-}
-
-function isIsoYmd(s: string | null | undefined): s is string {
-  return !!s && /^\d{4}-\d{2}-\d{2}$/.test(s);
-}
-
-function timeToMinutesLoose(hhmm: string | null | undefined): number | null {
-  if (!hhmm) return null;
-  const m = hhmm.trim().match(/^(\d{2}):(\d{2})$/);
-  if (!m) return null;
-  return Number(m[1]) * 60 + Number(m[2]);
-}
-
-/** Saatlik görevler — çok günlü genişletmede ara günler 00:00–23:59 üretilmez (PDF başlangıç/bitiş korunur). */
-function isTimedDutyOffCode(code: string): boolean {
-  const u = normalizeCode(code);
-  return u === 'MEET' || /^RSV\d*$/.test(u) || u === 'TOF' || u === 'SDM' || u === 'SEM';
-}
-
-/**
- * Çok günlü duty_off görevleri (FOF/ROF/RSF/III/VAC/UPV vb.) roster'da her takvim günü görünsün.
- * - Başlangıç: `effectiveDate`
- * - Bitiş: `duty_rest_end_date_iso` veya `duty_end_date_iso` içindeki en ileri tarih
- *   (`02:59` gibi erken-sabah bitişlerde son gün EXCLUSIVE kabul edilir)
- * - Fallback: FOF için en az +1 gün (eski davranış korunur)
- */
-function expandMultiDayDutyRows(prepared: PreparedImportRow[]): PreparedImportRow[] {
-  const anchoredByCodeDate = new Set<string>();
-  for (const p of prepared) {
-    if (p.rosterKind !== 'duty_off') continue;
-    anchoredByCodeDate.add(`${normalizeCode(p.code)}|${p.effectiveDate}`);
-  }
-
-  const syntheticByCodeDate = new Set<string>();
-  const out: PreparedImportRow[] = [];
-
-  for (const p of prepared) {
-    out.push(p);
-    if (p.rosterKind !== 'duty_off') continue;
-
-    const code = normalizeCode(p.code);
-    const start = p.effectiveDate;
-    const endCandidates = [p.row.duty_end_date_iso?.trim(), p.row.duty_rest_end_date_iso?.trim()].filter(isIsoYmd);
-    let end = endCandidates.reduce((mx, x) => (x > mx ? x : mx), start);
-    const endClockMin =
-      timeToMinutesLoose(p.row.duty_rest_end_time_local ?? null) ??
-      timeToMinutesLoose(p.row.duty_end_time_local ?? null);
-    // 00:00-03:59 bitişleri, bir önceki günün off bloğunu kapatır (örn. 30/04 02:59 -> son tam gün 29/04).
-    if (endClockMin != null && endClockMin < 4 * 60 && end > start) {
-      end = addDaysIso(end, -1);
-    }
-
-    // FOF kuralı: her zaman 2 takvim günü (başlangıç + 1 gün).
-    if (code === 'FOF') end = addDaysIso(start, 1);
-
-    if (end <= start) continue;
-
-    // MEET / RSV / nöbet: PDF’teki görev penceresi; tüm gün 00:00–23:59 kopyalanmaz.
-    if (isTimedDutyOffCode(code)) continue;
-    if (isStandbyOccupationCode(code)) continue;
-
-    const spanDays = calendarDaysBetweenYmd(start, end);
-    // Güvenlik: parse hatalarında sınırsız genişlemeyi önle.
-    const boundedSpan = Math.min(Math.max(spanDays, 0), 45);
-    for (let d = 1; d <= boundedSpan; d += 1) {
-      const day = addDaysIso(start, d);
-      const key = `${code}|${day}`;
-      if (anchoredByCodeDate.has(key) || syntheticByCodeDate.has(key)) continue;
-      syntheticByCodeDate.add(key);
-      out.push({
-        row: {
-          ...p.row,
-          flight_date: day,
-          duty_slash_start_date_iso: undefined,
-          duty_slash_start_time_local: undefined,
-          duty_start_time_local: '00:00',
-          duty_end_date_iso: day,
-          duty_end_time_local: '23:59',
-          // Aynı görevin kutuları aynı "görev bitişi" altında gruplanabilsin.
-          duty_rest_end_date_iso: p.row.duty_rest_end_date_iso,
-          duty_rest_end_time_local: p.row.duty_rest_end_time_local,
-        },
-        code,
-        effectiveDate: day,
-        rosterKind: 'duty_off',
-      });
-    }
-  }
-
-  return out;
-}
 
 /**
  * Uçuş satırları + SIM / duty_off (FSF/FOF/DUTY/STBY…).
@@ -560,56 +66,15 @@ export async function importPdfFlightsViaRpc(
     crewAirlineIata?: string | null;
     /** Duty/nöbet/off saatleri için home base IATA (istasyon lokal → UTC). */
     crewHomeBaseIata?: string | null;
+    /** Yalnız aktivite kaydı için (`edge_server_flights` vb.). */
+    parseSource?: string | null;
   }
 ): Promise<PdfImportRpcResult> {
   await flushPendingRosterClear();
   const failed: PdfImportRpcResult['failed'] = [];
-  const icaoOpt = normalizeCrewAirlineIcaoTypo(options?.crewAirlineIcao?.trim());
-  const homeBaseIata = (options?.crewHomeBaseIata ?? '').trim().toUpperCase().slice(0, 3);
-  let skippedWrongAirline = 0;
-  let rowsForPrepare = rows;
-  if (!icaoOpt) {
-    rowsForPrepare = [];
-    skippedWrongAirline = rows.length;
-  } else if (!isRosterPdfImportSupportedForCrewAirline(icaoOpt)) {
-    rowsForPrepare = [];
-    skippedWrongAirline = rows.length;
-  } else {
-    const { kept, skippedWrongAirline: sw } = filterPdfRowsForCrewAirline(
-      rows,
-      icaoOpt,
-      options?.crewAirlineIata ?? null
-    );
-    rowsForPrepare = kept;
-    skippedWrongAirline = sw;
-  }
-
-  const injectStandby = icaoOpt?.toUpperCase() === 'PGT';
-  const { prepared, skippedInvalid } = prepareImportRows(rowsForPrepare, options?.rawText ?? null, {
-    injectPegasusStandbyFromRawText: injectStandby,
-  });
-  const preparedExpanded = expandMultiDayDutyRows(prepared);
-
-  let tzMap = new Map<string, string>();
-  try {
-    const iatas: string[] = [];
-    for (const p of preparedExpanded) {
-      if (p.rosterKind !== 'flight') continue;
-      if (p.row.origin_iata) iatas.push(p.row.origin_iata);
-      if (p.row.destination_iata) iatas.push(p.row.destination_iata);
-    }
-    if (homeBaseIata.length === 3) iatas.push(homeBaseIata);
-    tzMap = await fetchAirportTimezonesByIata(supabase, iatas);
-  } catch (e) {
-    if (typeof __DEV__ !== 'undefined' && __DEV__) {
-      console.warn('[importPdfFlightsViaRpc] airport TZ fetch failed, Istanbul fallback', e);
-    }
-  }
-
-  const homeBaseTz =
-    (homeBaseIata.length === 3
-      ? tzMap.get(homeBaseIata) ?? airportIanaForCode(homeBaseIata)
-      : null) ?? ROSTER_FALLBACK_TIMEZONE;
+  const plan = await buildRosterImportPlan(supabase, rows, options);
+  const icaoOpt = plan.icao;
+  const { skippedWrongAirline, skippedInvalid } = plan;
 
   let ok = 0;
   let importedFlights = 0;
@@ -617,148 +82,46 @@ export async function importPdfFlightsViaRpc(
   let skippedIncompleteFlights = 0;
 
   type RowOutcome =
-    | { kind: 'success'; rosterKind: 'flight' | 'duty_off' | 'sim' }
+    | { kind: 'success'; rosterKind: 'flight' | 'duty_off' | 'sim'; flightId: string }
     | {
         kind: 'skip_incomplete';
         entry: { flight_number: string; flight_date: string; message: string };
       }
     | { kind: 'fail'; entry: { flight_number: string; flight_date: string; message: string } };
 
-  const importOnePreparedRow = async (p: PreparedImportRow): Promise<RowOutcome> => {
-    const f = coercePdfFlightRowForImport(p.row);
-    const hasRoute = !!(f.origin_iata?.trim() && f.destination_iata?.trim());
-    const hasUtcPair = !!(f.dep_schedule_utc_iso?.trim() && f.arr_schedule_utc_iso?.trim());
-    const hasLocalPair = !!(f.dep_time_local && f.arr_time_local);
-    if (p.rosterKind === 'flight' && (!hasRoute || (!hasLocalPair && !hasUtcPair))) {
-      return {
-        kind: 'skip_incomplete',
-        entry: {
-          flight_number: p.code,
-          flight_date: p.effectiveDate,
-          message: 'Incomplete flight row (origin/destination/dep/arr missing)',
-        },
-      };
-    }
-    const rowForDate: PdfFlightRow = { ...f, flight_date: p.effectiveDate };
-    const oi = f.origin_iata?.trim().toUpperCase() ?? '';
-    const di = f.destination_iata?.trim().toUpperCase() ?? '';
-
-    let depIso: string | null = null;
-    let arrIso: string | null = null;
-    if (p.rosterKind === 'flight') {
-      const utcDep = f.dep_schedule_utc_iso?.trim();
-      const utcArr = f.arr_schedule_utc_iso?.trim();
-      if (utcDep && utcArr) {
-        const delta = calendarDaysBetweenYmd(f.flight_date, p.effectiveDate);
-        depIso = utcIsoAddCalendarDays(utcDep, delta) ?? utcDep;
-        arrIso = utcIsoAddCalendarDays(utcArr, delta) ?? utcArr;
-      } else {
-        const originTz =
-          (oi.length === 3 ? tzMap.get(oi) ?? airportIanaForCode(oi) : null) ?? null;
-        const destTz =
-          (di.length === 3 ? tzMap.get(di) ?? airportIanaForCode(di) : null) ?? null;
-        const iso = rowToScheduleIso(rowForDate, { originTz, destTz });
-        depIso = iso.depIso;
-        arrIso = iso.arrIso;
-      }
-    } else {
-      const isDeadheadTask = normalizeCode(rowForDate.flight_number) === 'DH';
-      const startDate = rowForDate.duty_slash_start_date_iso ?? rowForDate.flight_date;
-      const startTime = isDeadheadTask
-        ? (rowForDate.dep_time_local ?? rowForDate.duty_start_time_local ?? null)
-        : (rowForDate.duty_slash_start_time_local ?? rowForDate.duty_start_time_local ?? null);
-      // duty_off/sim bloklarında ürün kararı: bitiş = DUTY END (rest end değil).
-      const endDate = isDeadheadTask
-        ? endDateWithOvernight(startDate, startTime, rowForDate.arr_time_local ?? null)
-        : (rowForDate.duty_end_date_iso ?? startDate);
-      const endTime = isDeadheadTask
-        ? (rowForDate.arr_time_local ?? rowForDate.duty_end_time_local ?? null)
-        : (rowForDate.duty_end_time_local ?? null);
-      const isSyntheticAllDayDutyOff =
-        p.rosterKind === 'duty_off' &&
-        !rowForDate.duty_slash_start_date_iso &&
-        !rowForDate.duty_slash_start_time_local &&
-        startTime === '00:00' &&
-        endTime === '23:59' &&
-        startDate === endDate;
-
-      if (isSyntheticAllDayDutyOff) {
-        // Tam gün off: home base takvim günü 00:00–23:59 → UTC.
-        depIso = startDate
-          ? localDateTimeInTimezoneToUtcIso(startDate, '00:00', homeBaseTz, 0)
-          : null;
-        arrIso = endDate
-          ? localDateTimeInTimezoneToUtcIso(endDate, '23:59', homeBaseTz, 0)
-          : null;
-      } else {
-        // Active Plan (Z) → duty_clock_basis=utc; (L)/THY lokal → home base IANA.
-        const patch: PdfFlightRow = {
-          ...rowForDate,
-          flight_date: startDate ?? rowForDate.flight_date,
-          duty_start_time_local: startTime,
-          duty_end_date_iso: endDate,
-          duty_end_time_local: endTime,
-        };
-        const block = rowRosterBlockDutyTimesUtc(patch, homeBaseTz);
-        depIso =
-          block.dutyStartIso ??
-          dutyClockToUtcIso(startDate, startTime, rowForDate.duty_clock_basis, 0, homeBaseTz);
-        arrIso =
-          block.dutyEndIso ??
-          dutyClockToUtcIso(endDate, endTime, rowForDate.duty_clock_basis, 0, homeBaseTz);
-      }
-    }
-
-    const dutyRestEndIso =
-      rowFlightRestEndUtc(rowForDate, homeBaseTz) ??
-      dutyClockToUtcIso(
-        rowForDate.duty_rest_end_date_iso ?? null,
-        rowForDate.duty_rest_end_time_local ?? null,
-        rowForDate.duty_clock_basis,
-        0,
-        homeBaseTz,
-      );
-    const icaoU = icaoOpt?.trim().toUpperCase() ?? '';
-    const indigoNote =
-      icaoU === 'IGO' && p.rosterKind === 'flight'
-        ? (f as { indigo_roster_detail_en?: string | null }).indigo_roster_detail_en?.trim() || null
-        : null;
-    const { data: flightId, error } = await supabase.rpc('add_me_to_flight', {
-      p_flight_number: p.code,
-      p_flight_date: p.effectiveDate,
-      p_origin_airport: p.rosterKind === 'flight' ? f.origin_iata?.trim() || null : null,
-      p_destination_airport: p.rosterKind === 'flight' ? f.destination_iata?.trim() || null : null,
-      p_scheduled_departure: depIso,
-      p_scheduled_arrival: arrIso,
-      p_roster_entry_kind: p.rosterKind,
-      p_duty_rest_end: dutyRestEndIso,
-      p_roster_detail: indigoNote,
-    });
+  const importOnePlannedRow = async (it: RosterImportPlanItem): Promise<RowOutcome> => {
+    if (it.kind === 'incomplete') return { kind: 'skip_incomplete', entry: it.entry };
+    const { data: flightId, error } = await supabase.rpc('add_me_to_flight', it.args);
     if (error) {
       return {
         kind: 'fail',
-        entry: { flight_number: p.code, flight_date: p.effectiveDate, message: error.message },
+        entry: { flight_number: it.code, flight_date: it.effectiveDate, message: error.message },
       };
     }
     if (!flightId) {
       return {
         kind: 'fail',
         entry: {
-          flight_number: p.code,
-          flight_date: p.effectiveDate,
+          flight_number: it.code,
+          flight_date: it.effectiveDate,
           message: 'Crew profile not found',
         },
       };
     }
-    return { kind: 'success', rosterKind: p.rosterKind };
+    return { kind: 'success', rosterKind: it.rosterKind, flightId: String(flightId) };
   };
 
-  const outcomes = await Promise.all(preparedExpanded.map((p) => importOnePreparedRow(p)));
+  const outcomes = await Promise.all(plan.items.map((it) => importOnePlannedRow(it)));
+  const importedIds = new Set<string>();
+  const importedFlightIds: string[] = [];
   for (const o of outcomes) {
     if (o.kind === 'success') {
       ok += 1;
-      if (o.rosterKind === 'flight') importedFlights += 1;
-      else importedNonFlights += 1;
+      importedIds.add(o.flightId);
+      if (o.rosterKind === 'flight') {
+        importedFlights += 1;
+        importedFlightIds.push(o.flightId);
+      } else importedNonFlights += 1;
     } else if (o.kind === 'skip_incomplete') {
       skippedIncompleteFlights += 1;
       failed.push(o.entry);
@@ -769,34 +132,82 @@ export async function importPdfFlightsViaRpc(
 
   // Drop memberships older than this import’s earliest date — not “yesterday”.
   // Yesterday floor wiped in-plan past duties (ör. PC398 20 Eyl when today is 24 Eyl).
+  let importFloor: string | null = null;
+  let importCeil: string | null = null;
+  for (const p of plan.items) {
+    const d = (p.effectiveDate || '').trim();
+    if (d && (!importFloor || d < importFloor)) importFloor = d;
+    if (d && (!importCeil || d > importCeil)) importCeil = d;
+  }
+  let myFlightIds: string[] = [];
   try {
-    let importFloor: string | null = null;
-    for (const p of preparedExpanded) {
-      const d = (p.effectiveDate || '').trim();
-      if (d && (!importFloor || d < importFloor)) importFloor = d;
-    }
     if (ok > 0 && importFloor) {
       const { data: me } = await supabase.from('crew_profiles').select('id').single();
       const crewId = (me as { id?: string } | null)?.id ?? null;
       if (crewId) {
         const { data: fcRows } = await supabase.from('flight_crew').select('flight_id').eq('crew_id', crewId);
         if (fcRows?.length) {
-          const ids = fcRows.map((r: { flight_id: string }) => r.flight_id);
+          myFlightIds = fcRows.map((r: { flight_id: string }) => r.flight_id);
           const { data: oldFlights } = await supabase
             .from('flights')
             .select('id')
-            .in('id', ids)
+            .in('id', myFlightIds)
             .lt('flight_date', importFloor);
+          const removed = new Set((oldFlights ?? []).map((f) => (f as { id: string }).id));
           await Promise.all(
-            (oldFlights ?? []).map((f) =>
-              supabase.rpc('remove_me_from_flight', { p_flight_id: (f as { id: string }).id }),
-            ),
+            [...removed].map((id) => supabase.rpc('remove_me_from_flight', { p_flight_id: id })),
           );
+          myFlightIds = myFlightIds.filter((id) => !removed.has(id));
         }
       }
     }
   } catch {
     // Non-fatal cleanup best-effort.
+  }
+
+  let suspectLegs: RosterSuspectLeg[] = [];
+  if (importedFlightIds.length > 1) {
+    try {
+      const { data } = await supabase
+        .from('flights')
+        .select('flight_number, flight_date, origin_airport, destination_airport, scheduled_departure, scheduled_arrival')
+        .in('id', [...new Set(importedFlightIds)]);
+      suspectLegs = findSuspectRosterLegs((data ?? []) as ChainLeg[]);
+    } catch {
+      // Non-fatal check.
+    }
+  }
+
+  // Aynı uçuş numarası ±3 gün içinde import edilemediyse (başarısız/eksik) o eski satır «PDF’te yok» sayılmaz.
+  let staleFlights: RosterStaleFlight[] = [];
+  if (ok > 0 && importFloor && importCeil && myFlightIds.length) {
+    try {
+      const candidateIds = myFlightIds.filter((id) => !importedIds.has(id));
+      if (candidateIds.length) {
+        const { data } = await supabase
+          .from('flights')
+          .select('id, flight_number, flight_date, origin_airport, destination_airport, roster_entry_kind')
+          .in('id', candidateIds)
+          .gte('flight_date', importFloor)
+          .lte('flight_date', importCeil);
+        const dayDiff = (a: string, b: string) =>
+          Math.abs(Date.parse(`${a}T00:00:00Z`) - Date.parse(`${b}T00:00:00Z`)) / 86400000;
+        const notImported = failed.map((e) => ({ fn: normalizeRosterCode(e.flight_number), d: e.flight_date }));
+        staleFlights = ((data ?? []) as Array<RosterStaleFlight & { roster_entry_kind: string | null }>)
+          .filter((f) => (f.roster_entry_kind ?? 'flight') === 'flight')
+          .filter((f) => !notImported.some((n) => n.fn === normalizeRosterCode(f.flight_number) && dayDiff(n.d, f.flight_date) <= 3))
+          .map(({ id, flight_number, flight_date, origin_airport, destination_airport }) => ({
+            id,
+            flight_number,
+            flight_date,
+            origin_airport,
+            destination_airport,
+          }))
+          .sort((a, b) => a.flight_date.localeCompare(b.flight_date));
+      }
+    } catch {
+      // Non-fatal check.
+    }
   }
 
   if (ok > 0) {
@@ -810,6 +221,10 @@ export async function importPdfFlightsViaRpc(
           imported_non_flights: importedNonFlights,
           failed: failed.length,
           airline_icao: icaoOpt || null,
+          parse_source: options?.parseSource ?? null,
+          suspect_n: suspectLegs.length,
+          suspect: suspectLegs.slice(0, 10).map((s) => `${s.flight_number} ${s.flight_date} ${s.reason}`),
+          stale_n: staleFlights.length,
         });
       }
     } catch {
@@ -825,5 +240,7 @@ export async function importPdfFlightsViaRpc(
     importedFlights,
     importedNonFlights,
     skippedWrongAirline,
+    suspectLegs,
+    staleFlights,
   };
 }
