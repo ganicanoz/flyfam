@@ -13,7 +13,7 @@
   <meta http-equiv="Expires" content="0" />
   <script>
     (function () {
-      var UI = '62';
+      var UI = '63';
       var p = new URLSearchParams(location.search);
       if (p.get('ui') !== UI) {
         p.set('ui', UI);
@@ -859,6 +859,15 @@
     .rr-detail .rr-chg { color: #b45309; font-size: 11px; }
     .rr-detail tr.rr-same td { opacity: 0.55; }
     .rr-detail .rr-suspect { font-size: 12px; margin: 4px 0; }
+    .cr-rules h4 { margin: 14px 0 6px; font-size: 13px; }
+    .cr-rules ol { margin: 0; padding-left: 18px; }
+    .cr-rules table { margin-bottom: 4px; }
+    .cr-legend { display: flex; flex-wrap: wrap; gap: 6px 12px; font-size: 11px; color: var(--muted); margin-bottom: 8px; }
+    .cr-legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 4px; vertical-align: -2px; }
+    .cr-grid th.cr-day { text-align: center; font-size: 10px; padding: 4px 2px; min-width: 34px; }
+    .cr-grid td.cr-cell { padding: 3px 2px; text-align: center; }
+    .cr-grid td.cr-cell span { display: block; min-height: 22px; line-height: 22px; border-radius: 5px; color: #fff; font-size: 10px; font-weight: 700; }
+    .cr-grid td.cr-name { white-space: nowrap; min-width: 140px; }
     .occ-save-bar { position: sticky; bottom: 12px; z-index: 20; margin-top: 12px; display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; padding: 10px 12px; border-radius: 10px; background: #FFF7E6; border: 1px solid #F5C26B; box-shadow: 0 6px 18px rgba(15, 23, 42, 0.12); }
     .occ-save-bar-text { margin-right: auto; font-size: 13px; font-weight: 600; color: #8A5300; }
     #btnOccSave.occ-dirty { border-color: #F5C26B; background: #FFF7E6; color: #8A5300; font-weight: 700; }
@@ -1111,6 +1120,7 @@
           <div class="menu-group-label">Kullanıcılar</div>
           <button type="button" class="nav-btn" data-view="usersView"><span class="nav-ico">04</span><span class="nav-label">Kullanıcılar</span><span class="nav-now">Şimdi</span></button>
           <button type="button" class="nav-btn" data-view="connectionsView"><span class="nav-ico">05</span><span class="nav-label">Bağlantılar</span><span class="nav-now">Şimdi</span></button>
+          <button type="button" class="nav-btn" data-view="crewRoomView"><span class="nav-ico">15</span><span class="nav-label">Ekip Odası</span><span id="navCrewRoomBadge" class="nav-badge" aria-hidden="true">0</span><span class="nav-now">Şimdi</span></button>
         </div>
         <div class="menu-group">
           <div class="menu-group-label">Operasyon</div>
@@ -1972,6 +1982,215 @@
               <h3 class="panel-title">Ham / provider debug · FR24 üstte</h3>
               <div id="fcRawView" class="fc-raw-host">—</div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="crewRoomView" class="view">
+        <header class="page-head">
+          <div class="section-kicker">Kullanıcılar</div>
+          <h1>Ekip Odası</h1>
+          <p class="sub">Crew ↔ crew roster paylaşımı: kişiler, bağlantılar, paylaşım düzeyleri ve yatı bildirimi</p>
+        </header>
+        <div class="panel">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:8px;">
+            <h3 style="margin:0;">Özet</h3>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <button type="button" id="btnCrAdminReload" class="btnSmall">Yenile</button>
+              <span id="crAdminStatus" class="mini"></span>
+            </div>
+          </div>
+          <div class="kpi-row kpi-row-6" style="margin:12px 0;">
+            <div class="card"><h3>Kişi</h3><div class="num" id="crKpiPeople">-</div><div class="mini" id="crKpiPeopleSub">&nbsp;</div></div>
+            <div class="card"><h3>Onaylı bağlantı</h3><div class="num" id="crKpiApproved">-</div><div class="mini" id="crKpiApprovedSub">&nbsp;</div></div>
+            <div class="card"><h3>Bekleyen davet</h3><div class="num" id="crKpiPending">-</div><div class="mini">kabul bekliyor</div></div>
+            <div class="card"><h3>Kişiye özel paylaşım</h3><div class="num" id="crKpiOverrides">-</div><div class="mini">varsayılanı ezen</div></div>
+            <div class="card"><h3>Görünmez</h3><div class="num" id="crKpiInvisible">-</div><div class="mini">kimse göremez</div></div>
+            <div class="card"><h3>Yatı bildirimi</h3><div class="num" id="crKpiNotify">-</div><div class="mini" id="crKpiNotifySub">&nbsp;</div></div>
+          </div>
+          <p class="mini" id="crKpiLevels" style="margin:0;"></p>
+        </div>
+
+        <div class="panel">
+          <details id="crRules">
+            <summary class="panel-title" style="cursor:pointer;margin:0;">Nasıl çalışır · sabit kurallar</summary>
+            <div class="cr-rules">
+              <p class="info-callout" style="margin-top:10px;">
+                Aşağıdaki kurallar sunucu fonksiyonlarında (<code>crew_room_*</code> migration'ları ve <code>crew-room-notify</code>) sabittir;
+                buradan değiştirilmez. Değiştirilebilen alanlar: kişi tercihleri, bağlantı durumu ve kişiye özel paylaşım.
+              </p>
+              <h4>Paylaşım düzeyleri (karşı taraf ne görür)</h4>
+              <table class="users-table">
+                <thead><tr><th>Düzey</th><th>Kod</th><th>Görünen</th></tr></thead>
+                <tbody>
+                  <tr><td>Gizli</td><td><code>hidden</code></td><td>Hiçbir gün gelmez; kişi listede kalır.</td></tr>
+                  <tr><td>Müsait / değil / yatıda</td><td><code>availability</code></td><td>Boş gün · müsait değil · yatıda · bilgi yok. Uçuş, istasyon ve yatı yeri gizli (uçuş/nöbet/görev → <code>busy</code>).</td></tr>
+                  <tr><td>Varış ve yatı yeri</td><td><code>destination</code></td><td>Durum + gidilen istasyonlar + yatı yeri. Uçuş no ve saatler yok.</td></tr>
+                  <tr><td>Uçuşlar ve saatler</td><td><code>full</code></td><td>Yukarıdakiler + uçuş no, kalkış/varış istasyonu ve saatleri.</td></tr>
+                </tbody>
+              </table>
+              <h4>Etkin düzey nasıl hesaplanır (sırayla)</h4>
+              <ol class="mini">
+                <li>Paylaşan kişi <strong>görünmez</strong> moddaysa → Gizli.</li>
+                <li>Aralarında <strong>onaylı bağlantı</strong> yoksa → Gizli.</li>
+                <li>İki taraftan birinin aboneliği aktif/deneme değilse → Gizli.</li>
+                <li><strong>Kişiye özel paylaşım</strong> varsa → o düzey.</li>
+                <li>Yoksa paylaşanın <strong>varsayılan paylaşımı</strong> (yeni kişide <code>availability</code>).</li>
+              </ol>
+              <h4>Gün durumları</h4>
+              <p class="mini">
+                <code>flying</code> Uçuşta · <code>layover</code> Yatıda · <code>standby</code> Nöbette · <code>duty</code> Görevde ·
+                <code>off</code> Boş gün (izin kodu) · <code>free</code> Bilgi yok (rosterda kayıt yok) · <code>unknown</code> son roster gününden sonrası.
+                Görev kodları <em>Görev kodları</em> kataloğundaki kategoriyle sınıflanır.
+              </p>
+              <h4>Yatı tespiti</h4>
+              <p class="mini">
+                Ev üssü olmayan kişide hesaplanmaz. Ev üssünden farklı bir istasyona iniş ve aynı istasyondan kalkan ilk sonraki uçuş
+                10–72 saat içindeyse yatıdır; IST/SAW/ISL aynı ev şehri sayılır. Yatı bayrağı her görünür düzeyde, yatı yeri yalnız
+                <code>destination</code> / <code>full</code>'da döner.
+              </p>
+              <h4>Sınırlar</h4>
+              <p class="mini">
+                Davet yalnız e-postayla; kabul edilince bağlantı iki yönlü. Günde en çok 30 davet. Tek sorguda en çok 62 gün (uygulama 60 gün ister).
+                Bağlantı kaldırılınca iki yöndeki kişiye özel paylaşımlar silinir. Ekip Odası kişileri aile takipçi kapasitesini kullanmaz.
+              </p>
+              <h4>Yatı bildirimi</h4>
+              <p class="mini">
+                Yalnız "yatıda denk gelme"; kullanıcı kendisi açar (varsayılan kapalı). Aynı gün, ortak istasyon ve iki yönde de düzey ≥
+                <code>destination</code> olmalı; alıcı görünmez olmamalı ve aboneliği aktif olmalı. 14 gün ileriye bakar; yerel 21:00–09:00 arası
+                gönderilmez; kişi başı tek push, en çok 4 satır; aynı kişi/gün bir kez. Cron <code>crew-room-notify</code> her saat :07'de.
+              </p>
+            </div>
+          </details>
+        </div>
+
+        <div class="panel">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:8px;">
+            <h3 class="panel-title" style="margin:0;">Kişiler ve tercihleri</h3>
+            <input type="search" id="crPeopleSearch" placeholder="Ad, e-posta, airline…" style="max-width:260px;" />
+          </div>
+          <p class="mini" style="margin-top:0;">
+            Değişiklik kullanıcının uygulamadaki <em>Paylaşım ayarları</em>'nı doğrudan değiştirir. Satırda değiştir, sonra <strong>Kaydet</strong>.
+          </p>
+          <div class="users-table-wrap">
+            <table class="users-table">
+              <thead>
+                <tr>
+                  <th>Kişi</th>
+                  <th>Airline / üs</th>
+                  <th>Abonelik</th>
+                  <th>Bağlantı</th>
+                  <th>Varsayılan paylaşım</th>
+                  <th>Görünmez</th>
+                  <th>Yatı bildirimi</th>
+                  <th>Güncellendi</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="crPeopleBody">
+                <tr><td colspan="9" class="mini">Yenile ile yükle.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:8px;">
+            <h3 class="panel-title" style="margin:0;">Bağlantılar ve kişiye özel paylaşım</h3>
+            <select id="crLinkFilter" style="max-width:200px;">
+              <option value="active" selected>Onaylı + bekleyen</option>
+              <option value="approved">approved</option>
+              <option value="pending">pending</option>
+              <option value="declined">declined</option>
+              <option value="removed">removed</option>
+              <option value="all">Tümü</option>
+            </select>
+          </div>
+          <p class="mini" style="margin-top:0;">
+            "A → B" = A'nın B'ye açtığı düzey. Seçim kişiye özel paylaşımı ayarlar ("Varsayılan" kaldırır); etkin düzey abonelik/görünmezlik sonrası sonuçtur.
+          </p>
+          <div class="users-table-wrap">
+            <table class="users-table">
+              <thead>
+                <tr>
+                  <th>Davet eden (A)</th>
+                  <th>Davet edilen (B)</th>
+                  <th>Durum</th>
+                  <th>Tarih</th>
+                  <th>A → B</th>
+                  <th>B → A</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="crLinksBody">
+                <tr><td colspan="7" class="mini">Yenile ile yükle.</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <h3 class="panel-title" style="margin-top:16px;">Yeni bağlantı</h3>
+          <p class="mini" style="margin-top:0;">
+            Onaylı bağlantıyı yalnız iki tarafın da rızası varsa kur; aksi halde <code>pending</code> seç, B uygulamada kabul etsin.
+          </p>
+          <div class="grid">
+            <div style="grid-column: span 5;">
+              <label class="mini">Davet eden (A)</label>
+              <select id="crNewA"></select>
+            </div>
+            <div style="grid-column: span 5;">
+              <label class="mini">Davet edilen (B)</label>
+              <select id="crNewB"></select>
+            </div>
+            <div style="grid-column: span 2;">
+              <label class="mini">Durum</label>
+              <select id="crNewStatus">
+                <option value="pending" selected>pending</option>
+                <option value="approved">approved</option>
+              </select>
+            </div>
+            <div style="grid-column: span 12; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+              <button type="button" id="btnCrNewLink" class="btnPrimary">Bağla</button>
+              <span id="crNewStatusLine" class="mini"></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h3 class="panel-title">Görünüm önizleme</h3>
+          <p class="mini" style="margin-top:0;">Seçilen kişinin Ekip Odası'nda gördüğünün aynısı (sunucu <code>crew_room_days_for</code>, düzeye göre kırpılmış).</p>
+          <div class="users-toolbar" style="gap:10px; align-items:end; margin-bottom:10px;">
+            <div>
+              <label class="mini">Kimin gözünden</label>
+              <select id="crPreviewViewer"></select>
+            </div>
+            <div>
+              <label class="mini">Başlangıç</label>
+              <input type="date" id="crPreviewFrom" />
+            </div>
+            <div>
+              <label class="mini">Gün</label>
+              <select id="crPreviewDays">
+                <option value="7">7</option>
+                <option value="14" selected>14</option>
+                <option value="30">30</option>
+                <option value="60">60</option>
+              </select>
+            </div>
+            <button type="button" id="btnCrPreview" class="btnPrimary">Göster</button>
+            <span id="crPreviewStatus" class="mini"></span>
+          </div>
+          <div id="crPreviewOut" class="cr-preview"></div>
+        </div>
+
+        <div class="panel">
+          <h3 class="panel-title">Yatı bildirimi kayıtları</h3>
+          <p class="mini" style="margin-top:0;">Gönderilen (işaretlenen) yatı denk gelmeleri; son 200 kayıt. Günü 7 günden eski olanlar cron tarafından silinir.</p>
+          <div class="users-table-wrap">
+            <table class="users-table">
+              <thead><tr><th>Alıcı</th><th>Diğer kişi</th><th>Gün</th><th>İşaretlendi</th></tr></thead>
+              <tbody id="crNotifiedBody">
+                <tr><td colspan="4" class="mini">Yenile ile yükle.</td></tr>
+              </tbody>
+            </table>
           </div>
         </div>
       </section>
@@ -4150,6 +4369,348 @@
       badge.classList.toggle('is-on', n > 0);
       badge.setAttribute('aria-hidden', n > 0 ? 'false' : 'true');
       badge.title = n > 0 ? n + ' yeni roster PDF incelemesi' : '';
+    }
+
+    const CR_LEVELS = [
+      ['hidden', 'Gizli'],
+      ['availability', 'Müsait / değil / yatıda'],
+      ['destination', 'Varış ve yatı yeri'],
+      ['full', 'Uçuşlar ve saatler'],
+    ];
+    const CR_LEVEL_LABEL = Object.fromEntries(CR_LEVELS);
+    const CR_LEVEL_BADGE = { hidden: 'b-bad', availability: '', destination: 'b-info', full: 'b-ok' };
+    const CR_LINK_BADGE = { approved: 'b-ok', pending: 'b-warn', declined: 'b-bad', removed: '' };
+    const CR_STATUS = {
+      flying: ['Uçuşta', '#1a5cf5', '✈'],
+      layover: ['Yatıda', '#7c3aed', '◐'],
+      standby: ['Nöbette', '#f59e0b', 'N'],
+      duty: ['Görevde', '#e53935', 'G'],
+      busy: ['Müsait değil', '#64748b', '■'],
+      off: ['Boş gün', '#22a55b', '○'],
+      free: ['Bilgi yok', '#cbd5e1', '·'],
+      unknown: ['Bilinmiyor', '#e2e8f0', ''],
+    };
+    let crAdmin = null;
+
+    function crPersonLabel(p) {
+      if (!p) return '—';
+      return escapeHtml(p.name || p.email || String(p.crew_id || '').slice(0, 8)) +
+        (p.email && p.name ? '<div class="mini">' + escapeHtml(p.email) + '</div>' : '');
+    }
+
+    function crLevelBadge(level) {
+      const l = level || 'hidden';
+      return '<span class="badge ' + (CR_LEVEL_BADGE[l] || '') + '">' + escapeHtml(CR_LEVEL_LABEL[l] || l) + '</span>';
+    }
+
+    function crLevelOptions(selected, withDefault) {
+      return (withDefault ? '<option value=""' + (selected ? '' : ' selected') + '>Varsayılan</option>' : '') +
+        CR_LEVELS.map(([v, t]) => '<option value="' + v + '"' + (selected === v ? ' selected' : '') + '>' + escapeHtml(t) + '</option>').join('');
+    }
+
+    function setCrNavBadge(count) {
+      const badge = document.getElementById('navCrewRoomBadge');
+      if (!badge) return;
+      const n = Math.max(0, Number(count) || 0);
+      badge.textContent = n > 99 ? '99+' : String(n);
+      badge.classList.toggle('is-on', n > 0);
+      badge.setAttribute('aria-hidden', n > 0 ? 'false' : 'true');
+      badge.title = n > 0 ? n + ' bekleyen Ekip Odası daveti' : '';
+    }
+
+    async function loadCrewRoomAdmin() {
+      const line = document.getElementById('crAdminStatus');
+      if (line) line.textContent = 'Yükleniyor…';
+      try {
+        crAdmin = await callAdminAction('crew_room_admin_overview', {});
+        renderCrewRoomAdmin();
+        if (line) line.textContent = 'Güncellendi ' + new Date(crAdmin.generated_at).toLocaleTimeString();
+      } catch (err) {
+        if (line) line.textContent = String(err?.message || err);
+      }
+    }
+
+    function renderCrewRoomAdmin() {
+      if (!crAdmin) return;
+      const s = crAdmin.stats || {};
+      const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+      set('crKpiPeople', s.people ?? '-');
+      set('crKpiPeopleSub', (s.with_access ?? 0) + ' abonelikli');
+      set('crKpiApproved', s.approved ?? '-');
+      set('crKpiApprovedSub', (s.declined ?? 0) + ' reddedilen · ' + (s.removed ?? 0) + ' kaldırılan');
+      set('crKpiPending', s.pending ?? '-');
+      set('crKpiOverrides', s.overrides ?? '-');
+      set('crKpiInvisible', s.invisible ?? '-');
+      set('crKpiNotify', s.notify_layover ?? '-');
+      set('crKpiNotifySub', (s.notified_7d ?? 0) + ' gönderim (7g)');
+      const lv = s.default_levels || {};
+      set('crKpiLevels', 'Varsayılan paylaşım dağılımı: ' + CR_LEVELS.map(([v, t]) => t + ' ' + (lv[v] || 0)).join(' · ') +
+        ' · tercih kaydı olan ' + (s.with_prefs ?? 0) + ' kişi');
+      setCrNavBadge(s.pending);
+      renderCrPeople();
+      renderCrLinks();
+      renderCrNotified();
+      fillCrSelects();
+    }
+
+    function renderCrPeople() {
+      const body = document.getElementById('crPeopleBody');
+      if (!body || !crAdmin) return;
+      const q = String(document.getElementById('crPeopleSearch')?.value || '').trim().toLocaleLowerCase('tr');
+      const rows = (crAdmin.people || []).filter((p) =>
+        !q || [p.name, p.email, p.airline_icao, p.home_base].some((x) => String(x || '').toLocaleLowerCase('tr').includes(q)));
+      if (!rows.length) {
+        body.innerHTML = '<tr><td colspan="9" class="mini">' + (q ? 'Eşleşen kişi yok.' : 'Henüz Ekip Odası kullanan yok.') + '</td></tr>';
+        return;
+      }
+      body.innerHTML = rows.map((p) => {
+        const id = escapeAttr(p.crew_id);
+        return '<tr data-cr-person="' + id + '">' +
+          '<td>' + crPersonLabel(p) + '</td>' +
+          '<td>' + escapeHtml(p.airline_icao || '—') + ' · ' + escapeHtml(p.home_base || 'üs yok') + '</td>' +
+          '<td><span class="badge ' + (p.has_access ? 'b-ok' : 'b-bad') + '">' + (p.has_access ? 'aktif' : 'yok') + '</span></td>' +
+          '<td>' + p.contacts + ' onaylı' + (p.pending_in || p.pending_out ? '<div class="mini">bekleyen: ' + p.pending_in + ' gelen · ' + p.pending_out + ' giden</div>' : '') +
+            (p.overrides_out ? '<div class="mini">' + p.overrides_out + ' kişiye özel</div>' : '') + '</td>' +
+          '<td><select data-cr-field="default_level">' + crLevelOptions(p.default_level, false) + '</select></td>' +
+          '<td><input type="checkbox" data-cr-field="invisible"' + (p.invisible ? ' checked' : '') + ' /></td>' +
+          '<td><input type="checkbox" data-cr-field="notify_layover"' + (p.notify_layover ? ' checked' : '') + ' /></td>' +
+          '<td class="mini">' + (p.has_prefs ? escapeHtml(fmtDate(p.prefs_updated_at)) : 'kayıt yok') + '</td>' +
+          '<td style="white-space:nowrap;">' +
+            '<button type="button" class="btnPrimary btnSmall" data-cr-act="save-prefs" data-id="' + id + '" disabled>Kaydet</button> ' +
+            '<button type="button" class="btnSmall" data-cr-act="preview" data-id="' + id + '">Önizle</button>' +
+          '</td></tr>';
+      }).join('');
+    }
+
+    function crPersonRowDirty(tr) {
+      const p = (crAdmin?.people || []).find((x) => x.crew_id === tr.dataset.crPerson);
+      if (!p) return false;
+      const lvl = tr.querySelector('[data-cr-field="default_level"]').value;
+      const inv = tr.querySelector('[data-cr-field="invisible"]').checked;
+      const notif = tr.querySelector('[data-cr-field="notify_layover"]').checked;
+      return lvl !== p.default_level || inv !== !!p.invisible || notif !== !!p.notify_layover;
+    }
+
+    function renderCrLinks() {
+      const body = document.getElementById('crLinksBody');
+      if (!body || !crAdmin) return;
+      const f = document.getElementById('crLinkFilter')?.value || 'active';
+      const rows = (crAdmin.links || []).filter((l) =>
+        f === 'all' ? true : f === 'active' ? l.status === 'approved' || l.status === 'pending' : l.status === f);
+      if (!rows.length) {
+        body.innerHTML = '<tr><td colspan="7" class="mini">Kayıt yok.</td></tr>';
+        return;
+      }
+      body.innerHTML = rows.map((l) => {
+        const id = escapeAttr(l.id);
+        const approved = l.status === 'approved';
+        const dir = (owner, viewer, eff, ov) => approved
+          ? crLevelBadge(eff) + '<div style="margin-top:4px;"><select data-cr-act="share" data-owner="' + escapeAttr(owner) + '" data-viewer="' + escapeAttr(viewer) + '">' +
+              crLevelOptions(ov, true) + '</select></div>'
+          : '<span class="mini">—</span>';
+        const btns = [];
+        if (l.status === 'pending') {
+          btns.push('<button type="button" class="btnPrimary btnSmall" data-cr-act="link" data-status="approved" data-id="' + id + '">Onayla</button>');
+          btns.push('<button type="button" class="btnSmall" data-cr-act="link" data-status="declined" data-id="' + id + '">Reddet</button>');
+        }
+        if (l.status === 'approved' || l.status === 'pending') {
+          btns.push('<button type="button" class="btnDanger btnSmall" data-cr-act="link" data-status="removed" data-id="' + id + '">Kaldır</button>');
+        }
+        return '<tr>' +
+          '<td>' + crPersonLabel(l.requester) + '</td>' +
+          '<td>' + crPersonLabel(l.addressee) + '</td>' +
+          '<td><span class="badge ' + (CR_LINK_BADGE[l.status] || '') + '">' + escapeHtml(l.status) + '</span></td>' +
+          '<td class="mini">' + escapeHtml(fmtDate(l.created_at)) + (l.responded_at ? '<div>yanıt ' + escapeHtml(fmtDate(l.responded_at)) + '</div>' : '') + '</td>' +
+          '<td>' + dir(l.requester.crew_id, l.addressee.crew_id, l.level_ab, l.override_ab) + '</td>' +
+          '<td>' + dir(l.addressee.crew_id, l.requester.crew_id, l.level_ba, l.override_ba) + '</td>' +
+          '<td style="white-space:nowrap;">' + btns.join(' ') + '</td></tr>';
+      }).join('');
+    }
+
+    function renderCrNotified() {
+      const body = document.getElementById('crNotifiedBody');
+      if (!body || !crAdmin) return;
+      const rows = crAdmin.notified || [];
+      body.innerHTML = rows.length
+        ? rows.map((n) => '<tr><td>' + crPersonLabel(n.viewer) + '</td><td>' + crPersonLabel(n.other) + '</td><td>' +
+            escapeHtml(n.day) + '</td><td class="mini">' + escapeHtml(fmtDate(n.created_at)) + '</td></tr>').join('')
+        : '<tr><td colspan="4" class="mini">Henüz yatı bildirimi gönderilmedi.</td></tr>';
+    }
+
+    function fillCrSelects() {
+      const opt = (c) => '<option value="' + escapeAttr(c.crew_id) + '">' +
+        escapeHtml((c.name || c.email || c.crew_id) + (c.airline_icao ? ' · ' + c.airline_icao : '') + (c.email && c.name ? ' · ' + c.email : '')) + '</option>';
+      const all = crAdmin?.crew_options || [];
+      for (const id of ['crNewA', 'crNewB']) {
+        const el = document.getElementById(id);
+        if (!el) continue;
+        const prev = el.value;
+        el.innerHTML = '<option value="">Seç…</option>' + all.map(opt).join('');
+        if (prev) el.value = prev;
+      }
+      const viewer = document.getElementById('crPreviewViewer');
+      if (viewer) {
+        const prev = viewer.value;
+        viewer.innerHTML = (crAdmin?.people || []).map(opt).join('');
+        if (prev) viewer.value = prev;
+      }
+      const from = document.getElementById('crPreviewFrom');
+      if (from && !from.value) from.value = new Date().toISOString().slice(0, 10);
+    }
+
+    async function crRun(fn, okMsg) {
+      const line = document.getElementById('crAdminStatus');
+      try {
+        if (line) line.textContent = 'Kaydediliyor…';
+        await fn();
+        await loadCrewRoomAdmin();
+        if (line) line.textContent = okMsg;
+        setStatus(okMsg, 'ok');
+      } catch (err) {
+        const msg = String(err?.message || err);
+        if (line) line.textContent = msg;
+        setStatus(msg, 'bad');
+        renderCrewRoomAdmin();
+      }
+    }
+
+    async function crPreview(viewerId) {
+      const out = document.getElementById('crPreviewOut');
+      const line = document.getElementById('crPreviewStatus');
+      const viewer = viewerId || document.getElementById('crPreviewViewer')?.value;
+      if (!viewer || !out) return;
+      const days = Number(document.getElementById('crPreviewDays')?.value || 14);
+      const from = document.getElementById('crPreviewFrom')?.value || new Date().toISOString().slice(0, 10);
+      if (line) line.textContent = 'Yükleniyor…';
+      try {
+        const json = await callAdminAction('crew_room_admin_preview', { viewer_crew_id: viewer, days, from });
+        const dates = [];
+        for (let t = Date.parse(json.from + 'T00:00:00Z'); t <= Date.parse(json.to + 'T00:00:00Z'); t += 86400000) dates.push(new Date(t).toISOString().slice(0, 10));
+        const byKey = new Map((json.days || []).map((d) => [d.crew_id + '|' + String(d.day).slice(0, 10), d]));
+        const people = (json.people || []).slice().sort((a, b) => (b.is_viewer ? 1 : 0) - (a.is_viewer ? 1 : 0));
+        if (!people.length) {
+          out.innerHTML = '<p class="mini">Bu kişi kimseyi göremiyor (abonelik yok ya da odada kimse yok).</p>';
+          if (line) line.textContent = '';
+          return;
+        }
+        const wd = ['Paz', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt'];
+        const head = '<tr><th>Kişi</th>' + dates.map((d) => {
+          const dt = new Date(d + 'T00:00:00Z');
+          return '<th class="cr-day">' + wd[dt.getUTCDay()] + '<br>' + dt.getUTCDate() + '</th>';
+        }).join('') + '</tr>';
+        const rowsHtml = people.map((p) => {
+          const first = (json.days || []).find((d) => d.crew_id === p.crew_id);
+          const cells = dates.map((d) => {
+            const x = byKey.get(p.crew_id + '|' + d);
+            if (!x) return '<td class="cr-cell"></td>';
+            const st = CR_STATUS[x.status] || [x.status, '#e2e8f0', '?'];
+            const flights = Array.isArray(x.flights) ? x.flights : [];
+            const tip = [d, st[0]]
+              .concat(x.layover ? ['yatı' + (x.layover_at && x.layover_at.length ? ': ' + x.layover_at.join(',') : '')] : [])
+              .concat(x.stations && x.stations.length ? ['istasyon: ' + x.stations.join(',')] : [])
+              .concat(flights.map((f) => (f.no || '') + ' ' + (f.from || '') + '→' + (f.to || '') + ' ' + String(f.dep || '').slice(11, 16) + 'Z'))
+              .join('\n');
+            const label = x.status === 'flying' && x.stations && x.stations.length ? x.stations[0] : (x.layover_at && x.layover_at[0]) || st[2];
+            return '<td class="cr-cell" title="' + escapeAttr(tip) + '"><span style="background:' + st[1] + ';' + (x.layover ? 'box-shadow:inset 0 -3px 0 #7c3aed;' : '') + '">' + escapeHtml(label) + '</span></td>';
+          }).join('');
+          return '<tr><td class="cr-name">' + escapeHtml(p.name || String(p.crew_id).slice(0, 8)) + (p.is_viewer ? ' <span class="mini">(kendisi)</span>' : '') +
+            '<div>' + (p.is_viewer ? '' : crLevelBadge(first ? first.level : 'hidden')) + '</div></td>' + cells + '</tr>';
+        }).join('');
+        const legend = Object.entries(CR_STATUS).map(([, v]) => '<span><i style="background:' + v[1] + '"></i>' + escapeHtml(v[0]) + '</span>').join('') +
+          '<span><i style="background:#fff;box-shadow:inset 0 -3px 0 #7c3aed;"></i>yatı günü</span>';
+        out.innerHTML = '<div class="cr-legend">' + legend + '</div><div class="users-table-wrap"><table class="users-table cr-grid"><thead>' + head + '</thead><tbody>' + rowsHtml + '</tbody></table></div>';
+        if (line) line.textContent = json.from + ' → ' + json.to + ' · ' + people.length + ' kişi';
+      } catch (err) {
+        if (line) line.textContent = String(err?.message || err);
+      }
+    }
+
+    function onCrClick(e) {
+      const btn = e.target && e.target.closest ? e.target.closest('button[data-cr-act]') : null;
+      if (!btn) return;
+      const act = btn.dataset.crAct;
+      if (act === 'save-prefs') {
+        const tr = btn.closest('tr');
+        const p = (crAdmin?.people || []).find((x) => x.crew_id === btn.dataset.id);
+        if (!tr || !p) return;
+        const patch = {
+          default_level: tr.querySelector('[data-cr-field="default_level"]').value,
+          invisible: tr.querySelector('[data-cr-field="invisible"]').checked,
+          notify_layover: tr.querySelector('[data-cr-field="notify_layover"]').checked,
+        };
+        const who = p.name || p.email || 'kişi';
+        if (!confirm(who + ' için Ekip Odası tercihleri değişecek:\n' +
+          'Varsayılan paylaşım: ' + CR_LEVEL_LABEL[patch.default_level] + '\nGörünmez: ' + (patch.invisible ? 'açık' : 'kapalı') +
+          '\nYatı bildirimi: ' + (patch.notify_layover ? 'açık' : 'kapalı') + '\n\nDevam?')) return;
+        void crRun(() => callAdminAction('crew_room_admin_update_prefs', { crew_id: p.crew_id, ...patch }), who + ' tercihleri kaydedildi');
+        return;
+      }
+      if (act === 'preview') {
+        const sel = document.getElementById('crPreviewViewer');
+        if (sel) sel.value = btn.dataset.id;
+        void crPreview(btn.dataset.id);
+        document.getElementById('crPreviewOut')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        return;
+      }
+      if (act === 'link') {
+        const l = (crAdmin?.links || []).find((x) => x.id === btn.dataset.id);
+        if (!l) return;
+        const status = btn.dataset.status;
+        const names = (l.requester.name || l.requester.email || 'A') + ' ↔ ' + (l.addressee.name || l.addressee.email || 'B');
+        const text = status === 'approved'
+          ? names + ' bağlantısı onaylanacak. Kabul eden (' + (l.addressee.name || 'B') + ') rıza verdi mi?'
+          : status === 'declined'
+            ? names + ' daveti reddedilecek.'
+            : names + ' bağlantısı kaldırılacak; iki yöndeki kişiye özel paylaşımlar silinir.';
+        if (!confirm(text)) return;
+        void crRun(() => callAdminAction('crew_room_admin_set_link_status', { link_id: l.id, status }), names + ': ' + status);
+      }
+    }
+
+    function onCrChange(e) {
+      const el = e.target;
+      if (!el) return;
+      if (el.matches && el.matches('select[data-cr-act="share"]')) {
+        const level = el.value || null;
+        const nameOf = (id) => {
+          const p = (crAdmin?.people || []).find((x) => x.crew_id === id);
+          return p ? p.name || p.email || 'kişi' : 'kişi';
+        };
+        const msg = nameOf(el.dataset.owner) + ' → ' + nameOf(el.dataset.viewer) + ': ' + (level ? CR_LEVEL_LABEL[level] : 'varsayılana dön');
+        if (!confirm(msg + '\n\nBu, paylaşan kişinin yerine ayar yapar. Devam?')) {
+          renderCrLinks();
+          return;
+        }
+        void crRun(() => callAdminAction('crew_room_admin_set_share', { owner_crew_id: el.dataset.owner, viewer_crew_id: el.dataset.viewer, level }), msg);
+        return;
+      }
+      const tr = el.closest ? el.closest('tr[data-cr-person]') : null;
+      if (tr) {
+        const btn = tr.querySelector('button[data-cr-act="save-prefs"]');
+        if (btn) btn.disabled = !crPersonRowDirty(tr);
+      }
+    }
+
+    async function crCreateLink() {
+      const a = document.getElementById('crNewA')?.value;
+      const b = document.getElementById('crNewB')?.value;
+      const status = document.getElementById('crNewStatus')?.value || 'pending';
+      const line = document.getElementById('crNewStatusLine');
+      if (!a || !b) { if (line) line.textContent = 'İki kişiyi de seç.'; return; }
+      if (a === b) { if (line) line.textContent = 'Aynı kişi seçilemez.'; return; }
+      const nameOf = (id) => {
+        const c = (crAdmin?.crew_options || []).find((x) => x.crew_id === id);
+        return c ? c.name || c.email || 'kişi' : 'kişi';
+      };
+      if (!confirm(nameOf(a) + ' → ' + nameOf(b) + ' (' + status + ')' + (status === 'approved' ? '\n\nOnaylı bağlantı: iki taraf da rıza verdi mi?' : '') + '\n\nDevam?')) return;
+      if (line) line.textContent = 'Kaydediliyor…';
+      try {
+        const json = await callAdminAction('crew_room_admin_create_link', { requester_crew_id: a, addressee_crew_id: b, status });
+        if (line) line.textContent = json.result === 'already_connected' ? 'Zaten bağlılar.' : json.result === 'updated' ? 'Mevcut kayıt güncellendi (' + status + ').' : 'Oluşturuldu (' + status + ').';
+        await loadCrewRoomAdmin();
+      } catch (err) {
+        if (line) line.textContent = String(err?.message || err);
+      }
     }
 
     function rrWho(r) {
@@ -6401,6 +6962,7 @@
       { id: 'broadcastView', label: 'Duyurular', hint: 'Toplu push' },
       { id: 'usersView', label: 'Kullanıcılar', hint: 'Profil / abonelik', focus: '#userSearchInput' },
       { id: 'connectionsView', label: 'Bağlantılar', hint: 'Davetler', focus: '#linkConnSearch' },
+      { id: 'crewRoomView', label: 'Ekip Odası', hint: 'Crew paylaşımı', focus: '#crPeopleSearch' },
       { id: 'flightsView', label: 'Uçuşlar', hint: 'Liste / toplu işlem' },
       { id: 'flightControlView', label: 'Uçuş kontrol', hint: 'Provider debug' },
       { id: 'historyView', label: 'Geçmiş', hint: 'Ops log', focus: '#historyQ' },
@@ -6508,6 +7070,13 @@
     document.getElementById('rrStatus')?.addEventListener('change', () => void loadRosterReports());
     document.getElementById('rrBody')?.addEventListener('click', onRrClick);
     document.getElementById('rrDetail')?.addEventListener('click', onRrClick);
+    document.getElementById('btnCrAdminReload')?.addEventListener('click', () => void loadCrewRoomAdmin());
+    document.getElementById('crPeopleSearch')?.addEventListener('input', () => renderCrPeople());
+    document.getElementById('crLinkFilter')?.addEventListener('change', () => renderCrLinks());
+    document.getElementById('btnCrNewLink')?.addEventListener('click', () => void crCreateLink());
+    document.getElementById('btnCrPreview')?.addEventListener('click', () => void crPreview());
+    document.getElementById('crewRoomView')?.addEventListener('click', onCrClick);
+    document.getElementById('crewRoomView')?.addEventListener('change', onCrChange);
     document.getElementById('paletteBackdrop')?.addEventListener('click', (e) => {
       if (e.target && e.target.id === 'paletteBackdrop') closePalette();
     });
@@ -7482,6 +8051,9 @@
       }
       if (viewId === 'rosterReportsView' && accessToken) {
         loadRosterReports().catch(() => {});
+      }
+      if (viewId === 'crewRoomView' && accessToken) {
+        loadCrewRoomAdmin().catch(() => {});
       }
       if (viewId === 'occupationCodesView' && accessToken) {
         loadOccupationCodes().catch((err) => setStatus(String(err?.message || err), 'bad'));

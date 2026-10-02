@@ -1,6 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { sendExpoPush } from '../_shared/expoPush.ts';
 import { handleRosterReportAction, ROSTER_REPORT_ACTIONS } from './rosterReports.ts';
+import { CREW_ROOM_ADMIN_ACTIONS, handleCrewRoomAdminAction } from './crewRoom.ts';
 
 type Json = Record<string, unknown>;
 
@@ -421,6 +422,9 @@ Deno.serve(async (req) => {
         requesterEmail,
         corsHeaders,
       });
+    }
+    if (CREW_ROOM_ADMIN_ACTIONS.has(action)) {
+      return handleCrewRoomAdminAction(action, body, { adminClient, requesterEmail, corsHeaders });
     }
     if (action === 'list_ops_history') {
       const daysRaw = Number(body?.days ?? 7);
