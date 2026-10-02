@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { getAppleTransactionInfo } from '../_shared/appStoreServerApi.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -83,6 +84,70 @@ async function verifyAppleReceiptOrThrow(params: {
   };
 }
 
+type VerifiedAppleTransaction = {
+  method: 'app_store_server_api' | 'verify_receipt';
+  environment: 'Sandbox' | 'Production';
+  purchaseDateMs: number | null;
+  periodEndsAt: string | null;
+  isTrial: boolean;
+  originalTransactionId: string | null;
+  promotionalOfferId: unknown;
+};
+
+function receiptMatchToVerified(r: {
+  environment: 'Sandbox' | 'Production';
+  matchedTx: Record<string, unknown>;
+}): VerifiedAppleTransaction {
+  const purchaseMs = Number(r.matchedTx.purchase_date_ms);
+  const expiresMs = Number(r.matchedTx.expires_date_ms);
+  return {
+    method: 'verify_receipt',
+    environment: r.environment,
+    purchaseDateMs: Number.isFinite(purchaseMs) ? purchaseMs : null,
+    periodEndsAt: Number.isFinite(expiresMs) ? new Date(expiresMs).toISOString() : null,
+    isTrial:
+      String(r.matchedTx.is_trial_period ?? '').toLowerCase() === 'true' ||
+      String(r.matchedTx.is_in_intro_offer_period ?? '').toLowerCase() === 'true',
+    originalTransactionId: String(r.matchedTx.original_transaction_id ?? '').trim() || null,
+    promotionalOfferId: r.matchedTx.promotional_offer_id ?? null,
+  };
+}
+
+async function verifyAppleTransactionViaServerApiOrThrow(params: {
+  transactionId: string;
+  expectedProductId: string;
+  privateKeyPem: string;
+  keyId: string;
+  issuerId: string;
+  bundleId: string;
+}): Promise<VerifiedAppleTransaction> {
+  const tx = await getAppleTransactionInfo(params);
+  if (String(tx.bundleId ?? '').trim() !== params.bundleId.trim()) {
+    throw new Error('Apple transaction belongs to a different app');
+  }
+  if (String(tx.productId ?? '').trim() !== params.expectedProductId) {
+    throw new Error('Apple transaction does not match the expected product');
+  }
+  const txId = String(tx.transactionId ?? '').trim();
+  const originalTxId = String(tx.originalTransactionId ?? '').trim();
+  if (txId !== params.transactionId && originalTxId !== params.transactionId) {
+    throw new Error('Apple transaction id mismatch');
+  }
+  if (tx.revocationDate) {
+    throw new Error('Apple transaction was revoked or refunded');
+  }
+  return {
+    method: 'app_store_server_api',
+    environment: tx.environment === 'Sandbox' ? 'Sandbox' : 'Production',
+    purchaseDateMs: Number.isFinite(tx.purchaseDate) ? Number(tx.purchaseDate) : null,
+    periodEndsAt: Number.isFinite(tx.expiresDate) ? new Date(Number(tx.expiresDate)).toISOString() : null,
+    // offerType 1 = introductory offer (free trial / pay-as-you-go / pay-up-front)
+    isTrial: tx.offerType === 1,
+    originalTransactionId: originalTxId || null,
+    promotionalOfferId: tx.offerType === 2 ? (tx.offerIdentifier ?? null) : null,
+  };
+}
+
 Deno.serve(async (req) => {
   try {
     if (req.method === 'OPTIONS') {
@@ -148,53 +213,90 @@ Deno.serve(async (req) => {
 
     if (platform === 'ios') {
       const sharedSecret = Deno.env.get('APPLE_IAP_SHARED_SECRET');
-      if (!sharedSecret) {
-        return new Response(JSON.stringify({ error: 'Missing APPLE_IAP_SHARED_SECRET' }), {
-          status: 500,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
+      const serverApiKeyPem = Deno.env.get('APPLE_PRIVATE_KEY_P8');
+      const serverApiKeyId = Deno.env.get('APPLE_KEY_ID');
+      const serverApiIssuerId = Deno.env.get('APPLE_ISSUER_ID');
+      const appleBundleId = Deno.env.get('APPLE_BUNDLE_ID');
+      const serverApiConfigured = !!(serverApiKeyPem && serverApiKeyId && serverApiIssuerId && appleBundleId);
+      const receiptData = body?.receiptData ? String(body.receiptData) : null;
+
+      if (!serverApiConfigured && !(receiptData && sharedSecret)) {
+        return new Response(
+          JSON.stringify({
+            error: receiptData
+              ? 'Missing APPLE_IAP_SHARED_SECRET'
+              : 'receiptData is required for iOS verification',
+          }),
+          {
+            status: receiptData ? 500 : 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          },
+        );
       }
-      if (!body?.receiptData) {
-        return new Response(JSON.stringify({ error: 'receiptData is required for iOS verification' }), {
+
+      // App Store Server API (works without a receipt, e.g. RevenueCat / StoreKit 2);
+      // legacy verifyReceipt stays as fallback when a receipt is supplied.
+      let verified: VerifiedAppleTransaction | null = null;
+      const failures: string[] = [];
+      if (serverApiConfigured) {
+        try {
+          verified = await verifyAppleTransactionViaServerApiOrThrow({
+            transactionId,
+            expectedProductId: productId,
+            privateKeyPem: serverApiKeyPem!,
+            keyId: serverApiKeyId!,
+            issuerId: serverApiIssuerId!,
+            bundleId: appleBundleId!,
+          });
+        } catch (e) {
+          failures.push(e instanceof Error ? e.message : String(e));
+        }
+      }
+      if (!verified && receiptData && sharedSecret) {
+        try {
+          verified = receiptMatchToVerified(
+            await verifyAppleReceiptOrThrow({
+              receiptData,
+              expectedProductId: productId,
+              expectedTransactionId: transactionId,
+              sharedSecret,
+            }),
+          );
+        } catch (e) {
+          failures.push(e instanceof Error ? e.message : String(e));
+        }
+      }
+      if (!verified) {
+        return new Response(JSON.stringify({ error: failures.join(' | ') || 'Apple purchase verification failed' }), {
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
 
-      const verified = await verifyAppleReceiptOrThrow({
-        receiptData: body.receiptData,
-        expectedProductId: productId,
-        expectedTransactionId: transactionId,
-        sharedSecret,
-      });
-
-      const purchaseDateMs = Number(verified.matchedTx.purchase_date_ms ?? body?.purchaseAtMs ?? Date.now());
+      const purchaseDateMs = verified.purchaseDateMs ?? Number(body?.purchaseAtMs ?? Date.now());
       body.purchaseAtMs = Number.isFinite(purchaseDateMs) ? purchaseDateMs : Date.now();
-
-      const expiresMs = Number(verified.matchedTx.expires_date_ms);
-      const periodEndsAt = Number.isFinite(expiresMs) ? new Date(expiresMs).toISOString() : null;
-      const isTrial =
-        String(verified.matchedTx.is_trial_period ?? '').toLowerCase() === 'true' ||
-        String(verified.matchedTx.is_in_intro_offer_period ?? '').toLowerCase() === 'true';
+      const periodEndsAt = verified.periodEndsAt;
+      const isTrial = verified.isTrial;
 
       const { data, error } = await adminClient.rpc('apply_verified_store_purchase_for_user', {
         p_user_id: user.id,
         p_platform: platform,
         p_product_id: productId,
         p_transaction_id: transactionId,
-        p_original_transaction_id: originalTransactionId,
-        p_purchase_at: purchaseAt,
+        p_original_transaction_id: originalTransactionId ?? verified.originalTransactionId,
+        p_purchase_at: verified.purchaseDateMs != null ? new Date(verified.purchaseDateMs).toISOString() : purchaseAt,
         p_raw_payload: {
           platform,
           productId,
           transactionId,
-          originalTransactionId,
+          originalTransactionId: originalTransactionId ?? verified.originalTransactionId,
           purchaseAtMs: body?.purchaseAtMs ?? null,
           receiptDataPresent: !!body?.receiptData,
           appleEnvironment: verified.environment,
+          verificationMethod: verified.method,
           isTrial,
           periodEndsAt,
-          promotionalOfferId: verified.matchedTx.promotional_offer_id ?? null,
+          promotionalOfferId: verified.promotionalOfferId,
         },
         p_period_ends_at: periodEndsAt,
         p_is_trial: isTrial,

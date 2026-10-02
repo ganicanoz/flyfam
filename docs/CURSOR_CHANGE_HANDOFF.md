@@ -12,6 +12,15 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+### 2026-10-02 — verify-store-purchase: makbuzsuz iOS doğrulama (App Store Server API)
+
+- **Sorun:** TestFlight build 51'de RevenueCat satın alması başarılı oldu, ardından `verify-store-purchase` hata verdi ("non-2xx"). RevenueCat yolu (`purchaseBaseSubscriptionIos`) `receiptData` göndermiyor; fonksiyon iOS'ta makbuz zorunlu tuttuğu için 400 dönüyordu. `store_purchase_receipts` tablosunda hiç kayıt yoktu (doğrulama hiç başarılı olmamıştı).
+- **Dosyalar:** yeni `supabase/functions/_shared/appStoreServerApi.ts` (ES256 JWT: `APPLE_KEY_ID` / `APPLE_ISSUER_ID` / `APPLE_PRIVATE_KEY_P8` / `APPLE_BUNDLE_ID`, aud `appstoreconnect-v1`; Get Transaction Info, önce production sonra sandbox); `supabase/functions/verify-store-purchase/index.ts`.
+- **Davranış:** iOS'ta önce App Store Server API (bundle, ürün, işlem kimliği eşleşmesi; iade/iptal edilmiş işlem reddedilir), başarısızsa ve makbuz geldiyse eski `verifyReceipt` yolu. Hata mesajı iki yolun nedenini birlikte döner. `p_purchase_at` artık Apple'ın satın alma tarihini kullanır; `raw_payload.verificationMethod` eklendi. RPC (`apply_verified_store_purchase_for_user`), Android 501 ve diğer yanıtlar değişmedi. İstemci değişmedi; build 51 güncelleme almadan düzelir.
+- **Bulgu:** Supabase'deki dört Apple değeri, değer yazdırılmadan secret özetiyle doğrulandı (In-App Purchase anahtarı `C5MD4RT8YT`, bundle `com.flyfam.app`, `.p8` ve Issuer ID eşleşiyor). Apple production uç noktası bu kimlikle **401** veriyor (uygulamanın production'da canlı abonelik satışı yokken beklenen); sandbox uç noktası aynı JWT'yi kabul ediyor. Bu yüzden production 404 **veya 401** dönerse sandbox denenir.
+- **Doğrulama:** strict `tsc` (Deno shim) OK; esbuild bundle OK; yerel birim testi (rastgele P-256 anahtarla JWT imza/claim doğrulaması, prod 404/401 → sandbox, JWS çözümü) OK; deploy OK; canlı prob (geçici kullanıcı, sahte işlem kimliği, sonra kullanıcı silindi) → `prod 401, sandbox 404/4040010` yani sandbox kimlik doğrulaması başarılı, sahte işlem hak vermedi.
+- **Açık:** Gerçek TestFlight işlemiyle uçtan uca doğrulama (kullanıcı "Satın alımları geri yükle" ile) bekleniyor; Route to Live `ios-entitlements` bu kanıt gelmeden OK yapılmaz. Uygulama canlıya çıkınca production uç noktasının 401 yerine 200/404 döndüğü kontrol edilmeli. Uygulamadaki hata metni genel ("non-2xx"); sunucu mesajını gösterme istemci tarafında (OTA ile) ayrıca iyileştirilebilir.
+
 ### 2026-10-02 — iOS 1.3.0 (51) EAS build + TestFlight yüklemesi
 
 - **İçerik:** RevenueCat/IAP (diğer oturum), Consent ekranı, sunucu roster import (`b1efbcb`) ve EAS Update kurulumu tek build'de. Sürüm 1.3.0 aynı; build numarası 50 → 51: `app.config.js` (`ios.buildNumber`, `android.versionCode`), `project.pbxproj` `CURRENT_PROJECT_VERSION` (6 satır; uygulama + share extension + notification service hepsi `$(CURRENT_PROJECT_VERSION)` okuyor), `android/app/build.gradle` `versionCode`. Android build alınmadı.
