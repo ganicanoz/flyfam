@@ -13,7 +13,7 @@
   <meta http-equiv="Expires" content="0" />
   <script>
     (function () {
-      var UI = '61';
+      var UI = '62';
       var p = new URLSearchParams(location.search);
       if (p.get('ui') !== UI) {
         p.set('ui', UI);
@@ -851,6 +851,14 @@
     .occ-sug-grid input, .occ-sug-grid select, .occ-sug-grid textarea { font: inherit; font-size: 13px; color: var(--text); }
     .occ-sug-warn { background: #FFF7E6; border: 1px solid #F5C26B; color: #8A5300; border-radius: 8px; padding: 8px 10px; font-size: 12px; margin: 0 0 10px; }
     @media (max-width: 560px) { .occ-sug-grid { grid-template-columns: 1fr; } }
+    .rr-detail { margin-top: 16px; border-top: 1px solid var(--border); padding-top: 14px; }
+    .rr-detail h3 { margin: 0 0 6px; font-size: 16px; }
+    .rr-detail h4 { margin: 16px 0 6px; font-size: 13px; }
+    .rr-detail .rr-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 10px 0; }
+    .rr-detail textarea { width: 100%; font: inherit; font-size: 13px; }
+    .rr-detail .rr-chg { color: #b45309; font-size: 11px; }
+    .rr-detail tr.rr-same td { opacity: 0.55; }
+    .rr-detail .rr-suspect { font-size: 12px; margin: 4px 0; }
     .occ-save-bar { position: sticky; bottom: 12px; z-index: 20; margin-top: 12px; display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; padding: 10px 12px; border-radius: 10px; background: #FFF7E6; border: 1px solid #F5C26B; box-shadow: 0 6px 18px rgba(15, 23, 42, 0.12); }
     .occ-save-bar-text { margin-right: auto; font-size: 13px; font-weight: 600; color: #8A5300; }
     #btnOccSave.occ-dirty { border-color: #F5C26B; background: #FFF7E6; color: #8A5300; font-weight: 700; }
@@ -1114,6 +1122,7 @@
         <div class="menu-group">
           <div class="menu-group-label">Veri</div>
           <button type="button" class="nav-btn" data-view="pdfRosterView"><span class="nav-ico">10</span><span class="nav-label">PDF roster</span><span class="nav-now">Şimdi</span></button>
+          <button type="button" class="nav-btn" data-view="rosterReportsView"><span class="nav-ico">14</span><span class="nav-label">PDF incelemeleri</span><span id="navRosterReportsBadge" class="nav-badge" aria-hidden="true">0</span><span class="nav-now">Şimdi</span></button>
           <button type="button" class="nav-btn" data-view="occupationCodesView"><span class="nav-ico">11</span><span class="nav-label">Görev kodları</span><span id="navOccPendingBadge" class="nav-badge" aria-hidden="true">0</span><span class="nav-now">Şimdi</span></button>
         </div>
         <div class="menu-group">
@@ -1967,6 +1976,56 @@
         </div>
       </section>
 
+      <section id="rosterReportsView" class="view">
+        <header class="page-head">
+          <div class="section-kicker">Veri</div>
+          <h1>PDF incelemeleri</h1>
+          <p class="sub">Parser şüphesi / başarısız import ile kullanıcının gönderdiği roster PDF’leri</p>
+        </header>
+        <div class="panel">
+          <p class="info-callout">
+            Kullanıcı onayıyla gönderilen PDF’ler 30 gün saklanır. <strong>İncele</strong> PDF’i canlı parser ile yeniden
+            okur ve kullanıcının mevcut uçuşlarıyla karşılaştırır. Seçtiğin satırlar kullanıcının adına
+            <code>add_me_to_flight</code> / <code>remove_me_from_flight</code> ile aynı kurallarla uygulanır.
+          </p>
+          <div class="users-toolbar" style="margin-bottom:10px; gap:10px; align-items:end;">
+            <div>
+              <label class="mini">Durum</label>
+              <select id="rrStatus">
+                <option value="open" selected>Açık (new + reviewed)</option>
+                <option value="new">new</option>
+                <option value="reviewed">reviewed</option>
+                <option value="fixed">fixed</option>
+                <option value="dismissed">dismissed</option>
+                <option value="all">Tümü</option>
+              </select>
+            </div>
+            <button type="button" id="btnRrReload" class="btnPrimary">Yenile</button>
+            <span id="rrStatusLine" class="mini"></span>
+          </div>
+          <div class="users-table-wrap">
+            <table class="users-table">
+              <thead>
+                <tr>
+                  <th>Gönderim</th>
+                  <th>Kullanıcı</th>
+                  <th>Airline</th>
+                  <th>Neden</th>
+                  <th>Şüphe</th>
+                  <th>Uygulama</th>
+                  <th>Durum</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="rrBody">
+                <tr><td colspan="8" class="mini">Yenile ile yükle.</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div id="rrDetail" class="rr-detail hidden"></div>
+        </div>
+      </section>
+
       <section id="occupationCodesView" class="view">
         <header class="page-head">
           <div class="section-kicker">Veri</div>
@@ -2138,6 +2197,18 @@
       <div class="alert-actions">
         <button type="button" id="btnOccSugAlertDismiss" class="btnSmall">Sonra</button>
         <button type="button" id="btnOccSugAlertOpen" class="btnPrimary">Öneri kuyruğuna git</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="rrAlertBackdrop" class="overlay-backdrop hidden" aria-hidden="true">
+    <div class="help-card alert-card" role="dialog" aria-labelledby="rrAlertTitle" aria-modal="true">
+      <h3 id="rrAlertTitle">Roster PDF incelemesi bekliyor</h3>
+      <p>Parser şüphesi veya başarısız import nedeniyle kullanıcı PDF’ini gönderdi. PDF’i açıp kontrol edin, gerekiyorsa düzeltmeyi uygulayın.</p>
+      <ul id="rrAlertList"></ul>
+      <div class="alert-actions">
+        <button type="button" id="btnRrAlertDismiss" class="btnSmall">Sonra</button>
+        <button type="button" id="btnRrAlertOpen" class="btnPrimary">İncelemeye git</button>
       </div>
     </div>
   </div>
@@ -4034,6 +4105,7 @@
       occSugPollTimer = setInterval(() => {
         if (!accessToken) return;
         void checkPendingOccupationSuggestions({ mode: 'fresh' });
+        void checkNewRosterReports({ mode: 'fresh' });
       }, 60_000);
     }
 
@@ -4041,6 +4113,398 @@
       if (occSugPollTimer) {
         clearInterval(occSugPollTimer);
         occSugPollTimer = null;
+      }
+    }
+
+    const RR_SEEN_KEY = 'flyfam.admin.rrSeenIds.v1';
+    const RR_REASON = { suspect: 'Parser şüphesi', failed: 'Import başarısız', manual: 'Manuel' };
+    const RR_STATUS_BADGE = { new: 'b-bad', reviewed: 'b-warn', fixed: 'b-ok', dismissed: '' };
+    const RR_ROW_STATUS = { add: ['Ekle', 'b-info'], update: ['Güncelle', 'b-warn'], same: ['Aynı', ''] };
+    const RR_SUSPECT = { overlap: 'çakışma', route_gap: 'rota boşluğu', duration: 'süre' };
+    let rrAlertRows = [];
+    let rrReports = [];
+    let rrCurrent = null;
+
+    function readRrSeenIds() {
+      try {
+        const arr = JSON.parse(sessionStorage.getItem(RR_SEEN_KEY) || '[]');
+        return new Set(Array.isArray(arr) ? arr.map(String) : []);
+      } catch {
+        return new Set();
+      }
+    }
+
+    function writeRrSeenIds(ids) {
+      try {
+        sessionStorage.setItem(RR_SEEN_KEY, JSON.stringify([...ids]));
+      } catch {
+        /* ignore */
+      }
+    }
+
+    function setRrNavBadge(count) {
+      const badge = document.getElementById('navRosterReportsBadge');
+      if (!badge) return;
+      const n = Math.max(0, Number(count) || 0);
+      badge.textContent = n > 99 ? '99+' : String(n);
+      badge.classList.toggle('is-on', n > 0);
+      badge.setAttribute('aria-hidden', n > 0 ? 'false' : 'true');
+      badge.title = n > 0 ? n + ' yeni roster PDF incelemesi' : '';
+    }
+
+    function rrWho(r) {
+      return r.full_name || r.email || String(r.user_id || '').slice(0, 8);
+    }
+
+    function rrUtc(iso) {
+      return iso ? String(iso).slice(0, 16).replace('T', ' ') + 'Z' : '—';
+    }
+
+    function rrRoute(o, d) {
+      return escapeHtml((o || '?') + '–' + (d || '?'));
+    }
+
+    function showRrAlert(rows) {
+      const backdrop = document.getElementById('rrAlertBackdrop');
+      const list = document.getElementById('rrAlertList');
+      const title = document.getElementById('rrAlertTitle');
+      if (!backdrop || !list) return;
+      rrAlertRows = Array.isArray(rows) ? rows : [];
+      const n = rrAlertRows.length;
+      if (title) title.textContent = n === 1 ? 'Roster PDF incelemesi bekliyor' : n + ' roster PDF incelemesi bekliyor';
+      list.innerHTML = rrAlertRows
+        .slice(0, 8)
+        .map(
+          (r) =>
+            '<li><strong>' +
+            escapeHtml(rrWho(r)) +
+            '</strong> · ' +
+            escapeHtml(r.airline_icao || '—') +
+            ' · ' +
+            escapeHtml(RR_REASON[r.reason] || r.reason || '') +
+            (r.meta && r.meta.suspect ? ' · <span class="mini">' + escapeHtml(String(r.meta.suspect).slice(0, 80)) + '</span>' : '') +
+            '</li>',
+        )
+        .join('');
+      if (n > 8) list.innerHTML += '<li class="mini">… +' + (n - 8) + ' daha</li>';
+      setOverlay('rrAlertBackdrop', true);
+    }
+
+    function hideRrAlert() {
+      setOverlay('rrAlertBackdrop', false);
+      const seen = readRrSeenIds();
+      for (const r of rrAlertRows) if (r && r.id) seen.add(String(r.id));
+      writeRrSeenIds(seen);
+      rrAlertRows = [];
+    }
+
+    function openRosterReports() {
+      const first = rrAlertRows.length === 1 ? rrAlertRows[0] : null;
+      hideRrAlert();
+      switchView('rosterReportsView');
+      if (first) void openRrDetail(first.id);
+    }
+
+    async function checkNewRosterReports(opts) {
+      const mode = opts && opts.mode === 'all-new' ? 'all-new' : 'fresh';
+      if (!accessToken) {
+        setRrNavBadge(0);
+        return;
+      }
+      try {
+        const json = await callAdminAction('list_roster_pdf_reports', { status: 'new', limit: 50 });
+        const rows = Array.isArray(json.reports) ? json.reports : [];
+        setRrNavBadge(json.new_count ?? rows.length);
+        if (!rows.length) return;
+        const seen = readRrSeenIds();
+        const fresh = rows.filter((r) => r && r.id && !seen.has(String(r.id)));
+        if (mode === 'all-new') showRrAlert(rows);
+        else if (fresh.length) showRrAlert(fresh);
+      } catch {
+        /* quiet — status bar already used for main refresh errors */
+      }
+    }
+
+    async function loadRosterReports() {
+      const body = document.getElementById('rrBody');
+      const line = document.getElementById('rrStatusLine');
+      if (!body) return;
+      const status = document.getElementById('rrStatus')?.value || 'open';
+      if (line) line.textContent = 'Yükleniyor…';
+      try {
+        const json = await callAdminAction('list_roster_pdf_reports', { status });
+        rrReports = Array.isArray(json.reports) ? json.reports : [];
+        setRrNavBadge(json.new_count || 0);
+        if (line) line.textContent = rrReports.length + ' kayıt · ' + (json.new_count || 0) + ' yeni';
+        if (!rrReports.length) {
+          body.innerHTML = '<tr><td colspan="8" class="mini">Kayıt yok.</td></tr>';
+          return;
+        }
+        body.innerHTML = rrReports
+          .map((r) => {
+            const meta = r.meta && typeof r.meta === 'object' ? r.meta : {};
+            return (
+              '<tr>' +
+              '<td>' + escapeHtml(fmtDate(r.created_at)) + '</td>' +
+              '<td>' + escapeHtml(r.full_name || '—') + '<div class="mini">' + escapeHtml(r.email || '') + '</div></td>' +
+              '<td>' + escapeHtml(r.airline_icao || '—') + '</td>' +
+              '<td>' + escapeHtml(RR_REASON[r.reason] || r.reason || '') + '<div class="mini">' + escapeHtml(r.parse_source || '') + '</div></td>' +
+              '<td class="mini">' + escapeHtml(String(meta.suspect || '').slice(0, 120) || '—') + '</td>' +
+              '<td class="mini">' + escapeHtml([r.platform, r.app_version].filter(Boolean).join(' ') || '—') + '</td>' +
+              '<td><span class="badge ' + (RR_STATUS_BADGE[r.status] || '') + '">' + escapeHtml(r.status) + '</span></td>' +
+              '<td style="white-space:nowrap;">' +
+              '<button type="button" class="btnSmall" data-rr-act="pdf" data-id="' + escapeHtml(r.id) + '">PDF</button> ' +
+              '<button type="button" class="btnPrimary btnSmall" data-rr-act="open" data-id="' + escapeHtml(r.id) + '">İncele</button>' +
+              '</td></tr>'
+            );
+          })
+          .join('');
+      } catch (err) {
+        if (line) line.textContent = String(err?.message || err);
+      }
+    }
+
+    async function openRrPdf(id) {
+      const w = window.open('', '_blank');
+      try {
+        const json = await callAdminAction('get_roster_pdf_report_url', { id });
+        if (w) w.location.href = json.url;
+        else window.location.assign(json.url);
+      } catch (err) {
+        if (w) w.close();
+        setStatus(String(err?.message || err), 'bad');
+      }
+    }
+
+    function rrPreviewHtml(pv) {
+      const s = pv.summary || {};
+      const p = pv.parse || {};
+      const rows = Array.isArray(pv.rows) ? pv.rows : [];
+      const changed = rows.filter((r) => r.status !== 'same');
+      const same = rows.filter((r) => r.status === 'same');
+      const stale = Array.isArray(pv.stale) ? pv.stale : [];
+      const suspectList = (arr) =>
+        (arr || []).length
+          ? arr.map((x) => escapeHtml(x.flight_number + ' ' + x.flight_date + ' (' + (RR_SUSPECT[x.reason] || x.reason) + ')')).join(', ')
+          : 'yok';
+      const rowTr = (r, withBox) => {
+        const st = RR_ROW_STATUS[r.status] || [r.status, ''];
+        const chg = (r.changes || [])
+          .map((c) => escapeHtml(c.field.replace('scheduled_', '').replace('_airport', '') + ': ' + (c.field.startsWith('scheduled_') ? rrUtc(c.from) : c.from || '—') + ' → ' + (c.field.startsWith('scheduled_') ? rrUtc(c.to) : c.to || '—')))
+          .join('<br>');
+        return (
+          '<tr class="' + (r.status === 'same' ? 'rr-same' : '') + '">' +
+          '<td>' + (withBox ? '<input type="checkbox" class="rr-add" value="' + escapeHtml(r.key) + '" checked />' : '') + '</td>' +
+          '<td><span class="badge ' + st[1] + '">' + st[0] + '</span></td>' +
+          '<td>' + escapeHtml(r.roster_kind) + '</td>' +
+          '<td><strong>' + escapeHtml(r.flight_number) + '</strong></td>' +
+          '<td>' + escapeHtml(r.flight_date) + '</td>' +
+          '<td>' + rrRoute(r.origin_airport, r.destination_airport) + '</td>' +
+          '<td>' + rrUtc(r.scheduled_departure) + '</td>' +
+          '<td>' + rrUtc(r.scheduled_arrival) + '</td>' +
+          '<td class="rr-chg">' + chg + '</td></tr>'
+        );
+      };
+      const head =
+        '<thead><tr><th></th><th>Durum</th><th>Tür</th><th>Uçuş</th><th>Tarih</th><th>Rota</th><th>Kalkış</th><th>İniş</th><th>Değişiklik</th></tr></thead>';
+      let html =
+        '<p class="mini">Parser: ' + escapeHtml((p.detected_layout || '?') + ' / ' + (p.source || '?')) +
+        ' · ' + escapeHtml(String(p.merged_rows ?? '?')) + ' satır · aralık ' + escapeHtml((pv.range?.floor || '—') + ' → ' + (pv.range?.ceil || '—')) +
+        ' · Ekle ' + (s.add || 0) + ' · Güncelle ' + (s.update || 0) + ' · Aynı ' + (s.same || 0) +
+        ' · PDF’te yok ' + (s.stale || 0) + ' · Eksik ' + (s.incomplete || 0) + '</p>' +
+        '<p class="rr-suspect"><strong>Şu anki DB şüpheleri:</strong> ' + suspectList(pv.suspect_before) + '</p>' +
+        '<p class="rr-suspect"><strong>Düzeltme sonrası (PDF zinciri):</strong> ' + suspectList(pv.suspect_after) + '</p>';
+      html += '<h4>Eklenecek / güncellenecek (' + changed.length + ')</h4>';
+      html += changed.length
+        ? '<div class="users-table-wrap"><table class="users-table">' + head + '<tbody>' + changed.map((r) => rowTr(r, true)).join('') + '</tbody></table></div>'
+        : '<p class="mini">Fark yok — kullanıcının uçuşları PDF ile aynı.</p>';
+      if (same.length) {
+        html +=
+          '<details style="margin-top:8px;"><summary class="mini">Aynı olan ' + same.length + ' satırı göster</summary>' +
+          '<div class="users-table-wrap"><table class="users-table">' + head + '<tbody>' + same.map((r) => rowTr(r, false)).join('') + '</tbody></table></div></details>';
+      }
+      html += '<h4>PDF’te olmayan mevcut uçuşlar (' + stale.length + ') — kaldırmak için işaretle</h4>';
+      html += stale.length
+        ? '<div class="users-table-wrap"><table class="users-table"><thead><tr><th></th><th>Uçuş</th><th>Tarih</th><th>Rota</th><th>Kalkış</th></tr></thead><tbody>' +
+          stale
+            .map(
+              (f) =>
+                '<tr><td><input type="checkbox" class="rr-remove" value="' + escapeHtml(f.id) + '" /></td>' +
+                '<td><strong>' + escapeHtml(f.flight_number) + '</strong></td><td>' + escapeHtml(f.flight_date) + '</td>' +
+                '<td>' + rrRoute(f.origin_airport, f.destination_airport) + '</td><td>' + rrUtc(f.scheduled_departure) + '</td></tr>',
+            )
+            .join('') +
+          '</tbody></table></div>'
+        : '<p class="mini">Yok.</p>';
+      if ((pv.incomplete || []).length) {
+        html +=
+          '<h4>Eksik (uygulanamaz)</h4><ul class="mini">' +
+          pv.incomplete.map((e) => '<li>' + escapeHtml(e.flight_number + ' ' + e.flight_date + ': ' + e.message) + '</li>').join('') +
+          '</ul>';
+      }
+      return html;
+    }
+
+    function renderRrDetail(state) {
+      const box = document.getElementById('rrDetail');
+      if (!box) return;
+      if (!state) {
+        box.classList.add('hidden');
+        box.innerHTML = '';
+        return;
+      }
+      const r = state.report;
+      const la = r.last_action && typeof r.last_action === 'object' ? r.last_action : null;
+      let html =
+        '<h3>' + escapeHtml(rrWho(r)) + ' · ' + escapeHtml(r.airline_icao || '—') + ' · ' + escapeHtml(RR_REASON[r.reason] || r.reason || '') + '</h3>' +
+        '<p class="mini">' + escapeHtml(r.email || '') + ' · gönderim ' + escapeHtml(fmtDate(r.created_at)) +
+        ' · durum <span class="badge ' + (RR_STATUS_BADGE[r.status] || '') + '">' + escapeHtml(r.status) + '</span>' +
+        (r.reviewed_by ? ' · inceleyen ' + escapeHtml(r.reviewed_by) : '') + '</p>' +
+        (r.meta && r.meta.suspect ? '<p class="rr-suspect"><strong>Uygulamanın bildirdiği şüphe:</strong> ' + escapeHtml(String(r.meta.suspect)) + '</p>' : '') +
+        (la
+          ? '<p class="rr-suspect"><strong>Son aksiyon:</strong> ' + escapeHtml(fmtDate(la.at)) + ' · eklendi/güncellendi ' + ((la.added || []).length) +
+            ' · kaldırıldı ' + ((la.removed || []).length) + ((la.errors || []).length ? ' · hata ' + la.errors.length : '') + '</p>'
+          : '') +
+        '<div class="rr-actions">' +
+        '<button type="button" class="btnSmall" data-rr-act="pdf" data-id="' + escapeHtml(r.id) + '">PDF’i aç</button>' +
+        '<button type="button" class="btnSmall" data-rr-act="preview">Yeniden önizle</button>' +
+        '<button type="button" class="btnSmall" data-rr-act="status" data-status="reviewed">İncelendi</button>' +
+        '<button type="button" class="btnSmall" data-rr-act="status" data-status="dismissed">Yoksay (parser doğru)</button>' +
+        '<button type="button" class="btnSmall" data-rr-act="notify">Kullanıcıya bildirim</button>' +
+        '<button type="button" class="btnSmall" data-rr-act="close">Kapat</button>' +
+        '</div>';
+      if (state.loading) html += '<p class="mini">PDF canlı parser ile okunuyor…</p>';
+      else if (state.error) html += '<p class="info-callout warn">' + escapeHtml(state.error) + '</p>';
+      else if (state.preview) html += rrPreviewHtml(state.preview);
+      html +=
+        '<h4>Admin notu</h4><textarea id="rrNote" rows="2" maxlength="2000" placeholder="Ne bulundu / parser’da ne düzeltildi">' +
+        escapeHtml(r.admin_note || '') + '</textarea>';
+      if (state.preview) {
+        html +=
+          '<div class="rr-actions"><button type="button" class="btnPrimary" data-rr-act="apply">Seçilenleri uygula</button>' +
+          '<span class="mini">Uygulama sırası: işaretli ekle/güncelle, sonra işaretli kaldır. Rapor “fixed” olur.</span></div>';
+      }
+      if (state.result) {
+        const res = state.result;
+        html +=
+          '<p class="info-callout' + ((res.errors || []).length ? ' warn' : '') + '">Uygulandı: eklendi/güncellendi ' + (res.added || []).length +
+          ' · kaldırıldı ' + (res.removed || []).length +
+          ((res.errors || []).length ? '<br>Hatalar: ' + res.errors.map(escapeHtml).join('<br>') : '') + '</p>';
+      }
+      box.innerHTML = html;
+      box.classList.remove('hidden');
+    }
+
+    async function openRrDetail(id) {
+      let report = rrReports.find((r) => r.id === id);
+      if (!report) {
+        await loadRosterReports();
+        report = rrReports.find((r) => r.id === id);
+      }
+      if (!report) return;
+      rrCurrent = { report, preview: null, loading: true };
+      renderRrDetail(rrCurrent);
+      document.getElementById('rrDetail')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      try {
+        const pv = await callAdminAction('preview_roster_pdf_report', { id });
+        if (rrCurrent?.report.id !== id) return;
+        if (report.status === 'new') {
+          report.status = 'reviewed';
+          void loadRosterReports();
+        }
+        rrCurrent = { report, preview: pv };
+      } catch (err) {
+        if (rrCurrent?.report.id !== id) return;
+        rrCurrent = { report, error: String(err?.message || err) };
+      }
+      renderRrDetail(rrCurrent);
+    }
+
+    async function applyRrFix() {
+      if (!rrCurrent?.preview) return;
+      const box = document.getElementById('rrDetail');
+      const addKeys = [...box.querySelectorAll('input.rr-add:checked')].map((i) => i.value);
+      const removeIds = [...box.querySelectorAll('input.rr-remove:checked')].map((i) => i.value);
+      if (!addKeys.length && !removeIds.length) {
+        setStatus('Uygulanacak satır seçilmedi', 'warn');
+        return;
+      }
+      if (!confirm(rrWho(rrCurrent.report) + ' için ' + addKeys.length + ' satır eklenecek/güncellenecek, ' + removeIds.length + ' uçuş kaldırılacak. Onaylıyor musun?')) return;
+      const id = rrCurrent.report.id;
+      try {
+        const res = await callAdminAction('apply_roster_pdf_report_fix', {
+          id,
+          plan_hash: rrCurrent.preview.plan_hash,
+          add_keys: addKeys,
+          remove_flight_ids: removeIds,
+          admin_note: document.getElementById('rrNote')?.value || '',
+        });
+        await loadRosterReports();
+        const report = rrReports.find((r) => r.id === id) || rrCurrent.report;
+        let preview = null;
+        try {
+          preview = await callAdminAction('preview_roster_pdf_report', { id });
+        } catch {
+          /* result is still shown */
+        }
+        rrCurrent = { report, preview, result: res };
+        renderRrDetail(rrCurrent);
+        setStatus('Düzeltme uygulandı', (res.errors || []).length ? 'warn' : 'ok');
+      } catch (err) {
+        setStatus(String(err?.message || err), 'bad');
+      }
+    }
+
+    async function setRrStatus(status) {
+      if (!rrCurrent) return;
+      try {
+        await callAdminAction('update_roster_pdf_report', {
+          id: rrCurrent.report.id,
+          status,
+          admin_note: document.getElementById('rrNote')?.value || '',
+        });
+        await loadRosterReports();
+        rrCurrent.report = rrReports.find((r) => r.id === rrCurrent.report.id) || { ...rrCurrent.report, status };
+        renderRrDetail(rrCurrent);
+        setStatus('Durum: ' + status, 'ok');
+      } catch (err) {
+        setStatus(String(err?.message || err), 'bad');
+      }
+    }
+
+    async function notifyRrUser() {
+      if (!rrCurrent) return;
+      const text = prompt(
+        rrWho(rrCurrent.report) + ' kullanıcısına push gönderilecek. Metni düzenleyebilirsin:',
+        'Roster’ınızdaki uçuşları kontrol edip düzelttik. Güncel hali görmek için FlyFam’i açın.',
+      );
+      if (!text || !text.trim()) return;
+      try {
+        const res = await callAdminAction('send_push_notification', {
+          user_id: rrCurrent.report.user_id,
+          title: 'FlyFam',
+          body: text.trim().slice(0, 500),
+        });
+        setStatus(res.no_tokens ? 'Kullanıcının kayıtlı cihazı yok' : 'Bildirim gönderildi (' + (res.sent || 0) + ')', res.no_tokens ? 'warn' : 'ok');
+      } catch (err) {
+        setStatus(String(err?.message || err), 'bad');
+      }
+    }
+
+    function onRrClick(ev) {
+      const btn = ev.target && ev.target.closest ? ev.target.closest('[data-rr-act]') : null;
+      if (!btn) return;
+      const act = btn.getAttribute('data-rr-act');
+      const id = btn.getAttribute('data-id');
+      if (act === 'pdf' && id) void openRrPdf(id);
+      else if (act === 'open' && id) void openRrDetail(id);
+      else if (act === 'preview' && rrCurrent) void openRrDetail(rrCurrent.report.id);
+      else if (act === 'apply') void applyRrFix();
+      else if (act === 'status') void setRrStatus(btn.getAttribute('data-status'));
+      else if (act === 'notify') void notifyRrUser();
+      else if (act === 'close') {
+        rrCurrent = null;
+        renderRrDetail(null);
       }
     }
 
@@ -5397,6 +5861,7 @@
         setStatus('Giriş OK', 'ok');
         startOccSugPolling();
         void checkPendingOccupationSuggestions({ mode: 'all-pending' });
+        void checkNewRosterReports({ mode: 'all-new' });
       } catch (e) {
         setStatus(String(e.message || e), 'bad');
       }
@@ -5412,6 +5877,7 @@
         await loadDashboard();
         setStatus('OK', 'ok');
         void checkPendingOccupationSuggestions({ mode: 'fresh' });
+        void checkNewRosterReports({ mode: 'fresh' });
       } catch (e) {
         setStatus(String(e.message || e), 'bad');
       }
@@ -5940,6 +6406,7 @@
       { id: 'historyView', label: 'Geçmiş', hint: 'Ops log', focus: '#historyQ' },
       { id: 'usageView', label: 'API kota', hint: 'Provider kotası' },
       { id: 'pdfRosterView', label: 'PDF roster', hint: 'Parse simülatörü' },
+      { id: 'rosterReportsView', label: 'PDF incelemeleri', hint: 'Kullanıcı PDF raporları' },
       { id: 'occupationCodesView', label: 'Görev kodları', hint: 'Katalog', focus: '#occSearch' },
       { id: 'routeToLiveView', label: 'Route to Live', hint: 'Yayın kontrol merkezi' },
       { id: '__refresh', label: 'Veriyi yenile', hint: 'Dashboard refresh' },
@@ -6032,6 +6499,15 @@
     document.getElementById('occSugAlertBackdrop')?.addEventListener('click', (e) => {
       if (e.target && e.target.id === 'occSugAlertBackdrop') hideOccSugAlert();
     });
+    document.getElementById('btnRrAlertDismiss')?.addEventListener('click', hideRrAlert);
+    document.getElementById('btnRrAlertOpen')?.addEventListener('click', openRosterReports);
+    document.getElementById('rrAlertBackdrop')?.addEventListener('click', (e) => {
+      if (e.target && e.target.id === 'rrAlertBackdrop') hideRrAlert();
+    });
+    document.getElementById('btnRrReload')?.addEventListener('click', () => void loadRosterReports());
+    document.getElementById('rrStatus')?.addEventListener('change', () => void loadRosterReports());
+    document.getElementById('rrBody')?.addEventListener('click', onRrClick);
+    document.getElementById('rrDetail')?.addEventListener('click', onRrClick);
     document.getElementById('paletteBackdrop')?.addEventListener('click', (e) => {
       if (e.target && e.target.id === 'paletteBackdrop') closePalette();
     });
@@ -6084,6 +6560,7 @@
         if (isOverlayOpen('paletteBackdrop')) { e.preventDefault(); closePalette(); return; }
         if (isOverlayOpen('helpBackdrop')) { e.preventDefault(); closeHelp(); return; }
         if (isOverlayOpen('occSugAlertBackdrop')) { e.preventDefault(); hideOccSugAlert(); return; }
+        if (isOverlayOpen('rrAlertBackdrop')) { e.preventDefault(); hideRrAlert(); return; }
         const drawer = document.getElementById('adminDrawer');
         if (drawer && !drawer.classList.contains('hidden')) {
           e.preventDefault();
@@ -7003,6 +7480,9 @@
         fillLinkUserSelects();
         loadLinkGraph().catch((err) => setStatus(String(err?.message || err), 'bad'));
       }
+      if (viewId === 'rosterReportsView' && accessToken) {
+        loadRosterReports().catch(() => {});
+      }
       if (viewId === 'occupationCodesView' && accessToken) {
         loadOccupationCodes().catch((err) => setStatus(String(err?.message || err), 'bad'));
         loadOccupationSuggestions().catch(() => {});
@@ -7280,6 +7760,7 @@
           setStatus('OK', 'ok');
           startOccSugPolling();
           void checkPendingOccupationSuggestions({ mode: 'all-pending' });
+          void checkNewRosterReports({ mode: 'all-new' });
         } catch (e) {
           writeSession(null);
           accessToken = null;
