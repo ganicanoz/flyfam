@@ -12,6 +12,14 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+### 2026-10-02 — İlk OTA (EAS Update): IAP hata metni + StoreKit para birimi tanısı
+
+- **Sorun:** TestFlight build 51'de Planlar kartları dolar gösterdi; Apple ise aynı cihazdaki satın almaları `storefront TUR / TRY` olarak kaydetti (Circle aylık ₺249,99). iOS fiyatları doğrudan StoreKit 2 `Product.displayPrice`'tan geliyor (OpenIAP değiştirmeden aktarıyor); uygulamada sabit USD yok. Olası neden: TestFlight sandbox fiyat listesi / cihazdaki ABD sandbox hesabı.
+- **Dosyalar:** `mobile/lib/iapStorePrices.ts` — StoreKit fiyatları yüklenince `screen_view` olayı (`meta.screen = 'Plans:store_prices'`) ile `store_storefront`, `store_currency`, `store_products_returned`, `store_sample_display_price`, `device_region`, `ota_update_id` kaydedilir; kullanıcı + storefront + para birimi başına 24 saatte bir; hata Planlar ekranını etkilemez. Migration gerekmedi (mevcut olay türü). `mobile/lib/iapRestore.ts` — `verifyStorePurchase` hata durumunda sunucunun `error` mesajını gösterir (genel "non-2xx" yerine); mesaj okunamazsa eski hata nesnesi atılır.
+- **Yayın:** Kirli yerel ağaçta başka oturumun commit edilmemiş Crew Room işi olduğu için güncelleme `origin/main` temiz worktree'sinden üretildi (yalnız bu iki dosya farklı). `eas env:exec production "npx expo export --platform ios"` → paket taraması (12 gizli yerel değer pakette yok; Supabase URL/anon ve RevenueCat iOS anahtarı mevcut) → `eas update --channel production --platform ios --skip-bundler --input-dir dist-ota`. Grup `5d69f5b8-a475-48f1-b98a-a4a3d0803b1c`, runtime `1.3.0`, `production` dalının en güncel güncellemesi; kanal eşlemesi doğrulandı. `production` kanalı şu an yalnız TestFlight build 51'e ulaşıyor (mağazadaki ≤50 build'lerde expo-updates yok). Parmak izi hesabı uyarısı (ExpoConfigLoader) yalnız meta veri; runtime elle sabit.
+- **Korunacak:** Sonraki her OTA da temiz `origin/main` tabanından üretilmeli; aksi halde yerel commit edilmemiş işler kullanıcılara gider. Bu iki değişiklik sonraki güncellemelerde korunmalı.
+- **Doğrulama:** `npx tsc --noEmit` OK; `git diff --check` OK. Cihazda uygulanma ve tanı kaydı kullanıcı uygulamayı iki kez açınca (indir → sonraki açılışta uygula) DB'den kontrol edilecek.
+
 ### 2026-10-02 — iOS satın alma uçtan uca doğrulandı (TestFlight build 51)
 
 - **Test:** Kullanıcı TestFlight 1.3.0 (51) ile `flyfam.duo.monthly` (deneme teklifiyle) satın aldı, ardından `flyfam.circle.monthly`'ye yükseltti; uygulama paketi tanımladı.

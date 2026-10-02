@@ -66,7 +66,19 @@ export async function verifyStorePurchase(input: StorePurchaseVerificationInput)
   const { error } = await supabase.functions.invoke('verify-store-purchase', {
     body: input,
   });
-  if (error) throw error;
+  if (error) {
+    let serverMessage = '';
+    try {
+      const ctx = (error as { context?: { json?: () => Promise<unknown> } }).context;
+      if (ctx && typeof ctx.json === 'function') {
+        const body = (await ctx.json()) as { error?: unknown } | null;
+        serverMessage = typeof body?.error === 'string' ? body.error.trim() : '';
+      }
+    } catch {
+      serverMessage = '';
+    }
+    throw serverMessage ? new Error(serverMessage) : error;
+  }
 }
 
 /**

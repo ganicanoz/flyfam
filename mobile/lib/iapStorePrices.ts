@@ -2,8 +2,10 @@
  * App Store / Play localized subscription prices for Plans UI.
  * Prefer StoreKit `displayPrice` (store account country currency), not app language.
  */
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import * as Localization from 'expo-localization';
+import * as Updates from 'expo-updates';
 import { Platform } from 'react-native';
 import {
   IAP_PRODUCTS,
@@ -11,6 +13,8 @@ import {
   SUBSCRIPTION_TIERS,
   type PackageCode,
 } from '../constants/iapProducts';
+import { supabase } from './supabase';
+import { trackActivityEvent } from './userActivity';
 
 export type TierStorePrices = {
   monthly: string;
@@ -71,6 +75,43 @@ function listFallbackPrices(currency: 'TRY' | 'USD'): Record<PackageCode, TierSt
     };
   }
   return out;
+}
+
+const STORE_PRICE_DIAG_THROTTLE_MS = 24 * 60 * 60 * 1000;
+
+/** StoreKit storefront vs returned currency, for admin diagnostics (no personal data). */
+async function reportStorePriceDiagnostic(diag: {
+  storefront: string | null;
+  currency: string | null;
+  productsReturned: number;
+  sampleDisplayPrice: string | null;
+}): Promise<void> {
+  try {
+    const { data } = await supabase.auth.getSession();
+    const uid = data.session?.user?.id;
+    if (!uid) return;
+    const key = `flyfam_store_price_diag:${uid}:${diag.storefront ?? '-'}:${diag.currency ?? '-'}`;
+    const prev = Number((await AsyncStorage.getItem(key)) ?? 0);
+    if (Number.isFinite(prev) && Date.now() - prev < STORE_PRICE_DIAG_THROTTLE_MS) return;
+    await AsyncStorage.setItem(key, String(Date.now()));
+    let deviceRegion: string | null = null;
+    try {
+      deviceRegion = Localization.getLocales?.()?.[0]?.regionCode ?? null;
+    } catch {
+      deviceRegion = null;
+    }
+    await trackActivityEvent(uid, 'screen_view', {
+      screen: 'Plans:store_prices',
+      store_storefront: diag.storefront,
+      store_currency: diag.currency,
+      store_products_returned: diag.productsReturned,
+      store_sample_display_price: diag.sampleDisplayPrice,
+      device_region: deviceRegion,
+      ota_update_id: Updates.updateId ?? null,
+    });
+  } catch {
+    // diagnostics must never affect the Plans screen
+  }
 }
 
 /**
@@ -143,6 +184,13 @@ export async function fetchSubscriptionTierDisplayPrices(): Promise<Record<Packa
     }
 
     await iap.endConnection().catch(() => undefined);
+    const sample = byId.get(SUBSCRIPTION_TIERS[0]?.iosMonthlyProductId ?? '') ?? byId.values().next().value;
+    void reportStorePriceDiagnostic({
+      storefront,
+      currency: sample?.currency ?? null,
+      productsReturned: byId.size,
+      sampleDisplayPrice: sample?.displayPrice ?? null,
+    });
     return out;
   } catch {
     // A native iOS StoreKit failure is not a license to show potentially wrong
