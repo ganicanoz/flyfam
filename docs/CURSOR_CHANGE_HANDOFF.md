@@ -1258,3 +1258,10 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - **Doğrulama:** inline script derleme OK; fonksiyon `esbuild --bundle` OK. Deploy öncesi canlı kaynak indirildi = yerel (index/notify/webpush birebir), deploy sonrası yine birebir; OPTIONS 200, yetkisiz `push_key`/`finance_set` 401. Yerel önizleme (sahte API/config): gelecek günlerde input var; aylık 150.000 → `finance_set 2026-10 150000`, alt toplam «elle girildi», tolga için bekleyen soru 0; 12.000'e (günlük toplam) dönünce `finance_set … null`, elle kayıt silindi.
 - **Durum:** Fonksiyon deploy edildi (geriye uyumlu). Terminal repo klasöründe takıldığı için push bir süre bekledi; kullanıcı onayıyla uzak sayfanın `759d109`'dan beri değişmediği doğrulandı, `git diff --check` OK, sayfa + bu kayıt ayrı worktree'den commit + push.
 - **Not:** Fonksiyon dosyaları (`index.ts` debt/finans eki, `notify.ts`, `webpush.ts`) ve finans/debt migration'ları diğer oturumdan commit edilmemiş; bu değişiklik de yalnız deploy edildi, commit edilmedi.
+
+## 2026-10-02 — Aile planı: Acıbadem Salı 10:00–16:00 ve kesikli yol çubukları
+
+- Veri: `admin_planner_state.config.partnerFixed[0]` ("Acıbadem Altunizade (Salı)") başlangıcı 11:00 → 10:00 yapıldı (SQL `jsonb_set`, `updated_at` güncellendi). 2. Cumartesi kaydı zaten 10:00–16:00.
+- `support/aile/index.html`: gün timeline'ında yol süreleri ayrı `kind:'travel'` segmentleri olarak kesikli (`.seg.travel`, `--c` rengi) çiziliyor — crew ev↔havalimanı (görev aralığının `pre`/`post` kısmı), çocuk okula gidiş/dönüş, eşin sabit/planlı işlerine ev↔iş yeri. 3 dk altı yol çizilmez. Lejanta "Yol (kesikli)" eklendi; crew lejantı "görev" oldu.
+- Korunacak davranış: crew `intervals` uzunluğu (s/e) aynı kaldı, yalnız `pre`/`post` alanı eklendi; çakışma, `workNeeds`, `schoolRun`, `rate` hesapları değişmedi. Tatil uçuş günü sayımı crew `travel` segmentini de sayar (eski davranış korunur).
+- Doğrulama: inline script `node --check` OK; gerçek config ile yerel önizlemede 6 Ekim Salı günü crew/okul/Altunizade yol çubukları ve "Altunizade 10:00–16:00" görüldü.

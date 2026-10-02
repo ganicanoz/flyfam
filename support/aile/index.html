@@ -185,6 +185,7 @@
     .tl-row { position: relative; height: 5px; border-radius: 3px; background: rgba(148,163,184,.16); overflow: hidden; }
     .seg { position: absolute; top: 0; bottom: 0; border-radius: 3px; }
     .seg.cand { background-image: repeating-linear-gradient(135deg, rgba(255,255,255,.55) 0 3px, transparent 3px 6px); }
+    .seg.travel { border-radius: 0; opacity: .8; background-image: repeating-linear-gradient(90deg, var(--c) 0 4px, transparent 4px 7px); }
     .crew { font-size: 10.5px; color: #1d4ed8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .crew.warn { color: #b45309; font-weight: 700; }
     .crew.muted { color: var(--muted); }
@@ -740,7 +741,8 @@
             continue;
           }
           if (s != null && e != null && e > s) {
-            intervals.push({ s: s - toBase(s), e: e + fromBase(e), kind: 'duty', label: code });
+            const pre = toBase(s), post = fromBase(e);
+            intervals.push({ s: s - pre, e: e + post, pre, post, kind: 'duty', label: code });
             addLabel(r.fd, code + ' ' + fmt(s) + '–' + fmt(e), 'crew');
           } else addLabel(r.fd, code, 'crew');
         }
@@ -774,7 +776,7 @@
           addLabel(dayYmd, '✈ ' + code + ' ' + (e.origin_airport || '') + '→' + (e.destination_airport || '') + ' ' + fmt(s) + '–' + fmt(en), 'crew');
           continue;
         }
-        if (s != null && en != null && en > s) { intervals.push({ s: s - toBase(s), e: en + fromBase(en), kind: 'duty', label: code }); addLabel(dayYmd, code + ' ' + fmt(s) + '–' + fmt(en), 'crew'); }
+        if (s != null && en != null && en > s) { const pre = toBase(s), post = fromBase(en); intervals.push({ s: s - pre, e: en + post, pre, post, kind: 'duty', label: code }); addLabel(dayYmd, code + ' ' + fmt(s) + '–' + fmt(en), 'crew'); }
         else addLabel(e.flight_date, code, 'crew');
       }
       legs.sort((a, b) => a.s - b.s);
@@ -787,7 +789,8 @@
         const first = g.legs[0] || {}, last = g.legs[g.legs.length - 1] || {};
         const startsHome = !homeBase || !first.o || first.o === homeBase;
         const endsHome = !homeBase || !last.d || last.d === homeBase;
-        intervals.push({ s: g.s - (startsHome ? toBase(g.s) : 0), e: g.e + (endsHome ? fromBase(g.e) : 0), kind: 'duty', label: g.legs.map((x) => x.n).join(' ') });
+        const pre = startsHome ? toBase(g.s) : 0, post = endsHome ? fromBase(g.e) : 0;
+        intervals.push({ s: g.s - pre, e: g.e + post, pre, post, kind: 'duty', label: g.legs.map((x) => x.n).join(' ') });
         const next = duties[i + 1];
         if (!endsHome && next && next.s > g.e) intervals.push({ s: g.e, e: next.s, kind: 'away', label: 'Yatı ' + (last.d || '') });
       });
@@ -1039,9 +1042,26 @@
       const segs = { crew: [], child: [], partner: [] };
       const notes = [];
       let conflict = false;
-      for (const iv of ctx.crew.intervals) if (iv.s < day.base + 1440 && iv.e > day.base) segs.crew.push({ s: Math.max(iv.s, day.base) - day.base, e: Math.min(iv.e, day.base + 1440) - day.base, kind: iv.kind, title: iv.label });
+      const placeName = (p) => (p === 'home' ? 'ev' : (cfg.places && cfg.places[p] && (cfg.places[p].short || cfg.places[p].label)) || p);
+      const road = (arr, s, e, color, a, b) => { if (e - s >= 3) arr.push({ s, e, kind: 'travel', color, title: 'Yol: ' + placeName(a) + ' → ' + placeName(b) + ' ~' + Math.round(e - s) + ' dk' }); };
+      const workRoad = (place, s, e, color) => {
+        road(segs.partner, s - travel(cfg, 'home', place, ymd, s - 30), s, color, 'home', place);
+        road(segs.partner, e, e + travel(cfg, place, 'home', ymd, e), color, place, 'home');
+      };
+      for (const iv of ctx.crew.intervals) if (iv.s < day.base + 1440 && iv.e > day.base) {
+        const clipS = (t) => Math.max(t, day.base) - day.base, clipE = (t) => Math.min(t, day.base + 1440) - day.base;
+        const pre = iv.pre || 0, post = iv.post || 0, base = cfg.crewDuty.commutePlace || 'crewBase';
+        if (pre) road(segs.crew, clipS(iv.s), clipE(iv.s + pre), COLORS.duty, 'home', base);
+        const s = clipS(iv.s + pre), e = clipE(iv.e - post);
+        if (e > s) segs.crew.push({ s, e, kind: iv.kind, title: iv.label });
+        if (post) road(segs.crew, clipS(iv.e - post), clipE(iv.e), COLORS.duty, base, 'home');
+      }
       if (day.schoolDay) {
+        const S = day.sStart, E = day.sEnd, sch = day.schoolPlace;
+        const pre = Number.isFinite(Number(cfg.school.dropBeforeMin)) ? Number(cfg.school.dropBeforeMin) : 10;
+        road(segs.child, S - pre - travel(cfg, 'home', sch, ymd, S - 30), S - pre, COLORS.school, 'home', sch);
         segs.child.push({ s: day.sStart, e: day.sEnd, kind: 'school', title: 'Okul' });
+        road(segs.child, E, E + travel(cfg, sch, 'home', ymd, E), COLORS.school, sch, 'home');
         if (day.holHalf) notes.push({ k: 'warn', t: 'Arife: okul çıkışı ' + fmt(day.sEnd) });
       }
       if (day.vac) notes.push({ k: 'muted', t: '🏖️ Tatil: ' + (day.vac.label || '') });
@@ -1054,6 +1074,7 @@
         const r = workNeeds(ctx, day, f.place, s, e);
         fixed.push({ ...f, ...meta, s, e, needs: r.needs, worst: r.worst });
         segs.partner.push({ s, e, kind: 'fixed', color: meta.color, title: f.label });
+        workRoad(f.place, s, e, meta.color);
         notes.push({ k: 'muted', t: (P.partner || 'Eş') + ' · ' + (f.label || '') + ' ' + fmt(s) + '–' + fmt(e) + ' (sabit)' });
         for (const n of r.needs) notes.push({ k: needKind(n), t: needText(cfg, n) });
         if (r.worst === 'bad') conflict = true;
@@ -1072,6 +1093,7 @@
         const plan = { ...sel, ...meta, s, e, place, needs: r.needs, worst: r.worst, label: sel.label || meta.short, def, edited };
         Object.assign(plan, rate(ctx, day, plan));
         segs.partner.push({ s, e, kind: 'plan', color: meta.color, title: plan.label });
+        if (e > s) workRoad(place, s, e, meta.color);
         notes.push({ k: 'ok', t: '✓ ' + plan.label + ' ' + sel.start + '–' + sel.end + (edited ? ' (elle; varsayılan ' + fmt(def.s) + '–' + fmt(def.e) + ')' : '') });
         if (edited && s < def.s) notes.push({ k: 'warn', t: plan.label + ': varsayılan en erken başlangıç ' + fmt(def.s) + '; daha erken girildi' });
         if (e <= s) { notes.push({ k: 'bad', t: plan.label + ': bitiş başlangıçtan sonra olmalı' }); conflict = true; }
@@ -1194,8 +1216,9 @@
       const seg = (x) => {
         const s = Math.max(vs, x.s), e = Math.min(ve, x.e);
         if (e <= s) return '';
-        return '<span class="seg' + (x.kind === 'cand' ? ' cand' : '') + '" title="' + esc((x.title || '') + ' ' + fmt(x.s) + '–' + fmt(x.e)) + '" style="left:' + ((s - vs) / span * 100).toFixed(2) + '%;width:' +
-          ((e - s) / span * 100).toFixed(2) + '%;background-color:' + (x.color || COLORS[x.kind] || '#94a3b8') + '"></span>';
+        const color = x.color || COLORS[x.kind] || '#94a3b8';
+        return '<span class="seg' + (x.kind === 'cand' ? ' cand' : x.kind === 'travel' ? ' travel' : '') + '" title="' + esc((x.title || '') + ' ' + fmt(x.s) + '–' + fmt(x.e)) + '" style="left:' + ((s - vs) / span * 100).toFixed(2) + '%;width:' +
+          ((e - s) / span * 100).toFixed(2) + '%;' + (x.kind === 'travel' ? '--c:' : 'background-color:') + color + '"></span>';
       };
       const row = (a) => '<div class="tl-row">' + a.map(seg).join('') + '</div>';
       if (!big) return '<div class="tl">' + row(ev.segs.crew) + row(ev.segs.child) + row(ev.segs.partner) + '</div>';
@@ -1392,8 +1415,9 @@
     }
     function renderLegend(cfg) {
       const P = cfg.people || {};
-      const items = [[COLORS.duty, (P.crew || 'Crew') + ' görev + yol'], [COLORS.away, 'Yatı'], [COLORS.standby, 'Nöbet / rezerv'], [COLORS.home, 'Ev görevi'], [COLORS.school, (P.child || 'Çocuk') + ' okul']];
+      const items = [[COLORS.duty, (P.crew || 'Crew') + ' görev'], [COLORS.away, 'Yatı'], [COLORS.standby, 'Nöbet / rezerv'], [COLORS.home, 'Ev görevi'], [COLORS.school, (P.child || 'Çocuk') + ' okul']];
       $('legend').innerHTML = items.map(([c, t]) => '<span><i class="sw" style="background:' + c + '"></i>' + esc(t) + '</span>').join('') +
+        '<span><i class="sw" style="background:repeating-linear-gradient(90deg,#64748b 0 4px,transparent 4px 7px)"></i>Yol (kesikli)</span>' +
         (cfg.partnerCandidates || []).map((c, i) => { const m = workMeta(cfg, c, i, false); return '<span>' + icHtml(m) + ' ' + esc(c.label || m.short) + '</span>'; }).join('') +
         (cfg.partnerFixed || []).filter((f, i, a) => a.findIndex((x) => x.place === f.place) === i).map((f, i) => { const m = workMeta(cfg, f, i, true); return '<span>' + icHtml(m) + ' ' + esc(placeLabel(cfg, f.place)) + ' (sabit)</span>'; }).join('') +
         '<span>' + [5, 4, 3, 2, 1].map((n) => '<b style="color:' + STAR_COLORS[n] + '">' + n + '★</b>').join(' ') + ' rahat → zor</span>';
@@ -1633,7 +1657,7 @@
       const mFrom = st.month + '-01', mTo = new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10);
       const thisMonth = list.filter((v) => !vacationProblem(v.from, v.to) && v.from <= mTo && v.to >= mFrom);
       const crew = esc(String(cfg.people?.crew || 'Crew'));
-      const flyDays = (v) => ((res && res.days) || []).filter((d) => d.inMonth && d.ymd >= v.from && d.ymd <= v.to && d.segs.crew.some((s) => s.kind === 'duty' || s.kind === 'away')).length;
+      const flyDays = (v) => ((res && res.days) || []).filter((d) => d.inMonth && d.ymd >= v.from && d.ymd <= v.to && d.segs.crew.some((s) => s.kind === 'duty' || s.kind === 'away' || s.kind === 'travel')).length;
       $('vacSub').innerHTML = thisMonth.length
         ? 'Bu ay: ' + thisMonth.map((v) => { const n = flyDays(v); return '<b>' + esc(v.label || 'Tatil') + '</b> (' + esc(shortRange(v.from, v.to)) + (n ? ' · ' + crew + ' ' + n + ' gün uçuşta' : '') + ')'; }).join(', ') + ' · iyi tatiller! ✈️'
         : 'Tatil günlerinde okul ve iş yok; ' + crew + ' uçabilir, uçuşları takvimde görünür.';
