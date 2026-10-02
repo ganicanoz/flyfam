@@ -10,6 +10,17 @@ export default {
     name: 'FlyFam',
     slug: 'flyfam',
     version: '1.3.0',
+    /**
+     * EAS Update uyumluluk anahtarı (bare: native dosyalarda da aynı değer — `ios/FlyFam/Supporting/Expo.plist`
+     * `EXUpdatesRuntimeVersion`, `android/app/src/main/res/values/strings.xml` `expo_runtime_version`).
+     * Native bağımlılık / native kod değişince üçü birlikte artırılmalı; yoksa OTA eski binary'ye uyumsuz JS gönderir.
+     */
+    runtimeVersion: '1.3.0',
+    updates: {
+      url: 'https://u.expo.dev/5c9f4f99-9766-4d38-bfe0-6b1cd6a7e83f',
+      checkAutomatically: 'ON_LOAD',
+      fallbackToCacheTimeout: 0,
+    },
     orientation: 'portrait',
     icon: APP_ICON_1024,
     userInterfaceStyle: 'automatic',
@@ -28,7 +39,7 @@ export default {
       supportsTablet: true,
       bundleIdentifier: 'com.flyfam.app',
       /** Her App Store / TestFlight yüklemesinde bir öncekinden büyük olmalı (CFBundleVersion). */
-      buildNumber: '50',
+      buildNumber: '51',
       jsEngine: 'hermes',
       infoPlist: {
         /** expo-share-extension ana uygulama + uzantı için App Group */
@@ -47,7 +58,7 @@ export default {
       },
     },
     android: {
-      versionCode: 50,
+      versionCode: 51,
       jsEngine: 'hermes',
       /** Play + adaptive foreground: iOS App Store ikonu ile aynı 1024 kaynak. */
       icon: APP_ICON_1024,
@@ -114,7 +125,7 @@ export default {
           activationRules: [{ type: 'file', max: 3 }],
           height: 180,
           backgroundColor: { red: 180, green: 204, blue: 251, alpha: 255 },
-          excludedPackages: ['expo-dev-client', 'expo-updates', 'expo-splash-screen'],
+          excludedPackages: ['expo-dev-client', 'expo-updates', 'expo-splash-screen', 'expo-eas-client', 'expo-structured-headers'],
         },
       ],
     ],

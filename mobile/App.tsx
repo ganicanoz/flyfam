@@ -488,7 +488,7 @@ function RootNavigator() {
   } else if (consentCheck === 'required') {
     body = (
       <Stack.Navigator screenOptions={screenOptions}>
-        <Stack.Screen name="Consent" component={Consent} options={{ title: t('consent.title'), headerBackVisible: false }} />
+        <Stack.Screen name="Consent" component={Consent} options={{ headerShown: false }} />
         <Stack.Screen name="PrivacyNotice" component={PrivacyNotice} options={{ headerShown: false }} />
         <Stack.Screen name="TermsDisclaimer" component={TermsDisclaimer} options={{ headerShown: false }} />
       </Stack.Navigator>

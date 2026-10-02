@@ -1,19 +1,29 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, ScrollView } from 'react-native';
+import { useMemo, useState } from 'react';
+import { View, StyleSheet, Alert, ScrollView, Modal } from 'react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useTranslation } from 'react-i18next';
-import { useNavigation } from '@react-navigation/native';
 import { useSession } from '../contexts/SessionContext';
 import { saveRequiredConsents } from '../lib/consents';
 import { LegalConsentFields } from '../components/LegalConsentFields';
-import { colors } from '../theme/colors';
+import { ScreenPageHeader } from '../components/ScreenPageHeader';
+import { FormCard } from '../components/FormCard';
+import { PrimaryButton } from '../components/PrimaryButton';
+import { BottomActionBar } from '../components/BottomActionBar';
+import { LegalTextView, type LegalDocumentKind } from '../components/LegalTextView';
+import { colors, useThemeMode } from '../theme/colors';
+import { spacing } from '../theme/tokens';
 
 export default function Consent() {
   const { t, i18n } = useTranslation();
-  const navigation = useNavigation<any>();
+  const themeMode = useThemeMode();
+  const styles = useMemo(() => createStyles(), [themeMode]);
   const { profile, refreshProfile } = useSession();
   const [acceptPrivacyNotice, setAcceptPrivacyNotice] = useState(false);
   const [acceptTermsDisclaimer, setAcceptTermsDisclaimer] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [legalSheet, setLegalSheet] = useState<LegalDocumentKind | null>(null);
+
+  const canContinue = acceptPrivacyNotice && acceptTermsDisclaimer && !loading;
 
   const handleContinue = async () => {
     if (!acceptPrivacyNotice || !acceptTermsDisclaimer) {
@@ -38,47 +48,88 @@ export default function Consent() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <Text style={[styles.title, { color: colors.text }]}>{t('consent.title')}</Text>
-        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>{t('consent.subtitle')}</Text>
-
-        <View style={[styles.box, { borderColor: colors.border, backgroundColor: colors.surface }]}>
-          <LegalConsentFields
-            acceptPrivacyNotice={acceptPrivacyNotice}
-            onTogglePrivacyNotice={() => setAcceptPrivacyNotice((v) => !v)}
-            acceptTermsDisclaimer={acceptTermsDisclaimer}
-            onToggleTermsDisclaimer={() => setAcceptTermsDisclaimer((v) => !v)}
-            onOpenPrivacyNotice={() => navigation.navigate('PrivacyNotice')}
-            onOpenTermsDisclaimer={() => navigation.navigate('TermsDisclaimer')}
-            disabled={loading}
-          />
+    <View style={[styles.root, { backgroundColor: colors.background }]}>
+      <ScreenPageHeader title={t('consent.title')} subtitle={t('consent.subtitle')} showBack={false} />
+      <ScrollView
+        style={styles.flex}
+        contentContainerStyle={styles.scroll}
+        contentInsetAdjustmentBehavior="automatic"
+      >
+        <View style={styles.hero}>
+          <View style={[styles.heroIcon, { backgroundColor: colors.primaryLight }]}>
+            <Ionicons name="shield-checkmark" size={26} color={colors.primary} />
+          </View>
         </View>
 
-        <TouchableOpacity
-          style={[styles.button, { backgroundColor: colors.primary }, loading && styles.buttonDisabled]}
-          onPress={handleContinue}
-          disabled={loading}
-        >
-          {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>{t('common.continue')}</Text>}
-        </TouchableOpacity>
+        <FormCard>
+          <View style={styles.cardBody}>
+            <LegalConsentFields
+              acceptPrivacyNotice={acceptPrivacyNotice}
+              onTogglePrivacyNotice={() => setAcceptPrivacyNotice((v) => !v)}
+              acceptTermsDisclaimer={acceptTermsDisclaimer}
+              onToggleTermsDisclaimer={() => setAcceptTermsDisclaimer((v) => !v)}
+              onOpenPrivacyNotice={() => setLegalSheet('privacy')}
+              onOpenTermsDisclaimer={() => setLegalSheet('terms')}
+              disabled={loading}
+            />
+          </View>
+        </FormCard>
       </ScrollView>
+
+      <BottomActionBar>
+        <PrimaryButton
+          title={t('common.continue')}
+          onPress={() => void handleContinue()}
+          loading={loading}
+          disabled={!canContinue}
+        />
+      </BottomActionBar>
+
+      <Modal
+        visible={legalSheet != null}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setLegalSheet(null)}
+      >
+        {legalSheet ? (
+          <LegalTextView
+            kind={legalSheet}
+            showAccept
+            onBack={() => setLegalSheet(null)}
+            onAccept={() => {
+              if (legalSheet === 'privacy') setAcceptPrivacyNotice(true);
+              else setAcceptTermsDisclaimer(true);
+              setLegalSheet(null);
+            }}
+          />
+        ) : null}
+      </Modal>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1 },
-  scrollContent: { padding: 24, paddingBottom: 40 },
-  title: { fontSize: 28, fontWeight: '700', marginBottom: 8 },
-  subtitle: { fontSize: 15, marginBottom: 20, lineHeight: 22 },
-  box: {
-    marginBottom: 20,
-    padding: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-  },
-  button: { padding: 16, borderRadius: 12, alignItems: 'center' },
-  buttonDisabled: { opacity: 0.7 },
-  buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-});
+function createStyles() {
+  return StyleSheet.create({
+    root: { flex: 1 },
+    flex: { flex: 1 },
+    scroll: {
+      paddingHorizontal: spacing.xl,
+      paddingTop: 8,
+      paddingBottom: 24,
+      flexGrow: 1,
+    },
+    hero: {
+      alignItems: 'center',
+      marginBottom: 20,
+      marginTop: 8,
+    },
+    heroIcon: {
+      width: 56,
+      height: 56,
+      borderRadius: 28,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    cardBody: { paddingHorizontal: spacing.md },
+  });
+}

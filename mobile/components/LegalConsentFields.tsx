@@ -1,6 +1,8 @@
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { useMemo } from 'react';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useTranslation } from 'react-i18next';
-import { colors } from '../theme/colors';
+import { colors, useThemeMode } from '../theme/colors';
 
 type Props = {
   acceptPrivacyNotice: boolean;
@@ -24,60 +26,89 @@ export function LegalConsentFields({
   const { t } = useTranslation();
 
   return (
-    <View style={styles.box}>
-      <TouchableOpacity style={styles.row} onPress={onTogglePrivacyNotice} disabled={disabled}>
-        <View
-          style={[
-            styles.checkbox,
-            { borderColor: colors.border, backgroundColor: colors.surfaceAlt },
-            acceptPrivacyNotice && styles.checkboxChecked,
-          ]}
-        >
-          {acceptPrivacyNotice ? <Text style={styles.tick}>✓</Text> : null}
-        </View>
-        <Text style={[styles.text, { color: colors.text }]}>
-          <Text onPress={onOpenPrivacyNotice} style={[styles.link, { color: colors.primary }]}>
-            {t('signUp.privacyNoticeLink')}
-          </Text>
-          {t('signUp.acceptPrivacyAfter')}
-        </Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity style={styles.row} onPress={onToggleTermsDisclaimer} disabled={disabled}>
-        <View
-          style={[
-            styles.checkbox,
-            { borderColor: colors.border, backgroundColor: colors.surfaceAlt },
-            acceptTermsDisclaimer && styles.checkboxChecked,
-          ]}
-        >
-          {acceptTermsDisclaimer ? <Text style={styles.tick}>✓</Text> : null}
-        </View>
-        <Text style={[styles.text, { color: colors.text }]}>
-          <Text onPress={onOpenTermsDisclaimer} style={[styles.link, { color: colors.primary }]}>
-            {t('signUp.termsDisclaimerLink')}
-          </Text>
-          {t('signUp.acceptTermsAfter')}
-        </Text>
-      </TouchableOpacity>
+    <View>
+      <ConsentRow
+        checked={acceptPrivacyNotice}
+        onToggle={onTogglePrivacyNotice}
+        onOpenLink={onOpenPrivacyNotice}
+        linkLabel={t('signUp.privacyNoticeLink')}
+        afterLabel={t('signUp.acceptPrivacyAfter')}
+        disabled={disabled}
+      />
+      <View style={[stylesDivider.line, { backgroundColor: colors.border }]} />
+      <ConsentRow
+        checked={acceptTermsDisclaimer}
+        onToggle={onToggleTermsDisclaimer}
+        onOpenLink={onOpenTermsDisclaimer}
+        linkLabel={t('signUp.termsDisclaimerLink')}
+        afterLabel={t('signUp.acceptTermsAfter')}
+        disabled={disabled}
+      />
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  box: { gap: 14 },
-  row: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
-  checkbox: {
-    width: 20,
-    height: 20,
-    borderRadius: 6,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 1,
-  },
-  checkboxChecked: { borderColor: '#22c55e', backgroundColor: '#14532d' },
-  tick: { color: '#22c55e', fontSize: 14, fontWeight: '700', lineHeight: 16 },
-  text: { flex: 1, fontSize: 13, lineHeight: 18 },
-  link: { fontSize: 13, lineHeight: 18, fontWeight: '600', textDecorationLine: 'underline' },
+/** Link text must not sit inside a Touchable: nested press responders trigger RN synthetic-event warnings. */
+function ConsentRow({
+  checked,
+  onToggle,
+  onOpenLink,
+  linkLabel,
+  afterLabel,
+  disabled,
+}: {
+  checked: boolean;
+  onToggle: () => void;
+  onOpenLink: () => void;
+  linkLabel: string;
+  afterLabel: string;
+  disabled: boolean;
+}) {
+  const themeMode = useThemeMode();
+  const styles = useMemo(() => createStyles(), [themeMode]);
+
+  return (
+    <View style={styles.row}>
+      <Pressable
+        onPress={() => onToggle()}
+        disabled={disabled}
+        hitSlop={10}
+        accessibilityRole="checkbox"
+        accessibilityState={{ checked, disabled }}
+        style={[styles.box, checked && styles.boxChecked]}
+      >
+        {checked ? <Ionicons name="checkmark" size={16} color={colors.primary} /> : null}
+      </Pressable>
+      <Text style={styles.text} onPress={disabled ? undefined : () => onToggle()}>
+        <Text onPress={() => onOpenLink()} style={styles.link} accessibilityRole="link">
+          {linkLabel}
+        </Text>
+        {afterLabel}
+      </Text>
+    </View>
+  );
+}
+
+const stylesDivider = StyleSheet.create({
+  line: { height: StyleSheet.hairlineWidth, marginLeft: 36 },
 });
+
+function createStyles() {
+  return StyleSheet.create({
+    row: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, paddingVertical: 14 },
+    box: {
+      width: 24,
+      height: 24,
+      borderRadius: 7,
+      borderWidth: 1.5,
+      borderColor: colors.border,
+      backgroundColor: colors.surface,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginTop: 1,
+    },
+    boxChecked: { borderColor: colors.primary, backgroundColor: colors.primaryLight },
+    text: { flex: 1, fontSize: 15, lineHeight: 21, fontWeight: '500', color: colors.text },
+    link: { fontWeight: '700', color: colors.primary, textDecorationLine: 'underline' },
+  });
+}

@@ -5,6 +5,11 @@
 import { supabase } from './supabase';
 import { refreshMyEntitlements } from './subscriptionAccess';
 import Constants from 'expo-constants';
+import {
+  hasRevenueCatKey,
+  purchaseRevenueCatProduct,
+  restoreRevenueCatPurchases,
+} from './revenueCat';
 
 export type StorePurchaseVerificationInput = {
   platform: 'ios' | 'android';
@@ -24,6 +29,30 @@ export type IosPurchaseCallbackPayload = {
 };
 
 type IapModule = typeof import('react-native-iap');
+
+export function isStorePurchaseCancelled(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  const value = error as {
+    userCancelled?: unknown;
+    code?: unknown;
+    message?: unknown;
+  };
+  if (value.userCancelled === true) return true;
+
+  const code = String(value.code ?? '').toLowerCase();
+  if (
+    code === '1' ||
+    code.includes('purchase_cancelled') ||
+    code.includes('purchase_canceled') ||
+    code.includes('user_cancelled') ||
+    code.includes('user_canceled')
+  ) {
+    return true;
+  }
+
+  const message = String(value.message ?? '').toLowerCase();
+  return message.includes('purchase was cancelled') || message.includes('purchase was canceled');
+}
 
 async function loadIapModule(): Promise<IapModule> {
   // Expo Go does not support Nitro modules (react-native-iap v15+).
@@ -79,6 +108,19 @@ function mapIosPurchasePayload(purchase: any): IosPurchaseCallbackPayload {
 }
 
 export async function purchaseBaseSubscriptionIos(productId: string): Promise<void> {
+  if (hasRevenueCatKey()) {
+    const result = await purchaseRevenueCatProduct(productId);
+    if (!result) throw new Error('RevenueCat is not configured for this platform.');
+    await verifyStorePurchase({
+      platform: 'ios',
+      productId: result.productIdentifier,
+      transactionId: result.transaction.transactionIdentifier,
+      purchaseAtMs: Date.parse(result.transaction.purchaseDate) || Date.now(),
+    });
+    await refreshMyEntitlements();
+    return;
+  }
+
   const iap = await loadIapModule();
   await iap.initConnection();
   const fallbackReceipt = await iap.getReceiptIOS().catch(() => null);
@@ -145,6 +187,12 @@ export async function purchaseFamilyAddonIos(_productId: string): Promise<void> 
 }
 
 export async function restorePurchases(): Promise<{ restored: boolean; source: string }> {
+  // RevenueCat refreshes its own customer state first. The existing StoreKit
+  // receipt verification below remains in place until the server webhook is live.
+  if (hasRevenueCatKey()) {
+    await restoreRevenueCatPurchases();
+  }
+
   const iap = await loadIapModule();
   await iap.initConnection();
   try {

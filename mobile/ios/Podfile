@@ -92,7 +92,7 @@ target 'FlyFam' do
 end
 
 target 'FlyFamShareExtension' do     
-  exclude = ["expo-updates", "expo-dev-client", "expo-splash-screen"]
+  exclude = ["expo-updates", "expo-dev-client", "expo-splash-screen", "expo-eas-client", "expo-structured-headers"]
   use_expo_modules!(exclude: exclude)
   
   if ENV['EXPO_USE_COMMUNITY_AUTOLINKING'] == '1'

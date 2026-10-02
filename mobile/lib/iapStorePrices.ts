@@ -17,6 +17,8 @@ export type TierStorePrices = {
   yearly: string;
   currency?: string | null;
   source: 'store' | 'list';
+  monthlyAvailable?: boolean;
+  yearlyAvailable?: boolean;
   introOfferAvailable?: boolean;
   introOfferEligible?: boolean;
 };
@@ -64,6 +66,8 @@ function listFallbackPrices(currency: 'TRY' | 'USD'): Record<PackageCode, TierSt
       ),
       currency,
       source: 'list',
+      monthlyAvailable: true,
+      yearlyAvailable: true,
     };
   }
   return out;
@@ -119,30 +123,42 @@ export async function fetchSubscriptionTierDisplayPrices(): Promise<Record<Packa
       .isEligibleForIntroOfferIOS(IOS_SUBSCRIPTION_GROUP_ID)
       .catch(() => false);
 
-    const fallbackCurrency = listFallbackCurrency(storefront);
-    const fallback = listFallbackPrices(fallbackCurrency);
-    const out = { ...fallback };
+    const out = {} as Record<PackageCode, TierStorePrices>;
 
-    let anyStore = false;
     for (const tier of SUBSCRIPTION_TIERS) {
       const monthly = byId.get(tier.iosMonthlyProductId);
       const yearly = byId.get(tier.iosYearlyProductId);
-      if (!monthly && !yearly) continue;
-      anyStore = true;
       out[tier.code] = {
-        monthly: monthly?.displayPrice ?? fallback[tier.code].monthly,
-        yearly: yearly?.displayPrice ?? fallback[tier.code].yearly,
-        currency: monthly?.currency ?? yearly?.currency ?? fallbackCurrency,
+        // Native iOS must never mix App Store prices with hard-coded list prices.
+        // A missing product stays unavailable until StoreKit returns it.
+        monthly: monthly?.displayPrice ?? '—',
+        yearly: yearly?.displayPrice ?? '—',
+        currency: monthly?.currency ?? yearly?.currency ?? null,
         source: 'store',
+        monthlyAvailable: !!monthly,
+        yearlyAvailable: !!yearly,
         introOfferAvailable: monthly?.introOfferAvailable ?? false,
         introOfferEligible,
       };
     }
 
     await iap.endConnection().catch(() => undefined);
-    if (!anyStore) return fallback;
     return out;
   } catch {
-    return listFallbackPrices(listFallbackCurrency(null));
+    // A native iOS StoreKit failure is not a license to show potentially wrong
+    // prices. Keep every plan visible but unavailable until the store responds.
+    return Object.fromEntries(
+      SUBSCRIPTION_TIERS.map((tier) => [
+        tier.code,
+        {
+          monthly: '—',
+          yearly: '—',
+          currency: null,
+          source: 'store' as const,
+          monthlyAvailable: false,
+          yearlyAvailable: false,
+        },
+      ]),
+    ) as Record<PackageCode, TierStorePrices>;
   }
 }

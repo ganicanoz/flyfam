@@ -8,6 +8,8 @@ node-v*.pkg
 /wireframe samples/
 /FlyFam/
 /scripts/
+/.local/
+/tmp/
 hs_err_pid*.log
 *.log
 app.json.eas-root-bak

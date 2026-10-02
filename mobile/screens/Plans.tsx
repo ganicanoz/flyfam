@@ -15,7 +15,11 @@ import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { fetchMySubscriptionAccess, type SubscriptionAccess } from '../lib/subscriptionAccess';
-import { purchaseBaseSubscriptionIos, restorePurchases } from '../lib/iapRestore';
+import {
+  isStorePurchaseCancelled,
+  purchaseBaseSubscriptionIos,
+  restorePurchases,
+} from '../lib/iapRestore';
 import {
   fetchSubscriptionTierDisplayPrices,
   type TierStorePrices,
@@ -135,6 +139,8 @@ export default function Plans() {
       await load();
       Alert.alert(t('plans.planSavedTitle'), t('plans.planSavedMessage'));
     } catch (err) {
+      // Closing Apple's purchase sheet is a normal user action, not an error.
+      if (isStorePurchaseCancelled(err)) return;
       Alert.alert(t('common.error'), String((err as Error)?.message || err));
     } finally {
       setBuyingCode(null);
@@ -238,8 +244,12 @@ export default function Plans() {
                   billing === 'monthly';
                 const busy = buyingCode === tier.code;
                 const price = billing === 'yearly' ? prices.yearly : prices.monthly;
+                const storeProductAvailable =
+                  billing === 'yearly'
+                    ? prices.yearlyAvailable !== false
+                    : prices.monthlyAvailable !== false;
                 const period = billing === 'yearly' ? t('plans.perYear') : t('plans.perMonth');
-                const savePct = billing === 'yearly' ? yearlySavingsPct(tier) : null;
+                const savePct = billing === 'yearly' && storeProductAvailable ? yearlySavingsPct(tier) : null;
                 const isTrialCta = showIntroOffer;
 
                 return (
@@ -271,9 +281,13 @@ export default function Plans() {
                         </View>
                       ) : (
                         <TouchableOpacity
-                          style={[styles.btn, isTrialCta ? styles.btnChip : styles.btnFilled]}
+                          style={[
+                            styles.btn,
+                            isTrialCta ? styles.btnChip : styles.btnFilled,
+                            !storeProductAvailable && styles.btnDisabled,
+                          ]}
                           onPress={() => onBuyTier(tier.code)}
-                          disabled={!!buyingCode}
+                          disabled={!!buyingCode || !storeProductAvailable}
                         >
                           {busy ? (
                             <ActivityIndicator
@@ -285,7 +299,11 @@ export default function Plans() {
                               style={[styles.btnText, isTrialCta && styles.btnChipText]}
                               numberOfLines={1}
                             >
-                              {isTrialCta ? t('plans.selectPlanWithTrial') : t('plans.selectPlan')}
+                              {!storeProductAvailable
+                                ? t('plans.storePreparing')
+                                : isTrialCta
+                                  ? t('plans.selectPlanWithTrial')
+                                  : t('plans.selectPlan')}
                             </Text>
                           )}
                         </TouchableOpacity>
@@ -511,6 +529,7 @@ function createPlansStyles(themeMode: 'light' | 'dark') {
       paddingHorizontal: 8,
     },
     btnFilled: { backgroundColor: colors.primary },
+    btnDisabled: { opacity: 0.5 },
     btnChip: {
       backgroundColor: colors.primaryLight,
     },
