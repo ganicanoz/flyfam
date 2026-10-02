@@ -12,6 +12,13 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+### 2026-10-02 — iOS satın alma uçtan uca doğrulandı (TestFlight build 51)
+
+- **Test:** Kullanıcı TestFlight 1.3.0 (51) ile `flyfam.duo.monthly` (deneme teklifiyle) satın aldı, ardından `flyfam.circle.monthly`'ye yükseltti; uygulama paketi tanımladı.
+- **Kanıt (DB, kişisel veri yazdırılmadan):** `store_purchase_receipts` 2 kayıt, ikisi de `appleEnvironment=Sandbox`, `verificationMethod=app_store_server_api`; `crew_subscriptions` `circle` / `active` / `app_store`; `user_entitlements.premium_active=true`. Test hesabı App Review demo hesabı değil. Bu hesapta önceden tanımlı uzun bir erişim süresi olduğundan `current_period_ends_at` RPC'deki `greatest(...)` kuralı gereği eski tarihte kaldı (beklenen davranış).
+- **Route to Live:** `ios-entitlements` bu kanıtla OK yapıldı (yalnız bu satır değiştirildi; dosyadaki Codex değişikliklerine dokunulmadı).
+- **Açık:** Geri yükle (restore) ayrıca denenmeli; RevenueCat panelindeki müşteri kaydı bu oturumda kontrol edilmedi (gizli REST anahtarı yok).
+
 ### 2026-10-02 — verify-store-purchase: makbuzsuz iOS doğrulama (App Store Server API)
 
 - **Sorun:** TestFlight build 51'de RevenueCat satın alması başarılı oldu, ardından `verify-store-purchase` hata verdi ("non-2xx"). RevenueCat yolu (`purchaseBaseSubscriptionIos`) `receiptData` göndermiyor; fonksiyon iOS'ta makbuz zorunlu tuttuğu için 400 dönüyordu. `store_purchase_receipts` tablosunda hiç kayıt yoktu (doğrulama hiç başarılı olmamıştı).
