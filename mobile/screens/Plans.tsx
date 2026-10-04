@@ -314,6 +314,22 @@ export default function Plans() {
               })}
             </View>
 
+            <TouchableOpacity
+              onPress={onRestorePurchases}
+              disabled={restoring}
+              style={styles.restoreBtn}
+              accessibilityRole="button"
+            >
+              {restoring ? (
+                <ActivityIndicator color={colors.primary} size="small" />
+              ) : (
+                <>
+                  <Ionicons name="refresh-outline" size={16} color={colors.primary} />
+                  <Text style={styles.restoreBtnText}>{t('plans.restorePurchases')}</Text>
+                </>
+              )}
+            </TouchableOpacity>
+
             <SubscriptionLegalDisclosure
               compact
               onOpenPrivacy={() => {
@@ -322,19 +338,6 @@ export default function Plans() {
               onOpenTerms={() => {
                 (navigation as { navigate: (name: string) => void }).navigate('TermsDisclaimer');
               }}
-              footer={(
-                <TouchableOpacity
-                  onPress={onRestorePurchases}
-                  disabled={restoring}
-                  style={styles.restoreLink}
-                >
-                  {restoring ? (
-                    <ActivityIndicator color={colors.textMuted} size="small" />
-                  ) : (
-                    <Text style={styles.restoreLinkText}>{t('plans.restorePurchases')}</Text>
-                  )}
-                </TouchableOpacity>
-              )}
             />
           </>
         )}
@@ -535,12 +538,22 @@ function createPlansStyles(themeMode: 'light' | 'dark') {
     },
     btnText: { color: colors.onPrimary, fontWeight: '700', fontSize: 11 },
     btnChipText: { color: colors.primary },
-    restoreLink: { marginTop: 6, paddingVertical: 4 },
-    restoreLinkText: {
-      color: colors.textMuted,
-      fontSize: 12,
-      fontWeight: '600',
-      textDecorationLine: 'underline',
+    restoreBtn: {
+      marginTop: 14,
+      minHeight: 44,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.primary,
+      backgroundColor: colors.surface,
+    },
+    restoreBtnText: {
+      color: colors.primary,
+      fontSize: 14,
+      fontWeight: '700',
     },
   });
 }

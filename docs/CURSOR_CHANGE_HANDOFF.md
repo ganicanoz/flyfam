@@ -12,6 +12,13 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+### 2026-10-04 — Planlar: belirgin «Satın alımları geri yükle» düğmesi (OTA)
+
+- **Sorun:** Kullanıcı TestFlight build 51'de geri yükleme düğmesini bulamadı. Düğme, yasal bilgi kutusunun en altında (Gizlilik · Koşullar altında) 12 pt soluk gri altı çizili metin olarak `footer` içindeydi; App Review için de belirgin bir restore düğmesi beklenir.
+- **Dosya:** `mobile/screens/Plans.tsx` — düğme paket kartlarının hemen altına, yasal kutudan önce taşındı: tam genişlik, 44 pt yükseklik, birincil renk çerçeve + `refresh-outline` ikonu. Davranış (`onRestorePurchases` → `restorePurchases`) ve metin anahtarı (`plans.restorePurchases`) değişmedi. `SubscriptionLegalDisclosure` `footer` prop'u bileşende korunuyor (artık Planlar'dan verilmiyor).
+- **Yayın:** temiz `origin/main` worktree'sinden; paket taraması (12 gizli yerel değer yok; önceki OTA kodu korunuyor) → `eas update --channel production --platform ios`. Grup `b70d7782-4500-4089-aeab-1a01412ea1b4` (iOS id `01a1067e-a5bc-761b-bd0f-9fd67497620a`), runtime `1.3.0`, `production` dalının en güncel güncellemesi.
+- **Doğrulama:** `npx tsc --noEmit` OK; `git diff --check` OK. Cihazda görünüm ve geri yükleme sonucu kullanıcı testinden sonra kaydedilecek.
+
 ### 2026-10-02 — İlk OTA (EAS Update): IAP hata metni + StoreKit para birimi tanısı
 
 - **Sorun:** TestFlight build 51'de Planlar kartları dolar gösterdi; Apple ise aynı cihazdaki satın almaları `storefront TUR / TRY` olarak kaydetti (Circle aylık ₺249,99). iOS fiyatları doğrudan StoreKit 2 `Product.displayPrice`'tan geliyor (OpenIAP değiştirmeden aktarıyor); uygulamada sabit USD yok. Olası neden: TestFlight sandbox fiyat listesi / cihazdaki ABD sandbox hesabı.
