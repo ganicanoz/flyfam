@@ -11,6 +11,7 @@ on:
       - 'docs/BASE44_ADMIN_LIVE.html'
       - 'docs/BASE44_ADMIN_EMBED.html'
       - 'docs/admin/**'
+      - 'docs/obens-watches/**'
       - '.github/workflows/deploy-support.yml'
   workflow_dispatch:
 
@@ -88,6 +89,13 @@ jobs:
           test -f support/ADMIN_STATUS_DASHBOARD.html
           test -f support/BASE44_ADMIN_LIVE.html
           test "$(wc -c < support/ADMIN_STATUS_DASHBOARD.html)" -ge 8000
+
+      - name: Copy Oben's Watches archive
+        run: |
+          mkdir -p support/obens-watches
+          cp -R docs/obens-watches/. support/obens-watches/
+          test -s support/obens-watches/index.html
+        shell: bash
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
