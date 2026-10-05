@@ -10,6 +10,8 @@ import { navigationRef } from './navigationRef';
 import { AuthEmailLinkListener } from './components/AuthEmailLinkListener';
 import { PdfImportLinkingListener } from './components/PdfImportLinkingListener';
 import { trackScreenViewThrottled } from './lib/userActivity';
+import { installGlobalErrorReporting } from './lib/errorReporting';
+import { AppErrorBoundary } from './components/AppErrorBoundary';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeBottomTabNavigator } from '@bottom-tabs/react-navigation';
@@ -614,6 +616,8 @@ function RootNavigator() {
   );
 }
 
+installGlobalErrorReporting();
+
 export default function App() {
   const [navigationReady, setNavigationReady] = useState(false);
   const onNavigationReady = useCallback(() => setNavigationReady(true), []);
@@ -631,6 +635,7 @@ export default function App() {
   };
   return (
     <SafeAreaProvider initialMetrics={initialWindowMetrics}>
+      <AppErrorBoundary>
       <GestureHandlerRootView style={{ flex: 1 }}>
         <SessionProvider>
           <AuthEmailLinkListener />
@@ -666,6 +671,7 @@ export default function App() {
         </ImageBackground>
         </SessionProvider>
       </GestureHandlerRootView>
+      </AppErrorBoundary>
     </SafeAreaProvider>
   );
 }

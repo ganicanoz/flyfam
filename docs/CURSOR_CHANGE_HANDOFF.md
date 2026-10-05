@@ -12,6 +12,15 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+### 2026-10-05 — Mobil JS hata izleme (ErrorBoundary + global hata yakalayıcı)
+
+- **Amaç:** Route to Live `monitoring` açığı: mobilde hiç çökme/hata sinyali yoktu. Kullanıcı kararı: hafif yaklaşım (ek servis/native paket yok; OTA ile 51/52'ye de gidebilir; native çökmeleri yakalamaz).
+- **Dosyalar:** `supabase/migrations/20261005190000_client_error_events.sql` (yeni tablo; RLS: authenticated yalnız kendi `user_id`'siyle INSERT, okuma yok; anon erişimi yok; service_role tam; `auth.users` cascade; alan uzunluk sınırları). `mobile/lib/errorReporting.ts` (oturum başına en fazla 10 kayıt, aynı hata 5 dk içinde tekrar gönderilmez; ölümcül hata önce AsyncStorage'a yazılır ve sonraki açılışta gönderilir, release'te ölümcül işleyiciye 800 ms tanınır; release'te Hermes yakalanmamış promise reddi izlenir, dev'de LogBox davranışı korunur; oturum yoksa kayıt atlanır). `mobile/components/AppErrorBoundary.tsx` (kök fallback: TR/EN mesaj + «Tekrar dene», release'te `Updates.reloadAsync`). `mobile/App.tsx` (modül yüklemede `installGlobalErrorReporting()`, `SafeAreaProvider` içinde `AppErrorBoundary`). TR/EN `errorBoundary.*`.
+- **Canlı:** Migration `db query --linked -f` ile uygulandı ve `migration repair --status applied 20261005190000` ile geçmişe işlendi (`db push` kullanılmadı; yerelde başka oturumların bekleyen migration'ları olabilir). Doğrulama: RLS açık, anon insert/select yok, authenticated insert var / select yok, 1 politika, geçmişte kayıtlı.
+- **Doğrulama:** temiz worktree'de `npx tsc --noEmit` OK; TR/EN anahtar eşliği 0/0. Simülatör (geliştirme build'i, Metro) uçtan uca: ölümcül olmayan hata anında yazıldı (source global, ekran Roster, ios, 1.3.0/52, stack var, istemci zaman damgası) OK; ölümcül hata cihazda saklandı ve yeniden açılışta gönderildi (is_fatal true) OK. Test satırları silindi (0 kaldı). ErrorBoundary fallback ekranı cihazda tetiklenerek görülmedi.
+- **Gizlilik:** Gizlilik politikası hata/çökme kayıtlarını zaten kapsıyor (`support/privacy-policy.html` 3.6). App Store Connect App Privacy beyanında Diagnostics yok; bu sürüm mağazaya çıkmadan önce «Crash Data» (ve gerekirse «Other Diagnostic Data») — kullanıcıyla ilişkili, amaç App Functionality, takip yok — eklenmeli (kullanıcı/Codex; kamuya açık hukuki beyan, onaysız yayımlanmadı).
+- **Kalan:** native çökmeler yakalanmıyor; saklama süresi için otomatik temizlik yok (öneri 90 gün); admin panelinde görünüm yok (SQL ile okunur).
+
 ### 2026-10-05 — Simülatörde bildirim izni (geliştirme) + yerel `.env` paket taraması
 
 - **Sorun:** `getPushTokenWithReason` simülatörde izin istemeden çıkıyordu; izin hiç verilmediği için `xcrun simctl push` ile gönderilen test bildirimleri (ör. Ekip Odası `type: crew_room` dokunma akışı) gösterilmiyordu.

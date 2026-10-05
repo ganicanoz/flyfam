@@ -22,6 +22,11 @@
     "copyErrorDone": "Hata metni panoya kopyalandı. Destek veya sohbete yapıştırabilirsiniz.",
     "copyErrorFailed": "Panoya kopyalanamadı."
   },
+  "errorBoundary": {
+    "title": "Bir şeyler ters gitti",
+    "body": "Uygulamada beklenmeyen bir hata oluştu. Hata kaydedildi; tekrar denemek için aşağıdaki düğmeye dokunun.",
+    "retry": "Tekrar dene"
+  },
   "forceUpdate": {
     "title": "Yeni sürüm gerekli",
     "body": "Yeni özellikler için güncel FlyFam sürümünü kullanın. Eski sürüm yakında kullanıma kapatılacaktır. iOS: TestFlight veya App Store’dan güncelleyin. Android: Play Store closed testing üzerinden güncelleyin; listede değilseniz support@flyfamapp.com adresine yazarak davet isteyin.",

@@ -22,6 +22,11 @@
     "copyErrorDone": "Error details copied to clipboard. You can paste them in support or chat.",
     "copyErrorFailed": "Could not copy to clipboard."
   },
+  "errorBoundary": {
+    "title": "Something went wrong",
+    "body": "An unexpected error occurred in the app. The error was recorded; tap the button below to try again.",
+    "retry": "Try again"
+  },
   "forceUpdate": {
     "title": "Update required",
     "body": "Please use the latest FlyFam version for new features. Older versions will be discontinued soon. iOS: update via TestFlight or the App Store. Android: update via Play Store closed testing; if you are not on the tester list, email support@flyfamapp.com to request an invite.",
