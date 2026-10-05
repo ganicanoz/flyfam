@@ -12,6 +12,7 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+<<<<<<< HEAD
 ### 2026-10-05 — Aile planı: içerik asistanı (Türkçe → config)
 
 - **Dosyalar:** `support/aile/index.html`, `support/aile/sw.js` (`aile-shell-v4`)
@@ -27,6 +28,14 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - **Uygulama:** `partnerFixed.skipDates` desteği; sabit işte `note` gün notuna uyarısı. İstemci `migrateConfigInPlace` (`partner_fixed_2026_10_06_imza`): Salı kaydına `skipDates: 2026-10-06`, one-off `dates: [2026-10-06]` 16:00–17:00 imza + not; ilk online yüklemede `save_config`. SQL aynı yama (idempotent).
 - **Doğrulama:** migrate + `fixedApplies` birim testi OK; inline script `node --check` OK. Canlı SQL bu oturumda `SUPABASE_ACCESS_TOKEN` olmadığı için uygulanamadı — deploy sonrası PIN/admin ile `/aile` açılınca migration kaydeder; veya `node scripts/aile-apply-oct6-imza.mjs`.
 - **Koruma:** Diğer Salı/Cumartesi sabitleri ve plan/finans akışı aynı; migration bir kez (`configMigrations`).
+=======
+### 2026-10-06 — Aviation Edge eski anahtar durumu
+
+- **Kontrol:** Aviation Edge Developer API aboneliği 21 Mart 2026'da iptal edilmiş (sağlayıcı e-postası). Supabase sırrı `EXPO_PUBLIC_AVIATION_EDGE_API_KEY` ile geçici, tek istekli, rastgele token korumalı Edge fonksiyonu üzerinden `airlineDatabase` çağrısı: HTTP 200, gövde `Your API Call Limit is Over` — anahtar sağlayıcıda hâlâ tanınıyor, kullanım hakkı yok, veri dönmüyor. Fonksiyon silindi (sonrasında 404), yerel klasör kaldırıldı; anahtar değeri hiçbir çıktıya yazılmadı.
+- **Durum:** Sağlayıcıda self-servis anahtar yenileme/iptal yok. Kalıcı iptal talebi için kullanıcının Gmail'inde Aviation Edge desteğine (developers@ / info@) İngilizce taslak hazırlandı; gönderilmedi. Supabase sırrı kullanıcı kararıyla korunuyor (hiçbir mobil/Edge kaynağı okumuyor).
+- **Route to Live:** `rotate-flight-provider-secrets` açıklaması güncellendi (yerel); madde açık kalıyor, sağlayıcı iptal onayı gelince kapatılabilir.
+
+>>>>>>> origin/main
 
 ### 2026-10-05 — Roster PDF ayrıştırıcı regresyon seti (anonim fixture)
 
