@@ -12,6 +12,14 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+### 2026-10-05 — Aile planı: 1 aylık spor (kilo kaybı) programı
+
+- **Dosyalar:** `support/aile/index.html`, `support/aile/sw.js`
+- **Amaç:** Oben okuldayken + Mine çalışırken crew için kilo kaybını hızlandıracak 1 aylık spor önerisi: sıklık, ne çalışılacağı, lokasyon tavsiye seti.
+- **Uygulama:** `config.sport` (hedef haftada 4 seans, Zone2/güç/HIIT/mobilite rotasyonu, lokasyon seti). Okul günü + eş işi + crew müsait penceresinden seans önerisi; takvim/liste/detayda 💪; Harita aramaları `places.home.address` civarı.
+- **Doğrulama:** JS brace/paren dengeli; slot yayılım birim testi (Ekim ~okul günü → haftaya yayılmış seçim). Canlı PIN ile plan verisi üzerinde görsel doğrulama deploy sonrası.
+- **Koruma:** Mevcut plan/finans/roster akışları aynı; spor yalnız öneri (plan seçimlerini bozmaz). `sport.enabled: false` ile kapanır.
+
 ### 2026-10-05 — Mobil JS hata izleme (ErrorBoundary + global hata yakalayıcı)
 
 - **Amaç:** Route to Live `monitoring` açığı: mobilde hiç çökme/hata sinyali yoktu. Kullanıcı kararı: hafif yaklaşım (ek servis/native paket yok; OTA ile 51/52'ye de gidebilir; native çökmeleri yakalamaz).

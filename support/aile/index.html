@@ -125,6 +125,28 @@
     .who-btns { display: grid; gap: 8px; margin-top: 10px; }
     .who-btns button { padding: 12px; font-size: 16px; font-weight: 700; }
 
+    /* Spor programı */
+    .sport-card { background: linear-gradient(135deg, #ecfdf5 0%, #f0f9ff 55%, #fff 100%); border-color: #a7f3d0; }
+    .sport-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; margin-bottom: 12px; }
+    .sport-tile { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+    .sport-tile span { display: block; font-size: 11px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: .03em; }
+    .sport-tile b { display: block; margin-top: 2px; font-size: 18px; }
+    .sport-tile small { display: block; margin-top: 2px; color: var(--muted); font-size: 12px; }
+    .sport-list { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+    .sport-list li { display: grid; grid-template-columns: 72px 1fr auto; gap: 8px; align-items: start; padding: 8px 10px; border-radius: 12px; background: #fff; border: 1px solid var(--line); font-size: 13px; }
+    .sport-list li .d { font-weight: 800; }
+    .sport-list li .t { color: var(--muted); font-size: 12px; white-space: nowrap; }
+    .sport-loc { display: grid; gap: 6px; margin-top: 8px; }
+    .sport-loc a { display: flex; gap: 8px; align-items: flex-start; padding: 8px 10px; border-radius: 12px; background: #fff; border: 1px solid var(--line); text-decoration: none; color: inherit; }
+    .sport-loc a:hover { border-color: var(--brand-2); }
+    .sport-loc b { display: block; font-size: 13px; }
+    .sport-loc span { display: block; font-size: 12px; color: var(--muted); }
+    .cell .sport-tag, .lrow .sport-tag { display: inline-block; font-size: 9.5px; font-weight: 800; color: #065f46; background: #d1fae5; border-radius: 999px; padding: 0 6px; line-height: 1.5; }
+    @media (max-width: 640px) {
+      .sport-list li { grid-template-columns: 1fr; }
+      .sport-list li .t { justify-self: start; }
+    }
+
     /* İkonlar ve yıldızlar */
     .ic { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; color: #fff; font-weight: 800; font-size: 12px; flex: none; }
     .ic.out { background: transparent !important; border: 2px solid currentColor; }
@@ -406,6 +428,11 @@
         </div>
       </section>
 
+      <section class="card sport-card" id="boxSport">
+        <div class="card-h">💪 Spor · 1 aylık kilo kaybı</div>
+        <div id="sport" class="small muted">—</div>
+      </section>
+
       <section class="card">
         <div class="cal-head card-h">
           <span>🗓️ Takvim</span>
@@ -540,9 +567,31 @@
       vacations: [],
       taxi: { tariff: 'İstanbul sarı taksi, 20.07.2026', open: 71.94, perKm: 47.92, perMin: 9.98, minFare: 230, freeKmh: 25 },
       finance: { daily: [], monthly: [], since: '', debt: { sources: [], label: '' } },
+      /** Crew spor: çocuk okuldayken + eş çalışırken boş pencerelerde kilo kaybı programı. */
+      sport: {
+        enabled: true,
+        goal: 'weight_loss',
+        targetSessionsPerWeek: 4,
+        sessionMin: 45,
+        afterDropMin: 15,
+        beforePickMin: 25,
+        workouts: [
+          { id: 'z2', label: 'Zone 2 yürüyüş / tempolu yürüyüş', focus: 'Yağ yakımı · konuşabilir tempo', where: 'outdoor', min: 45 },
+          { id: 'strength', label: 'Güç · full body', focus: 'Kas koruma · metabolizma', where: 'home', min: 40 },
+          { id: 'hiit', label: 'HIIT kısa', focus: 'Kalori · kısa ve sert', where: 'home', min: 25 },
+          { id: 'mobility', label: 'Mobilite + yürüyüş', focus: 'Toparlanma · eklem', where: 'outdoor', min: 35 },
+        ],
+        locations: [
+          { id: 'home', label: 'Ev', tip: 'Güç + HIIT (band / dambıl / vücut ağırlığı)', query: '' },
+          { id: 'park', label: 'Yakın park / yeşil alan', tip: 'Zone 2 yürüyüş-koşu, mobilite', query: 'park yürüyüş yolu' },
+          { id: 'gym', label: 'Spor salonu', tip: 'Güç günü ekipman', query: 'spor salonu' },
+          { id: 'pool', label: 'Havuz', tip: 'Eklem dostu kardiyo (opsiyonel)', query: 'yüzme havuzu' },
+          { id: 'track', label: 'Koşu parkuru / sahil', tip: 'Daha uzun Zone 2', query: 'koşu parkuru' },
+        ],
+      },
     };
 
-    const st = { month: null, data: null, full: {}, config: null, draft: {}, draftDirty: false, travelDirty: false, cfgDirty: false, wx: null, openDay: null, activeGroup: null, viewMode: (() => { try { return localStorage.getItem('flyfam_family_plan_view_v1'); } catch (_) { return null; } })(), bearer: null, via: null, summaryGroups: [], newConf: new Set(), lastRes: null, fin: {}, tab: 'plan', ciroForce: false };
+    const st = { month: null, data: null, full: {}, config: null, draft: {}, draftDirty: false, travelDirty: false, cfgDirty: false, wx: null, openDay: null, activeGroup: null, viewMode: (() => { try { return localStorage.getItem('flyfam_family_plan_view_v1'); } catch (_) { return null; } })(), bearer: null, via: null, summaryGroups: [], newConf: new Set(), lastRes: null, fin: {}, tab: 'plan', ciroForce: false, sportByDay: {} };
 
     // ---------- yardımcılar ----------
     const $ = (id) => document.getElementById(id);
@@ -1209,6 +1258,156 @@
       return fresh;
     }
 
+    // ---------- spor (crew · kilo kaybı) ----------
+    const sportCfg = () => (st.config && st.config.sport) || DEFAULT_CONFIG.sport;
+    function mapsSearch(query, near) {
+      const q = [query, near].filter(Boolean).join(' ');
+      return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(q || 'İstanbul spor');
+    }
+    /** Okul gününde eş çalışıyor + crew müsaitken spor penceresi. */
+    function sportWindowForDay(ctx, day, works) {
+      const cfg = ctx.cfg;
+      const sp = sportCfg();
+      if (!day.schoolDay || day.vac || !works.length) return null;
+      const schoolOverlap = works.some((w) => w.s < day.sEnd && w.e > day.sStart);
+      if (!schoolOverlap) return null;
+      const T = (a, b, at) => travel(cfg, a, b, day.ymd, at);
+      const sch = day.schoolPlace;
+      const pre = Number.isFinite(Number(cfg.school.dropBeforeMin)) ? Number(cfg.school.dropBeforeMin) : 10;
+      const dropEnd = day.sStart + T(sch, 'home', day.sStart);
+      const pickStart = day.sEnd - pre - T('home', sch, day.sEnd - 30);
+      const after = Number(sp.afterDropMin) || 15;
+      const before = Number(sp.beforePickMin) || 25;
+      let s = Math.max(day.sStart + 15, dropEnd + after);
+      let e = Math.min(day.sEnd - 15, pickStart - before);
+      // Eş işi sırasında da pencereyi daralt (crew yalnız çocuğu bırakıp aldıktan sonra)
+      for (const w of works) {
+        // pencere okul saatleri içi kalsın
+        if (w.s > s && w.s < e) { /* keep */ }
+      }
+      const need = Number(sp.sessionMin) || 45;
+      if (e - s < need) return null;
+      const cs = crewState(ctx.crew.intervals, day.base + s, day.base + e);
+      if (cs === 'duty' || cs === 'away') {
+        // Görev parçalıysa: okul ortasında crew serbest dilim ara
+        const step = 15;
+        let best = null;
+        for (let a = s; a + need <= e; a += step) {
+          const b = a + need;
+          const stt = crewState(ctx.crew.intervals, day.base + a, day.base + b);
+          if (stt === 'duty' || stt === 'away') continue;
+          best = { s: a, e: b, risk: stt === 'standby' || stt === 'home' };
+          break;
+        }
+        return best;
+      }
+      // Tam pencere uzunsa ortada sessionMin'lik blok öner (okul ortası)
+      const mid = Math.floor((s + e) / 2);
+      let a = Math.max(s, mid - Math.floor(need / 2));
+      let b = a + need;
+      if (b > e) { b = e; a = b - need; }
+      return { s: a, e: b, risk: cs === 'standby' || cs === 'home', freeFrom: s, freeTo: e };
+    }
+    function buildSportPlan(res) {
+      const cfg = res.cfg;
+      const sp = sportCfg();
+      const C = (cfg.people || {}).crew || 'Crew';
+      const PA = (cfg.people || {}).partner || 'Eş';
+      const CH = (cfg.people || {}).child || 'Çocuk';
+      if (sp.enabled === false) {
+        st.sportByDay = {};
+        return { enabled: false, C, PA, CH, sessions: [], windows: 0, target: 0, workouts: [], locations: [] };
+      }
+      const workouts = Array.isArray(sp.workouts) && sp.workouts.length ? sp.workouts : DEFAULT_CONFIG.sport.workouts;
+      const targetW = Math.max(2, Math.min(6, Number(sp.targetSessionsPerWeek) || 4));
+      const inMonth = res.days.filter((d) => d.inMonth);
+      const windows = [];
+      for (const d of inMonth) {
+        const works = [...d.fixed, ...d.plans];
+        const win = sportWindowForDay(res.ctx, d, works);
+        if (!win) continue;
+        windows.push({ ymd: d.ymd, wd: d.wd, ...win, works });
+      }
+      // Haftaya yay: her haftadan en fazla targetW, toplamda ~4 hafta × target
+      const byWeek = new Map();
+      for (const w of windows) {
+        const wk = weekOf(w.ymd);
+        if (!byWeek.has(wk)) byWeek.set(wk, []);
+        byWeek.get(wk).push(w);
+      }
+      const picked = [];
+      let wi = 0;
+      for (const [, list] of [...byWeek.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
+        // Haftanın ortasına yay: eşit aralıklı seç
+        const n = Math.min(targetW, list.length);
+        if (!n) continue;
+        for (let i = 0; i < n; i += 1) {
+          const idx = Math.round(i * (list.length - 1) / Math.max(1, n - 1));
+          const slot = list[idx];
+          if (picked.some((p) => p.ymd === slot.ymd)) continue;
+          const wo = workouts[wi % workouts.length];
+          const mins = Number(wo.min) || Number(sp.sessionMin) || 45;
+          let s = slot.s, e = Math.min(slot.e, s + mins);
+          if (e - s < mins && slot.freeTo != null) {
+            e = Math.min(slot.freeTo, s + mins);
+            if (e - s < mins) { s = Math.max(slot.freeFrom || slot.s, e - mins); }
+          }
+          picked.push({
+            ymd: slot.ymd, wd: slot.wd, s, e,
+            workout: wo, risk: !!slot.risk,
+            why: CH + ' okulda · ' + PA + ' işte · ' + C + ' müsait',
+          });
+          wi += 1;
+        }
+      }
+      picked.sort((a, b) => a.ymd.localeCompare(b.ymd) || a.s - b.s);
+      const map = {};
+      for (const p of picked) map[p.ymd] = p;
+      st.sportByDay = map;
+      const near = String(((cfg.places || {}).home || {}).address || '').trim() || 'İstanbul';
+      const locations = (Array.isArray(sp.locations) && sp.locations.length ? sp.locations : DEFAULT_CONFIG.sport.locations).map((loc) => ({
+        ...loc,
+        href: loc.query ? mapsSearch(loc.query, near) : null,
+      }));
+      return {
+        enabled: true, C, PA, CH, sessions: picked, windows: windows.length,
+        target: targetW, workouts, locations, near,
+        sessionMin: Number(sp.sessionMin) || 45,
+      };
+    }
+    function renderSport(res) {
+      const el = $('sport');
+      if (!el) return;
+      // buildSportPlan render() başında zaten çağrıldı; tekrar hesapla (idempotent)
+      const plan = buildSportPlan(res);
+      if (!plan.enabled) { el.innerHTML = '<p class="muted" style="margin:0;">Spor programı kapalı (<code>sport.enabled</code>).</p>'; return; }
+      const weeks = Math.max(1, new Set(plan.sessions.map((s) => weekOf(s.ymd))).size);
+      const perWeek = plan.sessions.length ? (plan.sessions.length / weeks) : 0;
+      const tiles = '<div class="sport-tiles">' +
+        '<div class="sport-tile"><span>Sıklık</span><b>Haftada ' + plan.target + '</b><small>seans · ~' + plan.sessionMin + ' dk</small></div>' +
+        '<div class="sport-tile"><span>Bu ay</span><b>' + plan.sessions.length + ' seans</b><small>' + plan.windows + ' uygun pencere · ~' + String(perWeek.toFixed(1)).replace('.', ',') + '/hafta</small></div>' +
+        '<div class="sport-tile"><span>Hedef</span><b>Kilo kaybı</b><small>Zone 2 + güç + HIIT</small></div>' +
+        '</div>';
+      const focus = '<p style="margin:0 0 10px;"><b>Ne çalışmalı?</b> ' +
+        plan.workouts.map((w) => esc(w.label) + ' <span class="muted">(' + esc(w.focus) + ')</span>').join(' · ') +
+        '. Haftada en az 2 Zone 2 + 1–2 güç; HIIT fazla olmasın (1–2).</p>';
+      const list = plan.sessions.length
+        ? '<ul class="sport-list">' + plan.sessions.map((s) =>
+          '<li data-sportday="' + s.ymd + '"><div class="d">' + Number(s.ymd.slice(8, 10)) + ' ' + DAY_SHORT[s.wd] +
+          (s.risk ? '<div class="small muted">nöbet/ev görevi riski</div>' : '') + '</div>' +
+          '<div><b>' + esc(s.workout.label) + '</b><div class="small muted">' + esc(s.workout.focus) + ' · ' + esc(s.why) + '</div></div>' +
+          '<div class="t">' + fmt(s.s) + '–' + fmt(s.e) + '</div></li>').join('') + '</ul>'
+        : '<p class="muted" style="margin:0 0 10px;">Bu ayda «' + esc(plan.CH) + ' okulda + ' + esc(plan.PA) + ' işte + sen müsait» penceresi bulunamadı. Klinik/roster güncellemesi sonrası yeniden bak.</p>';
+      const locs = '<div style="margin-top:12px;"><b>Nerede? · tavsiye seti</b><div class="small muted" style="margin:2px 0 6px;">Arama merkezi: ' + esc(plan.near) + ' (ev adresi JSON’da <code>places.home.address</code>)</div><div class="sport-loc">' +
+        plan.locations.map((l) => l.href
+          ? '<a href="' + esc(l.href) + '" target="_blank" rel="noopener"><b>📍 ' + esc(l.label) + '</b><span>' + esc(l.tip) + ' · Haritada aç</span></a>'
+          : '<a href="#" onclick="return false;"><b>🏠 ' + esc(l.label) + '</b><span>' + esc(l.tip) + '</span></a>'
+        ).join('') + '</div></div>';
+      const tip = '<p class="small muted" style="margin:10px 0 0;">İpucu: okul bırakmadan sonra su + 10 dk geçiş; seansı alma saatinden ~' +
+        (Number(sportCfg().beforePickMin) || 25) + ' dk önce bitir. Bu öneri tıbbi tavsiye değildir.</p>';
+      el.innerHTML = tiles + focus + '<b>Takvim önerisi</b>' + list + locs + tip;
+    }
+
     // ---------- çizim ----------
     function timeline(ev, cfg, big) {
       const vs = hm(cfg.view?.start || '06:00'), ve = hm(cfg.view?.end || '23:00');
@@ -1234,6 +1433,7 @@
       if (!res) return;
       const { cfg, days } = res;
       const today = new Date().toLocaleDateString('en-CA', { timeZone: cfg.timezone || 'Europe/Istanbul' });
+      buildSportPlan(res);
       $('grid').innerHTML = days.map((ev) => {
         const cls = ['cell'];
         if (!ev.inMonth) cls.push('out');
@@ -1264,8 +1464,9 @@
         if (ev.inMonth && (cfg.unlikelyWeekdays || []).includes(ev.wd) && !ev.hol && !ev.vac) cls.push('unl');
         const isNew = ev.inMonth && st.newConf.has(ev.ymd);
         if (isNew) cls.push('newconf');
+        const sp = ev.inMonth && st.sportByDay[ev.ymd];
         return '<div class="' + cls.join(' ') + '" style="' + style + '" data-day="' + ev.ymd + '"' + (ev.inMonth ? ' draggable="true" data-drag-day="' + ev.ymd + '"' : '') + ' role="button" tabindex="0">' +
-          '<div class="d"><b>' + Number(ev.ymd.slice(8, 10)) + '</b>' + (isNew ? '<span class="newtag">YENİ ⚠</span>' : top ? '<small>' + esc(top) + '</small>' : cls.includes('unl') ? '<small class="u">unlikely</small>' : '') + '</div>' +
+          '<div class="d"><b>' + Number(ev.ymd.slice(8, 10)) + '</b>' + (isNew ? '<span class="newtag">YENİ ⚠</span>' : sp ? '<span class="sport-tag">💪</span>' : top ? '<small>' + esc(top) + '</small>' : cls.includes('unl') ? '<small class="u">unlikely</small>' : '') + '</div>' +
           timeline(ev, cfg, false) + crew + bad + (ev.inMonth ? runMini(cfg, ev) : '') + (ev.vac && ev.inMonth ? '<span class="vac-tag">okul yok · iş yok</span>' : '<div class="work">' + work + '</div>') + '</div>';
       }).join('');
       st.lastRes = res;
@@ -1279,6 +1480,7 @@
       renderFrame(cfg, res.claims);
       renderTravel(cfg);
       renderVacations(cfg, res);
+      renderSport(res);
       if (st.openDay) openDay(st.openDay, res);
       const n = Object.keys(st.draft).filter((d) => d.slice(0, 7) === st.month).length;
       $('selStatus').innerHTML = n + ' gün seçili' + (st.draftDirty ? ' · <span class="dirty">fixlenmedi</span>' : '');
@@ -1313,6 +1515,8 @@
           lines.push('<div class="ln run' + (ev.run.drop.who === 'none' || ev.run.pick.who === 'none' ? ' bad' : '') + '">🏫 ↓ ' + esc(runWho(cfg, ev.run.drop)) + ' · ↑ ' + esc(runWho(cfg, ev.run.pick)) + (fare ? ' · 🚕 ~' + tl(fare) : '') + '</div>');
         }
         if (st.newConf.has(ev.ymd)) { cls.push('newconf'); lines.unshift('<div class="ln bad"><span class="newtag">YENİ ⚠</span> yeni çakışma</div>'); }
+        const sp = st.sportByDay[ev.ymd];
+        if (sp) lines.push('<div class="ln">💪 ' + esc(sp.workout.label) + ' ' + fmt(sp.s) + '–' + fmt(sp.e) + '</div>');
         const badges = [];
         for (const f of ev.fixed) badges.push('<span class="pill" style="background:' + f.color + '1f">' + icHtml(f) + esc(f.short || '') + ' ' + fmt(f.s) + '–' + fmt(f.e) + '</span>');
         for (const p of ev.plans) badges.push('<span class="pill" style="background:' + p.color + '1f">' + icHtml(p) + fmt(p.s) + '–' + fmt(p.e) + ' ' + starsHtml(p.stars) + '</span>');
@@ -1327,7 +1531,7 @@
         const unl = (cfg.unlikelyWeekdays || []).includes(ev.wd) && !ev.hol && !ev.vac;
         if (unl) cls.push('unl');
         out.push('<div class="' + cls.join(' ') + '" style="border-left-color:' + strip + ';' + bg + '" data-day="' + ev.ymd + '" draggable="true" data-drag-day="' + ev.ymd + '" role="button" tabindex="0">' +
-          '<div class="dt"><b>' + Number(ev.ymd.slice(8, 10)) + '</b><span>' + DAY_SHORT[ev.wd] + '</span>' + (unl ? '<span class="u">unlikely</span>' : '') + '</div>' +
+          '<div class="dt"><b>' + Number(ev.ymd.slice(8, 10)) + '</b><span>' + DAY_SHORT[ev.wd] + '</span>' + (sp ? '<span class="sport-tag">💪</span>' : unl ? '<span class="u">unlikely</span>' : '') + '</div>' +
           '<div class="bd">' + timeline(ev, cfg, false) + lines.join('') + (badges.length ? '<div class="wk-badges">' + badges.join('') + '</div>' : '') + '</div></div>');
       });
       $('list').innerHTML = out.join('');
@@ -1418,6 +1622,7 @@
       const items = [[COLORS.duty, (P.crew || 'Crew') + ' görev'], [COLORS.away, 'Yatı'], [COLORS.standby, 'Nöbet / rezerv'], [COLORS.home, 'Ev görevi'], [COLORS.school, (P.child || 'Çocuk') + ' okul']];
       $('legend').innerHTML = items.map(([c, t]) => '<span><i class="sw" style="background:' + c + '"></i>' + esc(t) + '</span>').join('') +
         '<span><i class="sw" style="background:repeating-linear-gradient(90deg,#64748b 0 4px,transparent 4px 7px)"></i>Yol (kesikli)</span>' +
+        '<span class="sport-tag">💪 Spor</span>' +
         (cfg.partnerCandidates || []).map((c, i) => { const m = workMeta(cfg, c, i, false); return '<span>' + icHtml(m) + ' ' + esc(c.label || m.short) + '</span>'; }).join('') +
         (cfg.partnerFixed || []).filter((f, i, a) => a.findIndex((x) => x.place === f.place) === i).map((f, i) => { const m = workMeta(cfg, f, i, true); return '<span>' + icHtml(m) + ' ' + esc(placeLabel(cfg, f.place)) + ' (sabit)</span>'; }).join('') +
         '<span>' + [5, 4, 3, 2, 1].map((n) => '<b style="color:' + STAR_COLORS[n] + '">' + n + '★</b>').join(' ') + ' rahat → zor</span>';
@@ -1434,6 +1639,8 @@
       for (const l of ev.crewLabels) items.push('<li class="' + l.k + '">' + esc(l.t) + '</li>');
       if (!ev.crewLabels.length) items.push('<li class="muted">' + esc((cfg.people || {}).crew || 'Crew') + ': roster kaydı yok</li>');
       for (const n of ev.notes) items.push('<li class="' + n.k + '">' + esc(n.t) + '</li>');
+      const sp = st.sportByDay[ymd];
+      if (sp) items.push('<li class="ok">💪 Spor önerisi: ' + esc(sp.workout.label) + ' ' + fmt(sp.s) + '–' + fmt(sp.e) + ' · ' + esc(sp.workout.focus) + '</li>');
       let opts = '';
       if (ev.vac) opts = '<p class="muted small">Tatil günü; iş planlanmaz.</p>';
       else if (ev.fixed.length) opts = '<p class="muted small">Sabit iş günü; sabit işle aynı gün başka iş olmaz.</p>';
@@ -2504,6 +2711,10 @@
       st.draftDirty = true;
       st.activeGroup = null;
       render();
+    });
+    $('sport').addEventListener('click', (e) => {
+      const row = e.target.closest('[data-sportday]');
+      if (row) openDay(row.getAttribute('data-sportday'));
     });
     $('goals').addEventListener('click', (e) => {
       const un = e.target.closest('[data-unpick]');
