@@ -806,6 +806,7 @@
       return r;
     }
     function fixedApplies(f, ymd, wd) {
+      if (Array.isArray(f.skipDates) && f.skipDates.includes(ymd)) return false;
       if (Array.isArray(f.dates) && f.dates.includes(ymd)) return true;
       if (Array.isArray(f.weekdays) && f.weekdays.includes(wd)) return true;
       if (f.monthlyNth && Number(f.monthlyNth.weekday) === wd) return Math.floor((Number(ymd.slice(8, 10)) - 1) / 7) + 1 === Number(f.monthlyNth.n);
@@ -1076,6 +1077,7 @@
         segs.partner.push({ s, e, kind: 'fixed', color: meta.color, title: f.label });
         workRoad(f.place, s, e, meta.color);
         notes.push({ k: 'muted', t: (P.partner || 'Eş') + ' · ' + (f.label || '') + ' ' + fmt(s) + '–' + fmt(e) + ' (sabit)' });
+        if (f.note) notes.push({ k: 'warn', t: String(f.note) });
         for (const n of r.needs) notes.push({ k: needKind(n), t: needText(cfg, n) });
         if (r.worst === 'bad') conflict = true;
       });
@@ -1697,6 +1699,47 @@
 
     // ---------- veri ----------
     function rebuildConfig() { st.config = merge(DEFAULT_CONFIG, settingsOf(st.full)); }
+    /** Tek seferlik config yamaları (idempotent). Canlı partnerFixed: 6 Ekim 2026 yalnız imza. */
+    const CONFIG_MIG_OCT6_IMZA = 'partner_fixed_2026_10_06_imza';
+    function migrateConfigInPlace(full) {
+      if (!full || typeof full !== 'object') return false;
+      const done = Array.isArray(full.configMigrations) ? full.configMigrations.slice() : [];
+      if (done.includes(CONFIG_MIG_OCT6_IMZA)) return false;
+      const ymd = '2026-10-06';
+      const pf = Array.isArray(full.partnerFixed)
+        ? full.partnerFixed.map((x) => (x && typeof x === 'object' ? { ...x } : x))
+        : [];
+      let tue = null;
+      for (const item of pf) {
+        if (!item || typeof item !== 'object') continue;
+        const ll = (String(item.label || '') + ' ' + String(item.short || '') + ' ' + String(item.place || '')).toLowerCase();
+        const isTue = Array.isArray(item.weekdays) && item.weekdays.map(Number).includes(2)
+          && (ll.includes('altunizade') || ll.includes('acıbadem') || ll.includes('acibadem'));
+        if (!isTue) continue;
+        tue = item;
+        const skip = Array.isArray(item.skipDates) ? item.skipDates.slice() : [];
+        if (!skip.includes(ymd)) item.skipDates = skip.concat(ymd);
+      }
+      const hasImza = pf.some((item) => item && Array.isArray(item.dates) && item.dates.includes(ymd)
+        && (/imza/i.test(String(item.label || '')) || /imza/i.test(String(item.short || ''))));
+      if (!tue && !hasImza) return false;
+      if (tue && !hasImza) {
+        pf.push({
+          place: tue.place || 'altunizade',
+          label: 'Acıbadem Altunizade · sözleşme imza',
+          short: 'İmza',
+          start: '16:00',
+          end: '17:00',
+          dates: [ymd],
+          skipPublicHolidays: false,
+          icon: 'İ',
+          note: 'Sözleşme işleri henüz tamamlanmadı; bu gün yalnız 16:00 imza.',
+        });
+      }
+      full.partnerFixed = pf;
+      full.configMigrations = done.concat(CONFIG_MIG_OCT6_IMZA);
+      return true;
+    }
     async function api(action, payload) {
       let res;
       try {
@@ -1756,6 +1799,7 @@
       st.via = j.via;
       const server = j.config && typeof j.config === 'object' && !Array.isArray(j.config) ? j.config : null;
       if (!st.cfgDirty && !st.travelDirty) st.full = server ? { ...server } : { ...DEFAULT_CONFIG };
+      const migrated = !st.cfgDirty && !st.travelDirty && !st.offline ? migrateConfigInPlace(st.full) : false;
       if (!st.draftDirty) st.draft = { ...((st.full.plans || {})[st.month] || {}) };
       rebuildConfig();
       if (!st.cfgDirty) $('cfg').value = JSON.stringify(settingsOf(st.full), null, 2);
@@ -1763,6 +1807,11 @@
       renderIcons();
       renderWeather();
       render();
+      if (migrated) {
+        persist(null).then((ok) => {
+          if (ok && !st.cfgDirty) $('cfg').value = JSON.stringify(settingsOf(st.full), null, 2);
+        });
+      }
     }
     /** quiet: arka plan yenilemesi — yalnız sunucuda değişiklik varsa ve kullanıcı bir şey düzenlemiyorsa ekranı günceller. */
     async function load(opts) {
