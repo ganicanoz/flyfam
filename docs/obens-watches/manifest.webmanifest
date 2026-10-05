@@ -1,7 +1,7 @@
 {
   "id": "/obens-watches/",
-  "name": "Ob.W.",
-  "short_name": "Ob.W.",
+  "name": "OB.W.",
+  "short_name": "OB.W.",
   "description": "Oben Watches · Gani ve Mine’nin aile saat koleksiyonu",
   "lang": "tr",
   "start_url": "/obens-watches/",
@@ -11,13 +11,13 @@
   "theme_color": "#123f43",
   "icons": [
     {
-      "src": "icons/icon-v2-192.png",
+      "src": "icons/icon-v3-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "icons/icon-v2-512.png",
+      "src": "icons/icon-v3-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
