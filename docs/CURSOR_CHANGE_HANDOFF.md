@@ -12,6 +12,13 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+### 2026-10-05 — Kök `.gitignore`: `FlyFam` → `/FlyFam/`
+
+- **Sorun:** Kökü belirtilmemiş `FlyFam` kalıbı, repo kökündeki eski ayrı Xcode projesi `FlyFam/` yanında `mobile/ios/FlyFam/` klasörünü de yok sayıyordu. Bu klasöre eklenen yeni dosyalar sessizce git dışında kalıyor, temiz worktree'den alınan EAS build'i bozuyordu (ilk build 52 denemesi, ses dosyaları) ve takip edilen dosyalar için `git add` reddediliyordu.
+- **Dosya:** `.gitignore` (yalnız 80. satır).
+- **Davranış:** Kökteki `FlyFam/` yine yok sayılır; `mobile/ios/FlyFam/` normal takip edilir. `*.synth-bak.wav` gibi diğer kurallar değişmedi.
+- **Doğrulama:** `git check-ignore` kökteki `FlyFam/` için hâlâ eşleşiyor, `mobile/ios/FlyFam/Info.plist` için eşleşmiyor; değişiklik sonrası `mobile/ios/FlyFam` altında yeni takip dışı dosya yok; `git diff --check` OK.
+
 ### 2026-10-05 — iOS şifreleme beyanı (`ITSAppUsesNonExemptEncryption = false`)
 
 - **Sorun:** TestFlight 1.3.0 (52) `MISSING_EXPORT_COMPLIANCE` durumunda kaldı; beyan kodda tanımlı olmadığı için her build App Store Connect'te elle yanıt istiyor (build 51 elle yanıtlanmıştı).
