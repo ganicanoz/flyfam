@@ -223,6 +223,27 @@
     .legend { display: flex; flex-wrap: wrap; gap: 6px 12px; font-size: 11.5px; color: var(--muted); margin: 8px 0 2px; }
     .legend i.sw { display: inline-block; width: 14px; height: 6px; border-radius: 3px; margin-right: 4px; vertical-align: middle; }
 
+    /* Plan içerik asistanı (yalnız config; kod değil) */
+    .assist-fab {
+      position: fixed; right: max(14px, env(safe-area-inset-right)); bottom: max(18px, env(safe-area-inset-bottom));
+      z-index: 35; border: 0; border-radius: 999px; padding: 12px 16px; font-weight: 800; font-size: 14px;
+      background: linear-gradient(135deg, var(--brand), var(--brand-2)); color: #fff;
+      box-shadow: 0 8px 24px rgba(15, 118, 110, .35);
+    }
+    body.embed .assist-fab, body.tab-fin .assist-fab { display: none; }
+    .assist-bg { z-index: 45; }
+    .assist-sheet { display: flex; flex-direction: column; max-height: min(88vh, 640px); padding-bottom: max(12px, env(safe-area-inset-bottom)); }
+    .assist-log { flex: 1; overflow: auto; display: grid; gap: 8px; padding: 4px 0 10px; min-height: 180px; }
+    .assist-bubble { max-width: 92%; padding: 8px 11px; border-radius: 14px; font-size: 13px; line-height: 1.45; white-space: pre-wrap; }
+    .assist-bubble.bot { background: var(--soft); justify-self: start; border-bottom-left-radius: 4px; }
+    .assist-bubble.user { background: #ccfbf1; justify-self: end; border-bottom-right-radius: 4px; }
+    .assist-bubble.err { background: #fee2e2; color: #991b1b; }
+    .assist-bubble .acts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    .assist-form { display: flex; gap: 8px; align-items: flex-end; }
+    .assist-form textarea { flex: 1; min-height: 44px; max-height: 110px; resize: vertical; }
+    .assist-hints { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 8px; }
+    .assist-hints button { font-size: 11.5px; padding: 5px 9px; border-radius: 999px; background: var(--soft); border: 0; color: #334155; }
+
     /* Detay sayfası */
     .sheet-bg { position: fixed; inset: 0; background: rgba(15,23,42,.35); z-index: 40; display: flex; align-items: flex-end; justify-content: center; }
     .sheet { width: min(640px, 100%); max-height: 88vh; overflow: auto; background: var(--panel); border-radius: 20px 20px 0 0; padding: 16px 16px max(16px, env(safe-area-inset-bottom)); box-shadow: 0 -10px 40px rgba(15,23,42,.2); }
@@ -475,9 +496,11 @@
         <button type="button" class="ghost small" id="logout">Çıkış</button>
       </div>
     </main>
+    <button type="button" id="assistFab" class="assist-fab" title="Plan içeriğini Türkçe ile güncelle">Plan asistanı</button>
   </div>
 
   <div id="sheet" class="sheet-bg" hidden></div>
+  <div id="assist" class="sheet-bg assist-bg" hidden></div>
   <div id="confAlert" class="sheet-bg conf-bg" hidden></div>
   <div id="ciroAlert" class="sheet-bg conf-bg ciro-bg" hidden></div>
 
@@ -2667,6 +2690,284 @@
       rebuildConfig();
       if (await persist('cfgStatus', 'Kaydedildi ✓')) { st.cfgDirty = false; st.travelDirty = false; renderIcons(); render(); }
     });
+
+    // ---------- Plan içerik asistanı (Türkçe → config yaması; kod değiştirmez) ----------
+    const TR_MONTHS = { ocak: 1, subat: 2, şubat: 2, mart: 3, nisan: 4, mayis: 5, mayıs: 5, haziran: 6, temmuz: 7, agustos: 8, ağustos: 8, eylul: 9, eylül: 9, ekim: 10, kasim: 11, kasım: 11, aralik: 12, aralık: 12 };
+    const assistNorm = (s) => String(s || '').toLocaleLowerCase('tr-TR').normalize('NFC').replace(/\s+/g, ' ').trim();
+    function parseAssistDate(text, todayYmd) {
+      const t = assistNorm(text);
+      const today = todayYmd || nowLocal().ymd;
+      if (/\byarin\b|\byarın\b/.test(t)) return addDays(today, 1);
+      if (/\bbugun\b|\bbugün\b/.test(t)) return today;
+      let m = t.match(/\b(20\d{2})-(\d{2})-(\d{2})\b/);
+      if (m) return m[1] + '-' + m[2] + '-' + m[3];
+      m = t.match(/\b(\d{1,2})[./](\d{1,2})(?:[./](20\d{2}))?\b/);
+      if (m) {
+        const y = m[3] || today.slice(0, 4);
+        return y + '-' + String(m[2]).padStart(2, '0') + '-' + String(m[1]).padStart(2, '0');
+      }
+        m = t.match(/\b(\d{1,2})\s*(ocak|şubat|subat|mart|nisan|mayıs|mayis|haziran|temmuz|ağustos|agustos|eylül|eylus|ekim|kasım|kasim|aralık|aralik)(?:[a-zçğıöşü]{0,3})?(?:\s*(20\d{2}))?\b/);
+      if (m) {
+        const monKey = assistNorm(m[2]).replace(/eylus/, 'eylül');
+        const mon = TR_MONTHS[m[2]] || TR_MONTHS[monKey] || TR_MONTHS[assistNorm(m[2])];
+        if (!mon) return null;
+        let y = Number(m[3] || today.slice(0, 4));
+        let cand = y + '-' + String(mon).padStart(2, '0') + '-' + String(m[1]).padStart(2, '0');
+        if (!m[3] && cand < today && mon < Number(today.slice(5, 7))) {
+          y += 1;
+          cand = y + '-' + String(mon).padStart(2, '0') + '-' + String(m[1]).padStart(2, '0');
+        }
+        return cand;
+      }
+      return null;
+    }
+    function parseAssistTimes(text) {
+      const t = assistNorm(text);
+      const range = t.match(/\b(\d{1,2})[:.](\d{2})\s*[-–—]\s*(\d{1,2})[:.](\d{2})\b/);
+      if (range) {
+        return {
+          start: String(range[1]).padStart(2, '0') + ':' + range[2],
+          end: String(range[3]).padStart(2, '0') + ':' + range[4],
+        };
+      }
+      const one = t.match(/\b(?:saat\s*)?(\d{1,2})[:.](\d{2})\b/);
+      if (one && Number(one[1]) <= 23) {
+        const start = String(one[1]).padStart(2, '0') + ':' + one[2];
+        return { start, end: fmt(hm(start) + 60) };
+      }
+      const saat = t.match(/\bsaat\s*(\d{1,2})\b/);
+      if (saat && Number(saat[1]) <= 23) {
+        const start = String(saat[1]).padStart(2, '0') + ':00';
+        return { start, end: fmt(hm(start) + 60) };
+      }
+      return null;
+    }
+    function findAssistPlace(cfg, text) {
+      const t = assistNorm(text);
+      const places = cfg.places || {};
+      let best = null, bestLen = 0;
+      for (const [key, p] of Object.entries(places)) {
+        for (const cand of [key, p && p.label, p && p.short].filter(Boolean)) {
+          const c = assistNorm(cand);
+          if (c.length >= 3 && t.includes(c) && c.length > bestLen) { best = key; bestLen = c.length; }
+        }
+      }
+      for (const f of [...(cfg.partnerFixed || []), ...(cfg.partnerCandidates || [])]) {
+        for (const cand of [f.place, f.label, f.short].filter(Boolean)) {
+          const c = assistNorm(cand);
+          if (c.length >= 3 && t.includes(c) && c.length > bestLen) { best = f.place || f.id || best; bestLen = c.length; }
+        }
+      }
+      if (/altunizade|acıbadem|acibadem/.test(t)) {
+        for (const [key, p] of Object.entries(places)) {
+          const blob = assistNorm(key + ' ' + ((p && p.label) || '') + ' ' + ((p && p.short) || ''));
+          if (/altunizade|acıbadem|acibadem/.test(blob)) return key;
+        }
+        for (const f of cfg.partnerFixed || []) {
+          const blob = assistNorm((f.place || '') + ' ' + (f.label || '') + ' ' + (f.short || ''));
+          if (/altunizade|acıbadem|acibadem/.test(blob)) return f.place;
+        }
+      }
+      return best;
+    }
+    function weekdayFixedOn(cfg, ymd) {
+      const wd = weekday(ymd);
+      return (cfg.partnerFixed || []).filter((f) => Array.isArray(f.weekdays) && f.weekdays.map(Number).includes(wd));
+    }
+    function assistHelpText() {
+      return 'Basit plan içeriği için Türkçe yaz. Örnekler:\n'
+        + '· «6 ekimde 16:00\'da Altunizade\'ye imza»\n'
+        + '· «yarın 14:00-15:30 okul toplantısı»\n'
+        + '· «10-12 ekim Kapadokya tatil»\n'
+        + 'Kod veya dosya değiştirmez; yalnız plan ayarlarını yamar. Onaylamadan kaydetmez.';
+    }
+    /** @returns {{ ok:boolean, summary?:string, lines?:string[], apply?:(full:object)=>void, error?:string }} */
+    function interpretAssist(raw, cfg, todayYmd) {
+      const text = String(raw || '').trim();
+      if (!text) return { ok: false, error: 'Bir şey yaz.' };
+      const t = assistNorm(text);
+      if (/^(yardim|yardım|help|\?)$/.test(t) || /\bne yapabilir/.test(t)) {
+        return { ok: true, summary: 'Yardım', lines: [assistHelpText()], apply: null };
+      }
+
+      // Tatil: "10-12 ekim tatil" / "10 ekim - 15 ekim Kapadokya"
+      if (/\btatil\b|\btatile\b/.test(t)) {
+        const months = Object.keys(TR_MONTHS).join('|');
+        let from = null, to = null;
+        let m = text.match(new RegExp('(\\d{1,2})\\s*[-–—]\\s*(\\d{1,2})\\s*(' + months + ')(?:\\s*(20\\d{2}))?', 'i'));
+        if (m) {
+          const mon = TR_MONTHS[assistNorm(m[3])];
+          const y = m[4] || (todayYmd || nowLocal().ymd).slice(0, 4);
+          from = y + '-' + String(mon).padStart(2, '0') + '-' + String(m[1]).padStart(2, '0');
+          to = y + '-' + String(mon).padStart(2, '0') + '-' + String(m[2]).padStart(2, '0');
+        } else {
+          const dates = [];
+          const re = new RegExp('(\\d{1,2})\\s*(' + months + ')(?:\\s*(20\\d{2}))?', 'gi');
+          let x;
+          while ((x = re.exec(text)) && dates.length < 2) {
+            dates.push(parseAssistDate(x[0], todayYmd));
+          }
+          if (dates.length >= 1) { from = dates[0]; to = dates[1] || dates[0]; }
+        }
+        if (!from || vacationProblem(from, to || from)) return { ok: false, error: 'Tatil tarihlerini anlayamadım. Örn: «10-12 ekim Kapadokya tatil».' };
+        const label = text.replace(new RegExp('\\b(tatil|tatile|ekle|ekleyelim)\\b', 'gi'), '')
+          .replace(new RegExp('\\d{1,2}\\s*[-–—]?\\s*\\d{0,2}\\s*(' + months + ')(?:\\s*20\\d{2})?', 'gi'), '')
+          .replace(/[-–—]/g, ' ').trim() || 'Tatil';
+        const toY = to || from;
+        return {
+          ok: true,
+          summary: 'Tatil ekle',
+          lines: [dateLong(from) + (toY !== from ? ' → ' + dateLong(toY) : '') + ' · ' + label],
+          apply(full) {
+            full.vacations = [...(full.vacations || []), { from, to: toY, label }].sort((a, b) => a.from.localeCompare(b.from));
+          },
+        };
+      }
+
+      const ymd = parseAssistDate(text, todayYmd);
+      const times = parseAssistTimes(text);
+      const place = findAssistPlace(cfg, text);
+      if (!ymd) return { ok: false, error: 'Tarih bulamadım. «6 ekim», «yarın» veya «06.10.2026» dene.' };
+      if (!times) return { ok: false, error: 'Saat bulamadım. «16:00» veya «14:00-15:30» yaz.' };
+
+      const onlyShort = /\bsadece\b|\byalnız\b|\byalniz\b|\bimza\b|\bgitmeyecek\b|\btam\s*gün\b|\btam\s*gun\b/.test(t);
+      const labelGuess = (() => {
+        if (/\bimza\b/.test(t)) return 'Sözleşme imza';
+        if (/\btoplantı\b|\btoplanti\b/.test(t)) return 'Toplantı';
+        const cleaned = text
+          .replace(/\b(yarın|yarin|bugün|bugun|sadece|yalnız|yalniz|gid(?:ecek|iyor)|için|icin)\b/gi, '')
+          .replace(/\b\d{1,2}[:.]\d{2}(?:\s*[-–—]\s*\d{1,2}[:.]\d{2})?\b/g, '')
+          .replace(/\b\d{1,2}\s*(ocak|şubat|subat|mart|nisan|mayıs|mayis|haziran|temmuz|ağustos|agustos|eylül|eylus|ekim|kasım|kasim|aralık|aralik)(?:\s*20\d{2})?\b/gi, '')
+          .replace(/\b(20\d{2}-\d{2}-\d{2}|\d{1,2}[./]\d{1,2}(?:[./]20\d{2})?)\b/g, '')
+          .trim();
+        return cleaned.slice(0, 60) || 'Tek seferlik iş';
+      })();
+      const placeKey = place || ((cfg.partnerFixed || [])[0] && (cfg.partnerFixed || [])[0].place) || 'home';
+      const placeName = placeLabel(cfg, placeKey);
+      const lines = [dateLong(ymd) + ' · ' + times.start + '–' + times.end + ' · ' + placeName + ' · ' + labelGuess];
+      const sameDayFixed = weekdayFixedOn(cfg, ymd).filter((f) => !place || f.place === placeKey || assistNorm(f.label || '').includes(assistNorm(placeName)));
+      if (onlyShort && sameDayFixed.length) {
+        for (const f of sameDayFixed) lines.push('Haftalık sabit «' + (f.label || f.short || f.place) + '» bu gün atlanır (skipDates).');
+      }
+      return {
+        ok: true,
+        summary: 'Tek seferlik sabit iş',
+        lines,
+        apply(full) {
+          const pf = Array.isArray(full.partnerFixed) ? full.partnerFixed.map((x) => (x && typeof x === 'object' ? { ...x } : x)) : [];
+          const wd = weekday(ymd);
+          if (onlyShort) {
+            for (const item of pf) {
+              if (!item || typeof item !== 'object') continue;
+              if (!(Array.isArray(item.weekdays) && item.weekdays.map(Number).includes(wd))) continue;
+              if (place && item.place && item.place !== placeKey) {
+                const blob = assistNorm((item.label || '') + ' ' + (item.short || ''));
+                if (!blob.includes(assistNorm(placeName)) && !/altunizade|acıbadem|acibadem/.test(blob + assistNorm(placeKey))) continue;
+              }
+              const skip = Array.isArray(item.skipDates) ? item.skipDates.slice() : [];
+              if (!skip.includes(ymd)) item.skipDates = skip.concat(ymd);
+            }
+          }
+          const exists = pf.some((item) => item && Array.isArray(item.dates) && item.dates.includes(ymd)
+            && item.start === times.start && (item.place === placeKey || assistNorm(item.label || '').includes(assistNorm(labelGuess))));
+          if (!exists) {
+            pf.push({
+              place: placeKey,
+              label: placeName + ' · ' + labelGuess,
+              short: labelGuess.slice(0, 12),
+              start: times.start,
+              end: times.end,
+              dates: [ymd],
+              skipPublicHolidays: false,
+              icon: (labelGuess[0] || 'İ').toLocaleUpperCase('tr-TR'),
+              note: text.slice(0, 160),
+            });
+          }
+          full.partnerFixed = pf;
+        },
+      };
+    }
+
+    const assistState = { pending: null };
+    function assistBubble(kind, html) {
+      const log = $('assistLog');
+      if (!log) return;
+      const d = document.createElement('div');
+      d.className = 'assist-bubble ' + kind;
+      d.innerHTML = html;
+      log.appendChild(d);
+      log.scrollTop = log.scrollHeight;
+    }
+    function openAssist() {
+      $('assist').innerHTML = '<div class="sheet assist-sheet"><h3><span>Plan asistanı</span><button type="button" class="ghost" data-assist-close="1" aria-label="Kapat">✕</button></h3>'
+        + '<p class="small muted" style="margin:0 0 8px;">Kod değil — yalnız plan içeriği (sabit iş, tatil, tek seferlik randevu). Onaysız kaydetmez.</p>'
+        + '<div class="assist-hints">'
+        + '<button type="button" data-assist-hint="6 ekimde 16:00\'da Altunizade\'ye imza">6 Ekim imza örneği</button>'
+        + '<button type="button" data-assist-hint="10-12 ekim Kapadokya tatil">Tatil örneği</button>'
+        + '<button type="button" data-assist-hint="yardım">Yardım</button>'
+        + '</div>'
+        + '<div class="assist-log" id="assistLog"></div>'
+        + '<form class="assist-form" id="assistForm">'
+        + '<textarea id="assistInput" rows="2" placeholder="Örn: yarın 16:00\'da Altunizade\'ye imza"></textarea>'
+        + '<button type="submit" class="primary">Gönder</button>'
+        + '</form></div>';
+      $('assist').hidden = false;
+      assistBubble('bot', esc(assistHelpText()).replace(/\n/g, '<br>'));
+      setTimeout(() => { try { $('assistInput').focus(); } catch (_) { /* */ } }, 50);
+    }
+    function closeAssist() { $('assist').hidden = true; $('assist').innerHTML = ''; assistState.pending = null; }
+    async function runAssistApply() {
+      const pend = assistState.pending;
+      if (!pend || !pend.apply || !st.full) return;
+      if (st.offline) { assistBubble('err', 'Çevrimdışı — kaydedilemez.'); return; }
+      pend.apply(st.full);
+      rebuildConfig();
+      try { $('cfg').value = JSON.stringify(settingsOf(st.full), null, 2); } catch (_) { /* */ }
+      const ok = await persist(null, 'Kaydedildi');
+      if (!ok) { assistBubble('err', 'Kayıt başarısız. İnterneti kontrol et.'); return; }
+      st.cfgDirty = false;
+      dropVacationPicks();
+      renderIcons();
+      render();
+      assistBubble('bot', 'Kaydedildi. Takvim güncellendi.');
+      assistState.pending = null;
+    }
+    function submitAssistText(raw) {
+      const text = String(raw || '').trim();
+      if (!text) return;
+      assistBubble('user', esc(text));
+      const cfg = st.config || merge(DEFAULT_CONFIG, settingsOf(st.full || {}));
+      const res = interpretAssist(text, cfg, nowLocal().ymd);
+      if (!res.ok) { assistBubble('err', esc(res.error || 'Anlaşılamadı')); return; }
+      if (!res.apply) {
+        assistBubble('bot', esc((res.lines || [res.summary]).join('\n')).replace(/\n/g, '<br>'));
+        return;
+      }
+      assistState.pending = res;
+      assistBubble('bot',
+        '<b>' + esc(res.summary) + '</b><br>' + (res.lines || []).map((l) => esc(l)).join('<br>')
+        + '<div class="acts"><button type="button" class="primary" data-assist-apply="1">Uygula ve kaydet</button>'
+        + '<button type="button" class="ghost" data-assist-cancel="1">Vazgeç</button></div>');
+    }
+    $('assistFab').addEventListener('click', () => openAssist());
+    $('assist').addEventListener('click', (e) => {
+      if (e.target === $('assist') || e.target.closest('[data-assist-close]')) return closeAssist();
+      const hint = e.target.closest('[data-assist-hint]');
+      if (hint) { $('assistInput').value = hint.getAttribute('data-assist-hint') || ''; return; }
+      if (e.target.closest('[data-assist-apply]')) return runAssistApply();
+      if (e.target.closest('[data-assist-cancel]')) {
+        assistState.pending = null;
+        assistBubble('bot', 'Tamam, uygulanmadı.');
+      }
+    });
+    $('assist').addEventListener('submit', (e) => {
+      if (!e.target.closest('#assistForm')) return;
+      e.preventDefault();
+      const v = ($('assistInput') && $('assistInput').value) || '';
+      if ($('assistInput')) $('assistInput').value = '';
+      submitAssistText(v);
+    });
+
     if (new URLSearchParams(location.search).get('embed') === '1') { document.body.classList.add('embed'); $('logout').hidden = true; }
     { const um = /^(\d{4})-(\d{2})$/.exec(new URLSearchParams(location.search).get('month') || ''); if (um && Number(um[2]) >= 1 && Number(um[2]) <= 12) st.month = um[0]; }
     if (new URLSearchParams(location.search).get('ciro') === '1') st.ciroForce = true;

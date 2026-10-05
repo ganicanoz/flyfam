@@ -12,6 +12,14 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+### 2026-10-05 — Aile planı: içerik asistanı (Türkçe → config)
+
+- **Dosyalar:** `support/aile/index.html`, `support/aile/sw.js` (`aile-shell-v4`)
+- **Amaç:** Cursor olmadan siteden basit plan içeriği güncellemek (kod değil): tek seferlik randevu/imza, haftalık sabiti o gün atlama (`skipDates`), tatil ekleme.
+- **UI:** Sağ alt «Plan asistanı» → sohbet; öneri gösterilir; «Uygula ve kaydet» → `save_config`. Onaysız yazmaz. OpenAI/GPT API yok (ChatGPT Plus anahtar vermez); yerel Türkçe yorumlayıcı.
+- **Doğrulama:** tarih/saat parse + imza yaması birim testi OK; inline script `node --check` OK.
+- **Koruma:** `plans`/`rosters`/finans dokunulmaz; yalnız `partnerFixed` / `vacations` (ve ilgili skipDates). Embed ve Finans sekmesinde FAB gizli.
+
 ### 2026-10-05 — Aile planı: 6 Ekim Acıbadem imza (16:00)
 
 - **Dosyalar:** `support/aile/index.html`, `support/aile/sw.js` (`aile-shell-v3`), `docs/sql/aile_partner_fixed_2026_10_06_imza.sql`, `scripts/aile-apply-oct6-imza.mjs`
