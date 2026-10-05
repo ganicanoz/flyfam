@@ -1,6 +1,6 @@
 // Aile planı — çevrimdışı açılış. Sayfa önce ağdan (güncel sürüm), ağ yoksa önbellekten.
 // Plan verisi (POST API) burada tutulmaz; sayfa kendi cihaz önbelleğini kullanır.
-const CACHE = 'aile-shell-v5';
+const CACHE = 'aile-shell-v6';
 const SHELL = '/aile/';
 const ASSETS = [SHELL, '/aile/manifest.webmanifest', '/aile/icon-180.png', '/aile/icon-192.png', '/aile/icon-512.png', '/aile/icon-maskable-512.png'];
 const NET_TIMEOUT_MS = 4000;

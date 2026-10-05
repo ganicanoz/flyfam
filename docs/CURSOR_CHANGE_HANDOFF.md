@@ -12,6 +12,16 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+### 2026-10-05 — Aile planı: Eso sekreter yüzü, selamlama, geniş klinik kutuları
+
+- **Amaç:** Eso şişman bir sekreter yüzü olsun (gövde, kol ve palto yok) ve inci kolye taksın. Selamlama tam olarak «Buyrun Doktor Hanımcım...». «Özet · kliniklerle paylaş» çerçevesi biraz insin; kutular yana yayılsın, gün satırları ferah ve tek satır kalsın.
+- **Dosyalar:** `support/aile/index.html`, `support/aile/sw.js` (`aile-shell-v6`).
+- **Eso:** Sabit sağ alt. Yüz: topuz, yuvarlak yüz, yanak, gıdı, göz kırpma, inci yay. Balon, sohbet açılışı ve mikrofon bitişi `ESO_HI`. Embed ve Finans sekmesinde gizli. Alt çubuğun üstünde durur.
+- **Klinik:** `.share-card` dolgusu `10px 6px 12px`. Izgara `repeat(auto-fit, minmax(min(100%, 480px), 1fr))`. Satır `min-height: 40px`, `flex-wrap: nowrap`, tarih sola saat sağa. 640 px altında sütun tek.
+- **Doğrulama:** `node scripts/test-aile-eso.mjs` OK; inline script `node --check` OK; `git diff --check` OK. Tarayıcı 1100 px: iki kutu yan yana (565 px), satırlar 40 px, aynı satır, taşma yok. 390 px: kutu 374 px, satırlar 40 px, taşma yok; Eso alt çubukla çakışmıyor. Balon ve açık sohbet «Buyrun Doktor Hanımcım...» gösteriyor.
+- **Koruma:** Yer anahtarı, adres, finans, plan seçimleri ve tatil cümlesi aynı. `assist` fonksiyonu bu turda deploy edilmedi; anahtar yokken sayfa yerel yorumlayıcıyla çalışır.
+- **Canlı:** Deploy sonrası bu satır güncellenir.
+
 ### 2026-10-05 — Aile planı: Eso, Acıbadem Hastanesi, tatil cümlesi
 
 - **Amaç:** Plan asistanı kenarda duran Eso olsun (yazarak ve konuşarak). 6 Ekim kaydı «İ» rozetiyle imza diye görünmesin; o cümle o günkü işin notu. Hastane işi her yerde Acıbadem Hastanesi. Tatil başlığı verilen cümle.
