@@ -12,6 +12,13 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+### 2026-10-06 — Aviation Edge eski anahtar durumu
+
+- **Kontrol:** Aviation Edge Developer API aboneliği 21 Mart 2026'da iptal edilmiş (sağlayıcı e-postası). Supabase sırrı `EXPO_PUBLIC_AVIATION_EDGE_API_KEY` ile geçici, tek istekli, rastgele token korumalı Edge fonksiyonu üzerinden `airlineDatabase` çağrısı: HTTP 200, gövde `Your API Call Limit is Over` — anahtar sağlayıcıda hâlâ tanınıyor, kullanım hakkı yok, veri dönmüyor. Fonksiyon silindi (sonrasında 404), yerel klasör kaldırıldı; anahtar değeri hiçbir çıktıya yazılmadı.
+- **Durum:** Sağlayıcıda self-servis anahtar yenileme/iptal yok. Kalıcı iptal talebi için kullanıcının Gmail'inde Aviation Edge desteğine (developers@ / info@) İngilizce taslak hazırlandı; gönderilmedi. Supabase sırrı kullanıcı kararıyla korunuyor (hiçbir mobil/Edge kaynağı okumuyor).
+- **Route to Live:** `rotate-flight-provider-secrets` açıklaması güncellendi (yerel); madde açık kalıyor, sağlayıcı iptal onayı gelince kapatılabilir.
+
+
 ### 2026-10-05 — Roster PDF ayrıştırıcı regresyon seti (anonim fixture)
 
 - **Amaç:** Route to Live `roster-airlines`: otomatik ayrıştırıcı testi ve anonim fixture seti yoktu.
