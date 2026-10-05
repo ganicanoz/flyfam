@@ -18,6 +18,7 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - **Amaç:** Cursor olmadan siteden basit plan içeriği güncellemek (kod değil): tek seferlik randevu/imza, haftalık sabiti o gün atlama (`skipDates`), tatil ekleme.
 - **UI:** Sağ alt «Plan asistanı» → sohbet; öneri gösterilir; «Uygula ve kaydet» → `save_config`. Onaysız yazmaz. OpenAI/GPT API yok (ChatGPT Plus anahtar vermez); yerel Türkçe yorumlayıcı.
 - **Doğrulama:** tarih/saat parse + imza yaması birim testi OK; inline script `node --check` OK.
+- **Canlı:** PR #6 `main`'e merge; Deploy support site OK (`37376783061`). `https://app.flyfamapp.com/aile/` içinde `assistFab` / `aile-shell-v4` doğrulandı (2026-10-05).
 - **Koruma:** `plans`/`rosters`/finans dokunulmaz; yalnız `partnerFixed` / `vacations` (ve ilgili skipDates). Embed ve Finans sekmesinde FAB gizli.
 
 ### 2026-10-05 — Aile planı: 6 Ekim Acıbadem imza (16:00)
