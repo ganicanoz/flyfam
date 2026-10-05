@@ -1,5 +1,6 @@
--- Aile planı: 2026-10-06 Salı — Mine tam gün Acıbadem yerine yalnız 16:00 imza.
--- Salı sabit işine skipDates ekler; aynı place ile tek seferlik imza kaydı ekler (idempotent).
+-- Aile planı: 2026-10-06 Salı tam gün yerine yalnız 16:00.
+-- O günkü iş notta durur; rozet harfi İ olmaz. Yer adı Acıbadem Hastanesi.
+-- Salı sabit işine skipDates ekler; aynı place ile tek seferlik kayıt ekler (idempotent).
 -- Çalıştırma: npx supabase db query --linked --agent=no -f docs/sql/aile_partner_fixed_2026_10_06_imza.sql
 --            veya: node scripts/aile-apply-oct6-imza.mjs
 
@@ -56,8 +57,11 @@ begin
     if (item ? 'dates')
        and exists (select 1 from jsonb_array_elements_text(item->'dates') d where d = ymd)
        and (
-         lower(coalesce(item->>'label', '')) like '%imza%'
-         or lower(coalesce(item->>'short', '')) like '%imza%'
+         label_l like '%imza%'
+         or label_l like '%altunizade%'
+         or label_l like '%acıbadem%'
+         or label_l like '%acibadem%'
+         or coalesce(item->>'icon', '') = 'İ'
        )
     then
       has_imza := true;
@@ -75,14 +79,13 @@ begin
   if not has_imza then
     out_arr := out_arr || jsonb_build_array(jsonb_build_object(
       'place', place_key,
-      'label', 'Acıbadem Altunizade · sözleşme imza',
-      'short', 'İmza',
+      'label', 'Acıbadem Hastanesi',
+      'short', 'Acıbadem',
       'start', '16:00',
       'end', '17:00',
       'dates', jsonb_build_array(ymd),
       'skipPublicHolidays', false,
-      'icon', 'İ',
-      'note', 'Sözleşme işleri henüz tamamlanmadı; bu gün yalnız 16:00 imza.'
+      'note', 'Sözleşme işleri henüz tamamlanmadı; bu gün hastanedeki iş imza (16:00).'
     ));
   end if;
 
@@ -103,7 +106,61 @@ begin
     config = cfg,
     updated_at = now();
 
-  raise notice 'partnerFixed güncellendi: % Salı skipDates + imza one-off (has_imza=%).', ymd, has_imza;
+  raise notice 'partnerFixed güncellendi: % Salı skipDates + tek seferlik kayıt (has_imza=%).', ymd, has_imza;
+end $$;
+
+-- Hastane işinin görünen adı: Altunizade / imza rozeti → Acıbadem Hastanesi. Adres alanına dokunulmaz.
+do $$
+declare
+  cfg jsonb;
+  pf jsonb;
+  places jsonb;
+  item jsonb;
+  p jsonb;
+  out_arr jsonb := '[]'::jsonb;
+  i int;
+  n int;
+  blob text;
+  k text;
+begin
+  select config into cfg from public.admin_planner_state limit 1;
+  if cfg is null then
+    return;
+  end if;
+  places := coalesce(cfg->'places', '{}'::jsonb);
+  if jsonb_typeof(places) = 'object' then
+    for k in select jsonb_object_keys(places) loop
+      p := places->k;
+      blob := lower(coalesce(p->>'label', '') || ' ' || coalesce(p->>'short', ''));
+      if blob like '%altunizade%' or blob like '%acıbadem%' or blob like '%acibadem%' then
+        p := jsonb_set(p, '{label}', to_jsonb('Acıbadem Hastanesi'::text));
+        p := jsonb_set(p, '{short}', to_jsonb('Acıbadem'::text));
+        places := jsonb_set(places, array[k], p);
+      end if;
+    end loop;
+    cfg := jsonb_set(cfg, '{places}', places);
+  end if;
+  pf := coalesce(cfg->'partnerFixed', '[]'::jsonb);
+  if jsonb_typeof(pf) = 'array' then
+    n := jsonb_array_length(pf);
+    for i in 0 .. greatest(n - 1, -1) loop
+      item := pf->i;
+      blob := lower(coalesce(item->>'label', '') || ' ' || coalesce(item->>'short', '') || ' ' || coalesce(item->>'place', ''));
+      if blob like '%altunizade%' or blob like '%acıbadem%' or blob like '%acibadem%' or coalesce(item->>'icon', '') = 'İ' or lower(coalesce(item->>'short', '')) like '%imza%' then
+        if blob like '%altunizade%' or blob like '%acıbadem%' or blob like '%acibadem%' then
+          item := jsonb_set(item, '{label}', to_jsonb('Acıbadem Hastanesi'::text));
+          item := jsonb_set(item, '{short}', to_jsonb('Acıbadem'::text));
+          item := item - 'icon';
+        end if;
+      end if;
+      out_arr := out_arr || jsonb_build_array(item);
+    end loop;
+    cfg := jsonb_set(cfg, '{partnerFixed}', out_arr);
+  end if;
+  if not (coalesce(cfg->'configMigrations', '[]'::jsonb) @> '"partner_place_acibadem_hastanesi"'::jsonb) then
+    cfg := jsonb_set(cfg, '{configMigrations}', coalesce(cfg->'configMigrations', '[]'::jsonb) || '"partner_place_acibadem_hastanesi"'::jsonb);
+  end if;
+  update public.admin_planner_state set config = cfg, updated_at = now();
 end $$;
 
 -- Doğrulama
