@@ -12,6 +12,15 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+### 2026-10-05 — Roster PDF ayrıştırıcı regresyon seti (anonim fixture)
+
+- **Amaç:** Route to Live `roster-airlines`: otomatik ayrıştırıcı testi ve anonim fixture seti yoktu.
+- **Dosyalar:** `mobile/scripts/test-roster-pdf-parser.ts` (çalıştırma: `cd mobile && npx tsx scripts/test-roster-pdf-parser.ts`; beklenenleri yeniden üretmek için `--update`), `mobile/scripts/rosterFixtureParse.ts` (sabit saat 2026-10-05 ve UTC; THY/SunExpress yıl tahmini bugüne düşebildiği için), `mobile/scripts/anonymize-roster-fixture.ts` (yeni fixture üretici), `mobile/scripts/fixtures/roster-pdf/*.txt` + `*.expected.json` (7 örnek: pegasus, pegasus-mar, thy, sunexpress, sunexpress-apr, freebird, indigo). Ayrıştırıcı kodu değişmedi.
+- **Anonimleştirme:** Kaynak: yerel, git dışı `docs/*.pdf` örnekleri (pdf-parse metni). Her harf dizisi ve 3+ haneli sayı tek tek aynı uzunlukta sahte değerle değiştirildi; değişiklik yalnız ayrıştırma sonucu (layout + tüm satırlar) birebir aynı kalırsa tutuldu. Korunanlar yalnız ayrıştırıcının kullandığı kodlar/başlıklar (havalimanı, görev kodları, uçuş numaraları, yıl). Doğrulama: orijinal ve anonim metin aynı sonucu veriyor; orijinaldeki diğer hiçbir kelime ve 5+ haneli sayı fixture'da yok; isim/otel/sicil taraması temiz; telefon rakamları değişti. Dosya adları kişi adı içermiyor.
+- **Doğrulama:** 7/7 OK; bozulmuş beklenen çıktıyla test FAIL (çıkış 1) verip geri alınınca geçti; temiz worktree'de de OK. Mobil `npx tsc --noEmit` OK (`scripts/**` tsconfig dışında; yeni betikler ayrıca strict kontrol edildi, yalnız `pdf-parse` tip tanımı yok — mevcut `pdf-roster-preview.ts` ile aynı).
+- **Kapsam dışı:** SunExpress/Freebird için Edge `parse-roster-pdf` içindeki pdfjs layout geçişi (üretimde bu iki havayolunun asıl çıktısı) ve cihazdaki `expo-pdf-text-extract` metni test edilmiyor; layout geçişi için önce paylaşılan modüle ayrılmalı.
+- **Korunacak:** Yeni fixture eklerken yalnız `anonymize-roster-fixture.ts` çıktısı commit edilmeli ve yazdırılan «kept» listesi gözden geçirilmeli; ham PDF/metin repoya konmamalı.
+
 ### 2026-10-05 — Mobil JS hata izleme (ErrorBoundary + global hata yakalayıcı)
 
 - **Amaç:** Route to Live `monitoring` açığı: mobilde hiç çökme/hata sinyali yoktu. Kullanıcı kararı: hafif yaklaşım (ek servis/native paket yok; OTA ile 51/52'ye de gidebilir; native çökmeleri yakalamaz).

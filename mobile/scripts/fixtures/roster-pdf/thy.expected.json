@@ -1,0 +1,409 @@
+{
+  "layout": "thy",
+  "rows": [
+    {
+      "roster_entry_kind": "flight",
+      "flight_number": "TK1783",
+      "flight_date": "2026-04-01",
+      "origin_iata": "IST",
+      "destination_iata": "CPH",
+      "dep_time_local": "07:15",
+      "arr_time_local": "09:30",
+      "duty_clock_basis": "local"
+    },
+    {
+      "roster_entry_kind": "flight",
+      "flight_number": "TK1784",
+      "flight_date": "2026-04-01",
+      "origin_iata": "CPH",
+      "destination_iata": "IST",
+      "dep_time_local": "10:25",
+      "arr_time_local": "14:45",
+      "duty_clock_basis": "local"
+    },
+    {
+      "roster_entry_kind": "duty_off",
+      "flight_number": "IBB",
+      "flight_date": "2026-04-02",
+      "duty_occupation_code": "IBB",
+      "duty_occupation_label_tr": "Boş Gün",
+      "duty_occupation_label_en": "Off Day",
+      "duty_start_time_local": "00:00",
+      "duty_end_date_iso": "2026-04-02",
+      "duty_end_time_local": "23:59",
+      "duty_clock_basis": "local"
+    },
+    {
+      "roster_entry_kind": "flight",
+      "flight_number": "TK1723",
+      "flight_date": "2026-04-03",
+      "origin_iata": "IST",
+      "destination_iata": "BER",
+      "dep_time_local": "16:00",
+      "arr_time_local": "17:50",
+      "duty_clock_basis": "local"
+    },
+    {
+      "roster_entry_kind": "flight",
+      "flight_number": "TK1724",
+      "flight_date": "2026-04-03",
+      "origin_iata": "BER",
+      "destination_iata": "IST",
+      "dep_time_local": "19:15",
+      "arr_time_local": "23:05",
+      "duty_clock_basis": "local"
+    },
+    {
+      "roster_entry_kind": "duty_off",
+      "flight_number": "CFR",
+      "flight_date": "2026-04-04",
+      "duty_occupation_code": "CFR",
+      "duty_occupation_label_tr": "Potansiyel Görev (CFR)",
+      "duty_occupation_label_en": "Potential Duty (CFR)",
+      "duty_start_time_local": "06:00",
+      "duty_end_date_iso": "2026-04-04",
+      "duty_end_time_local": "23:59",
+      "duty_clock_basis": "local"
+    },
+    {
+      "roster_entry_kind": "flight",
+      "flight_number": "TK2518",
+      "flight_date": "2026-04-05",
+      "origin_iata": "IST",
+      "destination_iata": "BJV",
+      "dep_time_local": "17:50",
+      "arr_time_local": "19:10",
+      "duty_clock_basis": "local"
+    },
+    {
+      "roster_entry_kind": "flight",
+      "flight_number": "TK2535",
+      "flight_date": "2026-04-05",
+      "origin_iata": "BJV",
+      "destination_iata": "IST",
+      "dep_time_local": "20:15",
+      "arr_time_local": "21:40",
+      "duty_clock_basis": "local"
+    },
+    {
+      "roster_entry_kind": "flight",
+      "flight_number": "TK2676",
+      "flight_date": "2026-04-05",
+      "origin_iata": "IST",
+      "destination_iata": "MQM",
+      "dep_time_local": "11:15",
+      "arr_time_local": "13:15",
+      "duty_clock_basis": "local"
+    },
+    {
+      "roster_entry_kind": "flight",
+      "flight_number": "TK2677",
+      "flight_date": "2026-04-05",
+      "origin_iata": "MQM",
+      "destination_iata": "IST",
+      "dep_time_local": "14:00",
+      "arr_time_local": "16:15",
+      "duty_clock_basis": "local"
+    },
+    {
+      "roster_entry_kind": "flight",
+      "flight_number": "TK1029",
+      "flight_date": "2026-04-06",
+      "origin_iata": "IST",
+      "destination_iata": "SOF",
+      "dep_time_local": "18:55",
+      "arr_time_local": "20:15",
+      "duty_clock_basis": "local"
+    },
+    {
+      "roster_entry_kind": "flight",
+      "flight_number": "TK1030",
+      "flight_date": "2026-04-06",
+      "origin_iata": "SOF",
+      "destination_iata": "IST",
+      "dep_time_local": "21:05",
+      "arr_time_local": "22:35",
+      "duty_clock_basis": "local"
+    },
+    {
+      "roster_entry_kind": "flight",
+      "flight_number": "TK1939",
+      "flight_date": "2026-04-07",
+      "origin_iata": "IST",
+      "destination_iata": "BRU",
+      "dep_time_local": "15:25",
+      "arr_time_local": "17:55",
+      "duty_clock_basis": "local"
+    },
+    {
+      "roster_entry_kind": "flight",
+      "flight_number": "TK1940",
+      "flight_date": "2026-04-07",
+      "origin_iata": "BRU",
+      "destination_iata": "IST",
+      "dep_time_local": "18:50",
+      "arr_time_local": "23:20",
+      "duty_clock_basis": "local"
+    },
+    {
+      "roster_entry_kind": "duty_off",
+      "flight_number": "IBE",
+      "flight_date": "2026-04-08",
+      "duty_occupation_code": "IBE",
+      "duty_occupation_label_tr": "Boş Gün",
+      "duty_occupation_label_en": "Replaceable Off Day",
+      "duty_start_time_local": "03:00",
+      "duty_end_date_iso": "2026-04-08",
+      "duty_end_time_local": "23:59",
+      "duty_clock_basis": "local"
+    },
+    {
+      "roster_entry_kind": "duty_off",
+      "flight_number": "IBB",
+      "flight_date": "2026-04-09",
+      "duty_occupation_code": "IBB",
+      "duty_occupation_label_tr": "Boş Gün",
+      "duty_occupation_label_en": "Off Day",
+      "duty_start_time_local": "00:00",
+      "duty_end_date_iso": "2026-04-09",
+      "duty_end_time_local": "23:59",
+      "duty_clock_basis": "local"
+    },
+    {
+      "roster_entry_kind": "flight",
+      "flight_number": "TK401",
+      "flight_date": "2026-04-10",
+      "origin_iata": "IST",
+      "destination_iata": "LED",
+      "dep_time_local": "08:10",
+      "arr_time_local": "11:55",
+      "duty_clock_basis": "local"
+    },
+    {
+      "roster_entry_kind": "flight",
+      "flight_number": "TK402",
+      "flight_date": "2026-04-10",
+      "origin_iata": "LED",
+      "destination_iata": "IST",
+      "dep_time_local": "12:55",
+      "arr_time_local": "17:00",
+      "duty_clock_basis": "local"
+    },
+    {
+      "roster_entry_kind": "duty_off",
+      "flight_number": "CFR",
+      "flight_date": "2026-04-11",
+      "duty_occupation_code": "CFR",
+      "duty_occupation_label_tr": "Potansiyel Görev (CFR)",
+      "duty_occupation_label_en": "Potential Duty (CFR)",
+      "duty_start_time_local": "06:00",
+      "duty_end_date_iso": "2026-04-11",
+      "duty_end_time_local": "23:59",
+      "duty_clock_basis": "local"
+    },
+    {
+      "roster_entry_kind": "duty_off",
+      "flight_number": "HSBY",
+      "flight_date": "2026-04-12",
+      "duty_occupation_code": "HSBY",
+      "duty_occupation_label_tr": "Ev Nöbeti",
+      "duty_occupation_label_en": "Home Standby",
+      "duty_start_time_local": "03:00",
+      "duty_end_date_iso": "2026-04-12",
+      "duty_end_time_local": "13:00",
+      "duty_clock_basis": "local"
+    },
+    {
+      "roster_entry_kind": "duty_off",
+      "flight_number": "CFR",
+      "flight_date": "2026-04-13",
+      "duty_occupation_code": "CFR",
+      "duty_occupation_label_tr": "Potansiyel Görev (CFR)",
+      "duty_occupation_label_en": "Potential Duty (CFR)",
+      "duty_start_time_local": "06:00",
+      "duty_end_date_iso": "2026-04-13",
+      "duty_end_time_local": "23:59",
+      "duty_clock_basis": "local"
+    },
+    {
+      "roster_entry_kind": "duty_off",
+      "flight_number": "IBB",
+      "flight_date": "2026-04-14",
+      "duty_occupation_code": "IBB",
+      "duty_occupation_label_tr": "Boş Gün",
+      "duty_occupation_label_en": "Off Day",
+      "duty_start_time_local": "00:00",
+      "duty_end_date_iso": "2026-04-14",
+      "duty_end_time_local": "23:59",
+      "duty_clock_basis": "local"
+    },
+    {
+      "roster_entry_kind": "duty_off",
+      "flight_number": "IBB",
+      "flight_date": "2026-04-15",
+      "duty_occupation_code": "IBB",
+      "duty_occupation_label_tr": "Boş Gün",
+      "duty_occupation_label_en": "Off Day",
+      "duty_start_time_local": "00:00",
+      "duty_end_date_iso": "2026-04-15",
+      "duty_end_time_local": "23:59",
+      "duty_clock_basis": "local"
+    },
+    {
+      "roster_entry_kind": "flight",
+      "flight_number": "TK778",
+      "flight_date": "2026-04-16",
+      "origin_iata": "IST",
+      "destination_iata": "BAH",
+      "dep_time_local": "20:15",
+      "arr_time_local": "00:15",
+      "duty_clock_basis": "local"
+    },
+    {
+      "roster_entry_kind": "flight",
+      "flight_number": "TK779",
+      "flight_date": "2026-04-18",
+      "origin_iata": "BAH",
+      "destination_iata": "IST",
+      "dep_time_local": "01:20",
+      "arr_time_local": "05:40",
+      "duty_clock_basis": "local"
+    },
+    {
+      "roster_entry_kind": "flight",
+      "flight_number": "TK1641",
+      "flight_date": "2026-04-19",
+      "origin_iata": "IST",
+      "destination_iata": "MUC",
+      "dep_time_local": "10:00",
+      "arr_time_local": "11:45",
+      "duty_clock_basis": "local"
+    },
+    {
+      "roster_entry_kind": "flight",
+      "flight_number": "TK1642",
+      "flight_date": "2026-04-19",
+      "origin_iata": "MUC",
+      "destination_iata": "IST",
+      "dep_time_local": "12:55",
+      "arr_time_local": "16:45",
+      "duty_clock_basis": "local"
+    },
+    {
+      "roster_entry_kind": "flight",
+      "flight_number": "TK2578",
+      "flight_date": "2026-04-19",
+      "origin_iata": "IST",
+      "destination_iata": "DNZ",
+      "dep_time_local": "19:20",
+      "arr_time_local": "20:30",
+      "duty_clock_basis": "local"
+    },
+    {
+      "roster_entry_kind": "flight",
+      "flight_number": "TK2579",
+      "flight_date": "2026-04-20",
+      "origin_iata": "DNZ",
+      "destination_iata": "IST",
+      "dep_time_local": "21:15",
+      "arr_time_local": "22:35",
+      "duty_clock_basis": "local"
+    },
+    {
+      "roster_entry_kind": "flight",
+      "flight_number": "TK696",
+      "flight_date": "2026-04-21",
+      "origin_iata": "IST",
+      "destination_iata": "HBE",
+      "dep_time_local": "00:40",
+      "arr_time_local": "01:50",
+      "duty_clock_basis": "local"
+    },
+    {
+      "roster_entry_kind": "flight",
+      "flight_number": "TK697",
+      "flight_date": "2026-04-21",
+      "origin_iata": "HBE",
+      "destination_iata": "IST",
+      "dep_time_local": "02:45",
+      "arr_time_local": "05:55",
+      "duty_clock_basis": "local"
+    },
+    {
+      "roster_entry_kind": "duty_off",
+      "flight_number": "III",
+      "flight_date": "2026-04-22",
+      "duty_occupation_code": "III",
+      "duty_occupation_label_tr": "Yıllık İzin",
+      "duty_occupation_label_en": "Annual Leave",
+      "duty_start_time_local": "00:00",
+      "duty_end_date_iso": "2026-04-22",
+      "duty_end_time_local": "23:59",
+      "duty_clock_basis": "local"
+    },
+    {
+      "roster_entry_kind": "duty_off",
+      "flight_number": "IBY",
+      "flight_date": "2026-04-28",
+      "duty_occupation_code": "IBY",
+      "duty_occupation_label_tr": "Boş Gün",
+      "duty_occupation_label_en": "Off Day",
+      "duty_start_time_local": "00:00",
+      "duty_end_date_iso": "2026-04-28",
+      "duty_end_time_local": "23:59",
+      "duty_clock_basis": "local"
+    },
+    {
+      "roster_entry_kind": "duty_off",
+      "flight_number": "IBY",
+      "flight_date": "2026-04-29",
+      "duty_occupation_code": "IBY",
+      "duty_occupation_label_tr": "Boş Gün",
+      "duty_occupation_label_en": "Off Day",
+      "duty_start_time_local": "00:00",
+      "duty_end_date_iso": "2026-04-29",
+      "duty_end_time_local": "23:59",
+      "duty_clock_basis": "local"
+    },
+    {
+      "roster_entry_kind": "flight",
+      "flight_number": "TK2426",
+      "flight_date": "2026-04-30",
+      "origin_iata": "IST",
+      "destination_iata": "AYT",
+      "dep_time_local": "16:30",
+      "arr_time_local": "17:55",
+      "duty_clock_basis": "local"
+    },
+    {
+      "roster_entry_kind": "flight",
+      "flight_number": "TK3002",
+      "flight_date": "2026-04-30",
+      "origin_iata": "AYT",
+      "destination_iata": "VKO",
+      "dep_time_local": "20:00",
+      "arr_time_local": "00:40",
+      "duty_clock_basis": "local"
+    },
+    {
+      "roster_entry_kind": "flight",
+      "flight_number": "TK2409",
+      "flight_date": "2026-05-02",
+      "origin_iata": "AYT",
+      "destination_iata": "IST",
+      "dep_time_local": "08:30",
+      "arr_time_local": "10:10",
+      "duty_clock_basis": "local"
+    },
+    {
+      "roster_entry_kind": "flight",
+      "flight_number": "TK3003",
+      "flight_date": "2026-05-02",
+      "origin_iata": "VKO",
+      "destination_iata": "AYT",
+      "dep_time_local": "01:50",
+      "arr_time_local": "06:30",
+      "duty_clock_basis": "local"
+    }
+  ]
+}

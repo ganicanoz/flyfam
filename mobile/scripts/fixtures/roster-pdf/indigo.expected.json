@@ -1,0 +1,411 @@
+{
+  "layout": "indigo",
+  "rows": [
+    {
+      "flight_number": "6E6406",
+      "flight_date": "2026-04-30",
+      "roster_entry_kind": "flight",
+      "origin_iata": "BLR",
+      "destination_iata": "DEL",
+      "dep_time_local": "22:00",
+      "arr_time_local": "00:50"
+    },
+    {
+      "flight_number": "6E5301",
+      "flight_date": "2026-05-01",
+      "roster_entry_kind": "flight",
+      "origin_iata": "IDR",
+      "destination_iata": "DEL",
+      "dep_time_local": "19:25",
+      "arr_time_local": "20:55"
+    },
+    {
+      "flight_number": "6E6829",
+      "flight_date": "2026-05-01",
+      "roster_entry_kind": "flight",
+      "origin_iata": "DEL",
+      "destination_iata": "IDR",
+      "dep_time_local": "17:20",
+      "arr_time_local": "18:45"
+    },
+    {
+      "flight_number": "6E6188",
+      "flight_date": "2026-05-02",
+      "roster_entry_kind": "flight",
+      "origin_iata": "BOM",
+      "destination_iata": "BLR",
+      "dep_time_local": "21:30",
+      "arr_time_local": "23:25"
+    },
+    {
+      "flight_number": "6E6283",
+      "flight_date": "2026-05-02",
+      "roster_entry_kind": "flight",
+      "origin_iata": "BLR",
+      "destination_iata": "BOM",
+      "dep_time_local": "19:05",
+      "arr_time_local": "20:45"
+    },
+    {
+      "flight_number": "6E828",
+      "flight_date": "2026-05-02",
+      "roster_entry_kind": "flight",
+      "origin_iata": "DEL",
+      "destination_iata": "BLR",
+      "dep_time_local": "14:30",
+      "arr_time_local": "17:20"
+    },
+    {
+      "flight_number": "OFG",
+      "flight_date": "2026-05-04",
+      "roster_entry_kind": "duty_off",
+      "duty_occupation_code": "OFG",
+      "duty_occupation_label_tr": "Boş Gün",
+      "duty_occupation_label_en": "Golden Day Off",
+      "duty_start_time_local": null,
+      "duty_end_time_local": null
+    },
+    {
+      "flight_number": "6E901",
+      "flight_date": "2026-05-06",
+      "roster_entry_kind": "flight",
+      "origin_iata": "GOI",
+      "destination_iata": "BLR",
+      "dep_time_local": "23:30",
+      "arr_time_local": "00:50"
+    },
+    {
+      "flight_number": "6E977",
+      "flight_date": "2026-05-06",
+      "roster_entry_kind": "flight",
+      "origin_iata": "BLR",
+      "destination_iata": "GOI",
+      "dep_time_local": "21:45",
+      "arr_time_local": "23:00"
+    },
+    {
+      "flight_number": "6E6136",
+      "flight_date": "2026-05-08",
+      "roster_entry_kind": "flight",
+      "origin_iata": "DED",
+      "destination_iata": "BLR",
+      "dep_time_local": "18:50",
+      "arr_time_local": "21:40",
+      "indigo_roster_detail_en": "Annual Check"
+    },
+    {
+      "flight_number": "6E852",
+      "flight_date": "2026-05-08",
+      "roster_entry_kind": "flight",
+      "origin_iata": "BLR",
+      "destination_iata": "DED",
+      "dep_time_local": "15:10",
+      "arr_time_local": "18:05"
+    },
+    {
+      "flight_number": "OFG",
+      "flight_date": "2026-05-09",
+      "roster_entry_kind": "duty_off",
+      "duty_occupation_code": "OFG",
+      "duty_occupation_label_tr": "Boş Gün",
+      "duty_occupation_label_en": "Golden Day Off",
+      "duty_start_time_local": null,
+      "duty_end_time_local": null
+    },
+    {
+      "flight_number": "SBYP",
+      "flight_date": "2026-05-10",
+      "roster_entry_kind": "duty_off",
+      "duty_occupation_code": "SBYP",
+      "duty_occupation_label_tr": "Ev nöbeti",
+      "duty_occupation_label_en": "Home Standby",
+      "duty_start_time_local": "12:00",
+      "duty_end_time_local": "20:00"
+    },
+    {
+      "flight_number": "SBYP",
+      "flight_date": "2026-05-11",
+      "roster_entry_kind": "duty_off",
+      "duty_occupation_code": "SBYP",
+      "duty_occupation_label_tr": "Ev nöbeti",
+      "duty_occupation_label_en": "Home Standby",
+      "duty_start_time_local": "15:00",
+      "duty_end_time_local": "22:30"
+    },
+    {
+      "flight_number": "OFG",
+      "flight_date": "2026-05-14",
+      "roster_entry_kind": "duty_off",
+      "duty_occupation_code": "OFG",
+      "duty_occupation_label_tr": "Boş Gün",
+      "duty_occupation_label_en": "Golden Day Off",
+      "duty_start_time_local": null,
+      "duty_end_time_local": null
+    },
+    {
+      "flight_number": "6E524",
+      "flight_date": "2026-05-15",
+      "roster_entry_kind": "flight",
+      "origin_iata": "BLR",
+      "destination_iata": "IXA",
+      "dep_time_local": "09:25",
+      "arr_time_local": "12:20"
+    },
+    {
+      "flight_number": "6E524",
+      "flight_date": "2026-05-15",
+      "roster_entry_kind": "flight",
+      "origin_iata": "IXA",
+      "destination_iata": "IXS",
+      "dep_time_local": "12:55",
+      "arr_time_local": "13:45"
+    },
+    {
+      "flight_number": "6E6413",
+      "flight_date": "2026-05-15",
+      "roster_entry_kind": "flight",
+      "origin_iata": "IXS",
+      "destination_iata": "GAU",
+      "dep_time_local": "15:40",
+      "arr_time_local": "16:25"
+    },
+    {
+      "flight_number": "6E6101",
+      "flight_date": "2026-05-16",
+      "roster_entry_kind": "flight",
+      "origin_iata": "BBI",
+      "destination_iata": "CCU",
+      "dep_time_local": "16:00",
+      "arr_time_local": "17:05"
+    },
+    {
+      "flight_number": "6E6214",
+      "flight_date": "2026-05-16",
+      "roster_entry_kind": "flight",
+      "origin_iata": "CCU",
+      "destination_iata": "BBI",
+      "dep_time_local": "14:10",
+      "arr_time_local": "15:20"
+    },
+    {
+      "flight_number": "6E6441",
+      "flight_date": "2026-05-16",
+      "roster_entry_kind": "flight",
+      "origin_iata": "GAU",
+      "destination_iata": "DIB",
+      "dep_time_local": "10:20",
+      "arr_time_local": "11:20"
+    },
+    {
+      "flight_number": "6E6894",
+      "flight_date": "2026-05-16",
+      "roster_entry_kind": "flight",
+      "origin_iata": "DIB",
+      "destination_iata": "CCU",
+      "dep_time_local": "11:50",
+      "arr_time_local": "13:30"
+    },
+    {
+      "flight_number": "6E6085",
+      "flight_date": "2026-05-17",
+      "roster_entry_kind": "flight",
+      "origin_iata": "BBI",
+      "destination_iata": "BLR",
+      "dep_time_local": "20:10",
+      "arr_time_local": "22:20"
+    },
+    {
+      "flight_number": "6E6339",
+      "flight_date": "2026-05-17",
+      "roster_entry_kind": "flight",
+      "origin_iata": "CCU",
+      "destination_iata": "DMU",
+      "dep_time_local": "13:40",
+      "arr_time_local": "15:10"
+    },
+    {
+      "flight_number": "6E6914",
+      "flight_date": "2026-05-17",
+      "roster_entry_kind": "flight",
+      "origin_iata": "DMU",
+      "destination_iata": "GAU",
+      "dep_time_local": "15:40",
+      "arr_time_local": "16:35"
+    },
+    {
+      "flight_number": "6E6914",
+      "flight_date": "2026-05-17",
+      "roster_entry_kind": "flight",
+      "origin_iata": "GAU",
+      "destination_iata": "BBI",
+      "dep_time_local": "17:55",
+      "arr_time_local": "19:40"
+    },
+    {
+      "flight_number": "ASBD",
+      "flight_date": "2026-05-20",
+      "roster_entry_kind": "duty_off",
+      "duty_occupation_code": "ASBD",
+      "duty_occupation_label_tr": "Meydan nöbeti",
+      "duty_occupation_label_en": "Standby at Domestic Airport",
+      "duty_start_time_local": "05:00",
+      "duty_end_time_local": "11:00"
+    },
+    {
+      "flight_number": "OFG",
+      "flight_date": "2026-05-21",
+      "roster_entry_kind": "duty_off",
+      "duty_occupation_code": "OFG",
+      "duty_occupation_label_tr": "Boş Gün",
+      "duty_occupation_label_en": "Golden Day Off",
+      "duty_start_time_local": null,
+      "duty_end_time_local": null
+    },
+    {
+      "flight_number": "OFG",
+      "flight_date": "2026-05-22",
+      "roster_entry_kind": "duty_off",
+      "duty_occupation_code": "OFG",
+      "duty_occupation_label_tr": "Boş Gün",
+      "duty_occupation_label_en": "Golden Day Off",
+      "duty_start_time_local": null,
+      "duty_end_time_local": null
+    },
+    {
+      "flight_number": "6E469",
+      "flight_date": "2026-05-23",
+      "roster_entry_kind": "flight",
+      "origin_iata": "BLR",
+      "destination_iata": "JAI",
+      "dep_time_local": "16:00",
+      "arr_time_local": "18:20"
+    },
+    {
+      "flight_number": "6E556",
+      "flight_date": "2026-05-23",
+      "roster_entry_kind": "flight",
+      "origin_iata": "JAI",
+      "destination_iata": "BLR",
+      "dep_time_local": "19:00",
+      "arr_time_local": "21:35"
+    },
+    {
+      "flight_number": "6E684",
+      "flight_date": "2026-05-23",
+      "roster_entry_kind": "flight",
+      "origin_iata": "BLR",
+      "destination_iata": "HYD",
+      "dep_time_local": "22:30",
+      "arr_time_local": "23:45"
+    },
+    {
+      "flight_number": "6E501",
+      "flight_date": "2026-05-24",
+      "roster_entry_kind": "flight",
+      "origin_iata": "HYD",
+      "destination_iata": "VNS",
+      "dep_time_local": "16:15",
+      "arr_time_local": "18:10"
+    },
+    {
+      "flight_number": "6E6505",
+      "flight_date": "2026-05-24",
+      "roster_entry_kind": "flight",
+      "origin_iata": "HYD",
+      "destination_iata": "BLR",
+      "dep_time_local": "21:25",
+      "arr_time_local": "22:45"
+    },
+    {
+      "flight_number": "6E6683",
+      "flight_date": "2026-05-24",
+      "roster_entry_kind": "flight",
+      "origin_iata": "VNS",
+      "destination_iata": "HYD",
+      "dep_time_local": "18:40",
+      "arr_time_local": "20:30"
+    },
+    {
+      "flight_number": "6E602",
+      "flight_date": "2026-05-26",
+      "roster_entry_kind": "flight",
+      "origin_iata": "BLR",
+      "destination_iata": "CJB",
+      "dep_time_local": "14:40",
+      "arr_time_local": "15:45"
+    },
+    {
+      "flight_number": "6E6545",
+      "flight_date": "2026-05-26",
+      "roster_entry_kind": "flight",
+      "origin_iata": "BLR",
+      "destination_iata": "AMD",
+      "dep_time_local": "08:35",
+      "arr_time_local": "10:45"
+    },
+    {
+      "flight_number": "6E6546",
+      "flight_date": "2026-05-26",
+      "roster_entry_kind": "flight",
+      "origin_iata": "AMD",
+      "destination_iata": "BLR",
+      "dep_time_local": "11:25",
+      "arr_time_local": "13:50"
+    },
+    {
+      "flight_number": "6E738",
+      "flight_date": "2026-05-26",
+      "roster_entry_kind": "flight",
+      "origin_iata": "CJB",
+      "destination_iata": "BLR",
+      "dep_time_local": "16:30",
+      "arr_time_local": "17:35"
+    },
+    {
+      "flight_number": "6E1183",
+      "flight_date": "2026-05-27",
+      "roster_entry_kind": "flight",
+      "origin_iata": "BLR",
+      "destination_iata": "CMB",
+      "dep_time_local": "18:45",
+      "arr_time_local": "20:15"
+    },
+    {
+      "flight_number": "6E1184",
+      "flight_date": "2026-05-27",
+      "roster_entry_kind": "flight",
+      "origin_iata": "CMB",
+      "destination_iata": "BLR",
+      "dep_time_local": "21:15",
+      "arr_time_local": "22:50"
+    },
+    {
+      "flight_number": "OFG",
+      "flight_date": "2026-05-29",
+      "roster_entry_kind": "duty_off",
+      "duty_occupation_code": "OFG",
+      "duty_occupation_label_tr": "Boş Gün",
+      "duty_occupation_label_en": "Golden Day Off",
+      "duty_start_time_local": null,
+      "duty_end_time_local": null
+    },
+    {
+      "flight_number": "6E803",
+      "flight_date": "2026-05-31",
+      "roster_entry_kind": "flight",
+      "origin_iata": "BLR",
+      "destination_iata": "IXZ",
+      "dep_time_local": "05:40",
+      "arr_time_local": "08:35"
+    },
+    {
+      "flight_number": "6E806",
+      "flight_date": "2026-05-31",
+      "roster_entry_kind": "flight",
+      "origin_iata": "IXZ",
+      "destination_iata": "BLR",
+      "dep_time_local": "09:10",
+      "arr_time_local": "11:45"
+    }
+  ]
+}

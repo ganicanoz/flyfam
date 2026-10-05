@@ -1,0 +1,334 @@
+{
+  "layout": "freebird",
+  "rows": [
+    {
+      "flight_number": "VAC",
+      "flight_date": "2026-04-25",
+      "roster_entry_kind": "duty_off",
+      "duty_occupation_code": "VAC",
+      "duty_occupation_label_tr": "Yıllık İzin",
+      "duty_occupation_label_en": "Annual Leave",
+      "duty_start_time_local": "00:00",
+      "duty_end_time_local": "23:59",
+      "duty_end_date_iso": "2026-04-25"
+    },
+    {
+      "flight_number": "VAC",
+      "flight_date": "2026-04-26",
+      "roster_entry_kind": "duty_off",
+      "duty_occupation_code": "VAC",
+      "duty_occupation_label_tr": "Yıllık İzin",
+      "duty_occupation_label_en": "Annual Leave",
+      "duty_start_time_local": "00:00",
+      "duty_end_time_local": "23:59",
+      "duty_end_date_iso": "2026-04-26"
+    },
+    {
+      "flight_number": "FH1897",
+      "flight_date": "2026-05-01",
+      "origin_iata": "AYT",
+      "destination_iata": "RMO",
+      "dep_time_local": null,
+      "arr_time_local": null,
+      "dep_schedule_utc_iso": "2026-05-01T21:00:00.000Z",
+      "arr_schedule_utc_iso": "2026-05-02T00:00:00.000Z"
+    },
+    {
+      "flight_number": "FH1897",
+      "flight_date": "2026-05-02",
+      "origin_iata": "AYT",
+      "destination_iata": "RMO",
+      "dep_time_local": null,
+      "arr_time_local": null,
+      "dep_schedule_utc_iso": "2026-05-02T01:15:00.000Z",
+      "arr_schedule_utc_iso": null
+    },
+    {
+      "flight_number": "FH1898",
+      "flight_date": "2026-05-02",
+      "origin_iata": "RMO",
+      "destination_iata": "AYT",
+      "dep_time_local": null,
+      "arr_time_local": null,
+      "dep_schedule_utc_iso": "2026-05-02T00:15:00.000Z",
+      "arr_schedule_utc_iso": "2026-05-02T03:30:00.000Z"
+    },
+    {
+      "flight_number": "FH951",
+      "flight_date": "2026-05-03",
+      "origin_iata": "AYT",
+      "destination_iata": "LJU",
+      "dep_time_local": null,
+      "arr_time_local": null,
+      "dep_schedule_utc_iso": "2026-05-03T06:00:00.000Z",
+      "arr_schedule_utc_iso": null
+    },
+    {
+      "flight_number": "FH952",
+      "flight_date": "2026-05-03",
+      "origin_iata": "LJU",
+      "destination_iata": "IST",
+      "dep_time_local": null,
+      "arr_time_local": null,
+      "dep_schedule_utc_iso": "2026-05-03T07:00:00.000Z",
+      "arr_schedule_utc_iso": null
+    },
+    {
+      "flight_number": "TK2446",
+      "flight_date": "2026-05-03",
+      "origin_iata": "IST",
+      "destination_iata": "AYT",
+      "dep_time_local": null,
+      "arr_time_local": null,
+      "dep_schedule_utc_iso": "2026-05-03T10:45:00.000Z",
+      "arr_schedule_utc_iso": null
+    },
+    {
+      "flight_number": "STBB",
+      "flight_date": "2026-05-04",
+      "roster_entry_kind": "duty_off",
+      "duty_occupation_code": "STBB",
+      "duty_occupation_label_tr": "STBB",
+      "duty_occupation_label_en": "STBB",
+      "duty_start_time_local": "08:00",
+      "duty_end_time_local": "18:00",
+      "duty_end_date_iso": "2026-05-04"
+    },
+    {
+      "flight_number": "XQ7112",
+      "flight_date": "2026-05-09",
+      "origin_iata": "AYT",
+      "destination_iata": "DIY",
+      "dep_time_local": null,
+      "arr_time_local": null,
+      "dep_schedule_utc_iso": "2026-05-09T04:00:00.000Z",
+      "arr_schedule_utc_iso": null
+    },
+    {
+      "flight_number": "FH9615",
+      "flight_date": "2026-05-10",
+      "origin_iata": "EZS",
+      "destination_iata": "JED",
+      "dep_time_local": null,
+      "arr_time_local": null,
+      "dep_schedule_utc_iso": "2026-05-10T03:30:00.000Z",
+      "arr_schedule_utc_iso": "2026-05-10T04:30:00.000Z"
+    },
+    {
+      "flight_number": "FH9616",
+      "flight_date": "2026-05-10",
+      "origin_iata": "JED",
+      "destination_iata": "AYT",
+      "dep_time_local": null,
+      "arr_time_local": null,
+      "dep_schedule_utc_iso": null,
+      "arr_schedule_utc_iso": null
+    },
+    {
+      "flight_number": "OFF",
+      "flight_date": "2026-05-11",
+      "roster_entry_kind": "duty_off",
+      "duty_occupation_code": "OFF",
+      "duty_occupation_label_tr": "Boş Gün",
+      "duty_occupation_label_en": "Off Day",
+      "duty_start_time_local": "12:00",
+      "duty_end_time_local": "00:00",
+      "duty_end_date_iso": "2026-05-12"
+    },
+    {
+      "flight_number": "OFF",
+      "flight_date": "2026-05-12",
+      "roster_entry_kind": "duty_off",
+      "duty_occupation_code": "OFF",
+      "duty_occupation_label_tr": "Boş Gün",
+      "duty_occupation_label_en": "Off Day",
+      "duty_start_time_local": "00:00",
+      "duty_end_time_local": "23:59",
+      "duty_end_date_iso": "2026-05-12"
+    },
+    {
+      "flight_number": "FH727",
+      "flight_date": "2026-05-14",
+      "origin_iata": "AYT",
+      "destination_iata": "RIX",
+      "dep_time_local": null,
+      "arr_time_local": null,
+      "dep_schedule_utc_iso": "2026-05-14T19:40:00.000Z",
+      "arr_schedule_utc_iso": null
+    },
+    {
+      "flight_number": "FH727",
+      "flight_date": "2026-05-15",
+      "origin_iata": "AYT",
+      "destination_iata": "RIX",
+      "dep_time_local": null,
+      "arr_time_local": null,
+      "dep_schedule_utc_iso": "2026-05-15T02:00:00.000Z",
+      "arr_schedule_utc_iso": null
+    },
+    {
+      "flight_number": "FH728",
+      "flight_date": "2026-05-15",
+      "origin_iata": "RIX",
+      "destination_iata": "AYT",
+      "dep_time_local": null,
+      "arr_time_local": null,
+      "dep_schedule_utc_iso": "2026-05-15T00:30:00.000Z",
+      "arr_schedule_utc_iso": "2026-05-15T05:50:00.000Z"
+    },
+    {
+      "flight_number": "FH1551",
+      "flight_date": "2026-05-16",
+      "origin_iata": "AYT",
+      "destination_iata": "PRG",
+      "dep_time_local": null,
+      "arr_time_local": null,
+      "dep_schedule_utc_iso": "2026-05-16T12:05:00.000Z",
+      "arr_schedule_utc_iso": "2026-05-16T13:05:00.000Z"
+    },
+    {
+      "flight_number": "FH1552",
+      "flight_date": "2026-05-16",
+      "origin_iata": "PRG",
+      "destination_iata": "AYT",
+      "dep_time_local": null,
+      "arr_time_local": null,
+      "dep_schedule_utc_iso": null,
+      "arr_schedule_utc_iso": null
+    },
+    {
+      "flight_number": "STBA",
+      "flight_date": "2026-05-19",
+      "roster_entry_kind": "duty_off",
+      "duty_occupation_code": "STBA",
+      "duty_occupation_label_tr": "STBA",
+      "duty_occupation_label_en": "STBA",
+      "duty_start_time_local": "03:00",
+      "duty_end_time_local": "15:00",
+      "duty_end_date_iso": "2026-05-19"
+    },
+    {
+      "flight_number": "OFF",
+      "flight_date": "2026-05-20",
+      "roster_entry_kind": "duty_off",
+      "duty_occupation_code": "OFF",
+      "duty_occupation_label_tr": "Boş Gün",
+      "duty_occupation_label_en": "Off Day",
+      "duty_start_time_local": "03:00",
+      "duty_end_time_local": null,
+      "duty_end_date_iso": "2026-05-20"
+    },
+    {
+      "flight_number": "OFF",
+      "flight_date": "2026-05-21",
+      "roster_entry_kind": "duty_off",
+      "duty_occupation_code": "OFF",
+      "duty_occupation_label_tr": "Boş Gün",
+      "duty_occupation_label_en": "Off Day",
+      "duty_start_time_local": "23:59",
+      "duty_end_time_local": null,
+      "duty_end_date_iso": "2026-05-21"
+    },
+    {
+      "flight_number": "FH1303",
+      "flight_date": "2026-05-23",
+      "origin_iata": "AYT",
+      "destination_iata": "MUC",
+      "dep_time_local": null,
+      "arr_time_local": null,
+      "dep_schedule_utc_iso": "2026-05-23T02:00:00.000Z",
+      "arr_schedule_utc_iso": "2026-05-23T03:00:00.000Z"
+    },
+    {
+      "flight_number": "FH1304",
+      "flight_date": "2026-05-23",
+      "origin_iata": "MUC",
+      "destination_iata": "AYT",
+      "dep_time_local": null,
+      "arr_time_local": null,
+      "dep_schedule_utc_iso": null,
+      "arr_schedule_utc_iso": null
+    },
+    {
+      "flight_number": "FH1321",
+      "flight_date": "2026-05-24",
+      "origin_iata": "AYT",
+      "destination_iata": "STR",
+      "dep_time_local": null,
+      "arr_time_local": null,
+      "dep_schedule_utc_iso": "2026-05-24T02:45:00.000Z",
+      "arr_schedule_utc_iso": "2026-05-24T03:45:00.000Z"
+    },
+    {
+      "flight_number": "FH1322",
+      "flight_date": "2026-05-24",
+      "origin_iata": "STR",
+      "destination_iata": "AYT",
+      "dep_time_local": null,
+      "arr_time_local": null,
+      "dep_schedule_utc_iso": null,
+      "arr_schedule_utc_iso": null
+    },
+    {
+      "flight_number": "STBA",
+      "flight_date": "2026-05-25",
+      "roster_entry_kind": "duty_off",
+      "duty_occupation_code": "STBA",
+      "duty_occupation_label_tr": "STBA",
+      "duty_occupation_label_en": "STBA",
+      "duty_start_time_local": "06:00",
+      "duty_end_time_local": "15:00",
+      "duty_end_date_iso": "2026-05-25"
+    },
+    {
+      "flight_number": "FH1897",
+      "flight_date": "2026-05-27",
+      "origin_iata": "AYT",
+      "destination_iata": "RMO",
+      "dep_time_local": null,
+      "arr_time_local": null,
+      "dep_schedule_utc_iso": "2026-05-27T09:00:00.000Z",
+      "arr_schedule_utc_iso": null
+    },
+    {
+      "flight_number": "FH1897",
+      "flight_date": "2026-05-28",
+      "origin_iata": "AYT",
+      "destination_iata": "RMO",
+      "dep_time_local": null,
+      "arr_time_local": null,
+      "dep_schedule_utc_iso": "2026-05-28T01:15:00.000Z",
+      "arr_schedule_utc_iso": null
+    },
+    {
+      "flight_number": "FH1898",
+      "flight_date": "2026-05-28",
+      "origin_iata": "RMO",
+      "destination_iata": "AYT",
+      "dep_time_local": null,
+      "arr_time_local": null,
+      "dep_schedule_utc_iso": "2026-05-28T21:00:00.000Z",
+      "arr_schedule_utc_iso": null
+    },
+    {
+      "flight_number": "FH491",
+      "flight_date": "2026-05-30",
+      "origin_iata": "AYT",
+      "destination_iata": "OUL",
+      "dep_time_local": null,
+      "arr_time_local": null,
+      "dep_schedule_utc_iso": "2026-05-30T05:50:00.000Z",
+      "arr_schedule_utc_iso": "2026-05-30T06:50:00.000Z"
+    },
+    {
+      "flight_number": "FH492",
+      "flight_date": "2026-05-30",
+      "origin_iata": "OUL",
+      "destination_iata": "AYT",
+      "dep_time_local": null,
+      "arr_time_local": null,
+      "dep_schedule_utc_iso": null,
+      "arr_schedule_utc_iso": null
+    }
+  ]
+}
