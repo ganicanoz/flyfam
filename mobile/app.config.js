@@ -44,6 +44,7 @@ export default {
       infoPlist: {
         /** expo-share-extension ana uygulama + uzantı için App Group */
         AppGroup: 'group.com.flyfam.app',
+        ITSAppUsesNonExemptEncryption: false,
         // CFBundleDocumentTypes tanımlı olduğunda iOS gereksinimi:
         // UIDocumentBrowser kullanılmıyorsa in-place açmayı açık tut.
         LSSupportsOpeningDocumentsInPlace: true,

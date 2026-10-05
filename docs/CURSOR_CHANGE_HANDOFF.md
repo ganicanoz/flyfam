@@ -12,6 +12,14 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+### 2026-10-05 — iOS şifreleme beyanı (`ITSAppUsesNonExemptEncryption = false`)
+
+- **Sorun:** TestFlight 1.3.0 (52) `MISSING_EXPORT_COMPLIANCE` durumunda kaldı; beyan kodda tanımlı olmadığı için her build App Store Connect'te elle yanıt istiyor (build 51 elle yanıtlanmıştı).
+- **Dosyalar:** `mobile/ios/FlyFam/Info.plist` (EAS, `ios/` klasörü repoda olduğu için bu dosyayı kullanır — etkili olan budur), `mobile/app.config.js` `ios.infoPlist` (tutarlılık / ileride prebuild).
+- **Karar:** Kullanıcı onayıyla eklendi. Uygulama yalnız işletim sistemi / standart HTTPS şifrelemesi kullanır; özel şifreleme algoritması yok.
+- **Etki:** Bir sonraki iOS build'inden itibaren geçerli. Build 52 için beyan App Store Connect'te bir kez elle yanıtlanmalı («Hiçbiri / muaf»). Native Info.plist değiştiği için bu değişiklik OTA ile dağıtılamaz; `runtimeVersion` değişmedi (yalnız Info.plist anahtarı, JS/native modül değişmedi).
+- **Doğrulama:** `plutil -lint` OK; `npx expo config --type public` → `ITSAppUsesNonExemptEncryption = false`; `git diff --check` OK.
+
 ### 2026-10-05 — iOS 1.3.0 (52): Ekip Odası uygulama kodu commit + build hazırlığı
 
 - **Kapsam:** Ekip Odası (Crew Room) uygulama kodu ilk kez `main`'e alındı; build 52 bu commit'ten, `origin/main` temiz worktree'sinden üretilir (yerel ağaçtaki commit edilmemiş başka işler — aile planı vb. — build'e girmez). Arka uç zaten canlıydı.
