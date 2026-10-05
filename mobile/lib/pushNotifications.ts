@@ -52,7 +52,11 @@ function isUuid(v: string | undefined): boolean {
 }
 
 export async function getPushTokenWithReason(): Promise<{ token: string | null; reason?: string }> {
-  if (!Device.isDevice) return { token: null, reason: 'This only works on a real phone (not simulator).' };
+  if (!Device.isDevice) {
+    // Simulators get no push token, but local and `simctl push` notifications still need permission.
+    if (__DEV__) await Notifications.requestPermissionsAsync().catch(() => null);
+    return { token: null, reason: 'This only works on a real phone (not simulator).' };
+  }
 
   const { status: existing } = await Notifications.getPermissionsAsync();
   let final = existing;

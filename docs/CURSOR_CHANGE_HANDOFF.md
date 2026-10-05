@@ -12,6 +12,13 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+### 2026-10-05 — Simülatörde bildirim izni (geliştirme) + yerel `.env` paket taraması
+
+- **Sorun:** `getPushTokenWithReason` simülatörde izin istemeden çıkıyordu; izin hiç verilmediği için `xcrun simctl push` ile gönderilen test bildirimleri (ör. Ekip Odası `type: crew_room` dokunma akışı) gösterilmiyordu.
+- **Dosya:** `mobile/lib/pushNotifications.ts` — simülatörde ve yalnız `__DEV__` iken `requestPermissionsAsync()` çağrılır, ardından eskisi gibi `{ token: null, reason }` döner. Gerçek cihaz akışı, dönüş değerleri ve çağıranlar (`SessionContext`, `Family`) değişmedi; üretim/TestFlight build'lerinde etkisi yok.
+- **Doğrulama:** `npx tsc --noEmit` OK (temiz worktree). Simülatörde (iPhone 17 Pro, iOS 26.5) izin verildikten sonra `simctl push` bildirimi arka planda gösterildi ve dokununca Ekip Odası sekmesi açıldı (kullanıcı onayladı) OK.
+- **Yerel `.env` bulgusu:** Metro geliştirme paketinde yerel `.env`'deki `EXPO_PUBLIC_` uçuş sağlayıcı değerleri (FR24, AirLabs, RapidAPI) bulunuyor: `lib/aerodataboxHttp.ts` içindeki dinamik `process.env[name]` okuması nedeniyle Expo geliştirme modu tüm `EXPO_PUBLIC_` değerlerini pakete koyuyor. Uygulama bu anahtarları kullanmıyor (AeroDataBox anahtarları kodda sabit boş). Aynı yerel `.env` ile `npx expo export --platform ios` üretim paketinde bu değerler YOK (yalnız Supabase URL/anon, RevenueCat iOS, EAS project id). EAS yüklemeleri `.env`'i zaten dışarıda bırakıyor. Risk yalnız yerel geliştirme makinesi; temizlik önerisi: bu anahtarları `.env`'de `EXPO_PUBLIC_` öneki olmadan tutmak (önce `mobile/scripts/*` teşhis betiklerinin okuduğu adlar güncellenmeli). `.env` bu oturumda değiştirilmedi.
+
 ### 2026-10-05 — Kök `.gitignore`: `FlyFam` → `/FlyFam/`
 
 - **Sorun:** Kökü belirtilmemiş `FlyFam` kalıbı, repo kökündeki eski ayrı Xcode projesi `FlyFam/` yanında `mobile/ios/FlyFam/` klasörünü de yok sayıyordu. Bu klasöre eklenen yeni dosyalar sessizce git dışında kalıyor, temiz worktree'den alınan EAS build'i bozuyordu (ilk build 52 denemesi, ses dosyaları) ve takip edilen dosyalar için `git add` reddediliyordu.
