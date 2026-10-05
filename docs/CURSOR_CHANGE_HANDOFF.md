@@ -12,6 +12,16 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+### 2026-10-05 — Aile planı: Eso, Acıbadem Hastanesi, tatil cümlesi
+
+- **Amaç:** Plan asistanı kenarda duran Eso olsun (yazarak ve konuşarak). 6 Ekim kaydı «İ» rozetiyle imza diye görünmesin; o cümle o günkü işin notu. Hastane işi her yerde Acıbadem Hastanesi. Tatil başlığı verilen cümle.
+- **Dosyalar:** `support/aile/index.html`, `support/aile/sw.js` (`aile-shell-v5`), `supabase/functions/family-planner/index.ts` + `assistAi.ts` (`assist` eylemi; `OPENAI_API_KEY` yoksa yerel yorumlayıcı), `docs/sql/aile_partner_fixed_2026_10_06_imza.sql`, `scripts/test-aile-eso.mjs`.
+- **Veri:** Yeni istemci yaması `partner_place_acibadem_hastanesi` (yer etiketi/kısa ad, sabit iş etiketi; adres alanına dokunmaz; `icon` silinir, kısa ad Acıbadem). 6 Ekim tek seferlik kayıt aynı yer adı + not. İlk çevrimiçi açılışta `save_config`.
+- **Eso:** Sağ altta durur; sohbet onaylamadan kaydetmez. Mikrofon `SpeechRecognition` / `tr-TR`; tarayıcı desteklemezse yazmaya düşer. Yerel yorumlayıcı yetmezse `assist` (anahtar yoksa veya eski fonksiyon 400 ise yerel mesaj).
+- **Klinik satırları:** «Özet · kliniklerle paylaş» gün satırı artık kaydırılmaz (`flex-wrap: nowrap`); tarih sola, saatler sağa, yükseklik sabit (ölçüm: 34 px, taşma yok, masaüstü ve 390 px).
+- **Doğrulama:** `node scripts/test-aile-eso.mjs` OK; inline script `node --check` OK. Tarayıcıda Eso, tatil cümlesi ve 6 Ekim cümlesinin önerisi (İ rozeti yok) görüldü. Klinik satırları 34 px ve tek satır ölçüldü.
+- **Koruma:** Yer anahtarı, yol süreleri, finans, plan seçimleri ve adres metni aynı. Embed ve Finans sekmesinde Eso gizli.
+
 ### 2026-10-05 — Aile planı: içerik asistanı (Türkçe → config)
 
 - **Dosyalar:** `support/aile/index.html`, `support/aile/sw.js` (`aile-shell-v4`)

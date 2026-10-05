@@ -4,6 +4,7 @@
  * Veri: admin_planner_state (config jsonb) + planın sahibinin roster'ı. PIN düz metin saklanmaz.
  */
 import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { interpretPlannerUtterance } from './assistAi.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -296,6 +297,12 @@ Deno.serve(async (req) => {
     const out = (await res.json().catch(() => ({}))) as Record<string, unknown>;
     if (!res.ok) return json({ error: String(out.error ?? 'PDF parse failed') }, 400);
     return json({ ok: true, flights: Array.isArray(out.flights) ? out.flights : [] });
+  }
+
+  if (action === 'assist') {
+    const text = typeof body.text === 'string' ? body.text : '';
+    const out = await interpretPlannerUtterance(text, body.sketch ?? null);
+    return json(out);
   }
 
   return json({ error: 'Unknown action' }, 400);
