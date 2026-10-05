@@ -272,6 +272,24 @@ export default function Profile() {
         {profile?.role === 'crew' ? (
           <TouchableOpacity
             style={[styles.card, styles.linkCard, shadow.card, { backgroundColor: colors.surface, borderColor: colors.border }]}
+            onPress={() => pushRootScreen(navigation as never, 'FamilyConnections')}
+          >
+            <View style={[styles.iconBox, { backgroundColor: colors.primaryLight }]}>
+              <Ionicons name="people-outline" size={18} color={colors.primary} />
+            </View>
+            <View style={styles.linkTextCol}>
+              <Text style={[styles.linkLabel, { color: colors.text }]}>{t('profile.familyConnections')}</Text>
+              <Text style={[styles.linkMeta, { color: colors.textMuted }]} numberOfLines={1}>
+                {t('profile.familyConnectionsHint')}
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+          </TouchableOpacity>
+        ) : null}
+
+        {profile?.role === 'crew' ? (
+          <TouchableOpacity
+            style={[styles.card, styles.linkCard, shadow.card, { backgroundColor: colors.surface, borderColor: colors.border }]}
             onPress={() => pushRootScreen(navigation as never, 'Plans')}
           >
             <View style={[styles.iconBox, { backgroundColor: colors.primaryLight }]}>

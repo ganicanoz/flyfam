@@ -406,6 +406,10 @@ verify_jwt = false
 [functions.admin-dashboard]
 verify_jwt = false
 
+# pg_cron → POST + x-cron-secret (CREW_ROOM_CRON_SECRET); yalnız opt-in yatı bildirimi.
+[functions.crew-room-notify]
+verify_jwt = false
+
 # Panel şifresi function içinde signInWithPassword; gateway JWT istemez.
 [functions.admin-panel-login]
 verify_jwt = false

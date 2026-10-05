@@ -8,6 +8,7 @@ import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import { FAMILY_PUSH_SOUND } from './notificationSounds';
 import { supabase } from './supabase';
+import { navigationRef } from '../navigationRef';
 
 /** Android: separate channels so takeoff / landing / roster share can use distinct sounds. */
 export async function ensureFamilyNotificationChannels(): Promise<void> {
@@ -165,9 +166,22 @@ function extractPushUrl(data: unknown): string | null {
   return t;
 }
 
+/** Crew Room layover push → Crew Room tab; retries while navigation mounts on cold start. */
+function openCrewRoomTab(attempt = 0): void {
+  if (navigationRef.isReady()) {
+    (navigationRef.navigate as (name: string, params?: object) => void)('Main', { screen: 'CrewRoom' });
+    return;
+  }
+  if (attempt < 24) setTimeout(() => openCrewRoomTab(attempt + 1), 500);
+}
+
 /** Open optional `data.url` from admin / deep-link pushes (TestFlight, APK, etc.). */
 export function installPushUrlOpenHandler(): () => void {
   const open = (data: unknown) => {
+    if (data && typeof data === 'object' && (data as { type?: unknown }).type === 'crew_room') {
+      openCrewRoomTab();
+      return;
+    }
     const url = extractPushUrl(data);
     if (!url) return;
     Linking.openURL(url).catch(() => {});

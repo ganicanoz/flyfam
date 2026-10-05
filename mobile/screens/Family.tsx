@@ -16,7 +16,7 @@ import {
 import { Swipeable, RectButton } from 'react-native-gesture-handler';
 import { useTranslation } from 'react-i18next';
 import { useFocusEffect } from '@react-navigation/native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSession } from '../contexts/SessionContext';
 import { supabase } from '../lib/supabase';
@@ -34,6 +34,7 @@ import {
 } from '../lib/rosterShareMeta';
 import { pushRootScreen } from '../lib/pushRootScreen';
 import { useAdminRoster } from '../contexts/AdminRosterContext';
+import { useStackGoBack } from '../lib/useStackGoBack';
 
 /** Aile üye kartı ile Kaldır butonu aynı yükseklik (padding 16+16 + avatar 40). */
 const FAMILY_MEMBER_ROW_HEIGHT = 72;
@@ -84,6 +85,9 @@ type SentPendingInvite = {
 export default function Family() {
   const { t, i18n } = useTranslation();
   const navigation = useNavigation<any>();
+  const route = useRoute();
+  const embeddedInProfile = route.name === 'FamilyConnections';
+  const goBack = useStackGoBack();
   const { profile, crewProfile } = useSession();
   const { onAdminSecretTap } = useAdminRoster();
   const themeMode = useThemeMode();
@@ -461,11 +465,23 @@ export default function Family() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
+        {embeddedInProfile ? (
+          <TouchableOpacity
+            onPress={goBack}
+            style={[styles.embeddedBackBtn, { borderColor: colors.border, backgroundColor: colors.surface }]}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            accessibilityRole="button"
+            accessibilityLabel={t('common.back')}
+          >
+            <Ionicons name="chevron-back" size={20} color={colors.text} />
+          </TouchableOpacity>
+        ) : null}
         <View style={styles.pageHeader}>
           <Pressable
             onPress={() => {
               if (onAdminSecretTap()) {
-                navigation.navigate('Roster');
+                if (embeddedInProfile) navigation.navigate('Main', { screen: 'Roster' });
+                else navigation.navigate('Roster');
               }
             }}
             accessibilityRole="header"
@@ -875,6 +891,15 @@ function createFamilyStyles() {
     container: { flex: 1 },
     scroll: { paddingHorizontal: 16 },
     pageHeader: { marginBottom: 16 },
+    embeddedBackBtn: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      borderWidth: 1.5,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 10,
+    },
     pageTitle: { fontSize: 28, fontWeight: '800', letterSpacing: -0.3 },
     pageSubtitle: { fontSize: 14, lineHeight: 20, marginTop: 6 },
     lastShared: { fontSize: 13, lineHeight: 18, marginTop: 8, fontWeight: '600' },

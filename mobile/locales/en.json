@@ -190,6 +190,8 @@
     "subscriptionStatus": "Status",
     "subscriptionSlots": "Family usage",
     "manageSubscription": "Manage subscription",
+    "familyConnections": "Family connections",
+    "familyConnectionsHint": "Family followers and invitations",
     "subscriptionTrialDays": "Trial · {{days}} days left",
     "subscriptionActivePlan": "{{plan}}",
     "subscriptionInactive": "No active subscription",
@@ -810,10 +812,131 @@
     "legalAddonPrice": "There is no separate add-on; follower capacity is included in the package you choose.",
     "autoRenewDisclaimer": "Payment is charged to your Apple ID. Your subscription renews unless you cancel at least 24 hours before the period ends. Manage it in Settings → Apple ID → Subscriptions."
   },
+  "crewRoom": {
+    "title": "Crew Room",
+    "subtitle": "See shared days off and layovers with crew friends you invite. Tap a person to see their upcoming roster.",
+    "you": "You",
+    "someone": "Crew member",
+    "retry": "Try again",
+    "tabs": {
+      "today": "Today",
+      "week": "Week",
+      "offDays": "Days off",
+      "people": "People"
+    },
+    "offDays": {
+      "hint": "Your days off and who else in the room is off that day.",
+      "nobody": "Nobody else is off",
+      "empty": "No days off in your upcoming roster."
+    },
+    "status": {
+      "flying": "Flying",
+      "layover": "Layover",
+      "standby": "Standby",
+      "duty": "On duty",
+      "busy": "Not available",
+      "off": "Day off",
+      "free": "No info",
+      "unknown": "Unknown"
+    },
+    "today": {
+      "available": "Day off today",
+      "layover": "On layover",
+      "flying": "Flying",
+      "busy": "On duty / not available",
+      "unknown": "No info",
+      "tomorrow": "Tomorrow: {{status}}"
+    },
+    "empty": {
+      "title": "Your room is empty",
+      "message": "Invite crew friends with their FlyFam email; they appear in your room once they accept.",
+      "cta": "Invite"
+    },
+    "level": {
+      "full": "Flights and times",
+      "destination": "Destination and layover city",
+      "availability": "Available / busy / on layover",
+      "hidden": "Hidden",
+      "useDefault": "Use default",
+      "useDefaultWith": "Default ({{level}})",
+      "explain": "Choose what this person sees in your roster. That you're on a layover is visible at every level; the layover city only at “Destination and layover city” and above. Crew Room is not following; live flight tracking isn't available."
+    },
+    "add": {
+      "title": "Invite a crew friend",
+      "hint": "Enter the email they use for FlyFam. Once they accept, you're in each other's rooms.",
+      "placeholder": "Email",
+      "send": "Invite",
+      "invalidEmail": "Enter a valid email.",
+      "result": {
+        "requested": "Invitation sent. They'll appear in your room once they accept.",
+        "already_requested": "You already invited this person.",
+        "already_connected": "This person is already in your room.",
+        "connected": "Connected! You're now in each other's rooms.",
+        "not_found": "No FlyFam crew member is registered with that email.",
+        "self": "You can't invite yourself."
+      }
+    },
+    "requests": {
+      "incoming": "Invitations · {{count}}",
+      "outgoing": "Sent invitations · {{count}}",
+      "wantsToConnect": "Invited you to their Crew Room",
+      "waiting": "Waiting for approval",
+      "accept": "Accept",
+      "decline": "Decline",
+      "cancel": "Withdraw"
+    },
+    "people": {
+      "title": "In your room · {{count}}",
+      "empty": "No one yet. Start by inviting someone by email above.",
+      "tapHint": "Tap a person to see their upcoming roster.",
+      "theyShare": "With you: {{level}}",
+      "youShare": "You: {{level}}",
+      "noSubscription": "No subscription",
+      "shareWith": "What can {{name}} see?",
+      "remove": "Remove",
+      "removeTitle": "Remove from room?",
+      "removeMessage": "{{name}} won't see your roster and you won't see theirs. A new invitation is needed to reconnect."
+    },
+    "settings": {
+      "title": "Sharing settings",
+      "defaultLevel": "Default sharing",
+      "defaultLevelHint": "Used when there's no per-person setting.",
+      "invisible": "Invisible mode",
+      "invisibleHint": "While on, nobody can see your roster; you can still see the room.",
+      "notifyLayover": "Shared layover alerts",
+      "notifyLayoverHint": "Lets you know when you'll be on a layover at the same station as someone in your room. Both of you need to share at least “Destination and layover city” with each other."
+    },
+    "person": {
+      "close": "Close",
+      "shareSetting": "Sharing",
+      "today": "Today",
+      "upcomingTitle": "Upcoming days",
+      "noRoster": "Their roster for the coming days isn't known yet.",
+      "notSharing": "This person isn't sharing their roster with you.",
+      "flightDuty": "Flight duty",
+      "layoversTitle": "Layovers",
+      "layoversEmpty": "No layovers in their upcoming roster.",
+      "layoverNoPlace": "Layover",
+      "layoverPlaceHidden": "You'll see the layover city only if they share \"Destination and layover city\" or \"Flights and times\"."
+    },
+    "gate": {
+      "title": "Crew Room is for subscribers",
+      "message": "An active FlyFam subscription is required to see shared days off and layovers with your crew. Others in the room need one too.",
+      "cta": "See plans"
+    },
+    "errors": {
+      "subscription_required": "An active subscription is required for this.",
+      "rate_limited": "Too many requests today. Please try again tomorrow.",
+      "crew_only": "Crew Room is for crew members only.",
+      "range_too_large": "Date range is too large.",
+      "generic": "Something went wrong. Please try again."
+    }
+  },
   "nav": {
     "roster": "Roster",
     "rosterTab": "Roster",
     "family": "Family",
+    "crewRoom": "Crew Room",
     "profile": "Profile",
     "completeSetup": "Complete setup",
     "addFlight": "Add Flight",

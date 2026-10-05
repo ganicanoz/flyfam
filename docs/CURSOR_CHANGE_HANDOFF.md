@@ -12,6 +12,14 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+### 2026-10-05 — iOS 1.3.0 (52): Ekip Odası uygulama kodu commit + build hazırlığı
+
+- **Kapsam:** Ekip Odası (Crew Room) uygulama kodu ilk kez `main`'e alındı; build 52 bu commit'ten, `origin/main` temiz worktree'sinden üretilir (yerel ağaçtaki commit edilmemiş başka işler — aile planı vb. — build'e girmez). Arka uç zaten canlıydı.
+- **Dosyalar:** `mobile/App.tsx` (crew rolünde Aile sekmesi yerine Ekip Odası sekmesi, iOS `door.left.hand.open` / iOS 16 altı `person.2`, Android `assets/tab-icons/door.png`; aile rolü değişmedi; root stack'e `FamilyConnections`), `mobile/screens/Profile.tsx` (crew için «Aile bağlantıları» kartı), `mobile/screens/Family.tsx` (`FamilyConnections` olarak açılınca geri düğmesi), `mobile/lib/pushNotifications.ts` (`data.type === 'crew_room'` → Ekip Odası sekmesi), yeni `mobile/screens/CrewRoom.tsx`, `mobile/components/crewRoom/*`, `mobile/lib/crewRoom.ts`, `mobile/lib/crewRoomMatches.ts`, `mobile/scripts/test-crew-room-matches.ts`, TR/EN `crewRoom.*` / `nav.crewRoom` / `profile.familyConnections*`. Sunucu: 7 Ekip Odası migration'ı (hepsi canlı migration geçmişinde, yerel dosyalarla eşleşiyor), `supabase/functions/crew-room-notify/` ve `config.toml` girişi (`verify_jwt = false`, `x-cron-secret`). Davranış ayrıntıları için bu dosyadaki «Ekip Odası» kayıtlarına bakın (yerel kayıtlar kişi adları içerdiği için herkese açık repoya alınmadı).
+- **Sürüm:** build numarası 51 → 52 (`app.config.js` `ios.buildNumber` / `android.versionCode`, `project.pbxproj` `CURRENT_PROJECT_VERSION` ×6, `android/app/build.gradle`). `runtimeVersion` **1.3.0 kaldı**: native değişiklik yok (SF Symbol ve PNG ikon JS tarafında). Build 52'nin gömülü paketi mevcut OTA'dan (`b70d7782`) yeni olduğundan o OTA build 52'ye uygulanmaz; sonraki OTA'lar `origin/main`'den üretildiği için Ekip Odası'nı içerir ve build 51'e de ulaşır.
+- **Doğrulama:** worktree'de (yalnız commit'lenecek dosyalarla) `npx tsc --noEmit` OK; `npx tsx scripts/test-crew-room-matches.ts` OK; TR/EN anahtar eşliği OK (0/0); kişi adı/e-posta taraması temiz (yalnız destek adresi ve örnek yer tutucular); migration'larda sabit kullanıcı UUID'si yok; `crew-room-notify` import'ları mevcut; `git diff --check` OK.
+- **Review etkisi:** crew demo hesabında alt menüde Aile sekmesi yerine Ekip Odası görünür; aile bağlantıları Profil → «Aile bağlantıları»ndan açılır. App Review notlarındaki demo akışı (Codex) build 52'ye göre güncellenmeli; ASC taslağına build 51 yerine 52 bağlanmalı.
+
 ### 2026-10-04 — Planlar: belirgin «Satın alımları geri yükle» düğmesi (OTA)
 
 - **Sorun:** Kullanıcı TestFlight build 51'de geri yükleme düğmesini bulamadı. Düğme, yasal bilgi kutusunun en altında (Gizlilik · Koşullar altında) 12 pt soluk gri altı çizili metin olarak `footer` içindeydi; App Review için de belirgin bir restore düğmesi beklenir.

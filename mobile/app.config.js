@@ -39,7 +39,7 @@ export default {
       supportsTablet: true,
       bundleIdentifier: 'com.flyfam.app',
       /** Her App Store / TestFlight yüklemesinde bir öncekinden büyük olmalı (CFBundleVersion). */
-      buildNumber: '51',
+      buildNumber: '52',
       jsEngine: 'hermes',
       infoPlist: {
         /** expo-share-extension ana uygulama + uzantı için App Group */
@@ -58,7 +58,7 @@ export default {
       },
     },
     android: {
-      versionCode: 51,
+      versionCode: 52,
       jsEngine: 'hermes',
       /** Play + adaptive foreground: iOS App Store ikonu ile aynı 1024 kaynak. */
       icon: APP_ICON_1024,

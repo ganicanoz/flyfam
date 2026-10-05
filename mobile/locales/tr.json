@@ -190,6 +190,8 @@
     "subscriptionStatus": "Durum",
     "subscriptionSlots": "Aile kullanımı",
     "manageSubscription": "Aboneliği yönet",
+    "familyConnections": "Aile bağlantıları",
+    "familyConnectionsHint": "Aile takipçileri ve davetler",
     "subscriptionTrialDays": "Deneme · {{days}} gün kaldı",
     "subscriptionActivePlan": "{{plan}}",
     "subscriptionInactive": "Aktif abonelik yok",
@@ -810,10 +812,131 @@
     "legalAddonPrice": "Ayrı add-on yoktur; takipçi kapasitesi seçtiğiniz pakete dahildir.",
     "autoRenewDisclaimer": "Ücret Apple ID hesabınıza yansır. Dönem bitmeden en az 24 saat önce iptal etmezseniz abonelik yenilenir. Yönetmek için: Ayarlar → Apple Kimliği → Abonelikler."
   },
+  "crewRoom": {
+    "title": "Ekip Odası",
+    "subtitle": "Davet ettiğin ekip arkadaşlarınla boş günleri ve yatıları gör. Kişiye basınca önümüzdeki roster'ını görürsün.",
+    "you": "Sen",
+    "someone": "Ekip üyesi",
+    "retry": "Tekrar dene",
+    "tabs": {
+      "today": "Bugün",
+      "week": "Hafta",
+      "offDays": "Boş günler",
+      "people": "Kişiler"
+    },
+    "offDays": {
+      "hint": "Rosterındaki boş günler ve o gün boş olan ekip arkadaşların.",
+      "nobody": "Ortak boş kimse yok",
+      "empty": "Önümüzdeki rosterında boş gün görünmüyor."
+    },
+    "status": {
+      "flying": "Uçuşta",
+      "layover": "Yatıda",
+      "standby": "Nöbette",
+      "duty": "Görevde",
+      "busy": "Müsait değil",
+      "off": "Boş gün",
+      "free": "Bilgi yok",
+      "unknown": "Bilinmiyor"
+    },
+    "today": {
+      "available": "Bugün boş gün",
+      "layover": "Yatıda",
+      "flying": "Uçuşta",
+      "busy": "Görevde / müsait değil",
+      "unknown": "Bilgi yok",
+      "tomorrow": "Yarın: {{status}}"
+    },
+    "empty": {
+      "title": "Odan henüz boş",
+      "message": "Ekip arkadaşlarını FlyFam e-postalarıyla davet et; kabul edince odanda görünürler.",
+      "cta": "Davet et"
+    },
+    "level": {
+      "full": "Uçuşlar ve saatler",
+      "destination": "Varış ve yatı yeri",
+      "availability": "Müsait / değil / yatıda",
+      "hidden": "Gizli",
+      "useDefault": "Varsayılanı kullan",
+      "useDefaultWith": "Varsayılan ({{level}})",
+      "explain": "Bu kişinin programında neyi göreceğini seç. Yatıda olduğun her düzeyde görünür; yatı yerin yalnız “Varış ve yatı yeri” ve üstünde görünür. Ekip Odası takip değildir; canlı uçuş takibi yapılamaz."
+    },
+    "add": {
+      "title": "Ekip arkadaşını davet et",
+      "hint": "FlyFam'e kayıtlı e-postasını yaz. Kabul edince birbirinizin odasında görünürsünüz.",
+      "placeholder": "E-posta",
+      "send": "Davet et",
+      "invalidEmail": "Geçerli bir e-posta yaz.",
+      "result": {
+        "requested": "Davet gönderildi. Kabul edince odanda görünecek.",
+        "already_requested": "Bu kişiye zaten davet gönderdin.",
+        "already_connected": "Bu kişi zaten odanda.",
+        "connected": "Bağlandınız! Artık birbirinizin odasındasınız.",
+        "not_found": "Bu e-postayla kayıtlı bir FlyFam ekip üyesi yok.",
+        "self": "Kendini davet edemezsin."
+      }
+    },
+    "requests": {
+      "incoming": "Gelen davetler · {{count}}",
+      "outgoing": "Gönderilen davetler · {{count}}",
+      "wantsToConnect": "Seni Ekip Odasına davet etti",
+      "waiting": "Onay bekleniyor",
+      "accept": "Kabul",
+      "decline": "Reddet",
+      "cancel": "Geri al"
+    },
+    "people": {
+      "title": "Odandakiler · {{count}}",
+      "empty": "Henüz kimse yok. Yukarıdan e-postayla davet ederek başla.",
+      "tapHint": "Kişiye basınca önümüzdeki roster'ını görürsün.",
+      "theyShare": "Seninle: {{level}}",
+      "youShare": "Sen: {{level}}",
+      "noSubscription": "Aboneliği yok",
+      "shareWith": "{{name}} neyi görsün?",
+      "remove": "Çıkar",
+      "removeTitle": "Odadan çıkarılsın mı?",
+      "removeMessage": "{{name}} artık programını göremez, sen de onunkini göremezsin. Tekrar görmek için yeniden davet gerekir."
+    },
+    "settings": {
+      "title": "Paylaşım ayarları",
+      "defaultLevel": "Varsayılan paylaşım",
+      "defaultLevelHint": "Kişiye özel ayar yoksa bu kullanılır.",
+      "invisible": "Görünmez mod",
+      "invisibleHint": "Açıkken kimse programını göremez; sen yine odayı görürsün.",
+      "notifyLayover": "Yatıda denk gelme bildirimi",
+      "notifyLayoverHint": "Odandaki biriyle aynı istasyonda yatıda olacağınız zaman haber verir. İkinizin de birbirine en az “Varış ve yatı yeri” paylaşması gerekir."
+    },
+    "person": {
+      "close": "Kapat",
+      "shareSetting": "Paylaşım",
+      "today": "Bugün",
+      "upcomingTitle": "Önümüzdeki günleri",
+      "noRoster": "Önümüzdeki günler için roster henüz belli değil.",
+      "notSharing": "Bu kişi programını seninle paylaşmıyor.",
+      "flightDuty": "Uçuş görevi",
+      "layoversTitle": "Yatılar",
+      "layoversEmpty": "Önümüzdeki rosterda yatı görünmüyor.",
+      "layoverNoPlace": "Yatı",
+      "layoverPlaceHidden": "Yatı yerini yalnız kişi \"Varış ve yatı yeri\" ya da \"Uçuşlar ve saatler\" düzeyinde paylaşırsa görürsün."
+    },
+    "gate": {
+      "title": "Ekip Odası abonelere özel",
+      "message": "Ekip arkadaşlarınla boş günleri ve yatıları görmek için aktif bir FlyFam aboneliği gerekir. Odadaki diğer kişilerin de aboneliği olmalı.",
+      "cta": "Paketleri gör"
+    },
+    "errors": {
+      "subscription_required": "Bu özellik için aktif abonelik gerekir.",
+      "rate_limited": "Bugün çok fazla istek gönderdin. Yarın tekrar dene.",
+      "crew_only": "Ekip Odası yalnızca ekip üyeleri içindir.",
+      "range_too_large": "Tarih aralığı çok geniş.",
+      "generic": "Bir sorun oluştu. Lütfen tekrar dene."
+    }
+  },
   "nav": {
     "roster": "Uçuş Programı",
     "rosterTab": "Program",
     "family": "Aile",
+    "crewRoom": "Ekip Odası",
     "profile": "Profil",
     "completeSetup": "Kurulumu tamamla",
     "addFlight": "Uçuş Ekle",

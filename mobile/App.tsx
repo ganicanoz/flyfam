@@ -44,6 +44,7 @@ import EditDuty from './screens/EditDuty';
 import AdminFlightApiDebug from './screens/AdminFlightApiDebug';
 import AdminPanel from './screens/AdminPanel';
 import Family from './screens/Family';
+import CrewRoom from './screens/CrewRoom';
 import PartnerRoster from './screens/PartnerRoster';
 import Profile from './screens/Profile';
 import ConsentHistory from './screens/ConsentHistory';
@@ -121,6 +122,8 @@ const TAB_SF: Record<string, string> = {
   Roster: 'list.bullet',
   PeerRoster: 'calendar',
   Family: 'person.2',
+  // door.left.hand.open is SF Symbols 4 (iOS 16+); deployment target is 15.1.
+  CrewRoom: Platform.OS === 'ios' && parseInt(String(Platform.Version), 10) < 16 ? 'person.2' : 'door.left.hand.open',
   Profile: 'person',
 };
 
@@ -128,6 +131,7 @@ const TAB_ANDROID_ICON: Record<string, number> = {
   Roster: require('./assets/tab-icons/list.png'),
   PeerRoster: require('./assets/tab-icons/calendar.png'),
   Family: require('./assets/tab-icons/people.png'),
+  CrewRoom: require('./assets/tab-icons/door.png'),
   Profile: require('./assets/tab-icons/person.png'),
 };
 
@@ -138,6 +142,7 @@ const TAB_WEB_ICONS: Record<
   Roster: { active: 'list', inactive: 'list-outline' },
   PeerRoster: { active: 'calendar', inactive: 'calendar-outline' },
   Family: { active: 'people', inactive: 'people-outline' },
+  CrewRoom: { active: 'enter', inactive: 'enter-outline' },
   Profile: { active: 'person', inactive: 'person-outline' },
 };
 
@@ -173,7 +178,8 @@ function useMainTabMeta() {
     }),
     [insets.top],
   );
-  return { t, peers, isDark, screenOptions };
+  const isCrew = profile?.role === 'crew';
+  return { t, peers, isDark, screenOptions, isCrew };
 }
 
 function MainTabs() {
@@ -184,7 +190,7 @@ function MainTabs() {
 }
 
 function NativeMainTabs() {
-  const { t, peers, isDark } = useMainTabMeta();
+  const { t, peers, isDark, isCrew } = useMainTabMeta();
   return (
     <NativeTab.Navigator
       labeled
@@ -228,18 +234,33 @@ function NativeMainTabs() {
           />
         );
       })}
-      <NativeTab.Screen
-        name="Family"
-        component={Family}
-        options={{
-          title: t('nav.family'),
-          tabBarLabel: t('nav.family'),
-          tabBarIcon: () =>
-            Platform.OS === 'ios'
-              ? { sfSymbol: TAB_SF.Family as any }
-              : TAB_ANDROID_ICON.Family,
-        }}
-      />
+      {isCrew ? (
+        <NativeTab.Screen
+          name="CrewRoom"
+          component={CrewRoom}
+          options={{
+            title: t('nav.crewRoom'),
+            tabBarLabel: t('nav.crewRoom'),
+            tabBarIcon: () =>
+              Platform.OS === 'ios'
+                ? { sfSymbol: TAB_SF.CrewRoom as any }
+                : TAB_ANDROID_ICON.CrewRoom,
+          }}
+        />
+      ) : (
+        <NativeTab.Screen
+          name="Family"
+          component={Family}
+          options={{
+            title: t('nav.family'),
+            tabBarLabel: t('nav.family'),
+            tabBarIcon: () =>
+              Platform.OS === 'ios'
+                ? { sfSymbol: TAB_SF.Family as any }
+                : TAB_ANDROID_ICON.Family,
+          }}
+        />
+      )}
       <NativeTab.Screen
         name="Profile"
         component={Profile}
@@ -257,7 +278,7 @@ function NativeMainTabs() {
 }
 
 function WebMainTabs() {
-  const { t, peers, isDark, screenOptions } = useMainTabMeta();
+  const { t, peers, isDark, screenOptions, isCrew } = useMainTabMeta();
   return (
     <WebTab.Navigator
       screenOptions={({ route }) => ({
@@ -302,15 +323,27 @@ function WebMainTabs() {
           />
         );
       })}
-      <WebTab.Screen
-        name="Family"
-        component={Family}
-        options={{
-          headerShown: false,
-          title: t('nav.family'),
-          tabBarAccessibilityLabel: t('nav.family'),
-        }}
-      />
+      {isCrew ? (
+        <WebTab.Screen
+          name="CrewRoom"
+          component={CrewRoom}
+          options={{
+            headerShown: false,
+            title: t('nav.crewRoom'),
+            tabBarAccessibilityLabel: t('nav.crewRoom'),
+          }}
+        />
+      ) : (
+        <WebTab.Screen
+          name="Family"
+          component={Family}
+          options={{
+            headerShown: false,
+            title: t('nav.family'),
+            tabBarAccessibilityLabel: t('nav.family'),
+          }}
+        />
+      )}
       <WebTab.Screen
         name="Profile"
         component={Profile}
@@ -557,6 +590,7 @@ function RootNavigator() {
             component={Plans}
             options={{ headerShown: false }}
           />
+          <Stack.Screen name="FamilyConnections" component={Family} options={{ headerShown: false }} />
           <Stack.Screen name="PrivacyNotice" component={PrivacyNotice} options={{ headerShown: false }} />
           <Stack.Screen name="TermsDisclaimer" component={TermsDisclaimer} options={{ headerShown: false }} />
         </Stack.Navigator>
