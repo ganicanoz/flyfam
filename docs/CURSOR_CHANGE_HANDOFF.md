@@ -20,6 +20,7 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - **Eso:** Sağ altta durur; sohbet onaylamadan kaydetmez. Mikrofon `SpeechRecognition` / `tr-TR`; tarayıcı desteklemezse yazmaya düşer. Yerel yorumlayıcı yetmezse `assist` (anahtar yoksa veya eski fonksiyon 400 ise yerel mesaj).
 - **Klinik satırları:** «Özet · kliniklerle paylaş» gün satırı artık kaydırılmaz (`flex-wrap: nowrap`); tarih sola, saatler sağa, yükseklik sabit (ölçüm: 34 px, taşma yok, masaüstü ve 390 px).
 - **Doğrulama:** `node scripts/test-aile-eso.mjs` OK; inline script `node --check` OK. Tarayıcıda Eso, tatil cümlesi ve 6 Ekim cümlesinin önerisi (İ rozeti yok) görüldü. Klinik satırları 34 px ve tek satır ölçüldü.
+- **Canlı:** PR #7 merge `498eca7`. Deploy support site `37379153703` success. `https://app.flyfamapp.com/aile/` içinde Eso, tatil cümlesi ve `flex-wrap: nowrap` doğrulandı. PWA açıksa bir kez yenilemek gerekir (`aile-shell-v5`). `assist` eylemi için fonksiyon ayrıca deploy edilmedi; anahtar yokken sayfa yerel yorumlayıcıyla çalışır.
 - **Koruma:** Yer anahtarı, yol süreleri, finans, plan seçimleri ve adres metni aynı. Embed ve Finans sekmesinde Eso gizli.
 
 ### 2026-10-05 — Aile planı: içerik asistanı (Türkçe → config)
