@@ -1,0 +1,2 @@
+# Raw pdf-parse text dumps: trailing whitespace is parser input, keep it.
+*.txt -whitespace
