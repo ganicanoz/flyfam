@@ -1,6 +1,6 @@
-const CACHE = 'obw-shell-v1';
+const CACHE = 'obw-shell-v2';
 const ROOT = new URL('./', self.location.href);
-const SHELL = ['./', './index.html', './app.js', './manifest.webmanifest', './icons/logo.svg', './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png', './icons/favicon.png'].map(path => new URL(path, ROOT).href);
+const SHELL = ['./', './index.html', './app.js', './manifest.webmanifest', './icons/icon-v2-192.png', './icons/icon-v2-192.png', './icons/icon-v2-512.png', './icons/apple-touch-icon-v2.png', './icons/favicon-v2.png'].map(path => new URL(path, ROOT).href);
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(SHELL)).then(() => self.skipWaiting()));
 });
