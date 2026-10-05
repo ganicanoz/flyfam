@@ -12,6 +12,14 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+### 2026-10-05 — Aile planı: 6 Ekim Acıbadem imza (16:00)
+
+- **Dosyalar:** `support/aile/index.html`, `support/aile/sw.js` (`aile-shell-v3`), `docs/sql/aile_partner_fixed_2026_10_06_imza.sql`, `scripts/aile-apply-oct6-imza.mjs`
+- **Amaç:** Sözleşme işleri bitmediği için 2026-10-06 Salı tam gün Altunizade yerine yalnız 16:00 imza; aile planında görünsün.
+- **Uygulama:** `partnerFixed.skipDates` desteği; sabit işte `note` gün notuna uyarısı. İstemci `migrateConfigInPlace` (`partner_fixed_2026_10_06_imza`): Salı kaydına `skipDates: 2026-10-06`, one-off `dates: [2026-10-06]` 16:00–17:00 imza + not; ilk online yüklemede `save_config`. SQL aynı yama (idempotent).
+- **Doğrulama:** migrate + `fixedApplies` birim testi OK; inline script `node --check` OK. Canlı SQL bu oturumda `SUPABASE_ACCESS_TOKEN` olmadığı için uygulanamadı — deploy sonrası PIN/admin ile `/aile` açılınca migration kaydeder; veya `node scripts/aile-apply-oct6-imza.mjs`.
+- **Koruma:** Diğer Salı/Cumartesi sabitleri ve plan/finans akışı aynı; migration bir kez (`configMigrations`).
+
 ### 2026-10-05 — Roster PDF ayrıştırıcı regresyon seti (anonim fixture)
 
 - **Amaç:** Route to Live `roster-airlines`: otomatik ayrıştırıcı testi ve anonim fixture seti yoktu.
