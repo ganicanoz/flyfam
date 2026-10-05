@@ -20,7 +20,7 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - **Klinik:** `.share-card` dolgusu `10px 6px 12px`. Izgara `repeat(auto-fit, minmax(min(100%, 480px), 1fr))`. Satır `min-height: 40px`, `flex-wrap: nowrap`, tarih sola saat sağa. 640 px altında sütun tek.
 - **Doğrulama:** `node scripts/test-aile-eso.mjs` OK; inline script `node --check` OK; `git diff --check` OK. Tarayıcı 1100 px: iki kutu yan yana (565 px), satırlar 40 px, aynı satır, taşma yok. 390 px: kutu 374 px, satırlar 40 px, taşma yok; Eso alt çubukla çakışmıyor. Balon ve açık sohbet «Buyrun Doktor Hanımcım...» gösteriyor.
 - **Koruma:** Yer anahtarı, adres, finans, plan seçimleri ve tatil cümlesi aynı. `assist` fonksiyonu bu turda deploy edilmedi; anahtar yokken sayfa yerel yorumlayıcıyla çalışır.
-- **Canlı:** Deploy sonrası bu satır güncellenir.
+- **Canlı:** PR #9 merge `45c4fe3`. Deploy support site `37380571078` success. `https://app.flyfamapp.com/aile/` içinde «Buyrun Doktor Hanımcım...», `eso-pearls`, `share-card` ve `aile-shell-v6` doğrulandı (2026-10-05). PWA açıksa bir kez yenilemek gerekir.
 
 ### 2026-10-05 — Aile planı: Eso, Acıbadem Hastanesi, tatil cümlesi
 
