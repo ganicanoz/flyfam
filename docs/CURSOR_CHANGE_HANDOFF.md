@@ -20,7 +20,7 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - **Sohbet:** Dışarı tıklamak kapatmaz; kapanış Eso’ya ya da çarpıya basınca. Mikrofon bitince duyduğu metin gönderilir; izin yoksa yazmaya düşer. Selamlama aynı: «Buyrun Doktor Hanımcım...».
 - **Doğrulama:** `node scripts/test-aile-eso.mjs` OK; inline `node --check` OK. Tarayıcı: diş hekimi önerisi (7 Ekim, 16:00–17:00), «yarın hastane» ardından «16:00» aynı güne yazıldı, takvime tıklayınca sohbet açık kaldı.
 - **Koruma:** Yer anahtarı, adres, finans, plan seçimleri, tatil cümlesi ve hastane adı aynı. Onaysız kaydetmez. `assist` fonksiyonu bu turda da deploy edilmedi.
-- **Canlı:** Deploy sonrası bu satır güncellenir.
+- **Canlı:** PR #11 merge `0e8ec78`. Deploy support site `37418336764` success. `https://app.flyfamapp.com/aile/` içinde `resolveAssistTurn`, «Buyrun Doktor Hanımcım...» ve `aile-shell-v7` doğrulandı (2026-10-06). PWA açıksa bir kez yenilemek gerekir.
 
 ### 2026-10-05 — Aile planı: Eso sekreter yüzü, selamlama, geniş klinik kutuları
 
