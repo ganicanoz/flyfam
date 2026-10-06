@@ -12,6 +12,16 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+### 2026-10-06 — Aile planı: Eso cümleyi tutuyor ve günü anlıyor
+
+- **Amaç:** Eso «güzel çalışmıyor»du: tarih+saat yazılmazsa susuyordu, konuşulan sayıyı ve gün adını kaçırıyordu, eksik cümlenin devamını unutuyordu, dışarı tıklanınca sohbet kapanıyordu, anlamayınca «Bir bakayım…» deyip boşuna bekliyordu.
+- **Dosyalar:** `support/aile/index.html`, `support/aile/sw.js` (`aile-shell-v7`), `scripts/test-aile-eso.mjs`.
+- **Anlama:** «yarın / salı / gelecek salı / 6 ekim / altı ekim», «16:00», «saat on altı», «akşam dört» (16:00), «9dan 5e» (09:00–17:00). «hastane» kayıtlı hastane yerine gider. «salı hastaneye gitmiyorum» yalnız o günü atlar, yeni iş açmaz. Saat ya da gün eksikse sorar ve sonraki kısa cevabı aynı cümleye ekler. Örnek düğmeler hemen yorumlanır.
+- **Sohbet:** Dışarı tıklamak kapatmaz; kapanış Eso’ya ya da çarpıya basınca. Mikrofon bitince duyduğu metin gönderilir; izin yoksa yazmaya düşer. Selamlama aynı: «Buyrun Doktor Hanımcım...».
+- **Doğrulama:** `node scripts/test-aile-eso.mjs` OK; inline `node --check` OK. Tarayıcı: diş hekimi önerisi (7 Ekim, 16:00–17:00), «yarın hastane» ardından «16:00» aynı güne yazıldı, takvime tıklayınca sohbet açık kaldı.
+- **Koruma:** Yer anahtarı, adres, finans, plan seçimleri, tatil cümlesi ve hastane adı aynı. Onaysız kaydetmez. `assist` fonksiyonu bu turda da deploy edilmedi.
+- **Canlı:** Deploy sonrası bu satır güncellenir.
+
 ### 2026-10-05 — Aile planı: Eso sekreter yüzü, selamlama, geniş klinik kutuları
 
 - **Amaç:** Eso şişman bir sekreter yüzü olsun (gövde, kol ve palto yok) ve inci kolye taksın. Selamlama tam olarak «Buyrun Doktor Hanımcım...». «Özet · kliniklerle paylaş» çerçevesi biraz insin; kutular yana yayılsın, gün satırları ferah ve tek satır kalsın.

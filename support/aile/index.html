@@ -2815,81 +2815,167 @@
     });
 
     // ---------- Plan içerik asistanı (Türkçe → config yaması; kod değiştirmez) ----------
-    const TR_MONTHS = { ocak: 1, subat: 2, şubat: 2, mart: 3, nisan: 4, mayis: 5, mayıs: 5, haziran: 6, temmuz: 7, agustos: 8, ağustos: 8, eylul: 9, eylül: 9, ekim: 10, kasim: 11, kasım: 11, aralik: 12, aralık: 12 };
+    const TR_MONTHS = { ocak: 1, subat: 2, şubat: 2, mart: 3, nisan: 4, mayis: 5, mayıs: 5, haziran: 6, temmuz: 7, agustos: 8, ağustos: 8, eylul: 9, eylül: 9, eylus: 9, ekim: 10, kasim: 11, kasım: 11, aralik: 12, aralık: 12 };
+    const ASSIST_MONTH_RE = 'ocak|şubat|subat|mart|nisan|mayıs|mayis|haziran|temmuz|ağustos|agustos|eylül|eylul|eylus|ekim|kasım|kasim|aralık|aralik';
     const assistNorm = (s) => String(s || '').toLocaleLowerCase('tr-TR').normalize('NFC').replace(/\s+/g, ' ').trim();
+    function hasWord(hay, w) {
+      const t = ' ' + assistNorm(hay) + ' ';
+      if (t.includes(' ' + w + ' ') || t.includes(' ' + w + ',') || t.includes(' ' + w + '.')) return true;
+      return new RegExp(' ' + w + '(?:y[aeıiuü]|d[ae]|t[ae]|den|dan|ten|tan|günü|gunu)(?:\\s|,|\\.)').test(t);
+    }
+    function spokenNum(a, b) {
+      const ones = { sifir: 0, sıfır: 0, bir: 1, iki: 2, uc: 3, üç: 3, dort: 4, dört: 4, bes: 5, beş: 5, alti: 6, altı: 6, yedi: 7, sekiz: 8, dokuz: 9 };
+      const tens = { on: 10, yirmi: 20, otuz: 30, kirk: 40, kırk: 40 };
+      if (Object.prototype.hasOwnProperty.call(tens, a) && b && Object.prototype.hasOwnProperty.call(ones, b)) return tens[a] + ones[b];
+      if (Object.prototype.hasOwnProperty.call(tens, a) && !b) return tens[a];
+      if (Object.prototype.hasOwnProperty.call(ones, a) && !b) return ones[a];
+      return null;
+    }
+    function expandSpoken(raw) {
+      let s = ' ' + assistNorm(raw).replace(/['’]/g, '') + ' ';
+      const w = 'sifir|sıfır|bir|iki|uc|üç|dort|dört|bes|beş|alti|altı|yedi|sekiz|dokuz|on|yirmi|otuz|kirk|kırk';
+      const put = (lead, a, b, tail) => {
+        const n = spokenNum(a, b);
+        return n == null ? lead + a + (b ? ' ' + b : '') + tail : lead + n + tail;
+      };
+      s = s.replace(new RegExp('(^|\\s)(' + w + ')(?:\\s+(' + w + '))?\\s+buçuk(?=\\s)', 'g'), (m, lead, a, b) => put(lead, a, b, ':30'));
+      s = s.replace(new RegExp('(^|\\s)(' + w + ')(?:\\s+(' + w + '))?(?=\\s)', 'g'), (m, lead, a, b) => put(lead, a, b, ''));
+      return s.trim();
+    }
+    function validYmd(ymd) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(ymd || '')) return false;
+      const [y, m, d] = ymd.split('-').map(Number);
+      const dt = new Date(Date.UTC(y, m - 1, d));
+      return dt.getUTCFullYear() === y && dt.getUTCMonth() === m - 1 && dt.getUTCDate() === d;
+    }
+    function pad2(n) { return String(n).padStart(2, '0'); }
+    function hmPack(sh, sm, eh, em) {
+      if (sh > 23 || eh > 23 || sm > 59 || em > 59 || sh < 0 || eh < 0) return null;
+      if (eh * 60 + em <= sh * 60 + sm && eh <= 7) eh += 12;
+      if (eh > 23 || eh * 60 + em <= sh * 60 + sm) return null;
+      return { start: pad2(sh) + ':' + pad2(sm), end: pad2(eh) + ':' + pad2(em) };
+    }
+    function shiftTimes(times, hours) {
+      const s = hm(times.start) + hours * 60;
+      const e = hm(times.end) + hours * 60;
+      if (s >= 24 * 60 || e > 24 * 60) return times;
+      return { start: fmt(s), end: fmt(e) };
+    }
+    function preferAfternoon(t, times) {
+      if (!times) return null;
+      const sh = Number(times.start.slice(0, 2));
+      if (/\baksam\b|\bakşam\b|\böğleden sonra\b|\bogleden sonra\b/.test(t) && sh < 12) return shiftTimes(times, 12);
+      if (!/\bsabah\b|\bgece\b/.test(t) && sh >= 1 && sh <= 7) return shiftTimes(times, 12);
+      return times;
+    }
+    function upcomingWeekday(today, wd, mode) {
+      let delta = (wd - weekday(today) + 7) % 7;
+      if (mode === 'next') delta += 7;
+      if (mode === 'last') delta = delta === 0 ? -7 : delta - 7;
+      return addDays(today, delta);
+    }
     function parseAssistDate(text, todayYmd) {
-      const t = assistNorm(text);
+      const t = expandSpoken(text);
       const today = todayYmd || nowLocal().ymd;
-      if (/\byarin\b|\byarın\b/.test(t)) return addDays(today, 1);
-      if (/\bbugun\b|\bbugün\b/.test(t)) return today;
+      if (hasWord(t, 'yarin') || hasWord(t, 'yarın')) return addDays(today, 1);
+      if (hasWord(t, 'bugun') || hasWord(t, 'bugün')) return today;
+      if (/öbür gün|obur gun/.test(t)) return addDays(today, 2);
       let m = t.match(/\b(20\d{2})-(\d{2})-(\d{2})\b/);
-      if (m) return m[1] + '-' + m[2] + '-' + m[3];
+      if (m) { const ymd = m[1] + '-' + m[2] + '-' + m[3]; return validYmd(ymd) ? ymd : null; }
       m = t.match(/\b(\d{1,2})[./](\d{1,2})(?:[./](20\d{2}))?\b/);
       if (m) {
         const y = m[3] || today.slice(0, 4);
-        return y + '-' + String(m[2]).padStart(2, '0') + '-' + String(m[1]).padStart(2, '0');
+        const ymd = y + '-' + pad2(m[2]) + '-' + pad2(m[1]);
+        return validYmd(ymd) ? ymd : null;
       }
-        m = t.match(/\b(\d{1,2})\s*(ocak|şubat|subat|mart|nisan|mayıs|mayis|haziran|temmuz|ağustos|agustos|eylül|eylus|ekim|kasım|kasim|aralık|aralik)(?:[a-zçğıöşü]{0,3})?(?:\s*(20\d{2}))?\b/);
+      m = t.match(new RegExp('\\b(\\d{1,2})\\s*(' + ASSIST_MONTH_RE + ')(?:[a-zçğıöşü]{0,3})?(?:\\s*(20\\d{2}))?\\b'));
       if (m) {
-        const monKey = assistNorm(m[2]).replace(/eylus/, 'eylül');
-        const mon = TR_MONTHS[m[2]] || TR_MONTHS[monKey] || TR_MONTHS[assistNorm(m[2])];
+        const mon = TR_MONTHS[m[2]] || TR_MONTHS[assistNorm(m[2])];
         if (!mon) return null;
         let y = Number(m[3] || today.slice(0, 4));
-        let cand = y + '-' + String(mon).padStart(2, '0') + '-' + String(m[1]).padStart(2, '0');
+        let cand = y + '-' + pad2(mon) + '-' + pad2(m[1]);
+        if (!validYmd(cand)) return null;
         if (!m[3] && cand < today && mon < Number(today.slice(5, 7))) {
           y += 1;
-          cand = y + '-' + String(mon).padStart(2, '0') + '-' + String(m[1]).padStart(2, '0');
+          cand = y + '-' + pad2(mon) + '-' + pad2(m[1]);
         }
-        return cand;
+        return validYmd(cand) ? cand : null;
       }
+      const wds = [['cumartesi', 6], ['pazartesi', 1], ['çarşamba', 3], ['carsamba', 3], ['perşembe', 4], ['persembe', 4], ['salı', 2], ['sali', 2], ['cuma', 5], ['pazar', 7]];
+      for (const [name, wd] of wds) {
+        if (!hasWord(t, name)) continue;
+        const mode = (hasWord(t, 'gelecek') || hasWord(t, 'haftaya') || hasWord(t, 'önümüzdeki') || hasWord(t, 'onumuzdeki')) ? 'next'
+          : (hasWord(t, 'geçen') || hasWord(t, 'gecen')) ? 'last' : 'this';
+        return upcomingWeekday(today, wd, mode);
+      }
+      if (hasWord(t, 'haftaya')) return addDays(today, 7);
       return null;
     }
+    function oneHour(sh, sm) {
+      if (sh > 23 || sm > 59) return null;
+      const endMin = sh * 60 + sm + 60;
+      if (endMin >= 24 * 60) return null;
+      return { start: pad2(sh) + ':' + pad2(sm), end: fmt(endMin) };
+    }
     function parseAssistTimes(text) {
-      const t = assistNorm(text);
+      const t = expandSpoken(text);
       const range = t.match(/\b(\d{1,2})[:.](\d{2})\s*[-–—]\s*(\d{1,2})[:.](\d{2})\b/);
-      if (range) {
-        return {
-          start: String(range[1]).padStart(2, '0') + ':' + range[2],
-          end: String(range[3]).padStart(2, '0') + ':' + range[4],
-        };
+      if (range) return hmPack(Number(range[1]), Number(range[2]), Number(range[3]), Number(range[4]));
+      const clock = t.match(/\b(\d{1,2})[:.](\d{2})\b/);
+      if (clock && Number(clock[1]) <= 23) return oneHour(Number(clock[1]), Number(clock[2]));
+      const ten = t.match(/\b(\d{1,2})(?:[:.](\d{2}))?\s*(?:ten|tan|den|dan)\s*(\d{1,2})(?:[:.](\d{2}))?(?:\s*(?:e|a|ye|ya))?\b/);
+      if (ten) return preferAfternoon(t, hmPack(Number(ten[1]), Number(ten[2] || 0), Number(ten[3]), Number(ten[4] || 0)));
+      let soft = null;
+      const saat = t.match(/\b(?:saat|aksam|akşam|sabah)\s*(\d{1,2})(?:[:.](\d{2}))?\b/);
+      if (saat && Number(saat[1]) <= 23) soft = oneHour(Number(saat[1]), Number(saat[2] || 0));
+      if (!soft) {
+        const suffix = t.match(new RegExp('\\b(\\d{1,2})(?:[:.](\\d{2}))?(?:te|ta|de|da)\\b'));
+        if (suffix && Number(suffix[1]) <= 23) {
+          const at = suffix.index || 0;
+          const around = t.slice(Math.max(0, at - 1), at + suffix[0].length + 12);
+          if (!new RegExp('\\d\\s*(?:' + ASSIST_MONTH_RE + ')').test(around)) soft = oneHour(Number(suffix[1]), Number(suffix[2] || 0));
+        }
       }
-      const one = t.match(/\b(?:saat\s*)?(\d{1,2})[:.](\d{2})\b/);
-      if (one && Number(one[1]) <= 23) {
-        const start = String(one[1]).padStart(2, '0') + ':' + one[2];
-        return { start, end: fmt(hm(start) + 60) };
+      if (!soft && /\böğlen\b|\boglen\b/.test(t) && !/\böğleden\b|\bogleden\b/.test(t)) soft = { start: '12:00', end: '13:00' };
+      return preferAfternoon(t, soft);
+    }
+    function hospitalPlaceKey(cfg) {
+      const places = cfg.places || {};
+      for (const [key, p] of Object.entries(places)) {
+        const blob = assistNorm(key + ' ' + ((p && p.label) || '') + ' ' + ((p && p.short) || ''));
+        if (/altunizade|acıbadem|acibadem|hastane/.test(blob)) return key;
       }
-      const saat = t.match(/\bsaat\s*(\d{1,2})\b/);
-      if (saat && Number(saat[1]) <= 23) {
-        const start = String(saat[1]).padStart(2, '0') + ':00';
-        return { start, end: fmt(hm(start) + 60) };
+      for (const f of cfg.partnerFixed || []) {
+        const blob = assistNorm((f.place || '') + ' ' + (f.label || '') + ' ' + (f.short || ''));
+        if (/altunizade|acıbadem|acibadem|hastane/.test(blob)) return f.place;
       }
       return null;
     }
     function findAssistPlace(cfg, text) {
-      const t = assistNorm(text);
+      const t = expandSpoken(text);
       const places = cfg.places || {};
+      const generic = new Set(['toplanti', 'toplantı', 'imza', 'randevu', 'muayene', 'tatil', 'sabit', 'iş', 'is', 'not']);
       let best = null, bestLen = 0;
-      for (const [key, p] of Object.entries(places)) {
-        for (const cand of [key, p && p.label, p && p.short].filter(Boolean)) {
-          const c = assistNorm(cand);
-          if (c.length >= 3 && t.includes(c) && c.length > bestLen) { best = key; bestLen = c.length; }
+      const consider = (cand, key) => {
+        const c = assistNorm(cand);
+        if (!c || c.length < 3 || generic.has(c)) return;
+        if (hasWord(t, c) || t.includes(c)) {
+          if (c.length > bestLen) { best = key; bestLen = c.length; }
         }
+      };
+      for (const [key, p] of Object.entries(places)) {
+        consider(key, key);
+        if (p) { consider(p.label, key); consider(p.short, key); }
       }
       for (const f of [...(cfg.partnerFixed || []), ...(cfg.partnerCandidates || [])]) {
-        for (const cand of [f.place, f.label, f.short].filter(Boolean)) {
-          const c = assistNorm(cand);
-          if (c.length >= 3 && t.includes(c) && c.length > bestLen) { best = f.place || f.id || best; bestLen = c.length; }
-        }
+        const key = f.place || f.id;
+        consider(f.place, key);
+        consider(f.label, key);
+        consider(f.short, key);
       }
-      if (/altunizade|acıbadem|acibadem/.test(t)) {
-        for (const [key, p] of Object.entries(places)) {
-          const blob = assistNorm(key + ' ' + ((p && p.label) || '') + ' ' + ((p && p.short) || ''));
-          if (/altunizade|acıbadem|acibadem/.test(blob)) return key;
-        }
-        for (const f of cfg.partnerFixed || []) {
-          const blob = assistNorm((f.place || '') + ' ' + (f.label || '') + ' ' + (f.short || ''));
-          if (/altunizade|acıbadem|acibadem/.test(blob)) return f.place;
-        }
+      if (/hastane|altunizade|acıbadem|acibadem/.test(t)) {
+        const key = hospitalPlaceKey(cfg);
+        if (key) return key;
       }
       return best;
     }
@@ -2902,6 +2988,7 @@
       return ESO_HI + '\nBana günü söylemen yeterli; kaydetmeden önce sana sorarım.\n'
         + '· «6 ekimde 16:00 Acıbadem Hastanesi, o günkü iş imza»\n'
         + '· «yarın 14:00-15:30 okul toplantısı»\n'
+        + '· «salı hastaneye gitmiyorum»\n'
         + '· «10-12 ekim Kapadokya tatil»\n'
         + '· «hastaneye Acıbadem Hastanesi diyelim»';
     }
@@ -2914,6 +3001,21 @@
           weekdays: f.weekdays || null, dates: f.dates || null,
         })),
       };
+    }
+    function guessLabel(heard) {
+      if (/toplant/.test(heard)) return 'Toplantı';
+      if (/muayene/.test(heard)) return 'Muayene';
+      if (/randevu/.test(heard)) return 'Randevu';
+      if (/ameliyat/.test(heard)) return 'Ameliyat';
+      let s = heard;
+      s = s.replace(/\b\d{1,2}[:.]\d{2}(?:\s*[-–—]\s*\d{1,2}[:.]\d{2})?\b/g, ' ');
+      s = s.replace(/\b\d{1,2}(?:[:.]\d{2})?\s*(?:ten|tan|den|dan)\s*\d{1,2}(?:[:.]\d{2})?(?:\s*(?:e|a|ye|ya))?\b/g, ' ');
+      s = s.replace(new RegExp('\\b\\d{1,2}\\s*(?:' + ASSIST_MONTH_RE + ')(?:[a-zçğıöşü]{0,3})?(?:\\s*20\\d{2})?\\b', 'g'), ' ');
+      s = s.replace(/\b(20\d{2}-\d{2}-\d{2}|\d{1,2}[./]\d{1,2}(?:[./]20\d{2})?)\b/g, ' ');
+      s = s.replace(/\b(yarin|yarın|bugun|bugün|öbür|obur|haftaya|gelecek|önümüzdeki|onumuzdeki|geçen|gecen|bu|sadece|yalnız|yalniz|ekle|kaydet|olsun|eso|lütfen|lutfen|doktor|hanımcım|hanimcim|hanım|hanim|buyrun|için|icin|diye|günü|gunu|gün|gun|saat|sabah|akşam|aksam|öğleden|ogleden|sonra|öğlen|oglen|öğle|ogle|önce|once|imza|hastane\w*|okul\w*|klinik\w*|acıbadem\w*|acibadem\w*|altunizade\w*|pazartesi|salı|sali|çarşamba|carsamba|perşembe|persembe|cumartesi|cuma|pazar)\b/g, ' ');
+      s = s.replace(/[^a-zçğıöşü0-9\s]/gi, ' ').replace(/\s+/g, ' ').trim();
+      if (!s || s.length < 2) return '';
+      return s.charAt(0).toLocaleUpperCase('tr-TR') + s.slice(1, 60);
     }
     function applyAssistOps(full, ops) {
       const pf = Array.isArray(full.partnerFixed) ? full.partnerFixed.map((x) => (x && typeof x === 'object' ? { ...x } : x)) : [];
@@ -2966,86 +3068,140 @@
       }
       full.partnerFixed = pf;
     }
-    /** @returns {{ ok:boolean, summary?:string, lines?:string[], apply?:(full:object)=>void, error?:string }} */
+    function miss(error, keep, askAi) { return { ok: false, error, keep: !!keep, askAi: !!askAi, apply: null }; }
+    /** @returns {{ ok:boolean, summary?:string, lines?:string[], apply?:(full:object)=>void, error?:string, keep?:boolean, askAi?:boolean }} */
     function interpretAssist(raw, cfg, todayYmd) {
       const text = String(raw || '').trim();
-      if (!text) return { ok: false, error: 'Bir şey yaz.' };
-      const t = assistNorm(text);
-      if (/^(yardim|yardım|help|\?)$/.test(t) || /\bne yapabilir/.test(t)) {
+      if (!text) return miss('Bir şey yaz.', false, false);
+      const heard = expandSpoken(text);
+      const t = heard;
+      if (/^(yardim|yardım|help|\?)$/.test(t) || hasWord(t, 'ne') && /yapabilir/.test(t)) {
         return { ok: true, summary: 'Yardım', lines: [assistHelpText()], apply: null };
       }
-
-      // Tatil: "10-12 ekim tatil" / "10 ekim - 15 ekim Kapadokya"
-      if (/\btatil\b|\btatile\b/.test(t)) {
+      if (hasWord(t, 'tatil') || hasWord(t, 'tatile')) {
+        const removing = /\b(sil|kaldir|kaldır|iptal|cikar|çıkar)\b/.test(t);
+        if (removing) {
+          const ymd = parseAssistDate(t, todayYmd);
+          const vacs = Array.isArray(cfg.vacations) ? cfg.vacations : [];
+          let idxs = [];
+          if (ymd) vacs.forEach((v, i) => { if (v && v.from <= ymd && ymd <= (v.to || v.from)) idxs.push(i); });
+          else {
+            const stop = new Set(['tatil', 'tatile', 'sil', 'kaldir', 'kaldır', 'iptal', 'cikar', 'çıkar', 'lütfen', 'lutfen']);
+            const words = t.split(' ').filter((w) => w.length > 3 && !stop.has(w));
+            vacs.forEach((v, i) => { const lab = assistNorm(v && v.label); if (words.some((w) => lab.includes(w))) idxs.push(i); });
+          }
+          if (!idxs.length && vacs.length === 1 && !ymd) idxs = [0];
+          if (!idxs.length) return miss('Hangi tatili sileyim? Tarih ya da yer söyle.', true, false);
+          const doomed = idxs.map((i) => vacs[i]);
+          return {
+            ok: true,
+            summary: 'Tatili sil',
+            lines: doomed.map((v) => (v.label || 'Tatil') + ' · ' + dateLong(v.from) + (v.to && v.to !== v.from ? ' → ' + dateLong(v.to) : '')) ,
+            apply(full) {
+              const set = new Set(doomed.map((v) => (v.from || '') + '|' + (v.to || '') + '|' + (v.label || '')));
+              full.vacations = (full.vacations || []).filter((v) => !set.has((v.from || '') + '|' + (v.to || '') + '|' + (v.label || '')));
+            },
+          };
+        }
         const months = Object.keys(TR_MONTHS).join('|');
         let from = null, to = null;
-        let m = text.match(new RegExp('(\\d{1,2})\\s*[-–—]\\s*(\\d{1,2})\\s*(' + months + ')(?:\\s*(20\\d{2}))?', 'i'));
+        let m = t.match(new RegExp('(\\d{1,2})\\s*[-–—]\\s*(\\d{1,2})\\s*(' + months + ')(?:\\s*(20\\d{2}))?'));
         if (m) {
           const mon = TR_MONTHS[assistNorm(m[3])];
           const y = m[4] || (todayYmd || nowLocal().ymd).slice(0, 4);
-          from = y + '-' + String(mon).padStart(2, '0') + '-' + String(m[1]).padStart(2, '0');
-          to = y + '-' + String(mon).padStart(2, '0') + '-' + String(m[2]).padStart(2, '0');
+          from = y + '-' + pad2(mon) + '-' + pad2(m[1]);
+          to = y + '-' + pad2(mon) + '-' + pad2(m[2]);
         } else {
           const dates = [];
-          const re = new RegExp('(\\d{1,2})\\s*(' + months + ')(?:\\s*(20\\d{2}))?', 'gi');
+          const re = new RegExp('(\\d{1,2})\\s*(' + months + ')(?:\\s*(20\\d{2}))?', 'g');
           let x;
-          while ((x = re.exec(text)) && dates.length < 2) {
-            dates.push(parseAssistDate(x[0], todayYmd));
-          }
+          while ((x = re.exec(t)) && dates.length < 2) dates.push(parseAssistDate(x[0], todayYmd));
           if (dates.length >= 1) { from = dates[0]; to = dates[1] || dates[0]; }
         }
-        if (!from || vacationProblem(from, to || from)) return { ok: false, error: 'Tatil tarihlerini anlayamadım. Örn: «10-12 ekim Kapadokya tatil».' };
-        const label = text.replace(new RegExp('\\b(tatil|tatile|ekle|ekleyelim)\\b', 'gi'), '')
-          .replace(new RegExp('\\d{1,2}\\s*[-–—]?\\s*\\d{0,2}\\s*(' + months + ')(?:\\s*20\\d{2})?', 'gi'), '')
-          .replace(/[-–—]/g, ' ').trim() || 'Tatil';
+        if (!from || vacationProblem(from, to || from)) return miss('Tatil tarihlerini anlayamadım. Örn: «10-12 ekim Kapadokya tatil».', false, true);
+        let label = t.replace(/\b(tatil|tatile|ekle|ekleyelim|lütfen|lutfen)\b/g, '')
+          .replace(new RegExp('\\d{1,2}\\s*[-–—]?\\s*\\d{0,2}\\s*(' + months + ')(?:\\s*20\\d{2})?', 'g'), ' ')
+          .replace(/[-–—]/g, ' ').replace(/\s+/g, ' ').trim();
+        label = label ? label.replace(/(^|\s)(\S)/g, (mm, a, ch) => a + ch.toLocaleUpperCase('tr-TR')) : 'Tatil';
         const toY = to || from;
         return {
           ok: true,
           summary: 'Tatil ekle',
-          lines: [dateLong(from) + (toY !== from ? ' → ' + dateLong(toY) : '') + ' · ' + label],
+          lines: [dateLong(from) + (toY !== from ? ' → ' + dateLong(toY) : '') + ' · ' + label, 'Kaydedeyim mi?'],
           apply(full) {
             full.vacations = [...(full.vacations || []), { from, to: toY, label }].sort((a, b) => a.from.localeCompare(b.from));
           },
         };
       }
-
-      if (!parseAssistTimes(text) && /acıbadem hastanesi|acibadem hastanesi/.test(t) && /diyelim|diye\s+çağ|diye\s+cag|ismiyle|adıyla|adiyla/.test(t)) {
+      if (!parseAssistTimes(t) && /acıbadem hastanesi|acibadem hastanesi/.test(t) && /diyelim|diye\s+çağ|diye\s+cag|ismiyle|adıyla|adiyla/.test(t)) {
         return {
           ok: true,
           summary: 'Hastane adı',
-          lines: ['Bu iş her yerde «' + HOSPITAL_LABEL + '» görünsün.'],
+          lines: ['Bu iş her yerde «' + HOSPITAL_LABEL + '» görünsün.', 'Kaydedeyim mi?'],
           apply(full) { applyAssistOps(full, [{ op: 'rename_hospital' }]); },
         };
       }
+      const ymd = parseAssistDate(t, todayYmd);
+      const times = parseAssistTimes(t);
+      const place = findAssistPlace(cfg, t);
+      const cancel = /\b(gitmiyorum|gitmeyecegim|gitmeyeceğim|gitmeyecek|gitmicem|iptal|bos kalsin|boş kalsın|atla|yokum|olmayacak|olmaz)\b/.test(t);
+      if (cancel) {
+        if (!ymd) return miss('Hangi gün gitmiyorsun? «Salı» ya da «6 ekim» diyebilirsin.', true, false);
+        const placeKey = place;
+        const names = [];
+        const wd = weekday(ymd);
+        for (const item of cfg.partnerFixed || []) {
+          if (!item) continue;
+          const weekly = Array.isArray(item.weekdays) && item.weekdays.map(Number).includes(wd);
+          const once = Array.isArray(item.dates) && item.dates.includes(ymd);
+          const blob = assistNorm((item.label || '') + ' ' + (item.short || '') + ' ' + (item.place || ''));
+          const placeOk = !placeKey || item.place === placeKey || blob.includes(assistNorm(placeLabel(cfg, placeKey) || placeKey));
+          if ((weekly || once) && placeOk) names.push(item.label || item.short || item.place);
+        }
+        if (!names.length) return miss(dateLong(ymd) + ' için kayıtlı bir iş göremedim.', false, false);
+        return {
+          ok: true,
+          summary: 'O gün yok',
+          lines: [dateLong(ymd) + ' · ' + names.map((n) => '«' + n + '»').join(', ') + ' o gün yapılmasın.', 'Kaydedeyim mi?'],
+          apply(full) {
+            const pf = Array.isArray(full.partnerFixed) ? full.partnerFixed.map((x) => (x && typeof x === 'object' ? { ...x } : x)) : [];
+            for (const item of pf) {
+              if (!item || typeof item !== 'object') continue;
+              const weekly = Array.isArray(item.weekdays) && item.weekdays.map(Number).includes(wd);
+              const blob = assistNorm((item.label || '') + ' ' + (item.short || '') + ' ' + (item.place || ''));
+              const placeOk = !placeKey || item.place === placeKey || blob.includes(assistNorm(placeLabel(full, placeKey) || placeKey));
+              if (!placeOk) continue;
+              if (weekly) {
+                const skip = Array.isArray(item.skipDates) ? item.skipDates.slice() : [];
+                if (!skip.includes(ymd)) item.skipDates = skip.concat(ymd);
+              }
+              if (Array.isArray(item.dates) && item.dates.includes(ymd)) item.dates = item.dates.filter((d) => d !== ymd);
+            }
+            full.partnerFixed = pf.filter((item) => item && !(Array.isArray(item.dates) && !item.dates.length && !item.weekdays));
+          },
+        };
+      }
+      if (!ymd && !times) return miss('Günü ve saati söyler misin? «Yarın 16:00 hastane» gibi.', false, text.length > 8);
+      if (!ymd) return miss('Hangi gün? «Yarın», «salı» ya da «6 ekim» diyebilirsin.', true, false);
+      if (!times) return miss('Saat kaçta? «16:00» ya da «14:00-15:30» yeterli.', true, false);
+      if (hm(times.end) <= hm(times.start)) return miss('Bitiş saati başlangıçtan sonra olmalı.', true, false);
 
-      const ymd = parseAssistDate(text, todayYmd);
-      const times = parseAssistTimes(text);
-      const place = findAssistPlace(cfg, text);
-      if (!ymd) return { ok: false, error: 'Tarih bulamadım. «6 ekim», «yarın» veya «06.10.2026» dene.' };
-      if (!times) return { ok: false, error: 'Saat bulamadım. «16:00» veya «14:00-15:30» yaz.' };
-
-      const onlyShort = /\bsadece\b|\byalnız\b|\byalniz\b|\bimza\b|\bgitmeyecek\b|\btam\s*gün\b|\btam\s*gun\b/.test(t);
-      const labelGuess = (() => {
-        if (/\bimza\b/.test(t)) return 'Sözleşme imza';
-        if (/\btoplantı\b|\btoplanti\b/.test(t)) return 'Toplantı';
-        const cleaned = text
-          .replace(/\b(yarın|yarin|bugün|bugun|sadece|yalnız|yalniz|gid(?:ecek|iyor)|için|icin)\b/gi, '')
-          .replace(/\b\d{1,2}[:.]\d{2}(?:\s*[-–—]\s*\d{1,2}[:.]\d{2})?\b/g, '')
-          .replace(/\b\d{1,2}\s*(ocak|şubat|subat|mart|nisan|mayıs|mayis|haziran|temmuz|ağustos|agustos|eylül|eylus|ekim|kasım|kasim|aralık|aralik)(?:\s*20\d{2})?\b/gi, '')
-          .replace(/\b(20\d{2}-\d{2}-\d{2}|\d{1,2}[./]\d{1,2}(?:[./]20\d{2})?)\b/g, '')
-          .trim();
-        return cleaned.slice(0, 60) || 'Tek seferlik iş';
-      })();
-      const placeKey = place || ((cfg.partnerFixed || [])[0] && (cfg.partnerFixed || [])[0].place) || 'home';
+      const onlyShort = hasWord(t, 'sadece') || hasWord(t, 'yalnız') || hasWord(t, 'yalniz') || hasWord(t, 'imza') || /\bgitmeyecek\b|\bgitmeyeceğim\b/.test(t);
+      const guessed = guessLabel(t);
+      const placeKey = place || 'home';
       const placeName = isHospitalText(placeKey + ' ' + (placeLabel(cfg, placeKey) || '') + ' ' + text) ? HOSPITAL_LABEL : placeLabel(cfg, placeKey);
-      const lines = [dateLong(ymd) + ' · ' + times.start + '–' + times.end + ' · ' + placeName + ' · ' + (isHospitalText(text) && /\bimza\b/.test(t) ? 'o günkü iş notta' : labelGuess)];
+      const hospital = isHospitalText(placeKey + ' ' + placeName + ' ' + text);
+      const label = hospital ? HOSPITAL_LABEL : (guessed || (place ? placeName : '') || 'Tek seferlik iş');
+      const lines = [dateLong(ymd) + ' · ' + times.start + '–' + times.end + ' · ' + (hospital ? HOSPITAL_LABEL : (place ? placeName : label))];
+      if (text && (hospital || guessed)) lines.push('Not: ' + text.slice(0, 140));
       const sameDayFixed = weekdayFixedOn(cfg, ymd).filter((f) => !place || f.place === placeKey || assistNorm(f.label || '').includes(assistNorm(placeName)));
       if (onlyShort && sameDayFixed.length) {
-        for (const f of sameDayFixed) lines.push('Haftalık sabit «' + (f.label || f.short || f.place) + '» bu gün atlanır (skipDates).');
+        for (const f of sameDayFixed) lines.push('Haftalık «' + (f.label || f.short || f.place) + '» bu gün atlanır.');
       }
+      lines.push('Kaydedeyim mi?');
       return {
         ok: true,
-        summary: 'Tek seferlik sabit iş',
+        summary: 'Tek seferlik iş',
         lines,
         apply(full) {
           const pf = Array.isArray(full.partnerFixed) ? full.partnerFixed.map((x) => (x && typeof x === 'object' ? { ...x } : x)) : [];
@@ -3063,11 +3219,9 @@
             }
           }
           const exists = pf.some((item) => item && Array.isArray(item.dates) && item.dates.includes(ymd)
-            && item.start === times.start && (item.place === placeKey || assistNorm(item.label || '').includes(assistNorm(labelGuess))));
+            && item.start === times.start && (item.place === placeKey || assistNorm(item.label || '').includes(assistNorm(label))));
           if (!exists) {
-            const hospital = isHospitalText(placeKey + ' ' + placeName + ' ' + text);
-            const label = hospital ? HOSPITAL_LABEL : (placeName + ' · ' + labelGuess);
-            const short = hospital ? HOSPITAL_SHORT : labelGuess.slice(0, 12);
+            const short = hospital ? HOSPITAL_SHORT : String(label).slice(0, 12);
             const row = {
               place: placeKey,
               label,
@@ -3088,8 +3242,18 @@
         },
       };
     }
+    function resolveAssistTurn(text, draft, cfg, todayYmd) {
+      const alone = interpretAssist(text, cfg, todayYmd);
+      const finish = (res, used) => ({ ...res, used, draftNext: res.ok ? '' : (res.keep ? used : '') });
+      if (!draft) return finish(alone, text);
+      const gluedText = (String(draft) + ' ' + text).trim();
+      const glued = interpretAssist(gluedText, cfg, todayYmd);
+      if (!alone.ok && (glued.ok || glued.keep)) return finish(glued, gluedText);
+      if (alone.ok && glued.ok && !findAssistPlace(cfg, text) && findAssistPlace(cfg, draft)) return finish(glued, gluedText);
+      return finish(alone, text);
+    }
 
-    const assistState = { pending: null, rec: null };
+    const assistState = { pending: null, rec: null, draft: '' };
     function assistBubble(kind, html) {
       const log = $('assistLog');
       if (!log) return;
@@ -3100,9 +3264,10 @@
       log.scrollTop = log.scrollHeight;
     }
     function openAssist() {
+      assistState.draft = '';
+      assistState.pending = null;
       $('esoDock').classList.add('open');
       $('assist').innerHTML = '<h3><span>Eso</span><button type="button" class="ghost" data-assist-close="1" aria-label="Kapat">✕</button></h3>'
-        + '<p class="small muted" style="margin:0 0 8px;">' + esc(ESO_HI) + ' Kaydetmeden önce sana sorarım.</p>'
         + '<div class="assist-hints">'
         + '<button type="button" data-assist-hint="6 ekimde 16:00 Acıbadem Hastanesi, o günkü iş imza">6 Ekim, hastanedeki iş</button>'
         + '<button type="button" data-assist-hint="10-12 ekim Kapadokya tatil">Tatil</button>'
@@ -3110,18 +3275,19 @@
         + '</div>'
         + '<div class="assist-log" id="assistLog"></div>'
         + '<form class="assist-form" id="assistForm">'
-        + '<textarea id="assistInput" rows="2" placeholder="Eso, yarın 16:00’da hastanede…"></textarea>'
+        + '<textarea id="assistInput" rows="2" placeholder="Yarın 16:00 hastane…"></textarea>'
         + '<button type="button" class="eso-mic" id="esoMic" aria-label="Konuşarak söyle" title="Konuşarak söyle">🎤</button>'
         + '<button type="submit" class="primary">Söyle</button>'
         + '</form>';
       $('assist').hidden = false;
-      assistBubble('bot', esc(assistHelpText()).replace(/\n/g, '<br>'));
+      assistBubble('bot', esc(ESO_HI) + ' Günü söylemen yeterli. Kaydetmeden önce sana sorarım.');
       setTimeout(() => { try { $('assistInput').focus(); } catch (_) { /* */ } }, 50);
     }
     function closeAssist() {
       $('assist').hidden = true;
       $('assist').innerHTML = '';
       assistState.pending = null;
+      assistState.draft = '';
       stopEsoListen();
       $('esoDock').classList.remove('open');
     }
@@ -3129,11 +3295,20 @@
       document.body.classList.remove('eso-listen');
       const hi = document.querySelector('.eso-hi');
       if (hi) hi.textContent = ESO_HI;
-      if (assistState.rec) { try { assistState.rec.onend = null; assistState.rec.stop(); } catch (_) { /* */ } assistState.rec = null; }
+      const rec = assistState.rec;
+      assistState.rec = null;
+      if (rec) { try { rec.onresult = null; rec.onerror = null; rec.onend = null; rec.stop(); } catch (_) { /* */ } }
     }
     function esoListen() {
       const Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
       if (!Rec) { assistBubble('bot', 'Bu tarayıcı konuşmayı yazıya çeviremiyor. Bana yazarak da söyleyebilirsin.'); return; }
+      if (assistState.rec) {
+        const leftover = (($('assistInput') && $('assistInput').value) || '').trim();
+        stopEsoListen();
+        if ($('assistInput')) $('assistInput').value = '';
+        if (leftover) submitAssistText(leftover);
+        return;
+      }
       stopEsoListen();
       const rec = new Rec();
       rec.lang = 'tr-TR';
@@ -3143,6 +3318,16 @@
       document.body.classList.add('eso-listen');
       const hi = document.querySelector('.eso-hi');
       if (hi) hi.textContent = 'Dinliyorum';
+      let settled = false;
+      let fail = '';
+      const settle = (submitText, errMsg) => {
+        if (settled) return;
+        settled = true;
+        stopEsoListen();
+        if ($('assistInput')) $('assistInput').value = '';
+        if (submitText) submitAssistText(submitText);
+        else if (errMsg) assistBubble('bot', errMsg);
+      };
       rec.onresult = (ev) => {
         let finalText = '', interim = '';
         for (let i = 0; i < ev.results.length; i += 1) {
@@ -3152,21 +3337,25 @@
         }
         const shown = (finalText || interim).trim();
         if ($('assistInput') && shown) $('assistInput').value = shown;
-        if (finalText.trim()) {
-          if ($('assistInput')) $('assistInput').value = '';
-          stopEsoListen();
-          submitAssistText(finalText.trim());
-        }
+        if (finalText.trim()) settle(finalText.trim(), '');
       };
-      rec.onerror = () => { stopEsoListen(); assistBubble('bot', 'Seni duyamadım. Bir kez daha söyler misin, ya da yaz.'); };
-      rec.onend = () => { document.body.classList.remove('eso-listen'); if (hi) hi.textContent = ESO_HI; };
-      try { rec.start(); } catch (_) { stopEsoListen(); assistBubble('bot', 'Mikrofon açılamadı. Yazarak söyleyebilirsin.'); }
+      rec.onerror = (ev) => { fail = (ev && ev.error) || 'error'; };
+      rec.onend = () => {
+        const leftover = (($('assistInput') && $('assistInput').value) || '').trim();
+        if (fail === 'not-allowed' || fail === 'service-not-allowed') settle('', 'Mikrofon izni kapalı. Yazarak da söyleyebilirsin.');
+        else if (leftover) settle(leftover, '');
+        else if (fail && fail !== 'aborted' && fail !== 'no-speech') settle('', 'Seni duyamadım. Bir kez daha söyler misin, ya da yaz.');
+        else if (fail === 'no-speech') settle('', 'Seni duyamadım. Bir kez daha söyler misin, ya da yaz.');
+        else settle('', '');
+      };
+      try { rec.start(); } catch (_) { settle('', 'Mikrofon açılamadı. Yazarak söyleyebilirsin.'); }
     }
     async function runAssistApply() {
       const pend = assistState.pending;
       if (!pend || !pend.apply || !st.full) return;
       if (st.offline) { assistBubble('err', 'Çevrimdışı — kaydedilemez.'); return; }
       pend.apply(st.full);
+      assistState.draft = '';
       rebuildConfig();
       try { $('cfg').value = JSON.stringify(settingsOf(st.full), null, 2); } catch (_) { /* */ }
       const ok = await persist(null, 'Kaydedildi');
@@ -3181,25 +3370,37 @@
     function showAssistProposal(res) {
       assistState.pending = res;
       assistBubble('bot',
-        'Şöyle anladım:<br><b>' + esc(res.summary) + '</b><br>' + (res.lines || []).map((l) => esc(l)).join('<br>')
+        esc((res.lines && res.lines.length ? res.lines : [res.summary]).join('\n')).replace(/\n/g, '<br>')
         + '<div class="acts"><button type="button" class="primary" data-assist-apply="1">Evet, kaydet</button>'
         + '<button type="button" class="ghost" data-assist-cancel="1">Vazgeç</button></div>');
     }
     async function submitAssistText(raw) {
       const text = String(raw || '').trim();
       if (!text) return;
+      const bare = assistNorm(text);
+      if (/^(vazgeç|vazgec|boşver|bosver)$/.test(bare) || (assistState.pending && /^(iptal|hayır|hayir|vazgeç|vazgec)$/.test(bare))) {
+        assistBubble('user', esc(text));
+        assistState.pending = null;
+        assistState.draft = '';
+        assistBubble('bot', 'Tamam, dokunmadım.');
+        return;
+      }
       assistBubble('user', esc(text));
       const cfg = st.config || merge(DEFAULT_CONFIG, settingsOf(st.full || {}));
-      const res = interpretAssist(text, cfg, nowLocal().ymd);
+      const res = resolveAssistTurn(text, assistState.draft, cfg, nowLocal().ymd);
+      assistState.draft = res.draftNext || '';
       if (res.ok && !res.apply) {
         assistBubble('bot', esc((res.lines || [res.summary]).join('\n')).replace(/\n/g, '<br>'));
         return;
       }
       if (res.ok) return showAssistProposal(res);
-      assistBubble('bot', 'Bir bakayım…');
+      assistState.pending = null;
+      assistBubble('bot', esc(res.error || 'Bunu tam çıkaramadım. Tarihi ve saati bir kez daha söyler misin?'));
+      if (!res.askAi) return;
       try {
-        const ai = await api('assist', { text: text.slice(0, 500), sketch: assistSketch(cfg) });
+        const ai = await api('assist', { text: String(res.used || text).slice(0, 500), sketch: assistSketch(cfg) });
         if (ai && ai.ok && Array.isArray(ai.ops) && ai.ops.length) {
+          assistState.draft = '';
           return showAssistProposal({
             ok: true,
             summary: String(ai.summary || 'Plan değişikliği'),
@@ -3207,23 +3408,18 @@
             apply(full) { applyAssistOps(full, ai.ops); },
           });
         }
-      } catch (_) { /* eski sunucu veya anahtar yok: yerel mesaj */ }
-      assistBubble('bot', esc(res.error || 'Bunu tam çıkaramadım. Tarihi ve saati bir kez daha söyler misin?'));
+      } catch (_) { /* anahtar yok ya da eski sunucu: yerel soru yeter */ }
     }
     $('esoDock').addEventListener('click', () => { if ($('assist').hidden) openAssist(); else closeAssist(); });
-    document.addEventListener('click', (e) => {
-      if ($('assist').hidden) return;
-      if (e.target.closest('#assist') || e.target.closest('#esoDock')) return;
-      closeAssist();
-    });
     $('assist').addEventListener('click', (e) => {
       if (e.target.closest('[data-assist-close]')) return closeAssist();
       const hint = e.target.closest('[data-assist-hint]');
-      if (hint) { $('assistInput').value = hint.getAttribute('data-assist-hint') || ''; return; }
+      if (hint) { submitAssistText(hint.getAttribute('data-assist-hint') || ''); return; }
       if (e.target.closest('#esoMic')) return esoListen();
       if (e.target.closest('[data-assist-apply]')) return runAssistApply();
       if (e.target.closest('[data-assist-cancel]')) {
         assistState.pending = null;
+        assistState.draft = '';
         assistBubble('bot', 'Tamam, dokunmadım.');
       }
     });
@@ -3234,7 +3430,6 @@
       if ($('assistInput')) $('assistInput').value = '';
       submitAssistText(v);
     });
-
     if (new URLSearchParams(location.search).get('embed') === '1') { document.body.classList.add('embed'); $('logout').hidden = true; }
     { const um = /^(\d{4})-(\d{2})$/.exec(new URLSearchParams(location.search).get('month') || ''); if (um && Number(um[2]) >= 1 && Number(um[2]) <= 12) st.month = um[0]; }
     if (new URLSearchParams(location.search).get('ciro') === '1') st.ciroForce = true;
