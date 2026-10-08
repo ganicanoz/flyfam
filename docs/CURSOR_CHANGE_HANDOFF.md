@@ -12,6 +12,14 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+### 2026-10-08 — Uçuş saati ve sağlayıcı yedeği otomatik testleri
+
+- **Amaç:** Route to Live `api-time`: UTC/yerel, gece uçuşu, manuel saat ve çoklu sağlayıcı yedeği için otomatik test yoktu.
+- **Dosyalar:** `mobile/scripts/test-flight-times.ts` (sağlayıcı alanı UTC/yerel ayrımı, FR24 offset'siz yerel saat, havalimanı yerel tarihi, roster IANA dönüşümü ve gece +1 gün, DST çift saat, Pegasus (Z), manuel giriş `airportLocalHhmmToUtcIso`, kart gösterimi), `mobile/scripts/test-flight-provider-fallback.ts` (`fetchFlightByNumberEdge` sahte fetch/Deno ile: bugün AirLabs yeterliyse zincir durur, şehir eksikse AeroDataBox, 429 sonrası bekleme kaydı ve AeroAPI boşsa AviationStack, bekleme süresindeki sağlayıcı atlanır, ileri tarihte FR24 önce ve başka günün bacağı reddedilir, FR24 canlı gece bacağı), `mobile/scripts/flightTestHarness.ts` (check/knownBug/report, sabit saat, `lib/supabase` saplaması), `mobile/scripts/stubs/supabaseClient.cjs`. `scripts/verify-release.mjs` iki testi çalıştırıyor. Uygulama kodu değişmedi.
+- **Bilinen hatalar (testte `KNOWN`; düzeltilince test kırmızıya döner ve normal kontrole çevrilmeli):** sunucu saat dilimi tablosunda mobilde olan 52 meydan yok (KJFK, LIRF, LLBG vb.; yerel saat UTC sanılıyor); yaz saati geçiş gününde öğlen ofseti kullanıldığı için geçişten önceki yerel saat 1 saat kayıyor (sunucu ve manuel giriş); AeroAPI 429 sonrası diğer varyantları denemeye devam ediyor; bugün yanıtı başka güne aitse zaman çizelgesi zinciri iki kez çalışıyor; AviationStack isteği `flight_date` göndermiyor. Testte olmayan ama doğrulanan: `AddFlight` manuel kayıtta varışı her zaman kalkış gününe yazıyor, gece yarısını geçen uçuşta varış kalkıştan önce kaydediliyor (`EditFlight` +24 saat düzeltmesini yapıyor). Düzeltmeler kullanıcı onayı bekliyor.
+- **Doğrulama:** Temiz `origin/main` worktree'de saat testleri 24/24 OK (4 bilinen hata), sağlayıcı testleri 11/11 OK (3 bilinen hata); bozulmuş beklentilerle test FAIL (çıkış 1). `npx tsc --noEmit` OK, yeni dosyalar ayrıca strict kontrol edildi. `node scripts/verify-release.mjs --skip-export` ALL CHECKS PASSED.
+- **Korunacak:** Testler ağ ve anahtar kullanmaz; sağlayıcı anahtarları yalnız sahte değerdir. Yeni bir hata bulunduğunda önce `knownBug` ile eklenmeli, düzeltmeyle birlikte normal kontrole çevrilmeli.
+
 ### 2026-10-06 — Aile planı: Eso cümleyi tutuyor ve günü anlıyor
 
 - **Amaç:** Eso «güzel çalışmıyor»du: tarih+saat yazılmazsa susuyordu, konuşulan sayıyı ve gün adını kaçırıyordu, eksik cümlenin devamını unutuyordu, dışarı tıklanınca sohbet kapanıyordu, anlamayınca «Bir bakayım…» deyip boşuna bekliyordu.
