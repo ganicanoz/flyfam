@@ -21,7 +21,7 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - **Eso:** «12 ekim 10:00 vize randevusu, konsolosluk» gibi cümle onaydan önce önerilir. Yer kayıtlı değilse ve adı geçiyorsa yer açılır. Yer yoksa sorar. Hastane dışı yerde blok, evden gidiş ve eve dönüş kadar genişler; notta asıl randevu saati kalır. `includesTravel` olan kayıtta yol ikinci kez eklenmez. Hastanedeki imza saati genişlemez. Selamlama aynı: «Buyrun Doktor Hanımcım...».
 - **Doğrulama:** `node scripts/test-aile-eso.mjs` OK; inline `node --check` OK; `git diff --check` OK. Tarayıcı (sahte giriş): 1.000 + 2.500 Acıbadem = 3.500 ₺ ve 2 geliş, Konsolosluk 400 ₺, genel toplam 3.900 ₺; günlük ciro o gün 3.500. «Roster ve çakışma» metni «bu ay çakışma yok». Vize önerisi 09:20–11:40, randevu 10:00–11:00, gidiş 40 dk, dönüş 40 dk; kayıt `includesTravel`. 390 px’te kart taşmıyor, klinik adı Konsolosluk kaldı.
 - **Koruma:** Yer anahtarı, adres, hastane adı, tatil cümlesi ve mevcut ciro/borç akışı aynı. Onaysız kaydetmez. `assist` fonksiyonu bu turda deploy edilmedi.
-- **Canlı:** Henüz `main`’de değil. PWA açıksa yayın sonrası bir kez yenilemek gerekir (`aile-shell-v8`).
+- **Canlı:** PR #13 merge `68ef923`. Deploy support site `37771795632` success. `https://app.flyfamapp.com/aile/` içinde «Para ekle», `btnRoster`, «Buyrun Doktor Hanımcım...» ve `aile-shell-v8` doğrulandı (2026-10-08). PWA açıksa bir kez yenilemek gerekir.
 
 ### 2026-10-08 — Uçuş saati düzeltmeleri (sunucu canlı, AddFlight build 53 bekliyor)
 
