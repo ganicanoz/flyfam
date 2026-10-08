@@ -9,6 +9,7 @@ import { fileURLToPath } from 'url';
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const html = fs.readFileSync(path.join(root, 'support/aile/index.html'), 'utf8');
+const sw = fs.readFileSync(path.join(root, 'support/aile/sw.js'), 'utf8');
 const script = html.split('<script>')[1].split('</script>')[0];
 
 const start = script.indexOf('const CONFIG_MIG_OCT6_IMZA');
@@ -59,6 +60,9 @@ eq('tatil cümlesi', html.includes('Doktor Hanıım, bu ay bir seyehatiniz olaca
 eq('eso duruyor', html.includes('id="esoDock"') && html.includes('Konuşarak söyle') && !html.includes('Plan asistanı'));
 eq('İ ikonu üretilmiyor', !html.includes("icon: 'İ'") && !html.includes('short: \'İmza\''));
 eq('sohbet dışarı tıklayınca kapanmaz', !html.includes("closeAssist();\n    });\n    $('assist')") && !html.includes('Bir bakayım'));
+eq('para ekle ve roster', html.includes('>Para ekle<') && html.includes('id="btnRoster"') && html.includes('function moneyMonthTotals'));
+eq('önbellek v8', sw.includes("const CACHE = 'aile-shell-v8'"));
+eq('selamlama', html.includes("const ESO_HI = 'Buyrun Doktor Hanımcım...'"));
 
 const assistStart = script.indexOf('const TR_MONTHS');
 const assistEnd = script.indexOf('const assistState');
@@ -76,6 +80,14 @@ const interpret = new Function(`
   const weekday = (ymd) => { const d = new Date(ymd + 'T12:00:00Z').getUTCDay(); return d === 0 ? 7 : d; };
   const DAY_NAMES = ['', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi', 'Pazar'];
   const hm = (v) => { const m = /^(\\d{1,2}):(\\d{2})$/.exec(String(v || '').trim()); return m ? Number(m[1]) * 60 + Number(m[2]) : 0; };
+  function appointmentWindow(cfg, place, ymd, start, end) {
+    if (!place || place === 'home' || place !== 'konsolosluk') return { start, end, go: 0, back: 0, apptStart: start, apptEnd: end };
+    const go = 40, back = 35;
+    const s = Math.max(0, hm(start) - go);
+    const e = Math.min(1439, hm(end) + back);
+    const clock = (m) => String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
+    return { start: clock(s), end: clock(e), go, back, apptStart: start, apptEnd: end };
+  }
   const fmt = (min) => { const m = ((Math.round(min) % 1440) + 1440) % 1440; return String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0'); };
   const dateLong = (ymd) => ymd + ' ' + DAY_NAMES[weekday(ymd)];
   const placeLabel = (cfg, key) => ((cfg.places && cfg.places[key]) || {}).label || key;
@@ -155,6 +167,62 @@ eq('devam cümlesi', followed.ok && followedRow && followedRow.start === '16:00'
 const rename = say('hastaneye Acıbadem Hastanesi diyelim');
 const renamed = applied(rename);
 eq('ad değişir', rename.ok && renamed.places.altunizade.label === 'Acıbadem Hastanesi');
+
+const visaPlan = JSON.parse(JSON.stringify(plan));
+visaPlan.places.konsolosluk = { label: 'Konsolosluk', short: 'Konsolosluk' };
+const visa = interpret.interpretAssist('12 ekim 10:00 vize randevusu konsolosluk', visaPlan, TODAY);
+eq('vize anlaşıldı', visa.ok && visa.lines.some((l) => /09:20/.test(l) && /11:35/.test(l)) && visa.lines.some((l) => /gidiş 40 dk, dönüş 35 dk/.test(l)));
+const visaFull = JSON.parse(JSON.stringify(visaPlan));
+visa.apply(visaFull);
+const visaRow = visaFull.partnerFixed.find((x) => Array.isArray(x.dates) && x.dates.includes('2026-10-12'));
+eq('vize bloğu', !!visaRow && visaRow.place === 'konsolosluk' && visaRow.start === '09:20' && visaRow.end === '11:35' && visaRow.label === 'Vize randevusu' && visaRow.includesTravel === true && /10:00/.test(visaRow.note) && /dönüş 35 dk/.test(visaRow.note));
+
+const askWhere = interpret.interpretAssist('12 ekim 10:00 vize randevusu', plan, TODAY);
+eq('yer sorar', !askWhere.ok && askWhere.keep && /Nerede/.test(askWhere.error || ''));
+
+const made = interpret.interpretAssist('12 ekim 10:00 vize randevusu konsolosluk', plan, TODAY);
+const madeFull = JSON.parse(JSON.stringify(plan));
+made.apply(madeFull);
+const madeRow = madeFull.partnerFixed.find((x) => Array.isArray(x.dates) && x.dates.includes('2026-10-12'));
+eq('yeni yer', made.ok && madeFull.places.konsolosluk && madeFull.places.konsolosluk.label === 'Konsolosluk' && madeRow && madeRow.start === '09:20' && madeRow.place === 'konsolosluk');
+
+const followedVisa = interpret.resolveAssistTurn('konsolosluk', '12 ekim 10:00 vize randevusu', visaPlan, TODAY);
+eq('vize devam', followedVisa.ok && followedVisa.lines.some((l) => /09:20/.test(l) && /Konsolosluk/.test(l)));
+
+const moneyStart = script.indexOf('function moneyReceipts');
+const moneyEnd = script.indexOf('function moneyMonthEnd');
+if (moneyStart < 0 || moneyEnd < moneyStart) {
+  console.error('para bloğu bulunamadı');
+  process.exit(1);
+}
+const money = new Function(`
+  function placeLabel(cfg, key) { return ((cfg.places && cfg.places[key]) || {}).label || key; }
+  function finPlaceName(cfg, place) {
+    const c = [...(cfg.partnerCandidates || []), ...(cfg.partnerFixed || [])].find((x) => x && String(x.place || x.id) === place);
+    return (c && (c.short || c.label)) || placeLabel(cfg, place);
+  }
+  ${script.slice(moneyStart, moneyEnd)}
+  return { moneyReceipts, moneyMonthTotals, moneyClinics };
+`)();
+const stored = money.moneyReceipts({
+  finance: { receipts: [
+    { id: 'a', ymd: '2026-10-02', place: 'altunizade', amount: 1000 },
+    { id: 'b', ymd: '2026-10-02', place: 'altunizade', amount: '2500' },
+    { id: 'c', ymd: '2026-10-09', place: 'konsolosluk', amount: 400 },
+    { id: 'd', ymd: '2026-09-30', place: 'altunizade', amount: 9999 },
+    { id: 'e', ymd: '2026-10-03', place: 'altunizade', amount: 0 },
+  ] },
+});
+const totals = money.moneyMonthTotals(stored, '2026-10');
+const alt = totals.find((x) => x.place === 'altunizade');
+const kon = totals.find((x) => x.place === 'konsolosluk');
+eq('ay toplamı', !!alt && alt.count === 2 && alt.sum === 3500 && !!kon && kon.sum === 400 && totals.every((x) => x.place !== 'diger'));
+const clinics = money.moneyClinics({
+  finance: { daily: ['altunizade'], monthly: [] },
+  places: { home: { label: 'Ev' }, school: { label: 'Okul' }, crewBase: { label: 'Havalimanı' }, konsolosluk: { label: 'Konsolosluk' } },
+  partnerFixed: [{ place: 'altunizade', short: 'Acıbadem' }, { place: 'konsolosluk', short: 'Vize randevu', label: 'Vize randevusu' }],
+}, { finance: { receipts: [] } });
+eq('klinik seçenekleri', clinics.some((c) => c.key === 'altunizade' && c.label === 'Acıbadem') && clinics.some((c) => c.key === 'konsolosluk' && c.label === 'Konsolosluk') && !clinics.some((c) => c.key === 'home' || c.key === 'school' || c.key === 'crewBase'));
 
 if (failed) {
   console.error(failed + ' failed');

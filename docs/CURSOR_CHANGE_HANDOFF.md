@@ -12,6 +12,17 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+### 2026-10-08 — Aile planı: Para ekle, roster kontrolü, randevuya yol süresi
+
+- **Amaç:** İçinde bulunulan ayın gelen parası «Para ekle» ile yazılsın (gün + klinik seçimi, aynı kliniğe birden fazla geliş toplanır). Roster güncellemesi ve çakışma kontrolü tek düğmeyle FlyFam’den ayı yeniden okusun. Eso’ya konuşur gibi yazılan randevu (ör. vize) yeri bilsin; gidiş ve dönüş, takvimdeki bloğa eklensin.
+- **Dosyalar:** `support/aile/index.html`, `support/aile/sw.js` (`aile-shell-v8`), `scripts/test-aile-eso.mjs`.
+- **Para:** Kayıtlar `finance.receipts` (`id`, `ymd`, `place`, `amount`) içinde; `save_config` ile durur. Tablo bugünün ayını gösterir (takvimde gezilen ay değil). Klinik listesi yerler, finans kaynakları ve sabit işlerden gelir; ev, okul ve havalimanı seçilmez. Yer adı, sonradan eklenen randevunun kısa adıyla değişmez. Klinik günlük kaynaksa o günün fiş toplamı `finance_set` ile ciroya da yazılır (eski o gün cirosunun yerine fiş toplamı geçer). Borç, ciro soruları ve 6 aylık geçmiş durur.
+- **Roster:** «Roster ve çakışma» `load()` çağırır. Ay içindeki çakışmalar, daha önce görülmüş olsalar da pencereyle gösterilir ve takvimde yanıp söner. Fixlenmemiş seçim silinmez. Çevrimdışında kontrol yapılmaz.
+- **Eso:** «12 ekim 10:00 vize randevusu, konsolosluk» gibi cümle onaydan önce önerilir. Yer kayıtlı değilse ve adı geçiyorsa yer açılır. Yer yoksa sorar. Hastane dışı yerde blok, evden gidiş ve eve dönüş kadar genişler; notta asıl randevu saati kalır. `includesTravel` olan kayıtta yol ikinci kez eklenmez. Hastanedeki imza saati genişlemez. Selamlama aynı: «Buyrun Doktor Hanımcım...».
+- **Doğrulama:** `node scripts/test-aile-eso.mjs` OK; inline `node --check` OK; `git diff --check` OK. Tarayıcı (sahte giriş): 1.000 + 2.500 Acıbadem = 3.500 ₺ ve 2 geliş, Konsolosluk 400 ₺, genel toplam 3.900 ₺; günlük ciro o gün 3.500. «Roster ve çakışma» metni «bu ay çakışma yok». Vize önerisi 09:20–11:40, randevu 10:00–11:00, gidiş 40 dk, dönüş 40 dk; kayıt `includesTravel`. 390 px’te kart taşmıyor, klinik adı Konsolosluk kaldı.
+- **Koruma:** Yer anahtarı, adres, hastane adı, tatil cümlesi ve mevcut ciro/borç akışı aynı. Onaysız kaydetmez. `assist` fonksiyonu bu turda deploy edilmedi.
+- **Canlı:** Henüz `main`’de değil. PWA açıksa yayın sonrası bir kez yenilemek gerekir (`aile-shell-v8`).
+
 ### 2026-10-08 — Uçuş saati düzeltmeleri (sunucu canlı, AddFlight build 53 bekliyor)
 
 - **Amaç:** Testlerde `KNOWN` olan beş hatayı kullanıcı onayıyla kapatmak (addflight, edge_tz, dst, quota, aviationstack_date). Canlı doğrulamada ayrıca AviationStack'in yerel saati `+00:00` etiketiyle döndürdüğü görüldü (TK1 IST→JFK 3,75 saat çıkıyordu); aynı turda düzeltildi.
