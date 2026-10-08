@@ -18,7 +18,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useSession } from '../contexts/SessionContext';
 import { supabase } from '../lib/supabase';
-import { FlightInfo, fetchFlightByNumber, airportLocalHhmmToUtcIso } from '../lib/flightApi';
+import { FlightInfo, fetchFlightByNumber } from '../lib/flightApi';
+import { resolveManualSchedulePair } from '../lib/manualFlightSchedule';
 import { AIRLINES } from '../constants/airlines';
 import {
   formatLocalCalendarWeekdayLong,
@@ -151,14 +152,15 @@ function flightDurationLabel(
   destination: string | null,
   t: (key: string, opts?: Record<string, unknown>) => string,
 ): string | null {
-  const depIso =
-    airportLocalHhmmToUtcIso(dateIso, depLocal, origin) ||
-    info?.scheduled_departure_utc ||
-    null;
-  const arrIso =
-    airportLocalHhmmToUtcIso(dateIso, arrLocal, destination) ||
-    info?.scheduled_arrival_utc ||
-    null;
+  const { dep: depIso, arr: arrIso } = resolveManualSchedulePair({
+    dateYmd: dateIso,
+    depHhmm: depLocal,
+    arrHhmm: arrLocal,
+    originCode: origin,
+    destCode: destination,
+    apiDepUtc: info?.scheduled_departure_utc,
+    apiArrUtc: info?.scheduled_arrival_utc,
+  });
   if (depIso && arrIso) {
     const ms = Date.parse(arrIso) - Date.parse(depIso);
     if (Number.isFinite(ms) && ms > 0) {
@@ -745,30 +747,6 @@ export default function AddFlight() {
     }, 500);
     return () => clearTimeout(timer);
   }, [rows, rowAirlineIata, lookupFlightForRow]);
-  /**
-   * Planlı kalkış/varış UTC ISO.
-   * manuelDep/ArrTime = havalimanı yerel HH:MM (önizlemede düzenlenir).
-   * API scheduled_*_utc yalnızca yerel saat boşsa yedek.
-   */
-  const resolveScheduledUtcIso = (
-    dateStr: string,
-    timeHHmm: string,
-    airportCode: string | null | undefined,
-    apiUtc: string | null | undefined,
-  ): string | null => {
-    if (timeHHmm && /^\d{1,2}:\d{2}$/.test(timeHHmm.trim())) {
-      const fromAirport = airportLocalHhmmToUtcIso(dateStr, timeHHmm.trim(), airportCode);
-      if (fromAirport) return fromAirport;
-      // Havalimanı tz yoksa (Z) kabul et
-      const [h, m] = timeHHmm.trim().split(':').map(Number);
-      const d = new Date(dateStr + 'T00:00:00Z');
-      d.setUTCHours(h ?? 0, m ?? 0, 0, 0);
-      return d.toISOString();
-    }
-    if (apiUtc && String(apiUtc).trim()) return String(apiUtc).trim();
-    return null;
-  };
-
   const toIata = (code: string | null | undefined) => (code ? (getAirportDisplay(code)?.iata ?? code) : '');
 
   const finishAndGoRoster = async (addedFlightDate: string, allFlightDates?: string[]) => {
@@ -839,6 +817,15 @@ export default function AddFlight() {
       const arrTime = row.manualArrTime.trim();
       const fullNumber = resolveFlightNumber(rowAirlineIata(row), row.flightNumberInput);
       const isDelayed = info?.delayed === true;
+      const schedule = resolveManualSchedulePair({
+        dateYmd: row.dateIso,
+        depHhmm: depTime,
+        arrHhmm: arrTime,
+        originCode: originIata,
+        destCode: destinationIata,
+        apiDepUtc: info?.scheduled_departure_utc,
+        apiArrUtc: info?.scheduled_arrival_utc,
+      });
       const p: Record<string, unknown> = {
         crew_id: crewProfile.id,
         flight_number: fullNumber,
@@ -847,18 +834,8 @@ export default function AddFlight() {
         origin_city: info?.originCity ?? null,
         destination_city: info?.destinationCity ?? null,
         flight_date: row.dateIso,
-        scheduled_departure: resolveScheduledUtcIso(
-          row.dateIso,
-          depTime,
-          originIata,
-          info?.scheduled_departure_utc,
-        ),
-        scheduled_arrival: resolveScheduledUtcIso(
-          row.dateIso,
-          arrTime,
-          destinationIata,
-          info?.scheduled_arrival_utc,
-        ),
+        scheduled_departure: schedule.dep,
+        scheduled_arrival: schedule.arr,
         actual_departure: info?.actual_departure_utc ?? null,
         actual_arrival: info?.actual_arrival_utc ?? null,
         delay_dep_min: info?.delayDepMin != null ? info.delayDepMin : null,
@@ -887,18 +864,15 @@ export default function AddFlight() {
       const depTime = firstRow.manualDepTime.trim();
       const arrTime = firstRow.manualArrTime.trim();
       const fullNumber = resolveFlightNumber(rowAirlineIata(firstRow), firstRow.flightNumberInput);
-      const scheduledDep = resolveScheduledUtcIso(
-        firstRow.dateIso,
-        depTime,
-        originIata,
-        info?.scheduled_departure_utc,
-      );
-      const scheduledArr = resolveScheduledUtcIso(
-        firstRow.dateIso,
-        arrTime,
-        destinationIata,
-        info?.scheduled_arrival_utc,
-      );
+      const { dep: scheduledDep, arr: scheduledArr } = resolveManualSchedulePair({
+        dateYmd: firstRow.dateIso,
+        depHhmm: depTime,
+        arrHhmm: arrTime,
+        originCode: originIata,
+        destCode: destinationIata,
+        apiDepUtc: info?.scheduled_departure_utc,
+        apiArrUtc: info?.scheduled_arrival_utc,
+      });
       const { data: fid, error } = await supabase.rpc('add_me_to_flight', {
         p_flight_number: fullNumber,
         p_flight_date: firstRow.dateIso,
@@ -941,18 +915,15 @@ export default function AddFlight() {
       const depTime = row.manualDepTime.trim();
       const arrTime = row.manualArrTime.trim();
       const fullNumber = resolveFlightNumber(rowAirlineIata(row), row.flightNumberInput);
-      const scheduledDep = resolveScheduledUtcIso(
-        row.dateIso,
-        depTime,
-        originIata,
-        info?.scheduled_departure_utc,
-      );
-      const scheduledArr = resolveScheduledUtcIso(
-        row.dateIso,
-        arrTime,
-        destinationIata,
-        info?.scheduled_arrival_utc,
-      );
+      const { dep: scheduledDep, arr: scheduledArr } = resolveManualSchedulePair({
+        dateYmd: row.dateIso,
+        depHhmm: depTime,
+        arrHhmm: arrTime,
+        originCode: originIata,
+        destCode: destinationIata,
+        apiDepUtc: info?.scheduled_departure_utc,
+        apiArrUtc: info?.scheduled_arrival_utc,
+      });
       const { data: flightId, error } = await supabase.rpc('add_me_to_flight', {
         p_flight_number: fullNumber,
         p_flight_date: row.dateIso,
@@ -1083,18 +1054,15 @@ export default function AddFlight() {
             const destinationIata = destination ? toIata(destination) : null;
             const depLocal = row.manualDepTime.trim();
             const arrLocal = row.manualArrTime.trim();
-            const depUtcIso = resolveScheduledUtcIso(
-              row.dateIso,
-              depLocal,
-              originIata,
-              info?.scheduled_departure_utc,
-            );
-            const arrUtcIso = resolveScheduledUtcIso(
-              row.dateIso,
-              arrLocal,
-              destinationIata,
-              info?.scheduled_arrival_utc,
-            );
+            const { dep: depUtcIso, arr: arrUtcIso } = resolveManualSchedulePair({
+              dateYmd: row.dateIso,
+              depHhmm: depLocal,
+              arrHhmm: arrLocal,
+              originCode: originIata,
+              destCode: destinationIata,
+              apiDepUtc: info?.scheduled_departure_utc,
+              apiArrUtc: info?.scheduled_arrival_utc,
+            });
             const depZulu = flightTimeToUtcHHMM(depUtcIso);
             const arrZulu = flightTimeToUtcHHMM(arrUtcIso);
             const fullNumber = resolveFlightNumber(rowAirlineIata(row), row.flightNumberInput);

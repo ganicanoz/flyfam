@@ -3,7 +3,9 @@
  * Run: cd mobile && npx tsx scripts/test-flight-times.ts
  */
 import assert from 'node:assert/strict';
-import { check, knownBug, report, stubMobileSupabaseClient } from './flightTestHarness';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { check, report, stubMobileSupabaseClient } from './flightTestHarness';
 import {
   fr24ScheduledFieldToUtcIso,
   utcFieldOrAirportLocalToUtcIso,
@@ -21,6 +23,15 @@ import { getAirportTimezone } from '../constants/airports';
 import { getEffectiveUtcOffsetMinutesForAirportAtFlightDate } from '../lib/airportUtcOffset';
 import { flightTimeToUtcHHMM, formatFlightTimeInTz, parseFlightTimeAsUtc } from '../lib/dateUtils';
 import { formatCrewFlightTimeRange } from '../lib/flightDisplayTime';
+import { resolveManualSchedulePair } from '../lib/manualFlightSchedule';
+
+/** `AIRPORT_TIMEZONES` in constants/airports.ts is module-private; read it from source for the parity check. */
+function mobileAirportTimezones(): Record<string, string> {
+  const src = readFileSync(join(__dirname, '..', 'constants', 'airports.ts'), 'utf8');
+  const start = src.indexOf('const AIRPORT_TIMEZONES');
+  const block = src.slice(start, src.indexOf('};', start));
+  return Object.fromEntries([...block.matchAll(/([A-Z0-9]{3,4}):\s*'([^']+)'/g)].map((m) => [m[1], m[2]]));
+}
 
 function row(flight_date: string, dep: string, arr: string): PdfFlightRow {
   return { flight_date, dep_time_local: dep, arr_time_local: arr } as PdfFlightRow;
@@ -47,19 +58,28 @@ async function main() {
     assert.equal(utcFieldOrAirportLocalToUtcIso(null, '2026-07-15 10:00', 'LHR'), '2026-07-15T09:00:00.000Z');
     assert.equal(utcFieldOrAirportLocalToUtcIso(null, '2026-12-15 10:00', 'LHR'), '2026-12-15T10:00:00.000Z');
   });
-  await knownBug('provider: New York local time is taken as UTC on the server (JFK missing from edge time zones)', () => {
-    return utcFieldOrAirportLocalToUtcIso(null, '2026-07-15 10:00', 'JFK') === '2026-07-15T10:00:00.000Z';
+  await check('provider: New York summer is UTC-4 (IATA and ICAO)', () => {
+    assert.equal(utcFieldOrAirportLocalToUtcIso(null, '2026-07-15 10:00', 'JFK'), '2026-07-15T14:00:00.000Z');
+    assert.equal(fr24ScheduledFieldToUtcIso('2026-07-15T10:00:00', 'KJFK', '2026-07-15'), '2026-07-15T14:00:00.000Z');
   });
-  await knownBug('edge time zone table lacks airports the app knows (KJFK, LIRF, LLBG)', () => {
-    const sample = ['KJFK', 'LIRF', 'LLBG'];
-    return sample.every((c) => !AIRPORT_IANA_BY_CODE[c] && !!getAirportTimezone(c));
+  await check('edge time zone table covers every airport the app knows, with the same zone', () => {
+    const mobile = mobileAirportTimezones();
+    assert.ok(Object.keys(mobile).length > 300, 'mobile table not parsed');
+    const missing = Object.keys(mobile).filter((c) => !AIRPORT_IANA_BY_CODE[c]);
+    const differing = Object.keys(mobile).filter((c) => AIRPORT_IANA_BY_CODE[c] && AIRPORT_IANA_BY_CODE[c] !== mobile[c]);
+    assert.deepEqual({ missing, differing }, { missing: [], differing: [] });
+    assert.equal(getAirportTimezone('KJFK'), AIRPORT_IANA_BY_CODE.KJFK);
   });
   await check('provider: unknown airport falls back to UTC (documented limitation)', () => {
     assert.equal(utcFieldOrAirportLocalToUtcIso(null, '2026-10-09 10:00', 'XYZ'), '2026-10-09T10:00:00.000Z');
   });
-  await knownBug('provider: local time before the DST switch on switch day is off by 1h (offset probed at 12:00 UTC)', () => {
-    // 2026-03-29 00:30 in London is still GMT (switch at 01:00 UTC) → correct answer 00:30Z.
-    return utcFieldOrAirportLocalToUtcIso(null, '2026-03-29 00:30', 'LHR') === '2026-03-28T23:30:00.000Z';
+  await check('provider: DST switch day uses the offset at that moment, not at noon', () => {
+    // London switches at 01:00 UTC: 00:30 local is still GMT on 2026-03-29.
+    assert.equal(utcFieldOrAirportLocalToUtcIso(null, '2026-03-29 00:30', 'LHR'), '2026-03-29T00:30:00.000Z');
+    assert.equal(utcFieldOrAirportLocalToUtcIso(null, '2026-03-29 10:00', 'LHR'), '2026-03-29T09:00:00.000Z');
+    // Repeated hour when clocks go back: earlier instant.
+    assert.equal(utcFieldOrAirportLocalToUtcIso(null, '2026-10-25 01:30', 'LHR'), '2026-10-25T00:30:00.000Z');
+    assert.equal(fr24ScheduledFieldToUtcIso('2026-03-29T00:30:00', 'EGLL', '2026-03-29'), '2026-03-29T00:30:00.000Z');
   });
 
   // --- FR24 schedule fields (offsetless = airport local) ---
@@ -126,8 +146,56 @@ async function main() {
     assert.equal(airportLocalHhmmToUtcIso('2026-10-9', '07:05', 'IST'), undefined);
     assert.equal(airportLocalHhmmToUtcIso('2026-10-09', '7h05', 'IST'), undefined);
   });
-  await knownBug('manual: converter on switch day uses the noon offset (LHR 00:30 on 2026-03-29 → 1h early)', () => {
-    return airportLocalHhmmToUtcIso('2026-03-29', '00:30', 'LHR') === '2026-03-28T23:30:00.000Z';
+  await check('manual: DST switch day converts with the offset at that moment', () => {
+    assert.equal(airportLocalHhmmToUtcIso('2026-03-29', '00:30', 'LHR'), '2026-03-29T00:30:00.000Z');
+    assert.equal(airportLocalHhmmToUtcIso('2026-03-29', '10:00', 'LHR'), '2026-03-29T09:00:00.000Z');
+  });
+
+  // --- Manual add: departure/arrival pair saved by AddFlight ---
+  const pair = (dateYmd: string, depHhmm: string, arrHhmm: string, originCode: string | null, destCode: string | null, api?: { dep?: string; arr?: string }) =>
+    resolveManualSchedulePair({ dateYmd, depHhmm, arrHhmm, originCode, destCode, apiDepUtc: api?.dep ?? null, apiArrUtc: api?.arr ?? null });
+  await check('manual pair: arrival after midnight is saved on the next day', () => {
+    assert.deepEqual(pair('2026-10-09', '23:30', '01:30', 'IST', 'LHR'), {
+      dep: '2026-10-09T20:30:00.000Z',
+      arr: '2026-10-10T00:30:00.000Z',
+    });
+  });
+  await check('manual pair: same-day flight is unchanged', () => {
+    assert.deepEqual(pair('2026-10-09', '08:00', '10:00', 'IST', 'LHR'), {
+      dep: '2026-10-09T05:00:00.000Z',
+      arr: '2026-10-09T09:00:00.000Z',
+    });
+  });
+  await check('manual pair: eastbound overnight with later local clock rolls by UTC, not by clock', () => {
+    // IST 20:00 → Singapore 11:00 next morning.
+    assert.deepEqual(pair('2026-10-09', '20:00', '11:00', 'IST', 'SIN'), {
+      dep: '2026-10-09T17:00:00.000Z',
+      arr: '2026-10-10T03:00:00.000Z',
+    });
+  });
+  await check('manual pair: overnight into the repeated DST hour picks the earlier instant', () => {
+    assert.deepEqual(pair('2026-10-24', '23:30', '01:30', 'IST', 'LHR'), {
+      dep: '2026-10-24T20:30:00.000Z',
+      arr: '2026-10-25T00:30:00.000Z',
+    });
+  });
+  await check('manual pair: empty local times fall back to provider UTC', () => {
+    assert.deepEqual(pair('2026-10-09', '', '', 'IST', 'LHR', { dep: '2026-10-09T20:30:00.000Z', arr: '2026-10-10T00:30:00.000Z' }), {
+      dep: '2026-10-09T20:30:00.000Z',
+      arr: '2026-10-10T00:30:00.000Z',
+    });
+  });
+  await check('manual pair: provider arrival before departure is moved by 24h', () => {
+    assert.equal(pair('2026-10-09', '23:30', '', 'IST', 'LHR', { arr: '2026-10-09T00:30:00.000Z' }).arr, '2026-10-10T00:30:00.000Z');
+  });
+  await check('manual pair: unknown airport keeps times as UTC and still rolls', () => {
+    assert.deepEqual(pair('2026-10-09', '22:00', '01:00', null, null), {
+      dep: '2026-10-09T22:00:00.000Z',
+      arr: '2026-10-10T01:00:00.000Z',
+    });
+  });
+  await check('manual pair: missing times stay null', () => {
+    assert.deepEqual(pair('2026-10-09', '', '', 'IST', 'LHR'), { dep: null, arr: null });
   });
 
   // --- Display ---

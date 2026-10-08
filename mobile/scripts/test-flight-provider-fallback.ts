@@ -5,7 +5,7 @@
  * Run: cd mobile && npx tsx scripts/test-flight-provider-fallback.ts
  */
 import assert from 'node:assert/strict';
-import { check, knownBug, pinNow, report } from './flightTestHarness';
+import { check, pinNow, report } from './flightTestHarness';
 
 type Provider = 'airlabs' | 'aerodatabox' | 'aeroapi' | 'aviationstack' | 'flightapi' | 'fr24';
 type Reply = { status: number; body?: unknown; headers?: Record<string, string> };
@@ -146,8 +146,8 @@ async function main() {
         body: {
           data: [
             {
-              departure: { iata: 'IST', scheduled: '2026-10-09T10:00:00+00:00' },
-              arrival: { iata: 'LHR', scheduled: '2026-10-09T13:50:00+00:00' },
+              departure: { iata: 'IST', scheduled: '2026-10-09T13:00:00+00:00' },
+              arrival: { iata: 'LHR', scheduled: '2026-10-09T14:50:00+00:00' },
               flight_status: 'scheduled',
             },
           ],
@@ -282,27 +282,95 @@ async function main() {
     assert.equal(await fetchFlightByNumberEdge('TK1979', '2026-10-20', TODAY, TOMORROW, ctx), null);
   });
 
-  await knownBug('AeroAPI keeps querying other variants after a 429 (wasted quota)', async () => {
-    installFetch({ aeroapi: () => ({ status: 429 }) });
-    const { ctx } = makeCtx();
+  await check('quota: AeroAPI, AviationStack and each AeroDataBox source stop after a 429', async () => {
+    installFetch({
+      aerodatabox: () => ({ status: 429 }),
+      aeroapi: () => ({ status: 429 }),
+      aviationstack: () => ({ status: 429 }),
+    });
+    const { ctx, upserts } = makeCtx();
     await fetchFlightByNumberEdge('TK1979', '2026-10-20', TODAY, TOMORROW, ctx);
-    return count('aeroapi') > 1;
+    assert.equal(count('aerodatabox'), 1);
+    assert.equal(count('aeroapi'), 1);
+    assert.equal(count('aviationstack'), 1);
+    assert.deepEqual([...upserts].sort(), ['aeroapi', 'aerodatabox', 'aviationstack']);
   });
 
-  await knownBug('timetable chain runs twice when today’s answer is for another day (AirLabs called twice)', async () => {
+  await check('quota: the timetable chain runs once per lookup even when today’s answer is for another day', async () => {
     installFetch({ airlabs: () => airlabs('2026-10-08T10:00:00Z', '2026-10-08T13:50:00Z') });
     const { ctx } = makeCtx();
-    await fetchFlightByNumberEdge('TK1979', TODAY, TODAY, TOMORROW, ctx);
-    return count('airlabs') > 1;
+    const r = await fetchFlightByNumberEdge('TK1979', TODAY, TODAY, TOMORROW, ctx);
+    assert.equal(count('airlabs'), 1);
+    assert.equal(r, null);
   });
 
-  await knownBug('AviationStack request has no flight_date (takes the first returned leg)', async () => {
-    installFetch({ aeroapi: () => ({ status: 200, body: { flights: [] } }) });
+  await check('AviationStack: picks the leg on the selected date and stays on free-plan parameters', async () => {
+    installFetch({
+      aeroapi: () => ({ status: 200, body: { flights: [] } }),
+      aviationstack: () => ({
+        status: 200,
+        body: {
+          data: [
+            {
+              departure: { iata: 'IST', scheduled: '2026-10-19T13:00:00+00:00' },
+              arrival: { iata: 'LHR', scheduled: '2026-10-19T14:50:00+00:00' },
+            },
+            {
+              departure: { iata: 'IST', scheduled: '2026-10-20T13:00:00+00:00' },
+              arrival: { iata: 'LHR', scheduled: '2026-10-20T14:50:00+00:00' },
+            },
+          ],
+        },
+      }),
+    });
     const { ctx } = makeCtx();
-    await fetchFlightByNumberEdge('TK1979', '2026-10-20', TODAY, TOMORROW, ctx);
+    const r = await fetchFlightByNumberEdge('TK1979', '2026-10-20', TODAY, TOMORROW, ctx);
     const av = calls.find((c) => c.provider === 'aviationstack');
-    if (!av) throw new Error('AviationStack was not called');
-    return !av.url.searchParams.has('flight_date');
+    assert.ok(av, 'AviationStack was not called');
+    assert.equal(av.url.searchParams.has('flight_date'), false);
+    assert.equal(r?.scheduled_departure_utc, '2026-10-20T10:00:00.000Z');
+  });
+
+  await check('AviationStack: local times labelled +00:00 are converted at each airport (live TK1 IST→JFK)', async () => {
+    installFetch({
+      aeroapi: () => ({ status: 500 }),
+      aviationstack: () => ({
+        status: 200,
+        body: {
+          data: [
+            {
+              departure: { iata: 'IST', timezone: 'Europe/Istanbul', scheduled: '2026-10-09T14:10:00+00:00' },
+              arrival: { iata: 'JFK', timezone: 'America/New_York', scheduled: '2026-10-09T17:55:00+00:00' },
+            },
+          ],
+        },
+      }),
+    });
+    const { ctx } = makeCtx();
+    const r = await fetchFlightByNumberEdge('TK1', TODAY, TODAY, TOMORROW, ctx);
+    assert.equal(r?.scheduled_departure_utc, '2026-10-09T11:10:00.000Z');
+    assert.equal(r?.scheduled_arrival_utc, '2026-10-09T21:55:00.000Z');
+  });
+
+  await check('AviationStack: no timezone field → airport table; a real non-zero offset is kept', async () => {
+    installFetch({
+      aeroapi: () => ({ status: 200, body: { flights: [] } }),
+      aviationstack: () => ({
+        status: 200,
+        body: {
+          data: [
+            {
+              departure: { iata: 'IST', timezone: 'Not/AZone', scheduled: '2026-10-20T13:00:00+00:00' },
+              arrival: { iata: 'LHR', scheduled: '2026-10-20T14:50:00+01:00' },
+            },
+          ],
+        },
+      }),
+    });
+    const { ctx } = makeCtx();
+    const r = await fetchFlightByNumberEdge('TK1979', '2026-10-20', TODAY, TOMORROW, ctx);
+    assert.equal(r?.scheduled_departure_utc, '2026-10-20T10:00:00.000Z');
+    assert.equal(r?.scheduled_arrival_utc, '2026-10-20T13:50:00.000Z');
   });
 
   pinNow(null);
