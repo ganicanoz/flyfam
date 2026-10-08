@@ -76,6 +76,8 @@ try {
   await verifyVersions();
   run('TypeScript', 'npx', ['tsc', '--noEmit', '--pretty', 'false'], mobileDir);
   run('Follower capacity tests', 'npm', ['run', 'test:capacity'], mobileDir);
+  run('Flight time tests', 'npx', ['tsx', 'scripts/test-flight-times.ts'], mobileDir);
+  run('Flight provider fallback tests', 'npx', ['tsx', 'scripts/test-flight-provider-fallback.ts'], mobileDir);
   run('Android launcher icon', 'npm', ['run', 'verify:android:icon'], mobileDir);
   run('Whitespace/conflict markers', 'git', ['diff', '--check'], repoRoot);
   run('Secret scan for latest commit', 'gitleaks', ['git', '--log-opts=-1', '--no-banner', '--redact'], repoRoot);

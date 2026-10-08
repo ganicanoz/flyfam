@@ -283,7 +283,33 @@ function toUtcIsoStrict(dt: string | null | undefined): string | undefined {
   return date.toISOString();
 }
 
-function localIsoToUtcIso(iso: string, offsetMinutes: number): string | undefined {
+/** Duvar saati (UTC gibi kodlanmış ms) → gerçek UTC ms; tekrarlanan saatte ilk an, olmayan saatte geçiş öncesi ofset. */
+function wallClockToUtcMs(wallMs: number, iana: string): number {
+  const H = 3600 * 1000;
+  const before = timezoneOffsetMinutesEastOfUtc(new Date(wallMs - 14 * H), iana);
+  const after = timezoneOffsetMinutesEastOfUtc(new Date(wallMs + 14 * H), iana);
+  let best: number | null = null;
+  for (const off of new Set([before, after])) {
+    const utc = wallMs - off * 60 * 1000;
+    if (timezoneOffsetMinutesEastOfUtc(new Date(utc), iana) === off && (best === null || utc < best)) best = utc;
+  }
+  return best ?? wallMs - before * 60 * 1000;
+}
+
+/** Meydanın IANA bölgesi varsa o anın ofseti (yaz saati geçiş günü dahil), yoksa verilen sabit ofset. */
+function airportWallClockToUtcIso(wallMs: number, offsetMinutes: number, airportCode?: string): string {
+  const iana = airportCode ? airportIanaForCode(airportCode) : undefined;
+  if (iana) {
+    try {
+      return new Date(wallClockToUtcMs(wallMs, iana)).toISOString();
+    } catch {
+      /* fall through */
+    }
+  }
+  return new Date(wallMs - offsetMinutes * 60 * 1000).toISOString();
+}
+
+function localIsoToUtcIso(iso: string, offsetMinutes: number, airportCode?: string): string | undefined {
   const s = iso.trim().replace(' ', 'T');
   const dateMatch = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
   const timeMatch = s.match(/T(\d{1,2}):(\d{2})(?::(\d{2}))?/);
@@ -291,11 +317,38 @@ function localIsoToUtcIso(iso: string, offsetMinutes: number): string | undefine
   const [, y, mo, d] = dateMatch;
   const [, h, min, sec] = timeMatch;
   const localAsUtcMs = Date.UTC(Number(y), Number(mo) - 1, Number(d), Number(h), Number(min), Number(sec ?? 0));
-  const utcMs = localAsUtcMs - offsetMinutes * 60 * 1000;
-  return new Date(utcMs).toISOString();
+  return airportWallClockToUtcIso(localAsUtcMs, offsetMinutes, airportCode);
 }
 
-function localTimeToUtcIso(dateYmd: string, time: string, offsetMinutes: number): string | undefined {
+/**
+ * Yerel saati `+00:00`/`Z` etiketiyle döndüren kaynaklar (AviationStack) için: etiket sıfırsa duvar saati
+ * meydanın bölgesinde (önce verilen IANA, sonra kod tablosu) UTC'ye çevrilir; sıfır dışı ofset olduğu gibi kalır.
+ */
+export function zeroLabelledLocalToUtcIso(
+  raw: string | null | undefined,
+  airportCode: string | null | undefined,
+  ianaHint?: string | null,
+): string | undefined {
+  if (!raw || typeof raw !== 'string') return undefined;
+  const s = raw.trim().replace(' ', 'T');
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?(?:\.\d+)?(Z|[+-]\d{2}:?\d{2})?$/);
+  if (!m) return undefined;
+  const [, y, mo, d, h, min, sec, label] = m;
+  if (label && !/^(Z|[+-]00:?00)$/.test(label)) return toUtcIsoAssumeUtc(s);
+  const wallMs = Date.UTC(Number(y), Number(mo) - 1, Number(d), Number(h), Number(min), Number(sec ?? 0));
+  if (ianaHint) {
+    try {
+      return new Date(wallClockToUtcMs(wallMs, ianaHint)).toISOString();
+    } catch {
+      /* geçersiz bölge adı: koda düş */
+    }
+  }
+  const code = airportCode?.toUpperCase().trim() || undefined;
+  const offset = code ? utcOffsetMinutesEastForAirportOnFlightDate(code, `${y}-${mo}-${d}`) : 0;
+  return airportWallClockToUtcIso(wallMs, offset, code);
+}
+
+function localTimeToUtcIso(dateYmd: string, time: string, offsetMinutes: number, airportCode?: string): string | undefined {
   if (!time || !/^\d{1,2}:\d{2}/.test(time)) return undefined;
   const parts = time.trim().slice(0, 8).split(':');
   const h = parseInt(parts[0] ?? '0', 10);
@@ -304,7 +357,7 @@ function localTimeToUtcIso(dateYmd: string, time: string, offsetMinutes: number)
   const [y, mo, d] = dateYmd.split('-').map(Number);
   if (!y || !mo || !d) return undefined;
   const localAsUtcMs = Date.UTC(y, mo - 1, d, h, m, s);
-  return new Date(localAsUtcMs - offsetMinutes * 60 * 1000).toISOString();
+  return airportWallClockToUtcIso(localAsUtcMs, offsetMinutes, airportCode);
 }
 
 /**
@@ -335,13 +388,13 @@ export function utcFieldOrAirportLocalToUtcIso(
       (fallbackDateYmd ? utcOffsetMinutesEastForAirportOnFlightDate(code, fallbackDateYmd) : 0) ||
       0;
     if (/^\d{4}-\d{2}-\d{2}T\d{1,2}:\d{2}/.test(s0)) {
-      return localIsoToUtcIso(s0, offsetMin);
+      return localIsoToUtcIso(s0, offsetMin, code);
     }
     if (ymdInField && /^\d{1,2}:\d{2}/.test(s0)) {
-      return localTimeToUtcIso(ymdInField, s0, offsetMin);
+      return localTimeToUtcIso(ymdInField, s0, offsetMin, code);
     }
     if (fallbackDateYmd && /^\d{1,2}:\d{2}/.test(s0)) {
-      return localTimeToUtcIso(fallbackDateYmd, s0, offsetMin);
+      return localTimeToUtcIso(fallbackDateYmd, s0, offsetMin, code);
     }
     return undefined;
   };
@@ -402,7 +455,7 @@ export function fr24ScheduledFieldToUtcIso(
   const offsetMin =
     utcOffsetMinutesEastForAirportOnFlightDate(code, ymdInField) ||
     utcOffsetMinutesEastForAirportOnFlightDate(code, rosterFlightDateYmd);
-  const fromLocal = localIsoToUtcIso(s0, offsetMin);
+  const fromLocal = localIsoToUtcIso(s0, offsetMin, code);
   return fromLocal ?? toUtcIsoAssumeUtc(raw);
 }
 

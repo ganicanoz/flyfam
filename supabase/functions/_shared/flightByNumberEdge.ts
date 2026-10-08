@@ -11,6 +11,7 @@ import {
   fr24ScheduledFieldToUtcIso,
   utcFieldOrAirportLocalToUtcIso,
   utcIsoToLocalDateAtAirport,
+  zeroLabelledLocalToUtcIso,
 } from './fr24FlightDateMatch.ts';
 
 const AIRLABS_BASE = 'https://airlabs.co/api/v9';
@@ -366,7 +367,7 @@ async function fetchFromAeroDataBoxFlightEdge(
             note: `cooldown ${src.cooldownKey}`,
           });
           await apply429ToCooldown(ctx.supabase, ctx.cooldownMap, src.cooldownKey, res.headers);
-          continue;
+          break;
         }
         if (!res.ok) {
           pushDebug(ctx, {
@@ -543,7 +544,7 @@ async function fetchFromAeroApiFlightEdge(
       });
       if (res.status === 429) {
         await apply429ToCooldown(ctx.supabase, ctx.cooldownMap, COOLDOWN_AEROAPI, res.headers);
-        continue;
+        break;
       }
       if (!res.ok) continue;
       const json = await res.json().catch(() => null) as Record<string, unknown> | null;
@@ -595,37 +596,49 @@ async function fetchFromAviationstackFlightEdge(
       const res = await fetch(url);
       if (res.status === 429) {
         await apply429ToCooldown(ctx.supabase, ctx.cooldownMap, COOLDOWN_AVIATIONSTACK, res.headers);
-        continue;
+        break;
       }
       if (!res.ok) continue;
       const json = await res.json().catch(() => null) as Record<string, unknown> | null;
       const list = Array.isArray(json?.data) ? (json?.data as Record<string, unknown>[]) : [];
       if (!list.length) continue;
-      const row = list[0];
-      const depObj = (row.departure as Record<string, unknown> | undefined) ?? {};
-      const arrObj = (row.arrival as Record<string, unknown> | undefined) ?? {};
-      const std = toUtcIsoAssumeUtc((depObj.scheduled as string | undefined) ?? null) ?? undefined;
-      const etd = toUtcIsoAssumeUtc((depObj.estimated as string | undefined) ?? null) ?? undefined;
-      const atd = toUtcIsoAssumeUtc((depObj.actual as string | undefined) ?? null) ?? undefined;
-      const sta = toUtcIsoAssumeUtc((arrObj.scheduled as string | undefined) ?? null) ?? undefined;
-      const eta = toUtcIsoAssumeUtc((arrObj.estimated as string | undefined) ?? null) ?? undefined;
-      const ata = toUtcIsoAssumeUtc((arrObj.actual as string | undefined) ?? null) ?? undefined;
-      const dep = etd ?? std;
-      const arrRaw = eta ?? sta;
-      const arr = dep && arrRaw ? (normalizeOvernightEta(dep, arrRaw) ?? arrRaw) : arrRaw;
-      if (!isDateNearby(dep ?? atd ?? std, flightDate)) continue;
-      const st = typeof row.flight_status === 'string' ? row.flight_status.toLowerCase() : '';
-      return {
-        origin: toIataCode((depObj.iata as string | undefined) ?? (depObj.icao as string | undefined)) ?? '',
-        destination: toIataCode((arrObj.iata as string | undefined) ?? (arrObj.icao as string | undefined)) ?? '',
-        depTime: dep ? parseTime(dep) : '',
-        arrTime: arr ? parseTime(arr) : '',
-        scheduled_departure_utc: dep,
-        scheduled_arrival_utc: arr,
-        actual_departure_utc: atd,
-        actual_arrival_utc: ata,
-        flightStatus: ata ? 'landed' : atd ? 'en_route' : st.includes('cancel') ? 'cancelled' : st.includes('divert') ? 'diverted' : undefined,
-      };
+      // `flight_date` filtresi ücretsiz pakette yok; dönen bacaklar arasından seçilen güne uyan alınır.
+      const candidates: FlightInfoJson[] = [];
+      for (const row of list) {
+        const depObj = (row.departure as Record<string, unknown> | undefined) ?? {};
+        const arrObj = (row.arrival as Record<string, unknown> | undefined) ?? {};
+        const origin = toIataCode((depObj.iata as string | undefined) ?? (depObj.icao as string | undefined)) ?? '';
+        const destination = toIataCode((arrObj.iata as string | undefined) ?? (arrObj.icao as string | undefined)) ?? '';
+        // AviationStack yerel saati `+00:00` etiketiyle döndürür.
+        const depTz = typeof depObj.timezone === 'string' ? depObj.timezone : null;
+        const arrTz = typeof arrObj.timezone === 'string' ? arrObj.timezone : null;
+        const depAt = (v: unknown) => zeroLabelledLocalToUtcIso(v as string | undefined, origin, depTz);
+        const arrAt = (v: unknown) => zeroLabelledLocalToUtcIso(v as string | undefined, destination, arrTz);
+        const std = depAt(depObj.scheduled);
+        const etd = depAt(depObj.estimated);
+        const atd = depAt(depObj.actual);
+        const sta = arrAt(arrObj.scheduled);
+        const eta = arrAt(arrObj.estimated);
+        const ata = arrAt(arrObj.actual);
+        const dep = etd ?? std;
+        const arrRaw = eta ?? sta;
+        const arr = dep && arrRaw ? (normalizeOvernightEta(dep, arrRaw) ?? arrRaw) : arrRaw;
+        if (!isDateNearby(dep ?? atd ?? std, flightDate)) continue;
+        const st = typeof row.flight_status === 'string' ? row.flight_status.toLowerCase() : '';
+        candidates.push({
+          origin,
+          destination,
+          depTime: dep ? parseTime(dep) : '',
+          arrTime: arr ? parseTime(arr) : '',
+          scheduled_departure_utc: dep,
+          scheduled_arrival_utc: arr,
+          actual_departure_utc: atd,
+          actual_arrival_utc: ata,
+          flightStatus: ata ? 'landed' : atd ? 'en_route' : st.includes('cancel') ? 'cancelled' : st.includes('divert') ? 'diverted' : undefined,
+        });
+      }
+      const pick = candidates.find((c) => isFlightInfoMatchingSelectedDateEdge(c, flightDate)) ?? candidates[0];
+      if (pick) return pick;
     } catch {
       continue;
     }
@@ -960,9 +973,11 @@ export async function fetchFlightByNumberEdge(
   if (!raw || date.length !== 10) return null;
 
   const isLocalTodayOrTomorrow = date === localToday || date === localTomorrow;
+  let timetable: Promise<FlightInfoJson | null> | null = null;
+  const timetableOnce = () => (timetable ??= fetchFromTimetablePrimaryEdge(ctx, raw, date));
 
   if (isLocalTodayOrTomorrow) {
-    const alNearest = await fetchFromTimetablePrimaryEdge(ctx, raw, date);
+    const alNearest = await timetableOnce();
     if (
       alNearest &&
       isFlightInfoMatchingSelectedDateEdge(alNearest, date) &&
@@ -983,7 +998,7 @@ export async function fetchFlightByNumberEdge(
 
   async function fillScheduledFromAirLabs(info: FlightInfoJson): Promise<FlightInfoJson> {
     if (info.scheduled_departure_utc && info.scheduled_arrival_utc) return info;
-    const al = await fetchFromTimetablePrimaryEdge(ctx, raw, date);
+    const al = await timetableOnce();
     if (!isFlightInfoMatchingSelectedDateEdge(al, date)) return info;
     if (!al?.scheduled_departure_utc && !al?.scheduled_arrival_utc) return info;
     return {
@@ -1004,7 +1019,7 @@ export async function fetchFlightByNumberEdge(
 
   if (fr && (fr.origin || fr.destination)) {
     if (fr.flightEnded === true) {
-      const alResult = await fetchFromTimetablePrimaryEdge(ctx, raw, date);
+      const alResult = await timetableOnce();
       if (alResult && (alResult.origin || alResult.destination || alResult.scheduled_departure_utc || alResult.scheduled_arrival_utc)) {
         return normalizeDestinationForFlight(raw, alResult);
       }
@@ -1033,7 +1048,7 @@ export async function fetchFlightByNumberEdge(
     }
   }
 
-  const airlabsOnly = await fetchFromTimetablePrimaryEdge(ctx, raw, date);
+  const airlabsOnly = await timetableOnce();
   if (
     airlabsOnly &&
     isFlightInfoMatchingSelectedDateEdge(airlabsOnly, date) &&

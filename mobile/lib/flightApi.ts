@@ -7,7 +7,11 @@ import {
   FLIGHT_PROVIDER_FR24,
   isFlightProviderInCooldown,
 } from './flightProviderCooldown';
-import { getEffectiveUtcOffsetMinutesForAirportAtFlightDate, utcIsoToLocalDateAtAirport } from './airportUtcOffset';
+import {
+  airportLocalDateTimeToUtcIso,
+  getEffectiveUtcOffsetMinutesForAirportAtFlightDate,
+  utcIsoToLocalDateAtAirport,
+} from './airportUtcOffset';
 import { buildAerodataboxFlightNumberSources } from './aerodataboxHttp';
 
 export { utcIsoToLocalDateAtAirport } from './airportUtcOffset';
@@ -610,12 +614,7 @@ export function airportLocalHhmmToUtcIso(
 ): string | undefined {
   if (!dateYmd || !/^\d{4}-\d{2}-\d{2}$/.test(dateYmd)) return undefined;
   if (!hhmm || !/^\d{1,2}:\d{2}/.test(hhmm.trim())) return undefined;
-  const code = (airportCode || '').replace(/\s/g, '').toUpperCase();
-  if (!code) {
-    return toUtcIsoAssumeUtc(`${dateYmd}T${hhmm.trim().slice(0, 5)}:00`);
-  }
-  const offsetMin = getEffectiveUtcOffsetMinutesForAirportAtFlightDate(code, dateYmd);
-  return localTimeToUtcIso(dateYmd, hhmm.trim(), offsetMin);
+  return airportLocalDateTimeToUtcIso(dateYmd, hhmm, airportCode);
 }
 
 /** Build UTC ISO from date + time; previously treated as UTC (for APIs that return UTC). */

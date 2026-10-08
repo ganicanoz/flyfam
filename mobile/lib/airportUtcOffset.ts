@@ -216,6 +216,46 @@ function timezoneOffsetMinutesEastOfUtc(instant: Date, iana: string): number {
   return (asWallAsIfUtc - instant.getTime()) / 60000;
 }
 
+/** Duvar saati (UTC gibi kodlanmış ms) → gerçek UTC ms; tekrarlanan saatte ilk an, olmayan saatte geçiş öncesi ofset. */
+function wallClockToUtcMs(wallMs: number, iana: string): number {
+  const H = 3600 * 1000;
+  const before = timezoneOffsetMinutesEastOfUtc(new Date(wallMs - 14 * H), iana);
+  const after = timezoneOffsetMinutesEastOfUtc(new Date(wallMs + 14 * H), iana);
+  let best: number | null = null;
+  for (const off of new Set([before, after])) {
+    const utc = wallMs - off * 60 * 1000;
+    if (timezoneOffsetMinutesEastOfUtc(new Date(utc), iana) === off && (best === null || utc < best)) best = utc;
+  }
+  return best ?? wallMs - before * 60 * 1000;
+}
+
+/**
+ * Havalimanı yerel takvim günü + HH:MM → UTC ISO; IANA varsa o anın ofsetiyle (yaz saati geçiş günü dahil).
+ * IANA yoksa sabit tablo, kod yoksa saat UTC kabul edilir.
+ */
+export function airportLocalDateTimeToUtcIso(
+  dateYmd: string,
+  hhmm: string,
+  airportCode: string | null | undefined,
+): string | undefined {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateYmd) || !/^\d{1,2}:\d{2}/.test((hhmm || '').trim())) return undefined;
+  const [y, mo, d] = dateYmd.split('-').map(Number);
+  const [h, mi, s] = hhmm.trim().slice(0, 8).split(':').map((x) => parseInt(x, 10));
+  const wallMs = Date.UTC(y, mo - 1, d, h, mi, Number.isFinite(s) ? s : 0);
+  if (Number.isNaN(wallMs)) return undefined;
+  const key = (airportCode || '').replace(/\s/g, '').toUpperCase();
+  if (!key) return new Date(wallMs).toISOString();
+  const iana = getAirportTimezone(key);
+  if (iana) {
+    try {
+      return new Date(wallClockToUtcMs(wallMs, iana)).toISOString();
+    } catch {
+      /* fall through */
+    }
+  }
+  return new Date(wallMs - getAirportOffsetMinutes(key) * 60 * 1000).toISOString();
+}
+
 export function getAirportOffsetMinutes(icaoOrIata: string): number {
   if (!icaoOrIata) return 0;
   const key = icaoOrIata.toUpperCase().trim();
