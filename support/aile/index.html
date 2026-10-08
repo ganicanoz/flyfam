@@ -64,8 +64,10 @@
     .push-list li { margin: 3px 0; }
     .net.ok { background: #dcfce7; color: #166534; }
     .vh { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; pointer-events: none; }
-    .rc-head { display: flex; align-items: center; gap: 12px; }
+    .rc-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
     .rc-info { flex: 1; min-width: 0; }
+    .rc-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    #btnRoster { white-space: nowrap; font-weight: 700; }
     .rc-info .small { margin-top: 2px; }
     .rc-last b { color: var(--text); }
     label.upload { cursor: pointer; border-radius: 10px; padding: 9px 14px; background: linear-gradient(135deg, var(--brand), var(--brand-2)); color: #fff; font-weight: 700; white-space: nowrap; }
@@ -108,7 +110,9 @@
     .fin-row .lbl { flex: 1 1 180px; min-width: 0; font-size: 13px; }
     .fin-in { display: inline-flex; align-items: center; gap: 6px; }
     .fin-in input { width: 120px; text-align: right; font-variant-numeric: tabular-nums; }
-    .debt-form { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+    .debt-form, .money-form { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+    .money-form { margin-bottom: 10px; }
+    .money-form select { min-width: 9rem; max-width: 100%; }
     .debt-form #debtLabel { flex: 1 1 180px; min-width: 0; }
     .fin-row.paid { opacity: .7; }
     .fin-row.future { opacity: .6; background: #fff; border-style: dashed; }
@@ -435,7 +439,10 @@
             <b>📄 Roster PDF</b>
             <div id="rosterLast" class="small muted">—</div>
           </div>
-          <label class="upload" for="pdf">PDF yükle</label>
+          <div class="rc-actions">
+            <button type="button" id="btnRoster" title="FlyFam’den bu ayı yeniden alır ve çakışmaya bakar">Roster ve çakışma</button>
+            <label class="upload" for="pdf">PDF yükle</label>
+          </div>
           <input type="file" id="pdf" class="vh" accept="application/pdf,.pdf" />
         </div>
         <div id="pdfStatus" class="small muted"></div>
@@ -935,11 +942,12 @@
       return { ymd, wd, hol, vac, holFull, holHalf, schoolDay, sStart, sEnd, schoolPlace: sc.place || 'school', base: dayIndex(ymd) * 1440 };
     }
     /** Eş `place`'te [start,end] çalışırsa crew'un karşılaması gereken aralıklar (götürme/alma yalnız crew veya eş). */
-    function workNeeds(ctx, day, place, start, end) {
+    function workNeeds(ctx, day, place, start, end, opts) {
       const cfg = ctx.cfg;
       const T = (a, b, at) => travel(cfg, a, b, day.ymd, at);
-      const leave = start - T('home', place, start - 30);
-      const back = end + T(place, 'home', end);
+      const already = !!(opts && opts.includesTravel);
+      const leave = already ? start : start - T('home', place, start - 30);
+      const back = already ? end : end + T(place, 'home', end);
       const needs = [];
       if (day.schoolDay) {
         const S = day.sStart, E = day.sEnd, sch = day.schoolPlace;
@@ -1179,10 +1187,10 @@
         if (!fixedApplies(f, ymd, day.wd)) return;
         const meta = workMeta(cfg, f, fi, true);
         const s = hm(f.start), e = hm(f.end);
-        const r = workNeeds(ctx, day, f.place, s, e);
+        const r = workNeeds(ctx, day, f.place, s, e, { includesTravel: !!f.includesTravel });
         fixed.push({ ...f, ...meta, s, e, needs: r.needs, worst: r.worst });
         segs.partner.push({ s, e, kind: 'fixed', color: meta.color, title: f.label });
-        workRoad(f.place, s, e, meta.color);
+        if (!f.includesTravel) workRoad(f.place, s, e, meta.color);
         notes.push({ k: 'muted', t: (P.partner || 'Eş') + ' · ' + (f.label || '') + ' ' + fmt(s) + '–' + fmt(e) + ' (sabit)' });
         if (f.note) notes.push({ k: 'warn', t: String(f.note) });
         for (const n of r.needs) notes.push({ k: needKind(n), t: needText(cfg, n) });
@@ -2041,6 +2049,31 @@
         }
       } catch (err) { $('pdfStatus').textContent = String(err.message || err); }
     }
+    async function refreshRoster() {
+      const btn = $('btnRoster');
+      if (btn) btn.disabled = true;
+      $('pdfStatus').textContent = 'FlyFam kontrol ediliyor…';
+      const sigBefore = st.sig;
+      try {
+        await load();
+        if (st.offline) { $('pdfStatus').textContent = 'Çevrimdışı · FlyFam kontrol edilemedi'; return; }
+        const status = ($('status') && $('status').textContent) || '';
+        if (st.sig === sigBefore && /HTTP|Giriş gerekli|hatası|JSON/.test(status)) { $('pdfStatus').textContent = status; return; }
+        const res = st.lastRes;
+        const n = ((st.data && st.data.entries) || []).length;
+        const days = res ? res.days.filter((d) => d.inMonth && d.conflict).map((d) => d.ymd) : [];
+        if (days.length && res) {
+          days.forEach((d) => st.newConf.add(d));
+          render();
+          showConfAlert(res, days, days, true);
+        }
+        $('pdfStatus').textContent = 'FlyFam · ' + n + ' kayıt · ' + (days.length ? days.length + ' günde çakışma' : 'bu ay çakışma yok');
+      } catch (err) {
+        $('pdfStatus').textContent = String(err.message || err);
+      } finally {
+        if ($('btnRoster')) $('btnRoster').disabled = false;
+      }
+    }
     function parsePeaks(text, weekdays) {
       return String(text || '').split(/[,;]+/).map((x) => x.trim()).filter(Boolean).map((x) => {
         const m = /^(\d{1,2}:\d{2})\s*[-–]\s*(\d{1,2}:\d{2})$/.exec(x);
@@ -2145,15 +2178,19 @@
       showConfAlert(st.lastRes, fresh, cur);
     }
     function ackConflicts(days) { writeConfSeen(st.month, days || confDays(st.lastRes)); }
-    function showConfAlert(res, fresh, cur) {
+    function showConfAlert(res, fresh, cur, manual) {
       const items = fresh.map((ymd) => {
         const d = res.days.find((x) => x.ymd === ymd);
         const why = d ? d.notes.filter((n) => n.k === 'bad').slice(0, 2).map((n) => esc(n.t)) : [];
         return '<li><div><b>' + esc(dateLong(ymd)) + '</b><div class="small">' + why.join('<br>') + '</div></div><button type="button" data-confgo="' + ymd + '">Göster</button></li>';
       });
       st.confPending = cur;
-      $('confAlert').innerHTML = '<div class="sheet" role="alertdialog" aria-labelledby="confTitle"><h3><span id="confTitle">⚠️ Yeni çakışma</span><button type="button" class="ghost" data-confok="1" aria-label="Kapat">✕</button></h3>' +
-        '<p style="margin:0;">Roster ya da plan değişti; ' + (fresh.length > 1 ? 'şu ' + fresh.length + ' günde' : 'bu günde') + ' yeni çakışma var. Takvimde kırmızı yanıp sönüyor.</p><ul class="conf-list">' + items.join('') + '</ul>' +
+      const title = manual ? 'Çakışma kontrolü' : 'Yeni çakışma';
+      const lead = manual
+        ? 'FlyFam kontrol edildi. ' + (fresh.length > 1 ? 'Şu ' + fresh.length + ' günde' : 'Bu günde') + ' çakışma var. Takvimde kırmızı yanıp sönüyor.'
+        : 'Roster ya da plan değişti; ' + (fresh.length > 1 ? 'şu ' + fresh.length + ' günde' : 'bu günde') + ' yeni çakışma var. Takvimde kırmızı yanıp sönüyor.';
+      $('confAlert').innerHTML = '<div class="sheet" role="alertdialog" aria-labelledby="confTitle"><h3><span id="confTitle">⚠️ ' + title + '</span><button type="button" class="ghost" data-confok="1" aria-label="Kapat">✕</button></h3>' +
+        '<p style="margin:0;">' + lead + '</p><ul class="conf-list">' + items.join('') + '</ul>' +
         '<div class="row"><button type="button" class="primary" data-confok="1">Tamam, gördüm</button></div></div>';
       $('confAlert').hidden = false;
     }
@@ -2404,6 +2441,128 @@
       document.querySelectorAll('[data-tab]').forEach((b) => b.classList.toggle('on', b.getAttribute('data-tab') === st.tab));
       document.body.classList.toggle('tab-fin', st.tab === 'fin');
     }
+    function moneyReceipts(full) {
+      const fin = full && full.finance;
+      const list = fin && Array.isArray(fin.receipts) ? fin.receipts : [];
+      return list.filter((r) => r && /^\d{4}-\d{2}-\d{2}$/.test(r.ymd) && r.place && Number.isFinite(Number(r.amount)) && Number(r.amount) > 0)
+        .map((r) => ({ id: String(r.id || ''), ymd: String(r.ymd), place: String(r.place), amount: Number(r.amount) }));
+    }
+    function moneyMonthTotals(receipts, month) {
+      const map = new Map();
+      for (const r of receipts || []) {
+        if (String(r.ymd).slice(0, 7) !== month) continue;
+        const cur = map.get(r.place) || { place: r.place, count: 0, sum: 0 };
+        cur.count += 1;
+        cur.sum += Number(r.amount);
+        map.set(r.place, cur);
+      }
+      return [...map.values()].sort((a, b) => String(a.place).localeCompare(String(b.place), 'tr'));
+    }
+    function moneyPlaceName(cfg, place) {
+      const p = cfg && cfg.places && cfg.places[place];
+      if (p && (p.short || p.label)) return p.short || p.label;
+      return finPlaceName(cfg, place);
+    }
+    function moneyClinics(cfg, full) {
+      const seen = new Set();
+      const out = [];
+      const add = (key, label) => {
+        const k = String(key || '').trim();
+        if (!k || k === 'home' || k === 'school' || k === 'crewBase' || seen.has(k)) return;
+        seen.add(k);
+        out.push({ key: k, label: label || moneyPlaceName(cfg, k) || placeLabel(cfg, k) });
+      };
+      const fin = (cfg && cfg.finance) || {};
+      for (const [key, p] of Object.entries((cfg && cfg.places) || {})) add(key, (p && (p.short || p.label)) || key);
+      for (const s of [...(fin.daily || []), ...(fin.monthly || [])]) add(s, moneyPlaceName(cfg, s));
+      for (const f of [...((cfg && cfg.partnerFixed) || []), ...((cfg && cfg.partnerCandidates) || [])]) {
+        if (f && f.place) add(f.place, moneyPlaceName(cfg, f.place) || f.short || f.label);
+      }
+      for (const r of moneyReceipts(full)) add(r.place, moneyPlaceName(cfg, r.place));
+      out.sort((a, b) => a.label.localeCompare(b.label, 'tr'));
+      return out;
+    }
+    function moneyMonthEnd(month) {
+      const [y, mo] = String(month || '').split('-').map(Number);
+      if (!y || !mo) return '';
+      return new Date(Date.UTC(y, mo, 0)).toISOString().slice(0, 10);
+    }
+    function moneyCardHtml(cfg) {
+      const now = nowLocal();
+      const month = now.ymd.slice(0, 7);
+      const end = moneyMonthEnd(month);
+      const receipts = moneyReceipts(st.full).filter((r) => r.ymd.slice(0, 7) === month).sort((a, b) => a.ymd.localeCompare(b.ymd) || a.id.localeCompare(b.id));
+      const totals = moneyMonthTotals(receipts, month);
+      const clinics = moneyClinics(cfg, st.full);
+      const grand = totals.reduce((a, r) => a + r.sum, 0);
+      const count = totals.reduce((a, r) => a + r.count, 0);
+      const note = st.moneyNote || '';
+      st.moneyNote = '';
+      const opts = clinics.map((c) => '<option value="' + esc(c.key) + '">' + esc(c.label) + '</option>').join('');
+      const form = clinics.length
+        ? '<form class="money-form" id="moneyForm">'
+          + '<label class="small">Gün <input type="date" id="moneyDay" min="' + esc(month + '-01') + '" max="' + esc(end) + '" value="' + esc(now.ymd) + '" /></label>'
+          + '<label class="small">Klinik <select id="moneyClinic" aria-label="Klinik">' + opts + '</select></label>'
+          + '<span class="fin-in"><input type="text" id="moneyAmt" inputmode="decimal" placeholder="Tutar" aria-label="Tutar (TL)" />TL</span>'
+          + '<button type="button" class="primary" id="moneyAdd">Para ekle</button>'
+          + '<span id="moneyStatus" class="small muted">' + esc(note) + '</span></form>'
+        : '<p class="small muted" id="moneyStatus">Klinik listesi boş. Sabit iş, aday ya da finans kaynağı eklenince burada seçilir.</p>';
+      const body = totals.length
+        ? totals.map((r) => '<tr><td><b>' + esc(moneyPlaceName(cfg, r.place)) + '</b></td><td class="num">' + r.count + '</td><td class="num">' + tl(r.sum) + '</td></tr>').join('')
+        : '<tr><td colspan="3" class="muted">Bu ay henüz para yok.</td></tr>';
+      const list = receipts.map((r) => '<div class="fin-row"><div class="lbl">' + esc(dateLong(r.ymd)) + ' · ' + esc(moneyPlaceName(cfg, r.place)) + '</div><b class="debt-amt">' + tl(r.amount) + '</b><button type="button" class="ghost" data-moneydel="' + esc(r.id) + '" title="Sil" aria-label="Sil">✕</button></div>').join('');
+      return '<section class="card" id="moneyCard"><div class="card-h">💰 ' + esc(monthName(month)) + ' · gelen para</div>'
+        + '<p class="small muted" style="margin:0 0 8px;">Para ekle: günü ve kliniği seç. Aynı kliniğe birden fazla geliş toplanır.</p>'
+        + form
+        + '<div style="overflow-x:auto;"><table class="t fin"><thead><tr><th>Klinik</th><th class="num">Geliş</th><th class="num">Toplam</th></tr></thead><tbody>'
+        + body + '</tbody><tfoot><tr><td>Toplam</td><td class="num">' + count + '</td><td class="num">' + tl(grand) + '</td></tr></tfoot></table></div>'
+        + (list ? '<div class="fin-rows" style="margin-top:8px;">' + list + '</div>' : '')
+        + '</section>';
+    }
+    async function syncReceiptCiro(place, ymd) {
+      const daily = ((st.config && st.config.finance && st.config.finance.daily) || []).map(String);
+      if (!daily.includes(place)) return '';
+      const sum = moneyReceipts(st.full).filter((r) => r.place === place && r.ymd === ymd).reduce((a, r) => a + r.amount, 0);
+      await saveCiro(place, ymd, sum > 0 ? sum : null);
+      return ' · ciroya yazıldı';
+    }
+    async function addMoney() {
+      const msg = (t) => { const el = $('moneyStatus'); if (el) el.textContent = t; };
+      const ymd = $('moneyDay') ? $('moneyDay').value : '';
+      const place = $('moneyClinic') ? $('moneyClinic').value : '';
+      const amount = parseTL($('moneyAmt') ? $('moneyAmt').value : '');
+      const month = nowLocal().ymd.slice(0, 7);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(ymd) || ymd.slice(0, 7) !== month) { msg('Günü bu aydan seç'); if ($('moneyDay')) $('moneyDay').focus(); return; }
+      if (!place) { msg('Klinik seç'); return; }
+      if (!Number.isFinite(amount) || amount <= 0) { msg('Geçerli bir tutar yaz (ör. 12.500)'); if ($('moneyAmt')) $('moneyAmt').focus(); return; }
+      if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+      const fin = st.full.finance && typeof st.full.finance === 'object' && !Array.isArray(st.full.finance) ? { ...st.full.finance } : {};
+      const receipts = moneyReceipts(st.full).slice();
+      receipts.push({ id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), ymd, place, amount });
+      fin.receipts = receipts;
+      st.full.finance = fin;
+      rebuildConfig();
+      let ciroNote = '';
+      try { ciroNote = await syncReceiptCiro(place, ymd); }
+      catch (_) { ciroNote = ' · ciroya yazılamadı'; }
+      if (!(await persist('moneyStatus', ''))) return;
+      st.moneyNote = 'Eklendi' + ciroNote;
+      render();
+    }
+    async function deleteMoney(id) {
+      const receipts = moneyReceipts(st.full);
+      const gone = receipts.find((r) => r.id === id);
+      if (!gone || !confirm('Bu giriş silinsin mi?')) return;
+      const next = receipts.filter((r) => r.id !== id);
+      st.full.finance = { ...(st.full.finance && typeof st.full.finance === 'object' ? st.full.finance : {}), receipts: next };
+      rebuildConfig();
+      let ciroNote = '';
+      try { ciroNote = await syncReceiptCiro(gone.place, gone.ymd); }
+      catch (_) { ciroNote = ' · ciro güncellenemedi'; }
+      if (!(await persist(null))) { const el = $('moneyStatus'); if (el) el.textContent = 'Silinemedi'; return; }
+      st.moneyNote = 'Silindi' + ciroNote;
+      render();
+    }
     function renderFinance(res) {
       const n = devicePerson() === 'partner' ? pendingCiro().length + debtLate().length : 0;
       document.querySelector('[data-tab="fin"]').innerHTML = '💰 Finans' + (n ? '<span class="dot">' + n + '</span>' : '');
@@ -2417,7 +2576,8 @@
       const now = nowLocal();
       const curM = now.ymd.slice(0, 7);
       const daily = (fin.daily || []).map(String), monthly = (fin.monthly || []).map(String);
-      if (!daily.length && !monthly.length) { el.innerHTML = '<section class="card"><div class="card-h">💰 Finans</div><p class="small muted">Finans kaynakları ayarlı değil.</p></section>'; return; }
+      const moneyCard = moneyCardHtml(cfg);
+      if (!daily.length && !monthly.length) { el.innerHTML = moneyCard + '<section class="card"><div class="card-h">💰 Finans</div><p class="small muted">Finans kaynakları ayarlı değil.</p></section>'; return; }
       const dc = debtCfg();
       const debtOn = dc.sources.length > 0;
       const ciroOf = (s, m) => {
@@ -2514,7 +2674,7 @@
       const who = devicePerson();
       const whoName = who === 'partner' ? PA : who === 'crew' ? P.crew || 'Crew' : who === 'none' ? 'ortak cihaz' : 'seçilmedi';
       const ask = daily.map((s) => finPlaceName(cfg, s)).join(', ') + ': iş günü bitince (kutular her an girilebilir; aylık toplam elle değiştirilebilir) · ' + monthly.map((s) => finPlaceName(cfg, s)).join(', ') + ': ayın ilk 5 günü önceki ay';
-      el.innerHTML =
+      el.innerHTML = moneyCard +
         '<section class="card"><div class="card-h">💰 ' + esc(monthName(M)) + ' · finansal durum</div>' + tiles + '<div style="margin-top:12px;overflow-x:auto;">' + table + '</div></section>' +
         '<section class="card"><div class="card-h">✍️ Ciro girişleri</div>' + groupHtml + '<p class="small muted" style="margin:8px 0 0;">Sorulur: ' + esc(ask) + '. Girilen tutar değiştirilip yeniden kaydedilebilir.</p></section>' +
         (debtOn ? debtCard(cfg) : '') +
@@ -2665,10 +2825,14 @@
     });
     $('tabFin').addEventListener('click', (e) => {
       if (e.target.closest('[data-personreset]')) return void askPerson(true);
+      if (e.target.closest('#moneyAdd')) return void addMoney();
+      const md = e.target.closest('[data-moneydel]');
+      if (md) return void deleteMoney(md.getAttribute('data-moneydel'));
       if (e.target.closest('[data-debtadd], [data-debt]')) return void onDebtClick(e);
       onCiroClick(e, false);
     });
     $('tabFin').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && e.target.closest('#moneyForm') && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT')) { e.preventDefault(); addMoney(); return; }
       if (e.key === 'Enter' && e.target.closest('#debtForm') && e.target.tagName === 'INPUT') { e.preventDefault(); addDebt(); }
     });
     ['ciroAlert', 'tabFin'].forEach((id) => $(id).addEventListener('keydown', (e) => {
@@ -2753,6 +2917,7 @@
       render();
     });
     $('pdf').addEventListener('change', (e) => { const f = e.target.files && e.target.files[0]; if (f) importPdf(f).finally(() => { e.target.value = ''; }); });
+    $('btnRoster').addEventListener('click', () => { refreshRoster(); });
     $('rosterSrc').addEventListener('click', async (e) => {
       const b = e.target.closest('[data-delroster]');
       if (!b || !confirm('Bu PDF kaldırılsın mı? Günler uygulama verisine döner.')) return;
@@ -2815,6 +2980,18 @@
     });
 
     // ---------- Plan içerik asistanı (Türkçe → config yaması; kod değiştirmez) ----------
+    function clockClamp(min) {
+      const m = Math.max(0, Math.min(1439, Math.round(min)));
+      return String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
+    }
+    /** Randevu bloğunu evden gidiş ve eve dönüşle genişletir. Gün dışına taşan süre 00:00–23:59 içinde kalır. */
+    function appointmentWindow(cfg, place, ymd, start, end) {
+      const apptStart = start, apptEnd = end;
+      if (!place || place === 'home') return { start, end, go: 0, back: 0, apptStart, apptEnd };
+      const go = travel(cfg, 'home', place, ymd, hm(start) - 30);
+      const back = travel(cfg, place, 'home', ymd, hm(end));
+      return { start: clockClamp(hm(start) - go), end: clockClamp(hm(end) + back), go, back, apptStart, apptEnd };
+    }
     const TR_MONTHS = { ocak: 1, subat: 2, şubat: 2, mart: 3, nisan: 4, mayis: 5, mayıs: 5, haziran: 6, temmuz: 7, agustos: 8, ağustos: 8, eylul: 9, eylül: 9, eylus: 9, ekim: 10, kasim: 11, kasım: 11, aralik: 12, aralık: 12 };
     const ASSIST_MONTH_RE = 'ocak|şubat|subat|mart|nisan|mayıs|mayis|haziran|temmuz|ağustos|agustos|eylül|eylul|eylus|ekim|kasım|kasim|aralık|aralik';
     const assistNorm = (s) => String(s || '').toLocaleLowerCase('tr-TR').normalize('NFC').replace(/\s+/g, ' ').trim();
@@ -2979,6 +3156,21 @@
       }
       return best;
     }
+    function appointmentKind(text) { return /vize|randevu|muayene/.test(assistNorm(text)); }
+    function spokenLocation(text) {
+      let s = expandSpoken(text);
+      s = s.replace(/\b\d{1,2}[:.]\d{2}(?:\s*[-–—]\s*\d{1,2}[:.]\d{2})?\b/g, ' ');
+      s = s.replace(/\b\d{1,2}(?:[:.]\d{2})?\s*(?:ten|tan|den|dan)\s*\d{1,2}(?:[:.]\d{2})?(?:\s*(?:e|a|ye|ya))?\b/g, ' ');
+      s = s.replace(new RegExp('\\b\\d{1,2}\\s*(?:' + ASSIST_MONTH_RE + ')(?:[a-zçğıöşü]{0,3})?(?:\\s*20\\d{2})?\\b', 'g'), ' ');
+      s = s.replace(/\b(20\d{2}-\d{2}-\d{2}|\d{1,2}[./]\d{1,2}(?:[./]20\d{2})?)\b/g, ' ');
+      s = s.replace(/\b(yarin|yarın|bugun|bugün|öbür|obur|haftaya|gelecek|önümüzdeki|onumuzdeki|geçen|gecen|bu|sadece|yalnız|yalniz|ekle|kaydet|olsun|eso|lütfen|lutfen|doktor|hanımcım|hanimcim|hanım|hanim|buyrun|için|icin|diye|günü|gunu|gün|gun|saat|sabah|akşam|aksam|öğleden|ogleden|sonra|öğlen|oglen|öğle|ogle|önce|once|imza|vize|randevu|muayene|toplantı|toplanti|hastane|okul|klinik|acıbadem|acibadem|altunizade|pazartesi|salı|sali|çarşamba|carsamba|perşembe|persembe|cumartesi|cuma|pazar)\w*/g, ' ');
+      s = s.replace(/[^a-zçğıöşü0-9\s]/gi, ' ').replace(/\s+/g, ' ').trim();
+      if (!s || s.length < 3) return null;
+      const label = s.charAt(0).toLocaleUpperCase('tr-TR') + s.slice(1, 60);
+      const key = assistNorm(s).replace(/[^a-z0-9çğıöşü]+/g, '').slice(0, 24);
+      if (!key || key === 'home' || key === 'school' || key === 'ev') return null;
+      return { key, label, created: true };
+    }
     function weekdayFixedOn(cfg, ymd) {
       const wd = weekday(ymd);
       return (cfg.partnerFixed || []).filter((f) => Array.isArray(f.weekdays) && f.weekdays.map(Number).includes(wd));
@@ -2987,6 +3179,7 @@
     function assistHelpText() {
       return ESO_HI + '\nBana günü söylemen yeterli; kaydetmeden önce sana sorarım.\n'
         + '· «6 ekimde 16:00 Acıbadem Hastanesi, o günkü iş imza»\n'
+        + '· «12 ekim 10:00 vize randevusu, konsolosluk»\n'
         + '· «yarın 14:00-15:30 okul toplantısı»\n'
         + '· «salı hastaneye gitmiyorum»\n'
         + '· «10-12 ekim Kapadokya tatil»\n'
@@ -3003,6 +3196,7 @@
       };
     }
     function guessLabel(heard) {
+      if (/vize/.test(heard)) return 'Vize randevusu';
       if (/toplant/.test(heard)) return 'Toplantı';
       if (/muayene/.test(heard)) return 'Muayene';
       if (/randevu/.test(heard)) return 'Randevu';
@@ -3181,19 +3375,30 @@
           },
         };
       }
-      if (!ymd && !times) return miss('Günü ve saati söyler misin? «Yarın 16:00 hastane» gibi.', false, text.length > 8);
+      if (!ymd && !times) {
+        if (appointmentKind(t)) return miss('Günü ve saati söyler misin? «12 ekim 10:00 vize randevusu, konsolosluk» gibi.', true, false);
+        return miss('Günü ve saati söyler misin? «Yarın 16:00 hastane» gibi.', false, text.length > 8);
+      }
       if (!ymd) return miss('Hangi gün? «Yarın», «salı» ya da «6 ekim» diyebilirsin.', true, false);
       if (!times) return miss('Saat kaçta? «16:00» ya da «14:00-15:30» yeterli.', true, false);
       if (hm(times.end) <= hm(times.start)) return miss('Bitiş saati başlangıçtan sonra olmalı.', true, false);
 
       const onlyShort = hasWord(t, 'sadece') || hasWord(t, 'yalnız') || hasWord(t, 'yalniz') || hasWord(t, 'imza') || /\bgitmeyecek\b|\bgitmeyeceğim\b/.test(t);
       const guessed = guessLabel(t);
-      const placeKey = place || 'home';
-      const placeName = isHospitalText(placeKey + ' ' + (placeLabel(cfg, placeKey) || '') + ' ' + text) ? HOSPITAL_LABEL : placeLabel(cfg, placeKey);
-      const hospital = isHospitalText(placeKey + ' ' + placeName + ' ' + text);
-      const label = hospital ? HOSPITAL_LABEL : (guessed || (place ? placeName : '') || 'Tek seferlik iş');
-      const lines = [dateLong(ymd) + ' · ' + times.start + '–' + times.end + ' · ' + (hospital ? HOSPITAL_LABEL : (place ? placeName : label))];
-      if (text && (hospital || guessed)) lines.push('Not: ' + text.slice(0, 140));
+      let loc = null;
+      let placeKey = place || '';
+      if (!placeKey && appointmentKind(t)) loc = spokenLocation(t);
+      if (loc) placeKey = loc.key;
+      if (appointmentKind(t) && !placeKey) return miss('Nerede? Yeri de söyle, gidiş gelişi ekleyeyim.', true, false);
+      if (!placeKey) placeKey = 'home';
+      const hospital = isHospitalText(placeKey + ' ' + (placeLabel(cfg, placeKey) || '') + ' ' + text + ' ' + (loc ? loc.label : ''));
+      const padTravel = placeKey !== 'home' && !hospital;
+      const win = padTravel ? appointmentWindow(cfg, placeKey, ymd, times.start, times.end) : { start: times.start, end: times.end, go: 0, back: 0, apptStart: times.start, apptEnd: times.end };
+      const placeName = hospital ? HOSPITAL_LABEL : (loc && loc.created ? loc.label : placeLabel(cfg, placeKey));
+      const label = hospital ? HOSPITAL_LABEL : (guessed || (place || loc ? placeName : '') || 'Tek seferlik iş');
+      const lines = [dateLong(ymd) + ' · ' + win.start + '–' + win.end + ' · ' + (hospital ? HOSPITAL_LABEL : (place || loc ? placeName : label))];
+      if (win.go || win.back) lines.push('Randevu ' + win.apptStart + '–' + win.apptEnd + ' · gidiş ' + win.go + ' dk, dönüş ' + win.back + ' dk.');
+      else if (text && (hospital || guessed)) lines.push('Not: ' + text.slice(0, 140));
       const sameDayFixed = weekdayFixedOn(cfg, ymd).filter((f) => !place || f.place === placeKey || assistNorm(f.label || '').includes(assistNorm(placeName)));
       if (onlyShort && sameDayFixed.length) {
         for (const f of sameDayFixed) lines.push('Haftalık «' + (f.label || f.short || f.place) + '» bu gün atlanır.');
@@ -3204,6 +3409,11 @@
         summary: 'Tek seferlik iş',
         lines,
         apply(full) {
+          if (loc && loc.created) {
+            const places = { ...(full.places || {}) };
+            if (!places[placeKey]) places[placeKey] = { label: loc.label, address: '' };
+            full.places = places;
+          }
           const pf = Array.isArray(full.partnerFixed) ? full.partnerFixed.map((x) => (x && typeof x === 'object' ? { ...x } : x)) : [];
           const wd = weekday(ymd);
           if (onlyShort) {
@@ -3219,19 +3429,20 @@
             }
           }
           const exists = pf.some((item) => item && Array.isArray(item.dates) && item.dates.includes(ymd)
-            && item.start === times.start && (item.place === placeKey || assistNorm(item.label || '').includes(assistNorm(label))));
+            && item.start === win.start && (item.place === placeKey || assistNorm(item.label || '').includes(assistNorm(label))));
           if (!exists) {
             const short = hospital ? HOSPITAL_SHORT : String(label).slice(0, 12);
             const row = {
               place: placeKey,
               label,
               short,
-              start: times.start,
-              end: times.end,
+              start: win.start,
+              end: win.end,
               dates: [ymd],
               skipPublicHolidays: false,
-              note: text.slice(0, 160),
+              note: ((win.go || win.back) ? ('Randevu ' + win.apptStart + '–' + win.apptEnd + '. Gidiş ' + win.go + ' dk, dönüş ' + win.back + ' dk. ' + text) : text).slice(0, 160),
             };
+            if (win.go || win.back) row.includesTravel = true;
             if (!hospital) {
               const ch = (short[0] || '?').toLocaleUpperCase('tr-TR');
               if (ch !== 'İ') row.icon = ch;
