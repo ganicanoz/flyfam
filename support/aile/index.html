@@ -85,7 +85,16 @@
     #vacList > div { padding: 4px 0; }
     #vacList .past { opacity: .5; }
     .vac-bad { color: var(--bad); }
-    main { max-width: 1180px; margin: 0 auto; padding: 12px; display: grid; gap: 14px; }
+    main { max-width: 1280px; margin: 0 auto; padding: 12px; display: grid; gap: 14px; }
+    .board { display: grid; gap: 10px; align-items: start; }
+    @media (min-width: 880px) {
+      .board { grid-template-columns: minmax(0, 1.4fr) minmax(260px, 1fr); }
+      .board .cal-card { grid-row: span 2; }
+    }
+    @media (min-width: 1180px) {
+      .board { grid-template-columns: minmax(0, 1.35fr) minmax(240px, 1fr) minmax(240px, 1fr); }
+      .board .cal-card { grid-row: span 3; }
+    }
     .card { background: var(--panel); border-radius: var(--radius); border: 1px solid #d5dde8; padding: 14px; box-shadow: 0 1px 2px rgba(15,23,42,.05), 0 6px 18px rgba(15,23,42,.05); }
     .card-h { font-weight: 800; font-size: 15px; margin: -2px 0 10px; padding-bottom: 8px; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 8px; }
     .tabpane { display: grid; gap: 14px; }
@@ -165,10 +174,15 @@
     .chip { display: inline-flex; align-items: center; justify-content: center; min-width: 32px; min-height: 28px; gap: 3px; padding: 2px 6px; border-radius: 8px; border: 1px solid var(--line); background: #fff; font-size: 12px; font-weight: 700; cursor: pointer; user-select: none; }
     .daypicks { display: flex; flex-wrap: wrap; gap: 4px; }
     .daypick { display: inline-flex; align-items: center; gap: 2px; min-height: 28px; padding: 2px 6px; border-radius: 8px; border: 1px solid #99f6e4; background: #f0fdfa; font-size: 12px; font-weight: 800; }
-    .daypick.past { border-color: #86efac; background: #ecfdf5; color: #166534; }
+    .daypick.past { border-color: #cbd5e1; background: #f1f5f9; color: #64748b; }
     .daypick .x { border: 0; background: transparent; color: var(--muted); padding: 0 2px; font-size: 12px; line-height: 1; }
     .dayline { display: flex; align-items: center; gap: 6px; padding: 4px 0; font-size: 14px; }
-    .done-line { margin: 6px 0; font-weight: 800; color: #166534; }
+    .done-line { margin: 6px 0; font-weight: 800; color: #475569; }
+    .sug { display: flex; gap: 3px; align-items: center; min-height: 8px; }
+    .sug i { width: 7px; height: 7px; border-radius: 50%; display: block; flex: none; }
+    .conf-row { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; width: 100%; text-align: left; padding: 6px 8px; margin: 0 0 6px; border-radius: 10px; border: 2px solid #dc2626; background: #fef2f2; font-weight: 700; }
+    .conf-row b { color: #991b1b; }
+    .conf-row span { font-size: 12px; font-weight: 650; color: #7f1d1d; }
     .chip.rec { box-shadow: 0 0 0 2px #facc15; }
     .chip i { font-style: normal; font-size: 10px; font-weight: 800; color: #a16207; background: #fef9c3; border-radius: 6px; padding: 0 4px; }
     .chip.demo { cursor: default; padding: 0 4px; border-color: #facc15; }
@@ -195,14 +209,17 @@
     .vac-tag { margin-top: auto; align-self: flex-start; font-size: 10px; font-weight: 800; letter-spacing: .02em; color: #92400e; background: rgba(255,255,255,.75); border: 1px dashed #f59e0b; border-radius: 999px; padding: 1px 7px; }
     .out.vac { opacity: .6; }
     .cell.today { box-shadow: inset 0 0 0 2px var(--brand); }
-    .cell.done { background: #f0fdf4; border-color: #86efac; }
-    .cell.done .d b { color: #166534; }
-    .cell.bad { border-color: #fca5a5; box-shadow: inset 0 0 0 1px #fca5a5; }
+    .cell.done { background: #eef2f6; border-color: #cbd5e1; }
+    .cell.done .d b { color: #64748b; }
+    .cell.bad { border: 3px solid #dc2626; box-shadow: inset 0 0 0 1px #dc2626; }
+    .cell.done.bad { background: #f8fafc; }
     .cell.picked { border-width: 2px; border-color: #0f766e; }
-    .cell.done.picked { border-color: #16a34a; }
-    .lrow.done { background: #f0fdf4; }
-    .lrow.done .dt b { color: #166534; }
-    .done-tag { color: #166534; font-weight: 800; font-size: 9.5px; text-transform: none; }
+    .cell.done.picked { border-color: #94a3b8; }
+    .cell.bad.picked, .cell.done.bad { border: 3px solid #dc2626; }
+    .lrow.done { background: #f1f5f9; }
+    .lrow.done .dt b { color: #64748b; }
+    .lrow.bad { box-shadow: inset 4px 0 0 #dc2626; }
+    .done-tag { color: #64748b; font-weight: 800; font-size: 9.5px; text-transform: none; }
     .d { display: flex; justify-content: space-between; align-items: baseline; gap: 2px; }
     .d b { font-size: 14px; }
     .d small { font-size: 9.5px; font-weight: 600; color: #c2410c; text-align: right; line-height: 1.1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -225,6 +242,8 @@
     .runbox { display: grid; gap: 6px; margin: 4px 0 12px; padding: 10px 12px; border-radius: 12px; background: #f0fdfa; border: 1px solid #99f6e4; font-size: 13px; }
     .runbox .bad { color: var(--bad); font-weight: 700; } .runbox .warn { color: #b45309; }
     .runbox .taxi { font-size: 12px; color: #854d0e; }
+    table.runs { font-size: 12px; }
+    table.runs td, table.runs th { padding: 3px 6px; }
     table.runs td.num, table.runs th.num { text-align: right; white-space: nowrap; }
     table.runs tr.bad td { background: #fef2f2; }
     table.runs tfoot td { border-bottom: 0; padding-top: 8px; font-size: 13px; }
@@ -316,6 +335,10 @@
     .rows { display: grid; grid-template-columns: 58px 1fr; gap: 5px 8px; align-items: center; font-size: 12px; }
     .rows .tl-row { height: 12px; }
     .hours { display: flex; justify-content: space-between; font-size: 10px; color: var(--muted); }
+    .hours.ticks { position: relative; display: block; height: 16px; }
+    .hours.ticks span { position: absolute; top: 0; transform: translateX(-50%); white-space: nowrap; }
+    .hours.ticks span:first-child { transform: none; }
+    .hours.ticks span:last-child { transform: translateX(-100%); }
     .notes { list-style: none; padding: 0; margin: 10px 0; display: grid; gap: 4px; font-size: 13px; }
     .notes .ok { color: #047857; } .notes .warn { color: #b45309; } .notes .bad { color: var(--bad); font-weight: 700; } .notes .crew { color: #1d4ed8; } .notes .muted { color: var(--muted); }
     .opts { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -501,7 +524,8 @@
         </div>
       </section>
 
-      <section class="card">
+      <div class="board">
+      <section class="card cal-card">
         <div class="cal-head card-h">
           <span>🗓️ Takvim</span>
           <div class="seg-toggle" id="viewToggle">
@@ -515,6 +539,11 @@
         </div>
         <div class="list" id="list" hidden></div>
         <div class="legend" id="legend"></div>
+      </section>
+
+      <section class="card" id="boxConf">
+        <div class="card-h">Çakışmalar</div>
+        <div id="conflicts" class="small">—</div>
       </section>
 
       <section class="card share-card">
@@ -563,6 +592,7 @@
           </div>
         </div>
       </details>
+      </div>
       </div>
 
       <div class="row small muted" style="justify-content:space-between;">
@@ -722,8 +752,10 @@
     function workMeta(cfg, item, idx, fixed) {
       const color = item.color || (fixed ? COLORS.fixed : PALETTE[idx % PALETTE.length]);
       const short = item.short || item.label || item.id || '?';
-      const icon = String(item.icon || short[0] || '?').toUpperCase().slice(0, 1);
-      const logo = clinicLogo(cfg, item);
+      const brand = clinicBrandOf(cfg, item);
+      let icon = String(item.icon || short[0] || '?').toUpperCase().slice(0, 1);
+      if (brand && brand.id === 'dis') icon = 'T';
+      const logo = brand ? brand.logo : '';
       return { color, short, icon, logo };
     }
     const icHtml = (meta, out) => (meta && meta.logo)
@@ -1070,7 +1102,6 @@
       const { cfg, days } = res;
       const list = days.filter((d) => d.inMonth && d.run);
       if (!list.length) { $('runs').innerHTML = 'Bu ay okul günü yok.'; return; }
-      const P = cfg.people || {};
       const keys = ['family', 'crew', 'partner', 'none'];
       const cnt = { drop: {}, pick: {} };
       let total = 0, rides = 0;
@@ -1083,17 +1114,11 @@
           (fares.length ? fares.map((f) => tl(f.fare)).join(' + ') : '<span class="muted">—</span>') + '</td></tr>';
       }).join('');
       const counts = (s) => keys.filter((k) => cnt[s][k]).map((k) => esc(runWho(cfg, { who: k })) + ' <b>' + cnt[s][k] + '</b>').join(' · ');
-      const tx = cfg.taxi || {};
-      const routes = ['drop', 'pick'].filter((s) => tx[s] && Number(tx[s].km) > 0).map((s) => (s === 'drop' ? 'bırakırken ' : 'alırken ') + shortPlace(cfg, tx[s].from) + '→' + shortPlace(cfg, tx[s].to) + ' ~' + String(tx[s].km).replace('.', ',') + ' km' + (s === 'pick' ? ' (okuldan oraya toplu taşıma)' : ''));
       $('runs').innerHTML = (st.draftDirty ? '<p class="dirty" style="margin-top:0;">Seçimler henüz fixlenmedi; tablo taslağa göre.</p>' : '') +
         '<table class="t runs"><thead><tr><th>Gün</th><th>↓ Bırakma</th><th>↑ Alma</th><th class="num">🚕 Taksi</th></tr></thead><tbody>' + rows + '</tbody>' +
         '<tfoot><tr><td colspan="3">Ay sonu taksi toplamı (' + rides + ' yolculuk)</td><td class="num"><b>~' + tl(total) + '</b></td></tr></tfoot></table>' +
-        '<div class="run-sum"><span>↓ Bırakma: ' + counts('drop') + '</span><span>↑ Alma: ' + counts('pick') + '</span></div>' +
-        '<p class="small muted" style="margin:6px 0 0;">Ailece = ikisi de müsait (' + esc(P.crew || 'Crew') + ' nöbette de müsait sayılır). 🚕 yalnız ' + esc(P.partner || 'Eş') + ' tek başınayken: ' + esc(routes.join('; ') || 'güzergâh yok') +
-        ' · tarife: açılış ' + tl2(tx.open) + ', km ' + tl2(tx.perKm) + ', dk ' + tl2(tx.perMin) + ', en az ' + tl2(tx.minFare) + ' (tahmini).</p>';
+        '<div class="run-sum"><span>↓ ' + counts('drop') + '</span><span>↑ ' + counts('pick') + '</span></div>';
     }
-    const tl2 = (n) => Number(n || 0).toLocaleString('tr-TR', { minimumFractionDigits: 0, maximumFractionDigits: 2 }) + ' ₺';
-
     /** 1–5 yıldız: 5 = kimseye bağlı değil, rahat. */
     function rate(ctx, day, o) {
       const cfg = ctx.cfg;
@@ -1368,8 +1393,24 @@
       const row = (a) => '<div class="tl-row">' + a.map(seg).join('') + '</div>';
       if (!big) return '<div class="tl">' + row(ev.segs.crew) + row(ev.segs.child) + row(ev.segs.partner) + '</div>';
       const P = cfg.people || {};
+      const marks = [];
+      for (let t = vs; t <= ve; t += 120) marks.push(t);
+      if (marks[marks.length - 1] !== ve) marks.push(ve);
+      const hours = '<div class="hours ticks">' + marks.map((t) => '<span style="left:' + ((t - vs) / span * 100).toFixed(2) + '%">' + fmt(t) + '</span>').join('') + '</div>';
       return '<div class="rows"><span>' + esc(P.crew || 'Crew') + '</span>' + row(ev.segs.crew) + '<span>' + esc(P.child || 'Çocuk') + '</span>' + row(ev.segs.child) +
-        '<span>' + esc(P.partner || 'Eş') + '</span>' + row(ev.segs.partner) + '<span></span><div class="hours"><span>' + fmt(vs) + '</span><span>' + fmt(vs + span / 2) + '</span><span>' + fmt(ve) + '</span></div></div>';
+        '<span>' + esc(P.partner || 'Eş') + '</span>' + row(ev.segs.partner) + '<span></span>' + hours + '</div>';
+    }
+    function sugDots(ev) {
+      if (!ev.inMonth || ev.vac || ev.fixed.length || ev.plans.length || !ev.opts.length) return '';
+      const seen = new Set();
+      const dots = [];
+      for (const o of ev.opts) {
+        if (seen.has(o.cand)) continue;
+        seen.add(o.cand);
+        const best = ev.opts.filter((x) => x.cand === o.cand).sort((a, b) => b.stars - a.stars)[0];
+        dots.push('<i style="background:' + STAR_COLORS[best.stars] + '" title="' + esc((best.short || best.label) + ' ' + fmt(best.s) + '–' + fmt(best.e)) + '"></i>');
+      }
+      return '<div class="sug">' + dots.join('') + '</div>';
     }
     const starsHtml = (n) => '<span class="stars" style="color:' + STAR_COLORS[n] + '">' + starsText(n) + '</span>';
 
@@ -1388,7 +1429,7 @@
         const past = ev.inMonth && ev.ymd < today;
         if (ev.ymd === today) cls.push('today');
         if (past) cls.push('done');
-        if (ev.conflict && !past) cls.push('bad');
+        if (ev.conflict) cls.push('bad');
         let work = '';
         for (const f of ev.fixed) work += '<span class="pick" style="background:' + f.color + '1f">' + icHtml(f) + '</span>';
         if (ev.plans.length) {
@@ -1396,19 +1437,20 @@
           for (const p of ev.plans) work += '<span class="pick" style="background:' + p.color + '1f">' + icHtml(p) + '</span>';
         }
         const crew = ev.crewLabels.slice(0, 2).map((l) => '<div class="crew ' + l.k + '">' + esc(l.t) + '</div>').join('');
-        const bad = !past && ev.notes.filter((n) => n.k === 'bad').slice(0, 1).map((n) => '<div class="flag">⚠ ' + esc(n.t.split(':')[0]) + '</div>').join('');
+        const bad = past ? '' : ev.notes.filter((n) => n.k === 'bad').slice(0, 1).map((n) => '<div class="flag">⚠ ' + esc(n.t.split(':')[0]) + '</div>').join('');
         const top = ev.vac ? '🏖️ ' + (ev.vac.label || 'Tatil') : ev.hol ? ev.hol[0] : '';
         const isNew = ev.inMonth && !past && st.newConf.has(ev.ymd);
         if (isNew) cls.push('newconf');
         return '<div class="' + cls.join(' ') + '" data-day="' + ev.ymd + '"' + (ev.inMonth && !past ? ' draggable="true" data-drag-day="' + ev.ymd + '"' : '') + ' role="button" tabindex="0">' +
           '<div class="d"><b>' + Number(ev.ymd.slice(8, 10)) + '</b>' + (isNew ? '<span class="newtag">YENİ ⚠</span>' : top ? '<small>' + esc(top) + '</small>' : '') + '</div>' +
-          timeline(ev, cfg, false) + crew + bad + (ev.inMonth ? runMini(cfg, ev) : '') + (ev.vac && ev.inMonth ? '<span class="vac-tag">okul yok · iş yok</span>' : '<div class="work">' + work + '</div>') + '</div>';
+          timeline(ev, cfg, false) + crew + bad + (ev.inMonth ? runMini(cfg, ev) : '') + (ev.vac && ev.inMonth ? '<span class="vac-tag">okul yok · iş yok</span>' : '<div class="work">' + work + sugDots(ev) + '</div>') + '</div>';
       }).join('');
       st.lastRes = res;
       renderList(res, today);
       applyViewMode();
       renderGoals(res);
       renderLegend(cfg);
+      renderConflicts(res);
       renderSummary(res);
       renderRuns(res);
       renderFinance(res);
@@ -1438,7 +1480,8 @@
         const past = ev.ymd < today;
         if (ev.ymd === today) cls.push('today');
         if (past) cls.push('done');
-        const strip = past ? '#16a34a' : ev.conflict ? '#dc2626' : ev.plans.length ? '#0f766e' : ev.fixed.length ? ev.fixed[0].color : 'transparent';
+        if (ev.conflict) cls.push('bad');
+        const strip = ev.conflict ? '#dc2626' : past ? '#94a3b8' : ev.plans.length ? '#0f766e' : ev.fixed.length ? ev.fixed[0].color : 'transparent';
         const bg = '';
         const lines = [];
         if (ev.vac) lines.push('<div class="ln vacl">🏖️ ' + esc(ev.vac.label || 'Tatil') + ' · okul yok · iş yok</div>');
@@ -1455,7 +1498,7 @@
         for (const p of ev.plans) badges.push('<span class="pill" style="background:' + p.color + '1f">' + icHtml(p) + ' ' + fmt(p.s) + '–' + fmt(p.e) + '</span>');
         out.push('<div class="' + cls.join(' ') + '" style="border-left-color:' + strip + ';' + bg + '" data-day="' + ev.ymd + '"' + (past ? '' : ' draggable="true" data-drag-day="' + ev.ymd + '"') + ' role="button" tabindex="0">' +
           '<div class="dt"><b>' + Number(ev.ymd.slice(8, 10)) + '</b><span>' + DAY_SHORT[ev.wd] + '</span>' + (past ? '<span class="done-tag">oldu</span>' : '') + '</div>' +
-          '<div class="bd">' + timeline(ev, cfg, false) + lines.join('') + (badges.length ? '<div class="wk-badges">' + badges.join('') + '</div>' : '') + '</div></div>');
+          '<div class="bd">' + timeline(ev, cfg, false) + lines.join('') + (badges.length ? '<div class="wk-badges">' + badges.join('') + '</div>' : '') + sugDots(ev) + '</div></div>');
       });
       $('list').innerHTML = out.join('');
     }
@@ -1534,9 +1577,18 @@
       const items = [[COLORS.duty, (P.crew || 'Crew') + ' görev'], [COLORS.away, 'Yatı'], [COLORS.standby, 'Nöbet / rezerv'], [COLORS.home, 'Ev görevi'], [COLORS.school, (P.child || 'Çocuk') + ' okul']];
       $('legend').innerHTML = items.map(([c, t]) => '<span><i class="sw" style="background:' + c + '"></i>' + esc(t) + '</span>').join('') +
         '<span><i class="sw" style="background:repeating-linear-gradient(90deg,#64748b 0 4px,transparent 4px 7px)"></i>Yol (kesikli)</span>' +
-        (cfg.partnerCandidates || []).map((c, i) => { const m = workMeta(cfg, c, i, false); return '<span>' + icHtml(m) + '</span>'; }).join('') +
-        (cfg.partnerFixed || []).filter((f, i, a) => a.findIndex((x) => x.place === f.place) === i).map((f, i) => { const m = workMeta(cfg, f, i, true); return '<span>' + icHtml(m) + '</span>'; }).join('') +
-        '<span><i class="sw" style="background:#86efac"></i>Gerçekleşti</span>';
+        (cfg.partnerCandidates || []).map((c, i) => { const m = workMeta(cfg, c, i, false); const b = clinicBrandOf(cfg, c); return '<span>' + icHtml(m) + ' ' + esc(b ? b.name : '') + '</span>'; }).join('') +
+        (cfg.partnerFixed || []).filter((f, i, a) => a.findIndex((x) => x.place === f.place) === i).map((f, i) => { const m = workMeta(cfg, f, i, true); const b = clinicBrandOf(cfg, f); return '<span>' + icHtml(m) + ' ' + esc(b ? b.name : '') + '</span>'; }).join('') +
+        '<span><i class="sw" style="background:#cbd5e1"></i>Gerçekleşti</span>' +
+        '<span><i class="sw" style="background:#dc2626"></i>Çakışma</span>';
+    }
+    function renderConflicts(res) {
+      const days = res.days.filter((d) => d.inMonth && d.conflict);
+      if (!days.length) { $('conflicts').innerHTML = '<span class="muted">Çakışma yok.</span>'; return; }
+      $('conflicts').innerHTML = days.map((d) => {
+        const why = d.notes.filter((n) => n.k === 'bad').map((n) => n.t).join(' · ') || 'Çakışma';
+        return '<button type="button" class="conf-row" data-day="' + d.ymd + '"><b>' + Number(d.ymd.slice(8, 10)) + ' ' + DAY_SHORT[d.wd] + '</b><span>' + esc(why) + '</span></button>';
+      }).join('');
     }
 
     function openDay(ymd, resIn) {
@@ -1554,7 +1606,6 @@
       } else if (ev.vac) body = '<p class="muted small">Tatil günü.</p>';
       else if (ev.fixed.length) body = ev.fixed.map((f) => line(f, f.s, f.e)).join('') + '<p class="muted small">Sabit gün.</p>';
       else {
-        const bad = ev.notes.find((n) => n.k === 'bad');
         const opts = ev.opts.length ? '<div class="opts">' + ev.opts.map((o) => {
           const on = ev.plans.some((p) => p.cand === o.cand && p.v === o.v);
           return '<button type="button" class="opt' + (on ? ' on' : '') + '" data-opt="' + esc(ev.ymd + '|' + o.key) + '">' + icHtml(o) +
@@ -1562,10 +1613,11 @@
         }).join('') + '</div>' : '<p class="muted small">Uygun klinik yok.</p>';
         const times = ev.plans.map((p) => '<div class="tedit">' + icHtml(p) + timeInputs(ev.ymd, p) + '</div>').join('');
         const clear = ev.plans.length ? '<div class="row" style="margin-top:8px;"><button type="button" data-unpick="' + ev.ymd + '">Kaldır</button></div>' : '';
-        body = (bad ? '<p class="flag">' + esc(bad.t) + '</p>' : '') + opts + times + clear + runSheet(cfg, ev);
+        body = opts + times + clear + runSheet(cfg, ev);
       }
+      const why = ev.notes.filter((n) => n.k === 'bad').map((n) => '<p class="flag">' + esc(n.t) + '</p>').join('');
       $('sheet').innerHTML = '<div class="sheet' + (past ? ' done' : '') + '"><h3><span>' + esc(dateLong(ev.ymd)) + '</span><button type="button" class="ghost" data-close="1" aria-label="Kapat">✕</button></h3>' +
-        body + '</div>';
+        timeline(ev, cfg, true) + why + body + '</div>';
       $('sheet').hidden = false;
     }
     function closeDay() { st.openDay = null; $('sheet').hidden = true; $('sheet').innerHTML = ''; }
@@ -1601,7 +1653,8 @@
       const { cfg, days } = res;
       const groups = new Map();
       const add = (place, meta, ymd, s, e, fixed, warn, plan) => {
-        if (!groups.has(place)) groups.set(place, { place, label: placeLabel(cfg, place), meta, items: [] });
+        const hit = clinicBrandOf(cfg, place);
+        if (!groups.has(place)) groups.set(place, { place, label: hit ? hit.name : placeLabel(cfg, place), meta, items: [] });
         groups.get(place).items.push({ ymd, s, e, fixed, warn, plan });
       };
       for (const d of days) {
@@ -2521,18 +2574,27 @@
     });
     function clinicBrand(blob) {
       const s = String(blob || '').toLocaleLowerCase('tr-TR');
-      const hospital = /altunizade|acıbadem|acibadem/.test(s);
-      const uni = /maltepe/.test(s) && !hospital;
-      const tooth = /yaşa|yasa|muayene/.test(s) || (/(?:^|\s)diş/.test(s) && !hospital && !uni);
+      const hospital = /altunizade|acıbadem|acibadem/.test(s) || (/hastane/.test(s) && !/üniversite|universite/.test(s));
+      const tooth = /yaşa|yasa|muayene|dis hekim/.test(s) || (/(?:^|[^a-zçğıöşü])diş/.test(s) && !hospital);
+      const uni = /üniversite|universite/.test(s) || (/maltepe/.test(s) && !hospital && !tooth);
+      if (tooth && !hospital) return CLINIC_BRANDS[2];
       if (hospital) return CLINIC_BRANDS[0];
       if (uni) return CLINIC_BRANDS[1];
-      if (tooth) return CLINIC_BRANDS[2];
       return null;
     }
+    function itemBlob(cfg, item) {
+      if (item == null) return '';
+      if (typeof item === 'string') {
+        const p = (cfg && cfg.places && cfg.places[item]) || {};
+        return [item, p.label, p.short].filter(Boolean).join(' ');
+      }
+      const key = String(item.place || item.id || '');
+      const p = (cfg && cfg.places && cfg.places[key]) || {};
+      return [item.label, item.short, item.id, key, p.label, p.short].filter(Boolean).join(' ');
+    }
+    function clinicBrandOf(cfg, item) { return clinicBrand(itemBlob(cfg, item)); }
     function clinicLogo(cfg, item) {
-      const key = typeof item === 'string' ? item : String((item && (item.place || item.id)) || '');
-      const extra = item && typeof item === 'object' ? ((item.label || '') + ' ' + (item.short || '')) : '';
-      const hit = clinicBrand(placeBlob(cfg, key, extra));
+      const hit = clinicBrandOf(cfg, item);
       return hit ? hit.logo : '';
     }
     function moneyReceipts(full) {
@@ -2571,7 +2633,7 @@
       for (const f of [...((cfg && cfg.partnerFixed) || []), ...((cfg && cfg.partnerCandidates) || [])]) if (f && f.place) push(f.place);
       for (const r of moneyReceipts(full)) push(r.place);
       return CLINIC_BRANDS.map((b) => {
-        const key = keys.find((k) => { const hit = clinicBrand(placeBlob(cfg, k)); return hit && hit.id === b.id; }) || b.id;
+        const key = keys.find((k) => { const hit = clinicBrandOf(cfg, k); return hit && hit.id === b.id; }) || b.id;
         return { key, label: b.name, logo: b.logo };
       });
     }
@@ -2604,7 +2666,8 @@
       const body = receipts.length
         ? receipts.map((r) => {
           const logo = clinicLogo(cfg, r.place);
-          return '<tr data-money="' + esc(r.id) + '"><td>' + esc(dshort(r.ymd)) + '</td><td>' + (logo ? '<img class="clinic-mini" src="' + esc(logo) + '" alt="" /> ' : '') + esc(moneyPlaceName(cfg, r.place)) + '</td><td>' + esc(r.note) + '</td><td class="num">' + tl(r.amount) + '</td><td><button type="button" class="ghost" data-moneydel="' + esc(r.id) + '" title="Sil" aria-label="Sil">✕</button></td></tr>';
+          const hit = clinicBrandOf(cfg, r.place);
+          return '<tr data-money="' + esc(r.id) + '"><td>' + esc(dshort(r.ymd)) + '</td><td>' + (logo ? '<img class="clinic-mini" src="' + esc(logo) + '" alt="" /> ' : '') + esc(hit ? hit.name : moneyPlaceName(cfg, r.place)) + '</td><td>' + esc(r.note) + '</td><td class="num">' + tl(r.amount) + '</td><td><button type="button" class="ghost" data-moneydel="' + esc(r.id) + '" title="Sil" aria-label="Sil">✕</button></td></tr>';
         }).join('')
         : '<tr><td colspan="5" class="muted">Gelir yok.</td></tr>';
       return '<section class="card" id="moneyCard"><div class="card-h">Gelir · ' + esc(monthName(month)) + '</div>'
@@ -2754,7 +2817,7 @@
       if (await currentSub().catch(() => null)) await pushOff().catch(() => { /* yok say */ });
       localStorage.removeItem(TOKEN_KEY); clearCache(); st.bearer = null; st.sig = null; showGate('Çıkış yapıldı'); });
     const onDayPick = (ymd) => { if (st.activeGroup != null) addToGroup(st.activeGroup, ymd); else openDay(ymd); };
-    ['grid', 'list'].forEach((id) => {
+    ['grid', 'list', 'conflicts'].forEach((id) => {
       $(id).addEventListener('click', (e) => { const c = e.target.closest('[data-day]'); if (c) onDayPick(c.getAttribute('data-day')); });
       $(id).addEventListener('keydown', (e) => { if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('[data-day]')) { e.preventDefault(); onDayPick(e.target.getAttribute('data-day')); } });
     });
