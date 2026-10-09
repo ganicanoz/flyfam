@@ -113,6 +113,7 @@
     .debt-form, .money-form { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
     .money-form { margin-bottom: 10px; }
     .money-form select { min-width: 9rem; max-width: 100%; }
+    .money-form #moneyMemo { flex: 1 1 140px; min-width: 0; }
     .debt-form #debtLabel { flex: 1 1 180px; min-width: 0; }
     .fin-row.paid { opacity: .7; }
     .fin-row.future { opacity: .6; background: #fff; border-style: dashed; }
@@ -2286,33 +2287,34 @@
     function debtCard(cfg) {
       const dc = debtCfg();
       const today = nowLocal().ymd;
-      const all = debtList().filter((d) => dc.sources.includes(d.source));
+      const all = dc.sources.length ? debtList().filter((d) => dc.sources.includes(d.source)) : debtList();
       const open = all.filter((d) => !d.paid_on), paid = all.filter((d) => d.paid_on).reverse();
       const left = open.reduce((a, d) => a + d.amount, 0);
       const late = open.filter((d) => d.due_date < today).reduce((a, d) => a + d.amount, 0);
-      const thisM = open.filter((d) => d.due_date.slice(0, 7) === today.slice(0, 7)).reduce((a, d) => a + d.amount, 0);
       const multi = dc.sources.length > 1;
-      const name = (d) => (d.label || dc.label) + (d.total_n > 1 ? ' · ' + d.seq + '/' + d.total_n : '') + (multi ? ' · ' + finPlaceName(cfg, d.source) : '');
+      const name = (d) => (d.label || 'Fatura') + (d.total_n > 1 ? ' · ' + d.seq + '/' + d.total_n : '') + (multi ? ' · ' + finPlaceName(cfg, d.source) : '');
       const chip = (d) => {
-        if (d.paid_on) return '<span class="debt-chip ok">ödendi ' + esc(dshort(d.paid_on)) + '</span>';
+        if (d.paid_on) return '';
         const n = dayIndex(d.due_date) - dayIndex(today);
-        return n < 0 ? '<span class="debt-chip late">' + -n + ' gün gecikti</span>' : n === 0 ? '<span class="debt-chip late">bugün</span>' : n <= 7 ? '<span class="debt-chip soon">' + n + ' gün</span>' : '';
+        return n < 0 ? '<span class="debt-chip late">gecikti</span>' : n === 0 ? '<span class="debt-chip late">bugün</span>' : '';
       };
       const row = (d) => '<div class="fin-row debt' + (!d.paid_on && d.due_date <= today ? ' miss' : '') + (d.paid_on ? ' paid' : '') + '" data-debt="' + esc(d.id) + '" data-plan="' + esc(d.plan_id) + '" data-n="' + d.total_n + '">' +
         '<div class="lbl"><b>' + esc(dshort(d.due_date)) + '</b> · ' + esc(name(d)) + ' ' + chip(d) + '</div><b class="debt-amt">' + tl(d.amount) + '</b>' +
-        (d.paid_on ? '<button type="button" class="ghost" data-debtunpaid="1">geri al</button>' : '<button type="button" class="primary" data-debtpaid="1">✓ Ödendi</button>') +
+        (d.paid_on ? '<button type="button" class="ghost" data-debtunpaid="1">geri al</button>' : '<button type="button" class="primary" data-debtpaid="1">Ödendi</button>') +
         '<button type="button" class="ghost" data-debtdel="1" title="Sil" aria-label="Sil">✕</button></div>';
-      const src = multi ? '<select id="debtSrc">' + dc.sources.map((s) => '<option value="' + esc(s) + '">' + esc(finPlaceName(cfg, s)) + '</option>').join('') + '</select>' : '';
-      return '<section class="card"><div class="card-h">💳 ' + esc(dc.label) + ' ödemeleri · ' + esc(dc.sources.map((s) => finPlaceName(cfg, s)).join(', ')) + '</div>' +
-        '<p class="small" style="margin:0 0 10px;">Kalan borç <b>' + tl(left) + '</b> · bu ay vadesi <b>' + tl(thisM) + '</b>' + (late ? ' · <b style="color:var(--bad);">gecikmiş ' + tl(late) + '</b>' : '') + '</p>' +
-        '<div class="debt-form" id="debtForm">' + src +
-        '<input type="text" id="debtLabel" maxlength="80" placeholder="Açıklama (ör. hasta / vaka)" />' +
-        '<span class="fin-in"><input type="text" id="debtAmt" inputmode="decimal" placeholder="Toplam tutar" aria-label="Toplam tutar (TL)" />TL</span>' +
-        '<label class="small">Taksit <input type="number" id="debtN" min="1" max="36" value="1" style="width:58px;" /></label>' +
-        '<label class="small">İlk vade <input type="date" id="debtDue" value="' + esc(today) + '" /></label>' +
-        '<button type="button" class="primary" data-debtadd="1">Ekle</button><span id="debtStatus" class="small muted"></span></div>' +
-        '<p class="small muted" style="margin:6px 0 10px;">Taksitler aylık aynı güne bölünür; her taksit vade ayında net gelirden düşülür.</p>' +
-        (open.length ? '<div class="fin-rows">' + open.map(row).join('') + '</div>' : '<p class="small muted" style="margin:0;">Bekleyen ödeme yok.</p>') +
+      const src = multi ? '<select id="debtSrc" aria-label="Klinik">' + dc.sources.map((s) => '<option value="' + esc(s) + '">' + esc(finPlaceName(cfg, s)) + '</option>').join('') + '</select>' : '';
+      const form = dc.sources.length
+        ? '<div class="debt-form" id="debtForm">' + src +
+          '<input type="text" id="debtLabel" maxlength="80" placeholder="Not" aria-label="Not" />' +
+          '<span class="fin-in"><input type="text" id="debtAmt" inputmode="decimal" placeholder="Miktar" aria-label="Miktar (TL)" />TL</span>' +
+          '<label class="small">Taksit <input type="number" id="debtN" min="1" max="36" value="1" style="width:58px;" /></label>' +
+          '<label class="small">Vade <input type="date" id="debtDue" value="' + esc(today) + '" /></label>' +
+          '<button type="button" class="primary" data-debtadd="1">Ekle</button><span id="debtStatus" class="small muted"></span></div>'
+        : '';
+      return '<section class="card" id="invoiceCard"><div class="card-h">Faturalar</div>' +
+        '<p class="small" style="margin:0 0 10px;">Kalan <b>' + tl(left) + '</b>' + (late ? ' · <b style="color:var(--bad);">gecikmiş ' + tl(late) + '</b>' : '') + '</p>' +
+        form +
+        (open.length ? '<div class="fin-rows"' + (form ? ' style="margin-top:10px;"' : '') + '>' + open.map(row).join('') + '</div>' : '<p class="small muted" style="margin:8px 0 0;">Fatura yok.</p>') +
         (paid.length ? '<details style="margin-top:10px;"><summary class="small">Ödenenler (' + paid.length + ')</summary><div class="fin-rows" style="margin-top:6px;">' + paid.slice(0, 60).map(row).join('') + '</div></details>' : '') +
         '</section>';
     }
@@ -2385,21 +2387,7 @@
       render();
       checkCiro();
     }
-    function checkCiro(force) {
-      if (!st.config || st.offline || $('app').hidden || !$('confAlert').hidden || !$('ciroAlert').hidden) return;
-      if (askPerson()) return;
-      if (devicePerson() !== 'partner') return;
-      let snooze = 0;
-      try { snooze = Number(localStorage.getItem(CIRO_SNOOZE_KEY) || 0); } catch (_) { snooze = 0; }
-      if (!force && !st.ciroForce && Date.now() < snooze) return;
-      st.ciroForce = false;
-      const items = pendingCiro();
-      if (!items.length) return;
-      $('ciroAlert').innerHTML = '<div class="sheet" role="dialog" aria-labelledby="ciroTitle"><h3><span>💰 Ciro</span><button type="button" class="ghost" data-cirolater="1" aria-label="Kapat">✕</button></h3>' +
-        '<p class="ciro-lead" id="ciroTitle">' + (items.some((x) => x.today) ? 'Bugünkü ciro bilgisini girer misin?' : 'Ciro bilgisini girer misin?') + '</p><p class="small muted" style="margin:0 0 10px;">Tutarı yaz ya da 0 TL seç.</p>' +
-        '<div class="fin-rows">' + items.map(ciroRow).join('') + '</div><div class="row" style="margin-top:12px;"><button type="button" class="ghost" data-cirolater="1">Sonra hatırlat</button></div></div>';
-      $('ciroAlert').hidden = false;
-    }
+    function checkCiro() { return; }
     function closeCiro() { $('ciroAlert').hidden = true; $('ciroAlert').innerHTML = ''; }
     function snoozeCiro() { try { localStorage.setItem(CIRO_SNOOZE_KEY, String(Date.now() + 2 * 3600 * 1000)); } catch (_) { /* yok say */ } closeCiro(); }
     function rowMsg(row, t) {
@@ -2445,7 +2433,7 @@
       const fin = full && full.finance;
       const list = fin && Array.isArray(fin.receipts) ? fin.receipts : [];
       return list.filter((r) => r && /^\d{4}-\d{2}-\d{2}$/.test(r.ymd) && r.place && Number.isFinite(Number(r.amount)) && Number(r.amount) > 0)
-        .map((r) => ({ id: String(r.id || ''), ymd: String(r.ymd), place: String(r.place), amount: Number(r.amount) }));
+        .map((r) => ({ id: String(r.id || ''), ymd: String(r.ymd), place: String(r.place), amount: Number(r.amount), note: String(r.note || '').slice(0, 120) }));
     }
     function moneyMonthTotals(receipts, month) {
       const map = new Map();
@@ -2492,31 +2480,27 @@
       const month = now.ymd.slice(0, 7);
       const end = moneyMonthEnd(month);
       const receipts = moneyReceipts(st.full).filter((r) => r.ymd.slice(0, 7) === month).sort((a, b) => a.ymd.localeCompare(b.ymd) || a.id.localeCompare(b.id));
-      const totals = moneyMonthTotals(receipts, month);
       const clinics = moneyClinics(cfg, st.full);
-      const grand = totals.reduce((a, r) => a + r.sum, 0);
-      const count = totals.reduce((a, r) => a + r.count, 0);
-      const note = st.moneyNote || '';
+      const grand = receipts.reduce((a, r) => a + r.amount, 0);
+      const status = st.moneyNote || '';
       st.moneyNote = '';
       const opts = clinics.map((c) => '<option value="' + esc(c.key) + '">' + esc(c.label) + '</option>').join('');
       const form = clinics.length
         ? '<form class="money-form" id="moneyForm">'
-          + '<label class="small">Gün <input type="date" id="moneyDay" min="' + esc(month + '-01') + '" max="' + esc(end) + '" value="' + esc(now.ymd) + '" /></label>'
+          + '<span class="fin-in"><input type="text" id="moneyAmt" inputmode="decimal" placeholder="Miktar" aria-label="Miktar (TL)" />TL</span>'
+          + '<label class="small">Tarih <input type="date" id="moneyDay" min="' + esc(month + '-01') + '" max="' + esc(end) + '" value="' + esc(now.ymd) + '" /></label>'
           + '<label class="small">Klinik <select id="moneyClinic" aria-label="Klinik">' + opts + '</select></label>'
-          + '<span class="fin-in"><input type="text" id="moneyAmt" inputmode="decimal" placeholder="Tutar" aria-label="Tutar (TL)" />TL</span>'
-          + '<button type="button" class="primary" id="moneyAdd">Para ekle</button>'
-          + '<span id="moneyStatus" class="small muted">' + esc(note) + '</span></form>'
-        : '<p class="small muted" id="moneyStatus">Klinik listesi boş. Sabit iş, aday ya da finans kaynağı eklenince burada seçilir.</p>';
-      const body = totals.length
-        ? totals.map((r) => '<tr><td><b>' + esc(moneyPlaceName(cfg, r.place)) + '</b></td><td class="num">' + r.count + '</td><td class="num">' + tl(r.sum) + '</td></tr>').join('')
-        : '<tr><td colspan="3" class="muted">Bu ay henüz para yok.</td></tr>';
-      const list = receipts.map((r) => '<div class="fin-row"><div class="lbl">' + esc(dateLong(r.ymd)) + ' · ' + esc(moneyPlaceName(cfg, r.place)) + '</div><b class="debt-amt">' + tl(r.amount) + '</b><button type="button" class="ghost" data-moneydel="' + esc(r.id) + '" title="Sil" aria-label="Sil">✕</button></div>').join('');
-      return '<section class="card" id="moneyCard"><div class="card-h">💰 ' + esc(monthName(month)) + ' · gelen para</div>'
-        + '<p class="small muted" style="margin:0 0 8px;">Para ekle: günü ve kliniği seç. Aynı kliniğe birden fazla geliş toplanır.</p>'
+          + '<input type="text" id="moneyMemo" maxlength="120" placeholder="Not" aria-label="Not" />'
+          + '<button type="button" class="primary" id="moneyAdd">Gelir ekle</button>'
+          + '<span id="moneyStatus" class="small muted">' + esc(status) + '</span></form>'
+        : '<p class="small muted" id="moneyStatus">Klinik yok.</p>';
+      const body = receipts.length
+        ? receipts.map((r) => '<tr data-money="' + esc(r.id) + '"><td>' + esc(dshort(r.ymd)) + '</td><td>' + esc(moneyPlaceName(cfg, r.place)) + '</td><td>' + esc(r.note) + '</td><td class="num">' + tl(r.amount) + '</td><td><button type="button" class="ghost" data-moneydel="' + esc(r.id) + '" title="Sil" aria-label="Sil">✕</button></td></tr>').join('')
+        : '<tr><td colspan="5" class="muted">Gelir yok.</td></tr>';
+      return '<section class="card" id="moneyCard"><div class="card-h">Gelir · ' + esc(monthName(month)) + '</div>'
         + form
-        + '<div style="overflow-x:auto;"><table class="t fin"><thead><tr><th>Klinik</th><th class="num">Geliş</th><th class="num">Toplam</th></tr></thead><tbody>'
-        + body + '</tbody><tfoot><tr><td>Toplam</td><td class="num">' + count + '</td><td class="num">' + tl(grand) + '</td></tr></tfoot></table></div>'
-        + (list ? '<div class="fin-rows" style="margin-top:8px;">' + list + '</div>' : '')
+        + '<div style="overflow-x:auto;"><table class="t fin"><thead><tr><th>Tarih</th><th>Klinik</th><th>Not</th><th class="num">Tutar</th><th></th></tr></thead><tbody>'
+        + body + '</tbody><tfoot><tr><td colspan="3">Toplam</td><td class="num">' + tl(grand) + '</td><td></td></tr></tfoot></table></div>'
         + '</section>';
     }
     async function syncReceiptCiro(place, ymd) {
@@ -2531,22 +2515,21 @@
       const ymd = $('moneyDay') ? $('moneyDay').value : '';
       const place = $('moneyClinic') ? $('moneyClinic').value : '';
       const amount = parseTL($('moneyAmt') ? $('moneyAmt').value : '');
+      const note = ($('moneyMemo') ? $('moneyMemo').value : '').trim().slice(0, 120);
       const month = nowLocal().ymd.slice(0, 7);
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(ymd) || ymd.slice(0, 7) !== month) { msg('Günü bu aydan seç'); if ($('moneyDay')) $('moneyDay').focus(); return; }
+      if (!Number.isFinite(amount) || amount <= 0) { msg('Miktar yaz'); if ($('moneyAmt')) $('moneyAmt').focus(); return; }
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(ymd) || ymd.slice(0, 7) !== month) { msg('Tarih bu aydan olsun'); if ($('moneyDay')) $('moneyDay').focus(); return; }
       if (!place) { msg('Klinik seç'); return; }
-      if (!Number.isFinite(amount) || amount <= 0) { msg('Geçerli bir tutar yaz (ör. 12.500)'); if ($('moneyAmt')) $('moneyAmt').focus(); return; }
       if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
       const fin = st.full.finance && typeof st.full.finance === 'object' && !Array.isArray(st.full.finance) ? { ...st.full.finance } : {};
       const receipts = moneyReceipts(st.full).slice();
-      receipts.push({ id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), ymd, place, amount });
+      receipts.push({ id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), ymd, place, amount, note });
       fin.receipts = receipts;
       st.full.finance = fin;
       rebuildConfig();
-      let ciroNote = '';
-      try { ciroNote = await syncReceiptCiro(place, ymd); }
-      catch (_) { ciroNote = ' · ciroya yazılamadı'; }
+      try { await syncReceiptCiro(place, ymd); } catch (_) { /* fiş durur */ }
       if (!(await persist('moneyStatus', ''))) return;
-      st.moneyNote = 'Eklendi' + ciroNote;
+      st.moneyNote = '';
       render();
     }
     async function deleteMoney(id) {
@@ -2556,131 +2539,20 @@
       const next = receipts.filter((r) => r.id !== id);
       st.full.finance = { ...(st.full.finance && typeof st.full.finance === 'object' ? st.full.finance : {}), receipts: next };
       rebuildConfig();
-      let ciroNote = '';
-      try { ciroNote = await syncReceiptCiro(gone.place, gone.ymd); }
-      catch (_) { ciroNote = ' · ciro güncellenemedi'; }
+      try { await syncReceiptCiro(gone.place, gone.ymd); } catch (_) { /* fiş durur */ }
       if (!(await persist(null))) { const el = $('moneyStatus'); if (el) el.textContent = 'Silinemedi'; return; }
-      st.moneyNote = 'Silindi' + ciroNote;
       render();
     }
     function renderFinance(res) {
-      const n = devicePerson() === 'partner' ? pendingCiro().length + debtLate().length : 0;
-      document.querySelector('[data-tab="fin"]').innerHTML = '💰 Finans' + (n ? '<span class="dot">' + n + '</span>' : '');
+      const n = debtLate().length;
+      const tab = document.querySelector('[data-tab="fin"]');
+      if (tab) tab.innerHTML = '💰 Finans' + (n ? '<span class="dot">' + n + '</span>' : '');
       const el = $('tabFin');
       if (st.tab !== 'fin' || (el.contains(document.activeElement) && document.activeElement.tagName === 'INPUT')) return;
       const cfg = res.cfg;
-      const fin = finCfg();
-      const P = cfg.people || {};
-      const PA = P.partner || 'Eş';
-      const M = st.month;
-      const now = nowLocal();
-      const curM = now.ymd.slice(0, 7);
-      const daily = (fin.daily || []).map(String), monthly = (fin.monthly || []).map(String);
-      const moneyCard = moneyCardHtml(cfg);
-      if (!daily.length && !monthly.length) { el.innerHTML = moneyCard + '<section class="card"><div class="card-h">💰 Finans</div><p class="small muted">Finans kaynakları ayarlı değil.</p></section>'; return; }
       const dc = debtCfg();
-      const debtOn = dc.sources.length > 0;
-      const ciroOf = (s, m) => {
-        if (monthly.includes(s) || st.fin[finKey(s, m)] != null) return st.fin[finKey(s, m)] ?? null;
-        const ent = finRows(s).filter((x) => x.period.length === 10 && x.period.slice(0, 7) === m);
-        return ent.length ? ent.reduce((a, x) => a + x.amount, 0) : null;
-      };
-      const rows = [...daily.map((s) => ({ s, mode: 'daily' })), ...monthly.map((s) => ({ s, mode: 'monthly' }))].map((r) => {
-        r.name = finPlaceName(cfg, r.s);
-        if (r.mode === 'daily') {
-          const days = dailyDays(cfg, r.s, M);
-          const ent = finRows(r.s).filter((x) => x.period.length === 10 && x.period.slice(0, 7) === M);
-          const entered = ent.reduce((a, x) => a + x.amount, 0);
-          const done = new Set(ent.map((x) => x.period));
-          const open = days.filter((x) => !done.has(x.d)).length;
-          const pool = ent.length ? ent : finRows(r.s).filter((x) => x.period.length === 10 && x.period >= addDays(now.ymd, -120));
-          const avg = pool.length ? pool.reduce((a, x) => a + x.amount, 0) / pool.length : null;
-          const manual = st.fin[finKey(r.s, M)];
-          r.daySum = entered;
-          r.manual = manual ?? null;
-          if (manual != null) {
-            r.entered = manual;
-            r.proj = manual;
-            r.note = 'aylık toplam elle girildi · günlüklerin toplamı ' + tl(entered);
-          } else {
-            r.entered = ent.length ? entered : null;
-            r.proj = !open ? r.entered : avg == null ? null : entered + avg * open;
-            r.note = done.size + '/' + days.length + ' gün girildi' + (open && avg != null ? ' · kalan ' + open + ' gün × ~' + tl(avg) : open ? ' · ortalama için veri yok' : '');
-          }
-        } else {
-          const v = st.fin[finKey(r.s, M)];
-          const prevs = [];
-          for (let m = prevMonthOf(M), i = 0; i < 3; i += 1, m = prevMonthOf(m)) if (st.fin[finKey(r.s, m)] != null) prevs.push(st.fin[finKey(r.s, m)]);
-          const avg = prevs.length ? prevs.reduce((a, b) => a + b, 0) / prevs.length : null;
-          r.entered = v ?? null;
-          r.proj = v != null ? v : avg;
-          r.note = v != null ? 'girildi' : (M < curM ? 'girilmedi' : 'ay bitince sorulur') + (avg != null ? ' · tahmin son ' + prevs.length + ' ay ort.' : '');
-        }
-        r.pay = dc.sources.includes(r.s) ? debtDue(r.s, M) : 0;
-        r.net = r.proj != null ? r.proj - r.pay : r.pay ? -r.pay : null;
-        return r;
-      });
-      const sum = (k) => rows.reduce((a, r) => a + (r[k] || 0), 0);
-      const money = (v) => (v == null ? '<span class="muted">—</span>' : tl(v));
-      const minus = (v) => (v ? '−' + tl(v) : '<span class="muted">—</span>');
-      const payM = sum('pay');
-      const netM = rows.some((r) => r.net != null) ? sum('net') : null;
-      const openDebt = debtList().filter((d) => !d.paid_on && dc.sources.includes(d.source)).reduce((a, d) => a + d.amount, 0);
-      const tiles = '<div class="fin-tiles"><div class="fin-tile main"><span>Net gelir · ' + esc(PA) + '</span><b>' + money(netM) + '</b><small>' +
-        (payM ? 'ciro ' + tl(sum('proj')) + ' − ' + esc(dc.label) + ' ' + tl(payM) : 'ay sonu tahmini') + '</small></div>' +
-        '<div class="fin-tile"><span>Girilen ciro</span><b>' + tl(sum('entered')) + '</b><small>tahmini ay sonu ' + tl(sum('proj')) + '</small></div>' +
-        (debtOn ? '<div class="fin-tile"><span>Kalan borç · ' + esc(dc.label) + '</span><b>' + tl(openDebt) + '</b><small>bu ay vadesi ' + tl(payM) + '</small></div>' : '') + '</div>';
-      const table = '<table class="t fin"><thead><tr><th>Yer</th><th class="num">Girilen</th><th class="num">Tahmin</th>' + (debtOn ? '<th class="num">Ödeme</th><th class="num">Net</th>' : '') + '</tr></thead><tbody>' +
-        rows.map((r) => '<tr><td><b>' + esc(r.name) + '</b> <span class="muted small">' + (r.mode === 'daily' ? 'günlük' : 'aylık') + '</span><div class="small muted">' + esc(r.note) + '</div></td><td class="num">' + money(r.entered) + '</td><td class="num">' + money(r.proj) + '</td>' +
-          (debtOn ? '<td class="num">' + minus(r.pay) + '</td><td class="num"><b>' + money(r.net) + '</b></td>' : '') + '</tr>').join('') +
-        '</tbody><tfoot><tr><td>Toplam</td><td class="num">' + tl(sum('entered')) + '</td><td class="num">' + tl(sum('proj')) + '</td>' +
-        (debtOn ? '<td class="num">' + minus(payM) + '</td><td class="num">' + money(netM) + '</td>' : '') + '</tr></tfoot></table>';
-      const groups = [];
-      for (const s of daily) {
-        const days = new Map(dailyDays(cfg, s, M).map((x) => [x.d, x.w]));
-        for (const x of finRows(s)) if (x.period.length === 10 && x.period.slice(0, 7) === M && !days.has(x.period)) days.set(x.period, null);
-        const list = [...days.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([d, w]) => ({ source: s, period: d, label: dateLong(d) + (w ? ' · ' + w.start + '–' + w.end : ''), canDelete: true }));
-        const r = rows.find((x) => x.s === s);
-        const done = list.filter((x) => st.fin[finKey(s, x.period)] != null).length;
-        const dayCount = list.length;
-        list.push({ source: s, period: M, label: finPlaceName(cfg, s) + ' · ' + monthName(M) + ' · aylık toplam', autoSum: r.daySum || 0 });
-        groups.push({
-          title: finPlaceName(cfg, s) + ' · ' + monthName(M) + ' · ' + dayCount + ' gün',
-          list,
-          foot: r.manual != null
-            ? 'Aylık toplam <b>' + tl(r.manual) + '</b> <span class="muted">(elle girildi · günlüklerin toplamı ' + tl(r.daySum || 0) + ', ' + done + '/' + dayCount + ' gün)</span>'
-            : 'Toplam <b>' + tl(r.entered || 0) + '</b> <span class="muted">(' + done + '/' + dayCount + ' gün girildi' + (r.proj != null && done < dayCount ? ' · ay sonu tahmini ' + tl(r.proj) : '') + ')</span>',
-        });
-      }
-      const mList = [];
-      for (const s of monthly) for (const p of [prevMonthOf(M), M]) if (p < curM) mList.push({ source: s, period: p, label: finPlaceName(cfg, s) + ' · ' + monthName(p), canDelete: true });
-      if (mList.length) {
-        const per = [...new Set(mList.map((x) => x.period))].map((p) => monthName(p) + ' <b>' + tl(mList.filter((x) => x.period === p).reduce((a, x) => a + (st.fin[finKey(x.source, p)] || 0), 0)) + '</b>');
-        groups.push({ title: monthly.map((s) => finPlaceName(cfg, s)).join(', ') + ' · aylık', list: mList, foot: 'Toplam ' + per.join(' · ') });
-      }
-      const groupHtml = groups.map((g) => '<div class="fin-group"><div class="fin-gh">' + esc(g.title) + '</div>' + (g.list.length ? '<div class="fin-rows">' + g.list.map(ciroRow).join('') + '</div>' : '<p class="small muted" style="margin:0;">Bu ay planlı gün yok.</p>') + '<div class="fin-sum">' + g.foot + '</div></div>').join('');
-      const months = [];
-      for (let m = M, i = 0; i < 6; i += 1, m = prevMonthOf(m)) months.unshift(m);
-      const srcs = [...daily, ...monthly];
-      let hc = 0, hp = 0;
-      const hist = months.map((m) => {
-        let c = 0, any = false;
-        const cells = srcs.map((s) => { const v = ciroOf(s, m); if (v != null) { any = true; c += v; } return '<td class="num">' + money(v) + '</td>'; }).join('');
-        const p = dc.sources.reduce((a, s) => a + debtDue(s, m), 0);
-        hc += c; hp += p;
-        return '<tr><td>' + esc(monthName(m)) + '</td>' + cells + '<td class="num"><b>' + (any ? tl(c) : '—') + '</b></td>' +
-          (debtOn ? '<td class="num">' + minus(p) + '</td><td class="num"><b>' + (any || p ? tl(c - p) : '—') + '</b></td>' : '') + '</tr>';
-      }).join('');
-      const who = devicePerson();
-      const whoName = who === 'partner' ? PA : who === 'crew' ? P.crew || 'Crew' : who === 'none' ? 'ortak cihaz' : 'seçilmedi';
-      const ask = daily.map((s) => finPlaceName(cfg, s)).join(', ') + ': iş günü bitince (kutular her an girilebilir; aylık toplam elle değiştirilebilir) · ' + monthly.map((s) => finPlaceName(cfg, s)).join(', ') + ': ayın ilk 5 günü önceki ay';
-      el.innerHTML = moneyCard +
-        '<section class="card"><div class="card-h">💰 ' + esc(monthName(M)) + ' · finansal durum</div>' + tiles + '<div style="margin-top:12px;overflow-x:auto;">' + table + '</div></section>' +
-        '<section class="card"><div class="card-h">✍️ Ciro girişleri</div>' + groupHtml + '<p class="small muted" style="margin:8px 0 0;">Sorulur: ' + esc(ask) + '. Girilen tutar değiştirilip yeniden kaydedilebilir.</p></section>' +
-        (debtOn ? debtCard(cfg) : '') +
-        '<section class="card"><div class="card-h">📈 Son 6 ay</div><div style="overflow-x:auto;"><table class="t fin"><thead><tr><th>Ay</th>' + srcs.map((s) => '<th class="num">' + esc(finPlaceName(cfg, s)) + '</th>').join('') + '<th class="num">Ciro</th>' + (debtOn ? '<th class="num">Ödeme</th><th class="num">Net</th>' : '') + '</tr></thead><tbody>' + hist +
-        '</tbody><tfoot><tr><td>Toplam</td>' + srcs.map(() => '<td></td>').join('') + '<td class="num">' + tl(hc) + '</td>' + (debtOn ? '<td class="num">' + minus(hp) + '</td><td class="num">' + tl(hc - hp) + '</td>' : '') + '</tr></tfoot></table></div></section>' +
-        '<p class="small muted" style="margin:0 4px;">Bu cihaz: <b>' + esc(whoName) + '</b>' + (who === 'partner' ? ' · ciro soruları burada çıkar' : '') + ' <button type="button" class="ghost mini" data-personreset="1">değiştir</button></p>';
+      const showDebt = dc.sources.length > 0 || debtList().length > 0;
+      el.innerHTML = moneyCardHtml(cfg) + (showDebt ? debtCard(cfg) : '');
     }
     function openFromUrl(u) {
       if (/[?&]ciro=1/.test(u || '')) { st.ciroForce = true; checkCiro(true); }

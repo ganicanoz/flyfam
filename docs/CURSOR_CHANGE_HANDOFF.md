@@ -12,6 +12,16 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+### 2026-10-09 — Aile planı: finans sayfası sadeleştirildi
+
+- **Amaç:** Finans sekmesi karmaşıktı. Kalsın: gelir girişi (miktar, tarih, klinik, not), aşağıda bu ayın satırları (tarih, klinik, not, tutar) ve toplam, bir de faturalar. Tahmin, ciro kutuları, 6 aylık tablo, cihaz seçimi ve uzun açıklamalar kalksın. Fatura otomatik alma bu turda yok.
+- **Dosyalar:** `support/aile/index.html`, `support/aile/sw.js` (`aile-shell-v9`), `scripts/test-aile-eso.mjs`.
+- **Gelir:** `finance.receipts` aynı; satıra `note` eklendi. Tablo bugünün ayı. Aynı gün ve kliniğe birden fazla giriş ayrı satır (notuyla) durur, altta toplam toplanır. Günlük ciro kaynağıysa o günün fiş toplamı `finance_set` ile durur; sayfada ciro kutusu ve ciro sorusu çıkmaz.
+- **Faturalar:** Mevcut borç kayıtları «Faturalar» başlığıyla kalır (kalan, vade, taksit, ödendi, sil). Uzun açıklama yok.
+- **Doğrulama:** `node scripts/test-aile-eso.mjs` OK; inline `node --check` OK. Tarayıcı: 1.000 sabah + 2.500 öğlen Acıbadem ve 400 Konsolosluk, toplam 3.900 ₺; fatura kartı kaldı; ciro penceresi açılmadı. 390 px’te kart taşmıyor.
+- **Koruma:** Yer anahtarı, adres, hastane adı, tatil cümlesi, roster düğmesi ve borç kayıtlarının sunucu eylemleri aynı. `assist` ve `family-planner` fonksiyonu deploy edilmedi.
+- **Canlı:** Henüz `main`’de değil.
+
 ### 2026-10-08 — Aile planı: Para ekle, roster kontrolü, randevuya yol süresi
 
 - **Amaç:** İçinde bulunulan ayın gelen parası «Para ekle» ile yazılsın (gün + klinik seçimi, aynı kliniğe birden fazla geliş toplanır). Roster güncellemesi ve çakışma kontrolü tek düğmeyle FlyFam’den ayı yeniden okusun. Eso’ya konuşur gibi yazılan randevu (ör. vize) yeri bilsin; gidiş ve dönüş, takvimdeki bloğa eklensin.

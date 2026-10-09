@@ -60,8 +60,8 @@ eq('tatil cümlesi', html.includes('Doktor Hanıım, bu ay bir seyehatiniz olaca
 eq('eso duruyor', html.includes('id="esoDock"') && html.includes('Konuşarak söyle') && !html.includes('Plan asistanı'));
 eq('İ ikonu üretilmiyor', !html.includes("icon: 'İ'") && !html.includes('short: \'İmza\''));
 eq('sohbet dışarı tıklayınca kapanmaz', !html.includes("closeAssist();\n    });\n    $('assist')") && !html.includes('Bir bakayım'));
-eq('para ekle ve roster', html.includes('>Para ekle<') && html.includes('id="btnRoster"') && html.includes('function moneyMonthTotals'));
-eq('önbellek v8', sw.includes("const CACHE = 'aile-shell-v8'"));
+eq('gelir ekle ve roster', html.includes('>Gelir ekle<') && html.includes('id="moneyMemo"') && html.includes('id="btnRoster"') && html.includes('function moneyMonthTotals') && !html.includes('Ciro girişleri') && !html.includes('Son 6 ay'));
+eq('önbellek v9', sw.includes("const CACHE = 'aile-shell-v9'"));
 eq('selamlama', html.includes("const ESO_HI = 'Buyrun Doktor Hanımcım...'"));
 
 const assistStart = script.indexOf('const TR_MONTHS');
@@ -223,6 +223,8 @@ const clinics = money.moneyClinics({
   partnerFixed: [{ place: 'altunizade', short: 'Acıbadem' }, { place: 'konsolosluk', short: 'Vize randevu', label: 'Vize randevusu' }],
 }, { finance: { receipts: [] } });
 eq('klinik seçenekleri', clinics.some((c) => c.key === 'altunizade' && c.label === 'Acıbadem') && clinics.some((c) => c.key === 'konsolosluk' && c.label === 'Konsolosluk') && !clinics.some((c) => c.key === 'home' || c.key === 'school' || c.key === 'crewBase'));
+const noted = money.moneyReceipts({ finance: { receipts: [{ id: 'n', ymd: '2026-10-08', place: 'altunizade', amount: 10, note: 'öğleden' }] } });
+eq('gelir notu', noted.length === 1 && noted[0].note === 'öğleden' && noted[0].amount === 10);
 
 if (failed) {
   console.error(failed + ' failed');
