@@ -13,6 +13,14 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+### 2026-10-09 — AirLabs kota hatasında bekleme süresi
+
+- **Amaç:** AirLabs kota aşımını 429 yerine HTTP 200 + `error.code` (`month_limit_exceeded` vb.) ile döndürüyor; kod bunu sıradan hata sayıp diğer uçuş numarası varyantlarını deniyor, bekleme kaydı yazmıyordu. Her sorgu ve her sorgulayıcı turu boşa AirLabs çağrısı yapıyordu.
+- **Dosyalar:** `supabase/functions/_shared/providerCooldown.ts` (`applyCooldownSeconds`, `airlabsLimitCooldownSeconds`: dakika 60 sn, saat 15 dk, ay 6 sa), `_shared/flightByNumberEdge.ts`, `_shared/rosterPollEdge.ts`, `check-flight-status-and-notify/index.ts` (kota kodu gelince bekleme yazılır ve AirLabs döngüsü durur; kota dışı hatalarda eski davranış), `mobile/scripts/test-flight-provider-fallback.ts` (2 yeni kontrol).
+- **Doğrulama:** Sağlayıcı testleri 18/18 OK, saat testleri 36/36 OK; edge tsc hata kümesi önce/sonra aynı (eski hatalar). `node scripts/verify-release.mjs --skip-export` ALL CHECKS PASSED. Deploy (temiz `origin/main` worktree): `flight-lookup` v104, `check-flight-status-and-notify` v133, ACTIVE, `verify_jwt=true`. Canlı: TK1 sorgusunda AirLabs'a tek çağrı gitti, `flight_provider_cooldown.airlabs` 6 saat sonrasına yazıldı; sonuç AviationStack'ten doğru UTC ile geldi.
+- **Sağlayıcı bulguları (kod dışı):** Yerel ve sunucu AirLabs/AeroAPI anahtar özetleri aynı. AeroAPI anahtarsız/yanlış anahtarla 401, bizim anahtarla tüm uçlarda 500 (hesap tarafı sorun; FlightAware panelinden kontrol gerekir). AirLabs `ping` dahil kota hatası. 16 Eylül öncesi mobil build'lerde aynı AirLabs anahtarı gömülü (`EXPO_PUBLIC_AIRLABS_API_KEY` = sunucu anahtarı); anahtar git geçmişinde yok. Anahtar yenilenmedikçe eski build'ler aynı kotayı kullanabilir.
+- **Korunacak:** 429 davranışı ve 30 sn–15 dk sınırı değişmedi. Kota kodu dışındaki AirLabs hataları diğer varyantları denemeye devam eder.
+
 ### 2026-10-09 — Aile planı: finans sayfası sadeleştirildi
 
 - **Amaç:** Finans sekmesi karmaşıktı. Kalsın: gelir girişi (miktar, tarih, klinik, not), aşağıda bu ayın satırları (tarih, klinik, not, tutar) ve toplam, bir de faturalar. Tahmin, ciro kutuları, 6 aylık tablo, cihaz seçimi ve uzun açıklamalar kalksın. Fatura otomatik alma bu turda yok.

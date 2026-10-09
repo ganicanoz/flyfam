@@ -4,7 +4,12 @@
  * Yerel tarih: istemci local_today / local_tomorrow gönderir.
  */
 import { buildAerodataboxFlightNumberSources } from './aerodataboxHttp.ts';
-import { apply429ToCooldown, isBlockedUntil } from './providerCooldown.ts';
+import {
+  airlabsLimitCooldownSeconds,
+  apply429ToCooldown,
+  applyCooldownSeconds,
+  isBlockedUntil,
+} from './providerCooldown.ts';
 import { fr24TurkeyPakistanScheduleTooShort } from './fr24TurkeyPakistanSanity.ts';
 import {
   fr24PrimaryDepUtcIsoForSort,
@@ -707,6 +712,11 @@ async function fetchFromAirLabsFlightEdge(
           note: `variant ${v}`,
           raw_snippet: truncateDebugJson(json?.error ?? json),
         });
+        const limitSec = airlabsLimitCooldownSeconds(json);
+        if (limitSec) {
+          await applyCooldownSeconds(ctx.supabase, ctx.cooldownMap, COOLDOWN_AIRLABS, limitSec);
+          break;
+        }
         continue;
       }
       const f: Record<string, unknown> = json?.response ?? json;
