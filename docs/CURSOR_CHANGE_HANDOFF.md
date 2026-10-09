@@ -13,6 +13,16 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+### 2026-10-09 — Aile planı: doğru logolar, gri geçmiş, çakışma ve saatli gün
+
+- **Amaç:** Lacivert A hastanede, alev üniversitede, diş işaretinde büyük T. Geçmiş günler yeşil olunca çakışmasız gün gibi duruyordu; gri olsun. Gün kutusunda saatli zaman çizelgesi. Boş günlerde renkli öneri noktası. Çakışan gün kalın kırmızı çerçeve ve ayrı listede sebep. Okul bırakma-alma tablosu daha sıkı; takvim ve altındaki kartlar 2–3 sütun.
+- **Dosyalar:** `support/aile/index.html`, `support/aile/sw.js` (`aile-shell-v12`), `support/aile/logo-dis.png` (dişin ortasında büyük T), `scripts/test-aile-eso.mjs`.
+- **Logolar:** Marka, işin kendi adı ve yer anahtarıyla seçilir. Hastane sözü (altunizade, acıbadem, hastane) lacivert A. Üniversite veya hastane olmayan Maltepe alev. Diş ve muayene büyük T’li diş. Kısa ad Maltepe olsa da hastane üniversiteye yazılmaz.
+- **Plan:** Bugünden önceki gün gri ve kilitli. Çakışma 3 px kırmızı çerçeve; «Çakışmalar» kartında gün ve sebep. Gün kutusu 2 saatlik saat işaretli zaman çizelgesi. Boş uygun günde renk noktası. Takvim, çakışma, özet, okul yolu ve açılır kartlar geniş ekranda 3, orta ekranda 2 sütun. Okul tablosu 12 px. Geçmiş kutuda «false» yazısı çıkmaz.
+- **Doğrulama:** `node scripts/test-aile-eso.mjs` OK; inline `node --check` OK; `git diff --check` OK. Tarayıcı: 1 Ekim gri `rgb(238, 242, 246)` ve «false» yok; 13 Ekim lacivert A; 8 Ekim alev; 17 Ekim diş; 12 Ekim renk noktası; 15 Ekim kırmızı çerçeve ve çakışma kartında sebep; gün kutusunda 14:00 dahil saatler; finans düğmeleri Acıbadem, Maltepe, Diş; 1280 px 3 sütun; 390 px taşma yok.
+- **Koruma:** Yer anahtarı, adres, hastane adı, tatil cümlesi, roster düğmesi, gelir satırı ve borç kayıtları aynı. Geçmiş gün hâlâ değişmez. `family-planner` deploy edilmedi.
+- **Canlı:** Henüz main’de değil.
+
 ### 2026-10-09 — Meydanlar şehir adıyla, meydan önbelleği, sunucu saat dilimi yedeği, aşama titremesi
 
 - **Amaç:** Bazı ekranlarda yalnız IATA/ICAO kodu görünüyordu (açılışta meydan listesi henüz yüklenmemişken veya statik listede olmayan meydanlarda). Kodlar `public.airports` tablosunda var; şehir olarak gösterilmeli. Sunucuda statik saat dilimi tablosunda olmayan meydanlarda yerel saat UTC sanılabiliyordu. Aşama yenileme işi geçmişte kalmış, inişi görülmemiş uçuşları her 2 dakikada `active` yapıp hemen `passive_past`'a geri çekiyor, her seferinde 2 `flight_ops_log` satırı yazıyordu.
