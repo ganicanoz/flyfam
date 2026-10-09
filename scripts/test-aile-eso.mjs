@@ -60,8 +60,8 @@ eq('tatil cümlesi', html.includes('Doktor Hanıım, bu ay bir seyehatiniz olaca
 eq('eso duruyor', html.includes('id="esoDock"') && html.includes('Konuşarak söyle') && !html.includes('Plan asistanı'));
 eq('İ ikonu üretilmiyor', !html.includes("icon: 'İ'") && !html.includes('short: \'İmza\''));
 eq('sohbet dışarı tıklayınca kapanmaz', !html.includes("closeAssist();\n    });\n    $('assist')") && !html.includes('Bir bakayım'));
-eq('gelir ekle ve roster', html.includes('>Gelir ekle<') && html.includes('id="moneyMemo"') && html.includes('id="btnRoster"') && html.includes('function moneyMonthTotals') && !html.includes('Ciro girişleri') && !html.includes('Son 6 ay'));
-eq('önbellek v9', sw.includes("const CACHE = 'aile-shell-v9'"));
+eq('gelir ekle ve roster', html.includes('>Gelir ekle<') && html.includes('id="moneyMemo"') && html.includes('class="clinic-btn') && html.includes('id="btnRoster"') && html.includes('function moneyMonthTotals') && !html.includes('id="moneyClinic"') && !html.includes('Ciro girişleri') && !html.includes('Son 6 ay'));
+eq('önbellek v10', sw.includes("const CACHE = 'aile-shell-v10'"));
 eq('selamlama', html.includes("const ESO_HI = 'Buyrun Doktor Hanımcım...'"));
 
 const assistStart = script.indexOf('const TR_MONTHS');
@@ -189,7 +189,7 @@ eq('yeni yer', made.ok && madeFull.places.konsolosluk && madeFull.places.konsolo
 const followedVisa = interpret.resolveAssistTurn('konsolosluk', '12 ekim 10:00 vize randevusu', visaPlan, TODAY);
 eq('vize devam', followedVisa.ok && followedVisa.lines.some((l) => /09:20/.test(l) && /Konsolosluk/.test(l)));
 
-const moneyStart = script.indexOf('function moneyReceipts');
+const moneyStart = script.indexOf('function placeBlob');
 const moneyEnd = script.indexOf('function moneyMonthEnd');
 if (moneyStart < 0 || moneyEnd < moneyStart) {
   console.error('para bloğu bulunamadı');
@@ -219,10 +219,19 @@ const kon = totals.find((x) => x.place === 'konsolosluk');
 eq('ay toplamı', !!alt && alt.count === 2 && alt.sum === 3500 && !!kon && kon.sum === 400 && totals.every((x) => x.place !== 'diger'));
 const clinics = money.moneyClinics({
   finance: { daily: ['altunizade'], monthly: [] },
-  places: { home: { label: 'Ev' }, school: { label: 'Okul' }, crewBase: { label: 'Havalimanı' }, konsolosluk: { label: 'Konsolosluk' } },
+  places: {
+    home: { label: 'Ev' },
+    school: { label: 'Okul' },
+    crewBase: { label: 'Havalimanı' },
+    konsolosluk: { label: 'Konsolosluk' },
+    sogut: { label: 'Söğütlüçeşme tren' },
+    maltepe: { label: 'Maltepe Üniversitesi', short: 'Maltepe' },
+    muayene: { label: 'Muayene', short: 'Diş' },
+    altunizade: { label: 'Acıbadem Hastanesi', short: 'Acıbadem' },
+  },
   partnerFixed: [{ place: 'altunizade', short: 'Acıbadem' }, { place: 'konsolosluk', short: 'Vize randevu', label: 'Vize randevusu' }],
 }, { finance: { receipts: [] } });
-eq('klinik seçenekleri', clinics.some((c) => c.key === 'altunizade' && c.label === 'Acıbadem') && clinics.some((c) => c.key === 'konsolosluk' && c.label === 'Konsolosluk') && !clinics.some((c) => c.key === 'home' || c.key === 'school' || c.key === 'crewBase'));
+eq('klinik düğmeleri', clinics.length === 3 && clinics[0].key === 'altunizade' && clinics[0].label === 'Acıbadem' && clinics[0].logo.endsWith('logo-acibadem.svg') && clinics[1].key === 'maltepe' && clinics[1].label === 'Maltepe' && clinics[2].key === 'muayene' && clinics[2].label === 'Diş' && !clinics.some((c) => c.key === 'sogut' || c.key === 'konsolosluk' || c.key === 'home'));
 const noted = money.moneyReceipts({ finance: { receipts: [{ id: 'n', ymd: '2026-10-08', place: 'altunizade', amount: 10, note: 'öğleden' }] } });
 eq('gelir notu', noted.length === 1 && noted[0].note === 'öğleden' && noted[0].amount === 10);
 

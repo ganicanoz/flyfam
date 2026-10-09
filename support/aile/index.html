@@ -36,7 +36,9 @@
     .gate { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; background: radial-gradient(circle at 30% 10%, #ccfbf1, transparent 55%), var(--bg); }
     .gate-card { width: min(340px, 100%); background: var(--panel); border-radius: 22px; padding: 26px 22px; box-shadow: 0 20px 50px rgba(15, 23, 42, .12); text-align: center; }
     .gate-card h1 { margin: 6px 0 4px; font-size: 22px; }
-    .gate-logo { display: inline-flex; gap: 6px; }
+    .gate-logo { display: inline-flex; align-items: center; gap: 8px; }
+    .gate-logo img { height: 42px; width: 42px; object-fit: contain; background: #fff; border-radius: 10px; padding: 3px; }
+    .gate-logo img.wide { width: 92px; }
     .dots { display: flex; justify-content: center; gap: 14px; margin: 20px 0 8px; }
     .dots i { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--brand); }
     .dots i.on { background: var(--brand); }
@@ -112,8 +114,13 @@
     .fin-in input { width: 120px; text-align: right; font-variant-numeric: tabular-nums; }
     .debt-form, .money-form { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
     .money-form { margin-bottom: 10px; }
-    .money-form select { min-width: 9rem; max-width: 100%; }
     .money-form #moneyMemo { flex: 1 1 140px; min-width: 0; }
+    .clinic-btns { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; flex: 1 1 240px; }
+    .clinic-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; min-height: 76px; padding: 8px 4px; border-radius: 12px; border: 2px solid var(--line); background: #fff; color: inherit; font-weight: 800; font-size: 12px; line-height: 1.15; text-align: center; }
+    .clinic-btn img { height: 34px; width: auto; max-width: 100%; object-fit: contain; }
+    .clinic-btn img.wide { width: 100%; height: auto; max-height: 52px; }
+    .clinic-btn.on { border-color: #0f766e; background: #f0fdfa; box-shadow: inset 0 0 0 1px #0f766e; }
+    .clinic-mini { width: 18px; height: 18px; object-fit: contain; vertical-align: -4px; }
     .debt-form #debtLabel { flex: 1 1 180px; min-width: 0; }
     .fin-row.paid { opacity: .7; }
     .fin-row.future { opacity: .6; background: #fff; border-style: dashed; }
@@ -132,7 +139,10 @@
 
     /* İkonlar ve yıldızlar */
     .ic { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; color: #fff; font-weight: 800; font-size: 12px; flex: none; }
+    .ic.logo { background: #fff; border-radius: 6px; overflow: hidden; padding: 1px; }
+    .ic.logo img { width: 100%; height: 100%; object-fit: contain; display: block; }
     .ic.out { background: transparent !important; border: 2px solid currentColor; }
+    .ic.logo.out { border: 0; background: #fff !important; }
     .stars { letter-spacing: -1px; font-size: 11px; white-space: nowrap; }
 
     /* Hedefler */
@@ -401,7 +411,7 @@
 <body>
   <div id="gate" class="gate" hidden>
     <div class="gate-card">
-      <div class="gate-logo"><span class="ic" style="background:#0284c7">M</span><span class="ic" style="background:#0d9488">T</span><span class="ic" style="background:#7c3aed">A</span></div>
+      <div class="gate-logo"><img src="/aile/logo-acibadem.svg" alt="Acıbadem" /><img src="/aile/logo-maltepe.png" alt="Maltepe Üniversitesi" /><img class="wide" src="/aile/logo-dis-wide.png" alt="Diş kliniği" /></div>
       <h1>Aile planı</h1>
       <div class="muted small">4 haneli kodu gir</div>
       <div class="dots" id="dots"><i></i><i></i><i></i><i></i></div>
@@ -700,9 +710,12 @@
       const color = item.color || (fixed ? COLORS.fixed : PALETTE[idx % PALETTE.length]);
       const short = item.short || item.label || item.id || '?';
       const icon = String(item.icon || short[0] || '?').toUpperCase().slice(0, 1);
-      return { color, short, icon };
+      const logo = clinicLogo(cfg, item);
+      return { color, short, icon, logo };
     }
-    const icHtml = (meta, out) => '<span class="ic' + (out ? ' out' : '') + '" style="' + (out ? 'color:' : 'background:') + meta.color + '">' + esc(meta.icon) + '</span>';
+    const icHtml = (meta, out) => (meta && meta.logo)
+      ? '<span class="ic logo' + (out ? ' out' : '') + '"><img src="' + esc(meta.logo) + '" alt="" /></span>'
+      : '<span class="ic' + (out ? ' out' : '') + '" style="' + (out ? 'color:' : 'background:') + meta.color + '">' + esc(meta.icon) + '</span>';
 
     // ---------- hava durumu ----------
     function wxRainyAt(ymd, min) {
@@ -1617,7 +1630,7 @@
       html += '<div class="sum-grid">' + st.summaryGroups.map((g, gi) => {
         g.items.sort((a, b) => a.ymd.localeCompare(b.ymd));
         g.hours = Math.round(g.items.reduce((a, x) => a + (x.e - x.s), 0) / 6) / 10;
-        return '<div class="sum"><header style="background:' + g.meta.color + '">' + '<span class="ic" style="background:rgba(255,255,255,.25)">' + esc(g.meta.icon) + '</span><b>' + esc(g.label) + '</b><span>' + g.items.length + ' gün · ' + String(g.hours).replace('.', ',') + ' sa</span></header><ul>' +
+        return '<div class="sum"><header style="background:' + g.meta.color + '">' + (g.meta.logo ? icHtml(g.meta) : '<span class="ic" style="background:rgba(255,255,255,.25)">' + esc(g.meta.icon) + '</span>') + '<b>' + esc(g.label) + '</b><span>' + g.items.length + ' gün · ' + String(g.hours).replace('.', ',') + ' sa</span></header><ul>' +
           g.items.map((x) => '<li class="' + x.warn + '"><span>' + esc(dateLong(x.ymd)) + '</span><span class="tv">' +
             (x.plan ? timeInputs(x.ymd, x.plan) + (x.plan.edited ? '<button type="button" class="ghost mini" data-timereset="' + esc(x.ymd + '|' + x.plan.cand) + '" title="Varsayılan ' + fmt(x.plan.def.s) + '–' + fmt(x.plan.def.e) + '">↺</button>' : '') : fmt(x.s) + '–' + fmt(x.e) + ' <span class="muted">(sabit)</span>') + '</span></li>').join('') +
           '</ul><footer><button type="button" class="wa" data-share="' + gi + '">WhatsApp ile gönder</button><button type="button" data-img="' + gi + '">🖼 Resim</button><button type="button" data-copy="' + gi + '">Kopyala</button></footer></div>';
@@ -1637,8 +1650,14 @@
       const grad = x.createLinearGradient(0, 0, W, head);
       grad.addColorStop(0, g.meta.color); grad.addColorStop(1, '#0f172a');
       x.fillStyle = grad; x.fillRect(0, 0, W, head - 40);
-      x.fillStyle = 'rgba(255,255,255,.22)'; x.beginPath(); x.arc(120, 105, 54, 0, Math.PI * 2); x.fill();
-      x.fillStyle = '#fff'; x.font = 'bold 60px -apple-system, Segoe UI, Roboto, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(g.meta.icon, 120, 108);
+      x.beginPath(); x.arc(120, 105, 54, 0, Math.PI * 2);
+      const mark = g.meta.logo && clinicImages[g.meta.logo];
+      if (mark && mark.complete && mark.naturalWidth) {
+        x.save(); x.clip(); x.fillStyle = '#fff'; x.fillRect(66, 51, 108, 108); x.drawImage(mark, 74, 59, 92, 92); x.restore();
+      } else {
+        x.fillStyle = 'rgba(255,255,255,.22)'; x.fill();
+        x.fillStyle = '#fff'; x.font = 'bold 60px -apple-system, Segoe UI, Roboto, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(g.meta.icon, 120, 108);
+      }
       x.textAlign = 'left'; x.textBaseline = 'alphabetic';
       x.font = 'bold 46px -apple-system, Segoe UI, Roboto, sans-serif'; x.fillText(g.label, 200, 100);
       x.font = '32px -apple-system, Segoe UI, Roboto, sans-serif'; x.fillStyle = 'rgba(255,255,255,.85)';
@@ -2007,7 +2026,7 @@
       const cfg = st.config;
       if (!cfg) return;
       const ics = [...(cfg.partnerCandidates || []).map((c, i) => workMeta(cfg, c, i, false)), ...(cfg.partnerFixed || []).map((f, i) => workMeta(cfg, f, i, true))]
-        .filter((m, i, a) => a.findIndex((x) => x.icon === m.icon) === i);
+        .filter((m, i, a) => a.findIndex((x) => (x.logo || x.icon) === (m.logo || m.icon)) === i);
       $('titleIcons').innerHTML = ics.map((m) => icHtml(m)).join('');
     }
     function shiftMonth(delta) {
@@ -2429,6 +2448,32 @@
       document.querySelectorAll('[data-tab]').forEach((b) => b.classList.toggle('on', b.getAttribute('data-tab') === st.tab));
       document.body.classList.toggle('tab-fin', st.tab === 'fin');
     }
+    function placeBlob(cfg, key, extra) {
+      const p = (cfg && cfg.places && cfg.places[key]) || {};
+      const jobs = [...((cfg && cfg.partnerFixed) || []), ...((cfg && cfg.partnerCandidates) || [])].filter((f) => f && String(f.place || '') === String(key || ''));
+      return [key, p.label, p.short, extra, ...jobs.map((f) => (f.label || '') + ' ' + (f.short || ''))].filter(Boolean).join(' ').toLocaleLowerCase('tr-TR');
+    }
+    const CLINIC_BRANDS = [
+      { id: 'acibadem', logo: '/aile/logo-acibadem.svg', mark: /acıbadem|acibadem|altunizade/, name: 'Acıbadem' },
+      { id: 'maltepe', logo: '/aile/logo-maltepe.png', mark: /maltepe/, name: 'Maltepe' },
+      { id: 'dis', logo: '/aile/logo-dis.png', wide: '/aile/logo-dis-wide.png', mark: /yaşa|yasa|muayene/, name: 'Diş' },
+    ];
+    const clinicImages = {};
+    if (typeof Image === 'function') CLINIC_BRANDS.forEach((b) => {
+      [b.logo, b.wide].filter(Boolean).forEach((src) => {
+        if (clinicImages[src]) return;
+        const im = new Image();
+        im.src = src;
+        clinicImages[src] = im;
+      });
+    });
+    function clinicLogo(cfg, item) {
+      const key = typeof item === 'string' ? item : String((item && (item.place || item.id)) || '');
+      const extra = item && typeof item === 'object' ? ((item.label || '') + ' ' + (item.short || '')) : '';
+      const blob = placeBlob(cfg, key, extra);
+      const hit = CLINIC_BRANDS.find((b) => b.mark.test(blob));
+      return hit ? hit.logo : '';
+    }
     function moneyReceipts(full) {
       const fin = full && full.finance;
       const list = fin && Array.isArray(fin.receipts) ? fin.receipts : [];
@@ -2452,23 +2497,23 @@
       return finPlaceName(cfg, place);
     }
     function moneyClinics(cfg, full) {
-      const seen = new Set();
-      const out = [];
-      const add = (key, label) => {
-        const k = String(key || '').trim();
-        if (!k || k === 'home' || k === 'school' || k === 'crewBase' || seen.has(k)) return;
-        seen.add(k);
-        out.push({ key: k, label: label || moneyPlaceName(cfg, k) || placeLabel(cfg, k) });
+      const keys = [];
+      const push = (k) => {
+        const key = String(k || '').trim();
+        if (!key || keys.includes(key) || key === 'home' || key === 'school' || key === 'crewBase') return;
+        if (/tren|istasyon|marmaray|metro|söğüt|sogut|havaliman/.test(placeBlob(cfg, key))) return;
+        keys.push(key);
       };
+      for (const key of Object.keys((cfg && cfg.places) || {})) push(key);
       const fin = (cfg && cfg.finance) || {};
-      for (const [key, p] of Object.entries((cfg && cfg.places) || {})) add(key, (p && (p.short || p.label)) || key);
-      for (const s of [...(fin.daily || []), ...(fin.monthly || [])]) add(s, moneyPlaceName(cfg, s));
-      for (const f of [...((cfg && cfg.partnerFixed) || []), ...((cfg && cfg.partnerCandidates) || [])]) {
-        if (f && f.place) add(f.place, moneyPlaceName(cfg, f.place) || f.short || f.label);
-      }
-      for (const r of moneyReceipts(full)) add(r.place, moneyPlaceName(cfg, r.place));
-      out.sort((a, b) => a.label.localeCompare(b.label, 'tr'));
-      return out;
+      for (const s of [...(fin.daily || []), ...(fin.monthly || []), ...(((fin.debt || {}).sources) || [])]) push(s);
+      for (const f of [...((cfg && cfg.partnerFixed) || []), ...((cfg && cfg.partnerCandidates) || [])]) if (f && f.place) push(f.place);
+      for (const r of moneyReceipts(full)) push(r.place);
+      return CLINIC_BRANDS.map((b) => {
+        const key = keys.find((k) => b.mark.test(placeBlob(cfg, k))) || b.id;
+        const known = key !== b.id || keys.includes(key);
+        return { key, label: known && key !== b.id ? (moneyPlaceName(cfg, key) || b.name) : b.name, logo: b.logo, wide: b.wide || b.logo };
+      });
     }
     function moneyMonthEnd(month) {
       const [y, mo] = String(month || '').split('-').map(Number);
@@ -2484,18 +2529,24 @@
       const grand = receipts.reduce((a, r) => a + r.amount, 0);
       const status = st.moneyNote || '';
       st.moneyNote = '';
-      const opts = clinics.map((c) => '<option value="' + esc(c.key) + '">' + esc(c.label) + '</option>').join('');
-      const form = clinics.length
-        ? '<form class="money-form" id="moneyForm">'
-          + '<span class="fin-in"><input type="text" id="moneyAmt" inputmode="decimal" placeholder="Miktar" aria-label="Miktar (TL)" />TL</span>'
-          + '<label class="small">Tarih <input type="date" id="moneyDay" min="' + esc(month + '-01') + '" max="' + esc(end) + '" value="' + esc(now.ymd) + '" /></label>'
-          + '<label class="small">Klinik <select id="moneyClinic" aria-label="Klinik">' + opts + '</select></label>'
-          + '<input type="text" id="moneyMemo" maxlength="120" placeholder="Not" aria-label="Not" />'
-          + '<button type="button" class="primary" id="moneyAdd">Gelir ekle</button>'
-          + '<span id="moneyStatus" class="small muted">' + esc(status) + '</span></form>'
-        : '<p class="small muted" id="moneyStatus">Klinik yok.</p>';
+      const picked = clinics.some((c) => c.key === st.moneyClinic) ? st.moneyClinic : (clinics[0] && clinics[0].key);
+      const buttons = clinics.map((c) => {
+        const on = c.key === picked;
+        const wide = c.wide && c.wide !== c.logo;
+        return '<button type="button" class="clinic-btn' + (on ? ' on' : '') + '" data-money-clinic="' + esc(c.key) + '" aria-pressed="' + (on ? 'true' : 'false') + '" aria-label="' + esc(c.label) + '"><img class="' + (wide ? 'wide' : '') + '" src="' + esc(wide ? c.wide : c.logo) + '" alt="" />' + (wide ? '' : '<span>' + esc(c.label) + '</span>') + '</button>';
+      }).join('');
+      const form = '<form class="money-form" id="moneyForm">'
+        + '<span class="fin-in"><input type="text" id="moneyAmt" inputmode="decimal" placeholder="Miktar" aria-label="Miktar (TL)" />TL</span>'
+        + '<label class="small">Tarih <input type="date" id="moneyDay" min="' + esc(month + '-01') + '" max="' + esc(end) + '" value="' + esc(now.ymd) + '" /></label>'
+        + '<div class="clinic-btns" role="group" aria-label="Klinik">' + buttons + '</div>'
+        + '<input type="text" id="moneyMemo" maxlength="120" placeholder="Not" aria-label="Not" />'
+        + '<button type="button" class="primary" id="moneyAdd">Gelir ekle</button>'
+        + '<span id="moneyStatus" class="small muted">' + esc(status) + '</span></form>';
       const body = receipts.length
-        ? receipts.map((r) => '<tr data-money="' + esc(r.id) + '"><td>' + esc(dshort(r.ymd)) + '</td><td>' + esc(moneyPlaceName(cfg, r.place)) + '</td><td>' + esc(r.note) + '</td><td class="num">' + tl(r.amount) + '</td><td><button type="button" class="ghost" data-moneydel="' + esc(r.id) + '" title="Sil" aria-label="Sil">✕</button></td></tr>').join('')
+        ? receipts.map((r) => {
+          const logo = clinicLogo(cfg, r.place);
+          return '<tr data-money="' + esc(r.id) + '"><td>' + esc(dshort(r.ymd)) + '</td><td>' + (logo ? '<img class="clinic-mini" src="' + esc(logo) + '" alt="" /> ' : '') + esc(moneyPlaceName(cfg, r.place)) + '</td><td>' + esc(r.note) + '</td><td class="num">' + tl(r.amount) + '</td><td><button type="button" class="ghost" data-moneydel="' + esc(r.id) + '" title="Sil" aria-label="Sil">✕</button></td></tr>';
+        }).join('')
         : '<tr><td colspan="5" class="muted">Gelir yok.</td></tr>';
       return '<section class="card" id="moneyCard"><div class="card-h">Gelir · ' + esc(monthName(month)) + '</div>'
         + form
@@ -2513,7 +2564,8 @@
     async function addMoney() {
       const msg = (t) => { const el = $('moneyStatus'); if (el) el.textContent = t; };
       const ymd = $('moneyDay') ? $('moneyDay').value : '';
-      const place = $('moneyClinic') ? $('moneyClinic').value : '';
+      const chosen = document.querySelector('#moneyForm .clinic-btn.on');
+      const place = chosen ? chosen.getAttribute('data-money-clinic') : '';
       const amount = parseTL($('moneyAmt') ? $('moneyAmt').value : '');
       const note = ($('moneyMemo') ? $('moneyMemo').value : '').trim().slice(0, 120);
       const month = nowLocal().ymd.slice(0, 7);
@@ -2697,6 +2749,16 @@
     });
     $('tabFin').addEventListener('click', (e) => {
       if (e.target.closest('[data-personreset]')) return void askPerson(true);
+      const clinicBtn = e.target.closest('[data-money-clinic]');
+      if (clinicBtn) {
+        st.moneyClinic = clinicBtn.getAttribute('data-money-clinic');
+        clinicBtn.parentElement.querySelectorAll('[data-money-clinic]').forEach((b) => {
+          const on = b === clinicBtn;
+          b.classList.toggle('on', on);
+          b.setAttribute('aria-pressed', on ? 'true' : 'false');
+        });
+        return;
+      }
       if (e.target.closest('#moneyAdd')) return void addMoney();
       const md = e.target.closest('[data-moneydel]');
       if (md) return void deleteMoney(md.getAttribute('data-moneydel'));
