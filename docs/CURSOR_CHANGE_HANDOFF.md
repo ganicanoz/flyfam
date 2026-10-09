@@ -9,8 +9,19 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - Sunucu sırları mobil uygulamaya veya EAS yükleme arşivine dahil edilmez.
 - Store ürün kimlikleri, auth callback'leri, migrationlar ve sürüm numaraları kanıt olmadan değiştirilmez.
 - Route to Live maddeleri yalnız doğrulama kanıtıyla `OK` yapılır.
+- Kullanıcı aksini söylemedikçe istenen aile planı değişikliği sorulmadan `main`'e alınır ve `https://app.flyfamapp.com/aile/` üzerinde doğrulanır. Repodaki `family-planner` kopyası canlı finans ve borç eylemlerini içermediği sürece o fonksiyon bu yüzden deploy edilmez.
 
 ## Güncel teknik kayıtlar
+
+### 2026-10-09 — Aile planı: finans sayfası sadeleştirildi
+
+- **Amaç:** Finans sekmesi karmaşıktı. Kalsın: gelir girişi (miktar, tarih, klinik, not), aşağıda bu ayın satırları (tarih, klinik, not, tutar) ve toplam, bir de faturalar. Tahmin, ciro kutuları, 6 aylık tablo, cihaz seçimi ve uzun açıklamalar kalksın. Fatura otomatik alma bu turda yok.
+- **Dosyalar:** `support/aile/index.html`, `support/aile/sw.js` (`aile-shell-v9`), `scripts/test-aile-eso.mjs`.
+- **Gelir:** `finance.receipts` aynı; satıra `note` eklendi. Tablo bugünün ayı. Aynı gün ve kliniğe birden fazla giriş ayrı satır (notuyla) durur, altta toplam toplanır. Günlük ciro kaynağıysa o günün fiş toplamı `finance_set` ile durur; sayfada ciro kutusu ve ciro sorusu çıkmaz.
+- **Faturalar:** Mevcut borç kayıtları «Faturalar» başlığıyla kalır (kalan, vade, taksit, ödendi, sil). Uzun açıklama yok.
+- **Doğrulama:** `node scripts/test-aile-eso.mjs` OK; inline `node --check` OK. Tarayıcı: 1.000 sabah + 2.500 öğlen Acıbadem ve 400 Konsolosluk, toplam 3.900 ₺; fatura kartı kaldı; ciro penceresi açılmadı. 390 px’te kart taşmıyor.
+- **Koruma:** Yer anahtarı, adres, hastane adı, tatil cümlesi, roster düğmesi ve borç kayıtlarının sunucu eylemleri aynı. `assist` ve `family-planner` fonksiyonu deploy edilmedi.
+- **Canlı:** Henüz `main`’de değil.
 
 ### 2026-10-08 — Aile planı: Para ekle, roster kontrolü, randevuya yol süresi
 
