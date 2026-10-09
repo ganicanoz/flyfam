@@ -13,6 +13,16 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+### 2026-10-09 — Aile planı: klinik seçimi üç düğme, logolar
+
+- **Amaç:** Gelir kliniği açılır liste olmasın; üç klinik düğme olsun. Söğütlüçeşme tren klinik listesine girmesin. Takvim, özet ve gelir satırında baş harf yerine klinik logosu görünsün.
+- **Dosyalar:** `support/aile/index.html`, `support/aile/sw.js` (`aile-shell-v10`), `support/aile/logo-acibadem.svg`, `support/aile/logo-maltepe.png`, `support/aile/logo-dis.png`, `support/aile/logo-dis-wide.png`, `scripts/test-aile-eso.mjs`.
+- **Logolar:** Acıbadem kare işareti Wikimedia Commons’taki kamu malı işaret. Maltepe amblemi üniversitenin yayımladığı logodan. Diş kliniği, kliniğin kendi sitesindeki logo (küçük dişte işaret, düğmede yatay logo).
+- **Seçim:** Düğmeler üç marka. Yer anahtarı config’teki addan bulunur (hastane, Maltepe, muayene). Tren, istasyon, ev, okul, havalimanı ve vize yeri düğme olmaz; yol sürelerindeki yer kaydı durur.
+- **Doğrulama:** `node scripts/test-aile-eso.mjs` OK; inline `node --check` OK. Tarayıcı: üç düğme, tren yok, açılır liste yok; Maltepe 1.500 ₺ satırı ve toplam; takvimde harf yerine logo; 390 px’te kart 374 px, taşma yok.
+- **Koruma:** Yer anahtarı, adres, hastane adı, tatil cümlesi, roster düğmesi ve borç kayıtları aynı. `family-planner` deploy edilmedi.
+- **Canlı:** Henüz `main`’de değil.
+
 ### 2026-10-09 — AirLabs kota hatasında bekleme süresi
 
 - **Amaç:** AirLabs kota aşımını 429 yerine HTTP 200 + `error.code` (`month_limit_exceeded` vb.) ile döndürüyor; kod bunu sıradan hata sayıp diğer uçuş numarası varyantlarını deniyor, bekleme kaydı yazmıyordu. Her sorgu ve her sorgulayıcı turu boşa AirLabs çağrısı yapıyordu.
