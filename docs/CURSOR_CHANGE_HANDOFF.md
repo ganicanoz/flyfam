@@ -21,7 +21,7 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - **Plan:** Bugünden önceki gün gri ve kilitli. Çakışma 3 px kırmızı çerçeve; «Çakışmalar» kartında gün ve sebep. Gün kutusu 2 saatlik saat işaretli zaman çizelgesi. Boş uygun günde renk noktası. Takvim, çakışma, özet, okul yolu ve açılır kartlar geniş ekranda 3, orta ekranda 2 sütun. Okul tablosu 12 px. Geçmiş kutuda «false» yazısı çıkmaz.
 - **Doğrulama:** `node scripts/test-aile-eso.mjs` OK; inline `node --check` OK; `git diff --check` OK. Tarayıcı: 1 Ekim gri `rgb(238, 242, 246)` ve «false» yok; 13 Ekim lacivert A; 8 Ekim alev; 17 Ekim diş; 12 Ekim renk noktası; 15 Ekim kırmızı çerçeve ve çakışma kartında sebep; gün kutusunda 14:00 dahil saatler; finans düğmeleri Acıbadem, Maltepe, Diş; 1280 px 3 sütun; 390 px taşma yok.
 - **Koruma:** Yer anahtarı, adres, hastane adı, tatil cümlesi, roster düğmesi, gelir satırı ve borç kayıtları aynı. Geçmiş gün hâlâ değişmez. `family-planner` deploy edilmedi.
-- **Canlı:** Henüz main’de değil.
+- **Canlı:** PR #21 merge `5ee85e0`. Deploy support site `37913184439` success. `https://app.flyfamapp.com/aile/` içinde `aile-shell-v12`, «Gerçekleşti», `id="conflicts"`, öneri noktası, `logo-dis-wide` yok ve üç logo dosyası 200 doğrulandı (2026-10-09). PWA açıksa bir kez yenilemek gerekir.
 
 ### 2026-10-09 — Meydanlar şehir adıyla, meydan önbelleği, sunucu saat dilimi yedeği, aşama titremesi
 
