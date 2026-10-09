@@ -21,7 +21,7 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - **Seçim:** Düğmeler üç marka. Yer anahtarı config’teki addan bulunur (hastane, Maltepe, muayene). Tren, istasyon, ev, okul, havalimanı ve vize yeri düğme olmaz; yol sürelerindeki yer kaydı durur.
 - **Doğrulama:** `node scripts/test-aile-eso.mjs` OK; inline `node --check` OK. Tarayıcı: üç düğme, tren yok, açılır liste yok; Maltepe 1.500 ₺ satırı ve toplam; takvimde harf yerine logo; 390 px’te kart 374 px, taşma yok.
 - **Koruma:** Yer anahtarı, adres, hastane adı, tatil cümlesi, roster düğmesi ve borç kayıtları aynı. `family-planner` deploy edilmedi.
-- **Canlı:** Henüz `main`’de değil.
+- **Canlı:** PR #17 merge `c7865bf`. Deploy support site `37905620200` success. `https://app.flyfamapp.com/aile/` içinde `clinic-btn`, üç klinik logosu, `id="moneyClinic"` yok ve `aile-shell-v10` doğrulandı (2026-10-09). PWA açıksa bir kez yenilemek gerekir.
 
 ### 2026-10-09 — AirLabs kota hatasında bekleme süresi
 
