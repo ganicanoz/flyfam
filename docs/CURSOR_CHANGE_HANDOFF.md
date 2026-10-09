@@ -22,7 +22,7 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - **Takvim:** 10 Ekim, Cumartesi sabit işlerinde `skipDates`. 16 Ekim yer `VFS`, etiket «Çekya vize», randevu 14:00, blok yoğun olmayan yol süresi kadar geniş, `includesTravel`.
 - **Doğrulama:** `node scripts/test-aile-eso.mjs` OK; inline `node --check` OK; `git diff --check` OK. Tarayıcı: üç logosuz yazı düğmesi, Acıbadem düğmesi Maltepe yazmıyor; 13 Ekim hastane logosu üniversite logosu değil; 10 Ekim diş logosu yok; 16 Ekim VFS; 17 Ekim diş logosu; geçmiş gün yeşil ve kilitli, kutu «Gerçekleşti»; gelecek kutu yıldızsız; 390 px taşma yok, düğme yüksekliği 36 px.
 - **Koruma:** Yer anahtarı, adres, hastane adı, tatil cümlesi, roster düğmesi, gelir satırı ve borç kayıtları aynı. `family-planner` deploy edilmedi.
-- **Canlı:** Henüz main’de değil.
+- **Canlı:** PR #19 merge `33bc08c`. Deploy support site `37910068142` success. `https://app.flyfamapp.com/aile/` içinde `aile-shell-v11`, «Gerçekleşti», `logo-dis-wide` yok ve üç logo dosyası 200 doğrulandı (2026-10-09). PWA açıksa bir kez yenilemek gerekir.
 
 ### 2026-10-09 — Aile planı: klinik seçimi üç düğme, logolar
 
