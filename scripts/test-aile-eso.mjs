@@ -56,12 +56,32 @@ const old = legacy.partnerFixed[1];
 eq('İ rozeti kalktı', old.icon == null && old.short === 'Acıbadem' && old.label === 'Acıbadem Hastanesi' && old.note === 'Bu gün imza.');
 eq('eski tekrar yok', migrate(legacy) === false);
 
+const sat = {
+  places: { altunizade: { label: 'Acıbadem Hastanesi', short: 'Acıbadem' } },
+  configMigrations: ['partner_fixed_2026_10_06_imza', 'partner_place_acibadem_hastanesi'],
+  partnerFixed: [
+    { place: 'muayene', label: 'Muayene', short: 'Diş', weekdays: [6], start: '10:00', end: '16:00' },
+    { place: 'altunizade', label: 'Acıbadem Hastanesi', short: 'Acıbadem', weekdays: [2], start: '10:00', end: '16:00' },
+    { place: 'muayene', label: 'Muayene', short: 'Diş', dates: ['2026-10-10'], start: '10:00', end: '14:00' },
+  ],
+  plans: { '2026-10': { '2026-10-10': { cand: 'x' }, '2026-10-12': { cand: 'y' } } },
+  travel: { fallbackMin: [40, 55], pairs: {} },
+};
+eq('cumartesi yaması', migrate(sat) === true);
+eq('cumartesi atlanır', sat.partnerFixed[0].skipDates && sat.partnerFixed[0].skipDates.includes('2026-10-10') && !(sat.partnerFixed[1].skipDates || []).includes('2026-10-10'));
+eq('o gün tek sefer kalkar', !sat.partnerFixed.some((x) => Array.isArray(x.dates) && x.dates.includes('2026-10-10')));
+eq('o gün seçim silinir', !sat.plans['2026-10']['2026-10-10'] && sat.plans['2026-10']['2026-10-12']);
+const vfs = sat.partnerFixed.find((x) => Array.isArray(x.dates) && x.dates.includes('2026-10-16'));
+eq('vfs randevu', !!vfs && vfs.place === 'vfs' && vfs.label === 'Çekya vize' && vfs.short === 'VFS' && vfs.start === '13:20' && vfs.end === '15:40' && vfs.includesTravel === true && /14:00/.test(vfs.note) && sat.places.vfs && sat.places.vfs.label === 'VFS');
+eq('cumartesi tekrar yok', migrate(sat) === false);
+
 eq('tatil cümlesi', html.includes('Doktor Hanıım, bu ay bir seyehatiniz olacak mı?') && !html.includes('nereye gidiyoruz kankam'));
 eq('eso duruyor', html.includes('id="esoDock"') && html.includes('Konuşarak söyle') && !html.includes('Plan asistanı'));
 eq('İ ikonu üretilmiyor', !html.includes("icon: 'İ'") && !html.includes('short: \'İmza\''));
 eq('sohbet dışarı tıklayınca kapanmaz', !html.includes("closeAssist();\n    });\n    $('assist')") && !html.includes('Bir bakayım'));
 eq('gelir ekle ve roster', html.includes('>Gelir ekle<') && html.includes('id="moneyMemo"') && html.includes('class="clinic-btn') && html.includes('id="btnRoster"') && html.includes('function moneyMonthTotals') && !html.includes('id="moneyClinic"') && !html.includes('Ciro girişleri') && !html.includes('Son 6 ay'));
-eq('önbellek v10', sw.includes("const CACHE = 'aile-shell-v10'"));
+eq('önbellek v11', sw.includes("const CACHE = 'aile-shell-v11'") && !sw.includes('logo-dis-wide') && !html.includes('logo-dis-wide') && !html.includes("'<span>' + esc(c.label)"));
+eq('geçmiş kilit', html.includes('Geçmiş gün değişmez') && html.includes('Gerçekleşti') && html.includes('partner_off_2026_10_10') && html.includes('vfs_cekya_2026_10_16'));
 eq('selamlama', html.includes("const ESO_HI = 'Buyrun Doktor Hanımcım...'"));
 
 const assistStart = script.indexOf('const TR_MONTHS');
@@ -202,7 +222,7 @@ const money = new Function(`
     return (c && (c.short || c.label)) || placeLabel(cfg, place);
   }
   ${script.slice(moneyStart, moneyEnd)}
-  return { moneyReceipts, moneyMonthTotals, moneyClinics };
+  return { moneyReceipts, moneyMonthTotals, moneyClinics, clinicLogo };
 `)();
 const stored = money.moneyReceipts({
   finance: { receipts: [
@@ -231,7 +251,16 @@ const clinics = money.moneyClinics({
   },
   partnerFixed: [{ place: 'altunizade', short: 'Acıbadem' }, { place: 'konsolosluk', short: 'Vize randevu', label: 'Vize randevusu' }],
 }, { finance: { receipts: [] } });
-eq('klinik düğmeleri', clinics.length === 3 && clinics[0].key === 'altunizade' && clinics[0].label === 'Acıbadem' && clinics[0].logo.endsWith('logo-acibadem.svg') && clinics[1].key === 'maltepe' && clinics[1].label === 'Maltepe' && clinics[2].key === 'muayene' && clinics[2].label === 'Diş' && !clinics.some((c) => c.key === 'sogut' || c.key === 'konsolosluk' || c.key === 'home'));
+eq('klinik düğmeleri', clinics.length === 3 && clinics[0].key === 'altunizade' && clinics[0].label === 'Acıbadem' && clinics[0].logo.endsWith('logo-acibadem.svg') && clinics[1].key === 'maltepe' && clinics[1].label === 'Maltepe' && clinics[2].key === 'muayene' && clinics[2].label === 'Diş' && !clinics.some((c) => c.key === 'sogut' || c.key === 'konsolosluk' || c.key === 'home' || c.wide));
+const crossed = money.moneyClinics({
+  places: {
+    altunizade: { label: 'Acıbadem Hastanesi', short: 'Maltepe' },
+    maltepe: { label: 'Maltepe Üniversitesi', short: 'Maltepe' },
+    muayene: { label: 'Muayene', short: 'Diş' },
+  },
+  partnerFixed: [],
+}, { finance: { receipts: [] } });
+eq('hastane maltepe yazmaz', crossed[0].key === 'altunizade' && crossed[0].label === 'Acıbadem' && crossed[0].logo.endsWith('logo-acibadem.svg') && crossed[1].key === 'maltepe' && crossed[1].logo.endsWith('logo-maltepe.png') && money.clinicLogo({ places: crossed.length ? { altunizade: { label: 'Acıbadem Hastanesi', short: 'Maltepe' } } : {} }, 'altunizade').endsWith('logo-acibadem.svg'));
 const noted = money.moneyReceipts({ finance: { receipts: [{ id: 'n', ymd: '2026-10-08', place: 'altunizade', amount: 10, note: 'öğleden' }] } });
 eq('gelir notu', noted.length === 1 && noted[0].note === 'öğleden' && noted[0].amount === 10);
 
