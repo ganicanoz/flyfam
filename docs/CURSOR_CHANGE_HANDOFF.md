@@ -13,6 +13,17 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+### 2026-10-09 — Aile planı: küçük logolar, sade plan, 10 ve 16 Ekim
+
+- **Amaç:** Klinik düğmesinde Acıbadem altında yanlış kısa ad görünüyordu. Düğmeler yalnız küçük logo olsun. Takvimde baş harf yerine küçük logo. Diş işaretinin ortasında T. Planlama ve gün kutusu sade olsun; yıldız, öneri ve uzun açıklama kalksın. Bugünden önceki çalışma günleri değişmesin, gerçekleşmiş rengi alsın. 10 Ekim Cumartesi sabit iş olmasın. 16 Ekim 14:00 VFS Çekya vize, gidiş-dönüş bloğa eklensin.
+- **Dosyalar:** `support/aile/index.html`, `support/aile/sw.js` (`aile-shell-v11`), `support/aile/logo-dis.png` (dişin ortasına T), `support/aile/logo-dis-wide.png` kaldırıldı, `scripts/test-aile-eso.mjs`.
+- **Klinik:** Marka eşlemesi ayrı. Hastane adı Maltepe kısa adıyla üniversiteye karışmaz. Üç düğme yalnız logo; yazı yok. Tren, ev, okul ve VFS düğme değil.
+- **Plan:** Klinik satırı logo, seçili günler ve kısa gün numaraları. Gün kutusu logo ve saat. Geçmiş gün (`Europe/Istanbul`, bugünden önce) sürüklenmez, saati değişmez; yeşil «Gerçekleşti».
+- **Takvim:** 10 Ekim, Cumartesi sabit işlerinde `skipDates`. 16 Ekim yer `VFS`, etiket «Çekya vize», randevu 14:00, blok yoğun olmayan yol süresi kadar geniş, `includesTravel`.
+- **Doğrulama:** `node scripts/test-aile-eso.mjs` OK; inline `node --check` OK; `git diff --check` OK. Tarayıcı: üç logosuz yazı düğmesi, Acıbadem düğmesi Maltepe yazmıyor; 13 Ekim hastane logosu üniversite logosu değil; 10 Ekim diş logosu yok; 16 Ekim VFS; 17 Ekim diş logosu; geçmiş gün yeşil ve kilitli, kutu «Gerçekleşti»; gelecek kutu yıldızsız; 390 px taşma yok, düğme yüksekliği 36 px.
+- **Koruma:** Yer anahtarı, adres, hastane adı, tatil cümlesi, roster düğmesi, gelir satırı ve borç kayıtları aynı. `family-planner` deploy edilmedi.
+- **Canlı:** Henüz main’de değil.
+
 ### 2026-10-09 — Aile planı: klinik seçimi üç düğme, logolar
 
 - **Amaç:** Gelir kliniği açılır liste olmasın; üç klinik düğme olsun. Söğütlüçeşme tren klinik listesine girmesin. Takvim, özet ve gelir satırında baş harf yerine klinik logosu görünsün.
