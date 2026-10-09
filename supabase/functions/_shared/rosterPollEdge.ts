@@ -12,7 +12,12 @@ import {
 import { mergeTimetableRowsPreferFirst, timetableRowIsSufficient } from './flightTimetableWaterfall.ts';
 import { fr24AircraftRegistrationFromFlight } from './fr24AircraftRegistration.ts';
 import { buildAerodataboxFlightNumberSources } from './aerodataboxHttp.ts';
-import { apply429ToCooldown, isBlockedUntil } from './providerCooldown.ts';
+import {
+  airlabsLimitCooldownSeconds,
+  apply429ToCooldown,
+  applyCooldownSeconds,
+  isBlockedUntil,
+} from './providerCooldown.ts';
 
 /** Service-role Supabase client (cooldown + cache upserts). */
 // deno-lint-ignore no-explicit-any
@@ -462,6 +467,11 @@ async function fetchAirLabsFlight(
         break;
       }
       const json = await res.json().catch(() => null);
+      const limitSec = airlabsLimitCooldownSeconds(json);
+      if (limitSec) {
+        await applyCooldownSeconds(supabase, cooldownMap, COOLDOWN_AIRLABS, limitSec);
+        break;
+      }
       if (!res.ok || json?.error) continue;
       const fr = json?.response;
       if (!fr || typeof fr !== 'object') continue;

@@ -64,14 +64,34 @@ export async function persistProviderCooldown(
   if (error) console.warn('[providerCooldown] upsert', provider, error.message);
 }
 
+export async function applyCooldownSeconds(
+  supabase: Parameters<typeof persistProviderCooldown>[0],
+  map: Map<string, number>,
+  provider: string,
+  seconds: number,
+): Promise<void> {
+  const until = Date.now() + seconds * 1000;
+  map.set(provider, until);
+  await persistProviderCooldown(supabase, provider, until);
+}
+
 export async function apply429ToCooldown(
   supabase: Parameters<typeof persistProviderCooldown>[0],
   map: Map<string, number>,
   provider: string,
   headers: Headers,
 ): Promise<void> {
-  const sec = cooldownSecondsFor429(parseRetryAfterSeconds(headers));
-  const until = Date.now() + sec * 1000;
-  map.set(provider, until);
-  await persistProviderCooldown(supabase, provider, until);
+  await applyCooldownSeconds(supabase, map, provider, cooldownSecondsFor429(parseRetryAfterSeconds(headers)));
+}
+
+/** AirLabs kota aşımını 429 yerine HTTP 200 + `error.code` ile bildirir. */
+const AIRLABS_LIMIT_COOLDOWN_SECONDS: Record<string, number> = {
+  minute_limit_exceeded: 60,
+  hour_limit_exceeded: 15 * 60,
+  month_limit_exceeded: 6 * 60 * 60,
+};
+
+export function airlabsLimitCooldownSeconds(json: unknown): number | null {
+  const code = (json as { error?: { code?: unknown } } | null)?.error?.code;
+  return typeof code === 'string' ? AIRLABS_LIMIT_COOLDOWN_SECONDS[code] ?? null : null;
 }

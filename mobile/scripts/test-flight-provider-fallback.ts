@@ -181,6 +181,27 @@ async function main() {
     assert.equal(ctx.cooldownMap.get('airlabs'), Date.now() + 90_000);
   });
 
+  await check('AirLabs monthly quota (HTTP 200 + error code): one call, 6 h cooldown, chain moves on', async () => {
+    installFetch({
+      airlabs: () => ({ status: 200, body: { error: { message: 'limit', code: 'month_limit_exceeded' } } }),
+      aerodatabox: () => aerodatabox('2026-10-09 10:00Z', '2026-10-09 13:50Z'),
+    });
+    const { ctx, upserts } = makeCtx();
+    const r = await fetchFlightByNumberEdge('TK1979', TODAY, TODAY, TOMORROW, ctx);
+    assert.equal(count('airlabs'), 1);
+    assert.deepEqual(upserts, ['airlabs']);
+    assert.equal(ctx.cooldownMap.get('airlabs'), Date.now() + 6 * 3600_000);
+    assert.equal(r?.scheduled_departure_utc, '2026-10-09T10:00:00.000Z');
+  });
+
+  await check('AirLabs non-quota error: other variants are still tried, no cooldown', async () => {
+    installFetch({ airlabs: () => ({ status: 200, body: { error: { code: 'not_found' } } }) });
+    const { ctx, upserts } = makeCtx();
+    await fetchFlightByNumberEdge('TK1979', TODAY, TODAY, TOMORROW, ctx);
+    assert.ok(count('airlabs') > 1, `airlabs calls: ${count('airlabs')}`);
+    assert.equal(upserts.includes('airlabs'), false);
+  });
+
   await check('AeroAPI hit: AviationStack is not called', async () => {
     installFetch({
       aeroapi: () => ({

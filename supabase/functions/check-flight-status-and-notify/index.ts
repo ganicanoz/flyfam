@@ -19,7 +19,9 @@ import {
 import { fr24TurkeyPakistanScheduleTooShort } from '../_shared/fr24TurkeyPakistanSanity.ts';
 import { getCachedPayload } from '../_shared/providerResponseCache.ts';
 import {
+  airlabsLimitCooldownSeconds,
   apply429ToCooldown,
+  applyCooldownSeconds,
   isBlockedUntil,
   loadCooldownUntilByProvider,
 } from '../_shared/providerCooldown.ts';
@@ -632,6 +634,11 @@ async function fetchAirLabsFlight(
         break;
       }
       const json = await res.json().catch(() => null);
+      const limitSec = airlabsLimitCooldownSeconds(json);
+      if (limitSec) {
+        await applyCooldownSeconds(supabase as any, cooldownMap, COOLDOWN_PROVIDER_AIRLABS, limitSec);
+        break;
+      }
       if (!res.ok || json?.error) continue;
       const fr = json?.response;
       if (!fr || typeof fr !== 'object') continue;
