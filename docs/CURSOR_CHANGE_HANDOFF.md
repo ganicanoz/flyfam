@@ -9,6 +9,7 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - Sunucu sırları mobil uygulamaya veya EAS yükleme arşivine dahil edilmez.
 - Store ürün kimlikleri, auth callback'leri, migrationlar ve sürüm numaraları kanıt olmadan değiştirilmez.
 - Route to Live maddeleri yalnız doğrulama kanıtıyla `OK` yapılır.
+- Kullanıcı aksini söylemedikçe istenen aile planı değişikliği sorulmadan `main`'e alınır ve `https://app.flyfamapp.com/aile/` üzerinde doğrulanır. Repodaki `family-planner` kopyası canlı finans ve borç eylemlerini içermediği sürece o fonksiyon bu yüzden deploy edilmez.
 
 ## Güncel teknik kayıtlar
 
