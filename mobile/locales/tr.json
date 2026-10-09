@@ -512,7 +512,7 @@
     "pdfReportRateLimited": "Bugünkü gönderim sınırına ulaşıldı. Yarın tekrar deneyebilirsiniz.",
     "homeBaseChangeTitle": "Bu ay home base değişsin mi?",
     "homeBaseChangeMessage": "Bu roster’da en çok {{iata}}’dan uçulmuş. Bir sonraki farklı tespit edilene kadar home base {{iata}} olsun mu?",
-    "homeBaseChangeMessageCity": "Bu roster’da en çok {{iata}} ({{city}})’den uçulmuş. Bir sonraki farklı tespit edilene kadar home base {{iata}} olsun mu?",
+    "homeBaseChangeMessageCity": "Bu roster’da en çok {{city}} ({{iata}}) çıkışlı uçulmuş. Bir sonraki farklı tespit edilene kadar home base {{iata}} olsun mu?",
     "homeBaseChangeYes": "Evet, bunu kullan",
     "homeBaseChangeNo": "Hayır, mevcut kalsın",
     "importFlightsNoFlights": "PDF'de uçuş bulunamadı.",

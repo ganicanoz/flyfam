@@ -399,7 +399,11 @@ function RootNavigator() {
   }, []);
 
   useEffect(() => {
-    loadAirportDisplayFromSupabase(supabase);
+    void loadAirportDisplayFromSupabase(supabase);
+    const sub = AppState.addEventListener('change', (next) => {
+      if (next === 'active') void loadAirportDisplayFromSupabase(supabase);
+    });
+    return () => sub.remove();
   }, []);
 
   // Handoff: JS splash mirrors LaunchScreen → hide native splash once overlay is up.

@@ -6,6 +6,7 @@ import { Alert, Platform, type AlertButton } from 'react-native';
 import Constants from 'expo-constants';
 import { readAsStringAsync } from 'expo-file-system/legacy';
 import i18n from './i18n';
+import { formatAirportCity } from '../constants/airports';
 import { supabase } from './supabase';
 import { trackActivityEvent } from './userActivity';
 import type { PdfImportRpcResult, RosterStaleFlight, RosterSuspectLeg } from './pdfRosterImport';
@@ -126,7 +127,10 @@ function suspectReason(r: RosterSuspectLeg['reason']): string {
 }
 
 function staleLine(f: RosterStaleFlight): string {
-  const route = f.origin_airport && f.destination_airport ? ` ${f.origin_airport}→${f.destination_airport}` : '';
+  const route =
+    f.origin_airport && f.destination_airport
+      ? ` ${formatAirportCity(f.origin_airport)}→${formatAirportCity(f.destination_airport)}`
+      : '';
   return `${shortDate(f.flight_date)} ${f.flight_number}${route}`;
 }
 

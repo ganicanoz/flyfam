@@ -16,7 +16,7 @@ import {
   calendarDateFromUtcIsoInTimeZone,
   formatFlightTimeInTz,
 } from '../lib/dateUtils';
-import { getAirportDisplay, getAirportTimezone } from '../constants/airports';
+import { formatCityAndCode, getAirportTimezone, useAirportDisplayVersion } from '../constants/airports';
 import { useSession } from '../contexts/SessionContext';
 import { colors, useThemeMode } from '../theme/colors';
 import { cardAccent, radius, rosterMarks, spacing, typography } from '../theme/tokens';
@@ -111,6 +111,7 @@ export default function EditDuty() {
   const { t, i18n } = useTranslation();
   const { crewProfile } = useSession();
   const themeMode = useThemeMode();
+  useAirportDisplayVersion();
   const accent = cardAccent('standby', themeMode);
   const marks = rosterMarks(themeMode);
   const styles = useMemo(() => createStyles(), [themeMode]);
@@ -129,7 +130,6 @@ export default function EditDuty() {
   const [loading, setLoading] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [fetching, setFetching] = useState(true);
-  const [airportName, setAirportName] = useState<string | null>(null);
   const [lastNoticeAt, setLastNoticeAt] = useState<string | null>(null);
 
   const dutyBaseIata = (crewProfile?.home_base_iata ?? '').trim().toUpperCase() || null;
@@ -165,43 +165,7 @@ export default function EditDuty() {
     return formatDuration(Math.round((arrMs - depMs) / 60000), i18n.language || 'tr');
   }, [startDate, endDate, startTime, endTime, dutyTz, i18n.language]);
 
-  const locationLine = useMemo(() => {
-    if (!dutyBaseIata) return null;
-    const info = getAirportDisplay(dutyBaseIata);
-    const cityFallback =
-      (crewProfile?.home_base_city ?? '').trim() ||
-      (isTr ? info?.city_tr || info?.city : info?.city) ||
-      null;
-    const name = (airportName ?? cityFallback)?.trim() || null;
-    return name ? `${dutyBaseIata} · ${name}` : dutyBaseIata;
-  }, [dutyBaseIata, airportName, crewProfile?.home_base_city, isTr]);
-
-  useEffect(() => {
-    if (!dutyBaseIata) {
-      setAirportName(null);
-      return;
-    }
-    let cancelled = false;
-    void (async () => {
-      const { data } = await supabase
-        .from('airports')
-        .select('iata, name, name_tr, city, city_tr')
-        .eq('iata', dutyBaseIata)
-        .maybeSingle();
-      if (cancelled) return;
-      if (!data) {
-        setAirportName(null);
-        return;
-      }
-      const nm = isTr
-        ? (data.name_tr || data.name || data.city_tr || data.city || null)
-        : (data.name || data.name_tr || data.city || data.city_tr || null);
-      setAirportName(typeof nm === 'string' && nm.trim() ? nm.trim() : null);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [dutyBaseIata, isTr]);
+  const locationLine = dutyBaseIata ? formatCityAndCode(dutyBaseIata, crewProfile?.home_base_city) : null;
 
   useEffect(() => {
     if (!flightId) {

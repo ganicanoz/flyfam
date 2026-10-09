@@ -54,18 +54,44 @@ function count(p: Provider): number {
   return calls.filter((c) => c.provider === p).length;
 }
 
-function makeCtx(opts: { fr24?: boolean; blocked?: string[] } = {}) {
+let airportQueries: string[] = [];
+
+/** `public.airports` stub: answers `.or(icao.in.(…),iata.in.(…))` from an IATA → IANA map. */
+function airportsQuery(zones: Record<string, string>) {
+  let filter = '';
+  const q = {
+    select: () => q,
+    or: (f: string) => {
+      filter = f;
+      airportQueries.push(f);
+      return q;
+    },
+    not: () => q,
+    limit: async () => ({
+      data: Object.entries(zones)
+        .filter(([iata]) => filter.includes(iata))
+        .map(([iata, tz]) => ({ icao: null, iata, timezone_iana: tz })),
+      error: null,
+    }),
+  };
+  return q;
+}
+
+function makeCtx(opts: { fr24?: boolean; blocked?: string[]; airports?: Record<string, string> } = {}) {
   const upserts: string[] = [];
   const cooldownMap = new Map<string, number>();
   for (const p of opts.blocked ?? []) cooldownMap.set(p, Date.now() + 10 * 60 * 1000);
   const ctx = {
     supabase: {
-      from: () => ({
-        upsert: async (row: { provider: string }) => {
-          upserts.push(row.provider);
-          return { error: null };
-        },
-      }),
+      from: (table: string) =>
+        table === 'airports'
+          ? airportsQuery(opts.airports ?? {})
+          : {
+              upsert: async (row: { provider: string }) => {
+                upserts.push(row.provider);
+                return { error: null };
+              },
+            },
     },
     cooldownMap,
     airlabsKey: 'test-airlabs',
@@ -392,6 +418,32 @@ async function main() {
     const r = await fetchFlightByNumberEdge('TK1979', '2026-10-20', TODAY, TOMORROW, ctx);
     assert.equal(r?.scheduled_departure_utc, '2026-10-20T10:00:00.000Z');
     assert.equal(r?.scheduled_arrival_utc, '2026-10-20T13:50:00.000Z');
+  });
+
+  await check('airport missing from the static table: timezone comes from public.airports, asked once', async () => {
+    const leg = {
+      departure: { iata: 'QQA', scheduled: '2026-10-20T13:00:00+00:00' },
+      arrival: { iata: 'IST', scheduled: '2026-10-20T17:00:00+00:00' },
+      airline: { iata: 'TK', icao: 'THY' },
+      flight: { iata: 'TK1979' },
+    };
+    airportQueries = [];
+    installFetch({
+      aeroapi: () => ({ status: 200, body: { flights: [] } }),
+      aviationstack: () => ({ status: 200, body: { data: [leg] } }),
+    });
+    const { ctx } = makeCtx({ airports: { QQA: 'Asia/Tokyo' } });
+    const r = await fetchFlightByNumberEdge('TK1979', '2026-10-20', TODAY, TOMORROW, ctx);
+    assert.equal(r?.scheduled_departure_utc, '2026-10-20T04:00:00.000Z');
+    assert.equal(r?.scheduled_arrival_utc, '2026-10-20T14:00:00.000Z');
+    assert.equal(airportQueries.length, 1);
+    assert.ok(!airportQueries[0].includes('IST') && !airportQueries[0].includes('THY'), airportQueries[0]);
+    installFetch({
+      aeroapi: () => ({ status: 200, body: { flights: [] } }),
+      aviationstack: () => ({ status: 200, body: { data: [leg] } }),
+    });
+    await fetchFlightByNumberEdge('TK1979', '2026-10-20', TODAY, TOMORROW, makeCtx().ctx);
+    assert.equal(airportQueries.length, 1);
   });
 
   pinNow(null);

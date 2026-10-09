@@ -512,7 +512,7 @@
     "pdfReportRateLimited": "Today's sending limit has been reached. You can try again tomorrow.",
     "homeBaseChangeTitle": "Home base this month?",
     "homeBaseChangeMessage": "This roster is flown mostly from {{iata}}. Use {{iata}} as home base until the next roster that looks different?",
-    "homeBaseChangeMessageCity": "This roster is flown mostly from {{iata}} ({{city}}). Use {{iata}} as home base until the next roster that looks different?",
+    "homeBaseChangeMessageCity": "This roster is flown mostly from {{city}} ({{iata}}). Use {{iata}} as home base until the next roster that looks different?",
     "homeBaseChangeYes": "Yes, use this base",
     "homeBaseChangeNo": "No, keep current",
     "importFlightsNoFlights": "No flights found in PDF.",

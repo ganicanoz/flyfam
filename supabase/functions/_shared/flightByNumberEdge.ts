@@ -11,6 +11,7 @@ import {
   isBlockedUntil,
 } from './providerCooldown.ts';
 import { fr24TurkeyPakistanScheduleTooShort } from './fr24TurkeyPakistanSanity.ts';
+import { ensureAirportTimezonesForPayload } from './airportDbTimezones.ts';
 import {
   fr24PrimaryDepUtcIsoForSort,
   fr24ScheduledFieldToUtcIso,
@@ -384,6 +385,7 @@ async function fetchFromAeroDataBoxFlightEdge(
           continue;
         }
         const json = await res.json().catch(() => null);
+        await ensureAirportTimezonesForPayload(ctx.supabase, json);
         const parsed = parseAeroDataBoxFlightResponse(json);
         if (parsed && (parsed.scheduled_departure_utc || parsed.scheduled_arrival_utc || parsed.origin || parsed.destination)) {
           pushDebug(ctx, {
@@ -518,6 +520,7 @@ async function fetchFromFlightApiAirlineEdge(
       }
       if (!res.ok) continue;
       const json = await res.json().catch(() => null);
+      await ensureAirportTimezonesForPayload(ctx.supabase, json);
       if (json && typeof json === 'object' && (json as { success?: boolean }).success === false) continue;
       const parsed = parseFlightApiAirlineResponse(json, flightDate);
       if (parsed && (parsed.scheduled_departure_utc || parsed.scheduled_arrival_utc || parsed.origin || parsed.destination)) {
@@ -553,6 +556,7 @@ async function fetchFromAeroApiFlightEdge(
       }
       if (!res.ok) continue;
       const json = await res.json().catch(() => null) as Record<string, unknown> | null;
+      await ensureAirportTimezonesForPayload(ctx.supabase, json);
       if (!json || !Array.isArray(json.flights) || json.flights.length === 0) continue;
       const f = json.flights[0] as Record<string, unknown>;
       const std = toUtcIsoAssumeUtc((f.scheduled_out as string | undefined) ?? null) ?? undefined;
@@ -605,6 +609,7 @@ async function fetchFromAviationstackFlightEdge(
       }
       if (!res.ok) continue;
       const json = await res.json().catch(() => null) as Record<string, unknown> | null;
+      await ensureAirportTimezonesForPayload(ctx.supabase, json);
       const list = Array.isArray(json?.data) ? (json?.data as Record<string, unknown>[]) : [];
       if (!list.length) continue;
       // `flight_date` filtresi ücretsiz pakette yok; dönen bacaklar arasından seçilen güne uyan alınır.
@@ -704,6 +709,7 @@ async function fetchFromAirLabsFlightEdge(
         break;
       }
       const json = await res.json().catch(() => null);
+      await ensureAirportTimezonesForPayload(ctx.supabase, json);
       if (!res.ok || json?.error) {
         pushDebug(ctx, {
           provider: 'airlabs',
@@ -844,6 +850,7 @@ export async function fetchFromFlightradar24Edge(
       return null;
     }
     const json = await res.json().catch(() => null);
+    await ensureAirportTimezonesForPayload(ctx.supabase, json);
     if (!res.ok || !json?.data || !Array.isArray(json.data) || json.data.length === 0) {
       pushDebug(ctx, {
         provider: 'fr24',

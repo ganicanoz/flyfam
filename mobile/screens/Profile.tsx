@@ -16,6 +16,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { useSession } from '../contexts/SessionContext';
 import { colors, setThemePreference, useThemeMode, useThemePreference, type ThemePreference } from '../theme/colors';
 import { AIRLINES } from '../constants/airlines';
+import { formatCityAndCode, useAirportDisplayVersion } from '../constants/airports';
 import { normalizeCrewAirlineIcaoTypo } from '../lib/pdfRosterImport';
 import { LOCALE_LABELS, type Locale } from '../lib/i18n';
 import { deleteMyAccount } from '../lib/accountDeletion';
@@ -37,6 +38,7 @@ export default function Profile() {
   const insets = useSafeAreaInsets();
   const { profile, crewProfile, session, signOut } = useSession();
   const themeMode = useThemeMode();
+  useAirportDisplayVersion();
   const themePreference = useThemePreference();
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [access, setAccess] = useState<SubscriptionAccess | null>(null);
@@ -77,7 +79,7 @@ export default function Profile() {
   const baseIata = (crewProfile?.home_base_iata ?? '').trim().toUpperCase();
   const crewBaseValue =
     profile?.role === 'crew'
-      ? `${t('profile.roleCrew')}${baseIata ? ` ${baseIata}` : ''}`
+      ? `${t('profile.roleCrew')}${baseIata ? ` · ${formatCityAndCode(baseIata, crewProfile?.home_base_city)}` : ''}`
       : t('profile.roleFamily');
 
   const subscriptionMeta = useMemo(() => {

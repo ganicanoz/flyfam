@@ -22,7 +22,14 @@ import { useSession } from '../contexts/SessionContext';
 import { supabase } from '../lib/supabase';
 import { flightTimeToUtcHHMM } from '../lib/dateUtils';
 import { airportLocalHhmmToUtcIso } from '../lib/flightApi';
-import { formatCityAndCode, getAirportDisplay, getAirportTimezone } from '../constants/airports';
+import {
+  airportCityName,
+  airportIataForDisplay,
+  formatAirportCity,
+  formatCityAndCode,
+  getAirportTimezone,
+  useAirportDisplayVersion,
+} from '../constants/airports';
 import { getFr24DeepLink } from '../lib/flightApi';
 import { colors, useThemeMode } from '../theme/colors';
 import {
@@ -141,14 +148,6 @@ function toUtcIsoFromDateTime(dateStr: string, timeStr: string): string | null {
   return d.toISOString();
 }
 
-function airportCityOnly(code: string, language: string): string | null {
-  const info = getAirportDisplay(code);
-  if (!info) return null;
-  const isTr = (language || '').toLowerCase().startsWith('tr');
-  const city = (isTr && info.city_tr ? info.city_tr : info.city)?.trim();
-  return city || null;
-}
-
 function formatYmdDisplay(
   ymd: string,
   language: string,
@@ -170,6 +169,7 @@ export default function EditFlight() {
   const { crewProfile } = useSession();
   void crewProfile;
   const themeMode = useThemeMode();
+  useAirportDisplayVersion();
   const isDark = themeMode === 'dark';
   const styles = useMemo(() => createEditFlightStyles(themeMode), [themeMode]);
   const navigation = useNavigation<any>();
@@ -204,8 +204,8 @@ export default function EditFlight() {
   const routeCodeTo = destination.trim().toUpperCase();
   const routeFromLabel = formatCityAndCode(routeCodeFrom || null);
   const routeToLabel = formatCityAndCode(routeCodeTo || null);
-  const originCity = airportCityOnly(routeCodeFrom, i18n.language || 'tr');
-  const destCity = airportCityOnly(routeCodeTo, i18n.language || 'tr');
+  const originCity = airportCityName(routeCodeFrom) ?? null;
+  const destCity = airportCityName(routeCodeTo) ?? null;
   const dateParts = date.length === 10 ? formatYmdDisplay(date, i18n.language || 'tr') : null;
   const dateDisplay = dateParts
     ? dateParts.weekdayShort
@@ -548,7 +548,7 @@ export default function EditFlight() {
                   >
                     <View style={styles.mapPin}>
                       <View style={[styles.mapPinDot, { backgroundColor: colors.primary }]} />
-                      <Text style={styles.mapPinLabel}>{routeCodeFrom || 'ORG'}</Text>
+                      <Text style={styles.mapPinLabel}>{routeCodeFrom ? formatAirportCity(routeCodeFrom) : 'ORG'}</Text>
                     </View>
                   </Marker>
                   <Marker
@@ -557,7 +557,7 @@ export default function EditFlight() {
                   >
                     <View style={styles.mapPin}>
                       <View style={[styles.mapPinDot, { backgroundColor: colors.primary }]} />
-                      <Text style={styles.mapPinLabel}>{routeCodeTo || 'DST'}</Text>
+                      <Text style={styles.mapPinLabel}>{routeCodeTo ? formatAirportCity(routeCodeTo) : 'DST'}</Text>
                     </View>
                   </Marker>
                 </MapView>
@@ -634,13 +634,13 @@ export default function EditFlight() {
 
             <View style={styles.routeMapLabels}>
               <View style={styles.routeMapLabelBox}>
-                <Text style={styles.routeCode}>{routeCodeFrom || 'ORG'}</Text>
+                <Text style={styles.routeCode}>{airportIataForDisplay(routeCodeFrom) || 'ORG'}</Text>
                 <Text style={styles.routeCity} numberOfLines={1}>
                   {originCity || routeFromLabel}
                 </Text>
               </View>
               <View style={styles.routeMapLabelBox}>
-                <Text style={[styles.routeCode, styles.routeCodeRight]}>{routeCodeTo || 'DST'}</Text>
+                <Text style={[styles.routeCode, styles.routeCodeRight]}>{airportIataForDisplay(routeCodeTo) || 'DST'}</Text>
                 <Text style={[styles.routeCity, styles.routeCityRight]} numberOfLines={1}>
                   {destCity || routeToLabel}
                 </Text>

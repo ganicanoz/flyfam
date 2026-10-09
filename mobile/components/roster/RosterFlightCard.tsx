@@ -212,7 +212,7 @@ export function RosterFlightCard({
   }, [inFlight, reduceMotion, pulse]);
 
   const stationLine = (iata: string, city?: string) =>
-    city ? `${iata} ${city}` : iata;
+    city ? `${city} (${iata})` : iata;
 
   const badgeCompact = windowWidth < 360;
 

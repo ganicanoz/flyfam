@@ -90,7 +90,14 @@ import {
   setPendingRosterClearFlush,
   trackRosterClearCommit,
 } from '../lib/rosterFlightClear';
-import { getAirportDisplay, getAirportTimezone } from '../constants/airports';
+import {
+  airportCityName,
+  airportIataForDisplay,
+  formatCityAndCode,
+  getAirportDisplay,
+  getAirportTimezone,
+  useAirportDisplayVersion,
+} from '../constants/airports';
 import { AIRLINES } from '../constants/airlines';
 import { colors, useThemeMode } from '../theme/colors';
 import {
@@ -1094,6 +1101,7 @@ export default function Roster({
   const { t, i18n } = useTranslation();
   const { profile, crewProfile, refreshProfile, session } = useSession();
   const themeMode = useThemeMode();
+  const airportDisplayVersion = useAirportDisplayVersion();
   const fontScale = useFontScaleMultiplier() || 1;
   /** Only list cards scale; chrome StyleSheet stays fixed (no full rebuild). */
   const [listFontScale, setListFontScale] = useState(() => fontScale || 1);
@@ -5889,7 +5897,7 @@ export default function Roster({
             key={`roster-list-${listSessionKey}`}
             ref={listRef}
             data={listData}
-            extraData={`${themeMode}|${listFontScale}|${crewUtcView ? 'u' : 'l'}|${listPastDaysBack}|${listSessionKey}|${listMvpEnabled ? 'm' : ''}`}
+            extraData={`${themeMode}|${listFontScale}|${crewUtcView ? 'u' : 'l'}|${listPastDaysBack}|${listSessionKey}|${listMvpEnabled ? 'm' : ''}|${airportDisplayVersion}`}
             keyExtractor={(item, index) => listEntryKey(item, index)}
             contentContainerStyle={styles.list}
             style={styles.listFlex}
@@ -5980,14 +5988,7 @@ export default function Roster({
             }
             if (entry.type === 'layover') {
               const st = (entry.station || '').toUpperCase();
-              const disp = st ? getAirportDisplay(st) : null;
-              const isTr = String(i18n.language || '').toLowerCase().startsWith('tr');
-              const city =
-                (isTr && disp?.city_tr ? disp.city_tr : disp?.city)?.trim() || '';
-              const stationLabel = t('roster.layoverStation', {
-                iata: st || '—',
-                city: city,
-              }).trim();
+              const stationLabel = st ? formatCityAndCode(st) : '—';
               const inbound = flights.find((f) => f.id === entry.inboundId);
               const outbound = flights.find((f) => f.id === entry.outboundId);
               // Yatı süresi = meydana iniş → oradan kalkış (takvim gün span'i değil).
@@ -6334,17 +6335,12 @@ export default function Roster({
             const isPast =
               dayYmd < rosterTodayYmd ||
               displayStatus === 'landed';
-            const cityFor = (code: string | null | undefined, fallback: string | null | undefined) => {
-              const d = code ? getAirportDisplay(code) : null;
-              if (isTr && d?.city_tr) return d.city_tr;
-              return (fallback || d?.city || '').trim() || undefined;
-            };
             const originCityName = isNonFlightBlock
               ? undefined
-              : cityFor(item.origin_airport, item.origin_city);
+              : airportCityName(item.origin_airport, item.origin_city);
             const destCityName = isNonFlightBlock
               ? undefined
-              : cityFor(item.destination_airport, item.destination_city);
+              : airportCityName(item.destination_airport, item.destination_city);
             /** CFR ve rezerv: uçuşa veya boş güne döner. */
             const canConvertToOffDay = isStandbyBlock && (isCfrDuty || isReserveDutyCode);
 
@@ -6367,8 +6363,8 @@ export default function Roster({
 
             const cardModel = {
               flightNumber: item.flight_number,
-              originIata: (item.origin_airport || '').toUpperCase().slice(0, 3) || '—',
-              destIata: (item.destination_airport || '').toUpperCase().slice(0, 3) || '—',
+              originIata: airportIataForDisplay(item.origin_airport) || '—',
+              destIata: airportIataForDisplay(item.destination_airport) || '—',
               originCity: originCityName,
               destCity: destCityName,
               depTime,
@@ -6400,7 +6396,7 @@ export default function Roster({
                     : null) as 'standby' | 'off' | 'layover' | 'training' | null,
               /** Nöbet: base IATA. Ev görevi (COTD): etiket istasyon yerine. */
               layoverStationLabel: isStandbyBlock
-                ? dutyStationIata
+                ? dutyStationIata && formatCityAndCode(dutyStationIata)
                 : isHomeDutyBlock
                   ? blockTitle
                   : undefined,

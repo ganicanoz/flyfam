@@ -28,6 +28,7 @@ import {
 import { rosterPollCacheKey } from '../_shared/rosterPollCacheKey.ts';
 import { fr24AircraftRegistrationFromFlight } from '../_shared/fr24AircraftRegistration.ts';
 import { buildAerodataboxFlightNumberSources } from '../_shared/aerodataboxHttp.ts';
+import { ensureAirportTimezonesForPayload } from '../_shared/airportDbTimezones.ts';
 
 const COOLDOWN_PROVIDER_AIRLABS = 'airlabs';
 const COOLDOWN_PROVIDER_FR24 = 'fr24';
@@ -314,6 +315,7 @@ async function selectFr24Flight(
   flightNumber: string,
   date: string,
   token: string,
+  supabase: Parameters<typeof loadCooldownUntilByProvider>[0],
 ): Promise<Fr24Flight | null> {
   const variants = flightNumberVariants(flightNumber);
   const flightsParam = variants.slice(0, 15).join(',');
@@ -331,6 +333,7 @@ async function selectFr24Flight(
     },
   });
   const json = await res.json().catch(() => null);
+  await ensureAirportTimezonesForPayload(supabase, json);
   if (!res.ok || !json?.data || !Array.isArray(json.data) || json.data.length === 0) {
     return null;
   }
@@ -535,6 +538,7 @@ async function fetchAeroDataBoxFlight(
         }
         if (!res.ok) continue;
         const json = await res.json().catch(() => null);
+        await ensureAirportTimezonesForPayload(supabase, json);
         const root = (Array.isArray(json) ? json[0] : json) as Record<string, unknown> | null;
         if (!root || typeof root !== 'object') continue;
       const { dep, arr } = aeroRootLegs(root);
@@ -634,6 +638,7 @@ async function fetchAirLabsFlight(
         break;
       }
       const json = await res.json().catch(() => null);
+      await ensureAirportTimezonesForPayload(supabase, json);
       const limitSec = airlabsLimitCooldownSeconds(json);
       if (limitSec) {
         await applyCooldownSeconds(supabase as any, cooldownMap, COOLDOWN_PROVIDER_AIRLABS, limitSec);
@@ -724,6 +729,7 @@ async function fetchAeroApiFlight(
       }
       if (!res.ok) continue;
       const json = await res.json().catch(() => null) as Record<string, unknown> | null;
+      await ensureAirportTimezonesForPayload(supabase, json);
       if (!json || typeof json !== 'object') continue;
       const flights = (json.flights as unknown[]) ?? [];
       const row = firstArrayObject<Record<string, unknown>>(flights);
@@ -1205,6 +1211,7 @@ Deno.serve(async (req) => {
         row.flight_number as string,
         row.flight_date as string,
         fr24Token,
+        supabase,
       );
       if (f) {
         pickedFr = f;

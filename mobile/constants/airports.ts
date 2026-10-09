@@ -6,6 +6,8 @@
  * olabiliyor (kısmi sync); `getAirportDisplay` DB + statik `AIRPORTS` listesini **birleştirir** — boş şehirde
  * uygulama içi büyük fallback devreye girer (VKO, HBE vb. şehirsiz kalmaz).
  */
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useSyncExternalStore } from 'react';
 import i18n from '../lib/i18n';
 import { resolveCityNameTr } from './cityNamesTr';
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -29,6 +31,9 @@ type AirportCacheRow = {
   timezone_iana?: string | null;
 };
 
+let airportDisplayVersion = 0;
+const airportDisplayListeners = new Set<() => void>();
+
 /** DB'den yüklenen havalimanı listesini cache'e yazar. Tek kaynak: docs/airport-codes.csv. */
 export function setAirportDisplayCache(rows: AirportCacheRow[]): void {
   const next = new Map<string, AirportDisplay>();
@@ -44,33 +49,90 @@ export function setAirportDisplayCache(rows: AirportCacheRow[]): void {
     if (iata && iata !== icao) next.set(iata, display);
   }
   airportDisplayCache = next;
+  airportDisplayVersion += 1;
+  for (const l of airportDisplayListeners) l();
+}
+
+/** Havalimanı listesi (cihaz kopyası veya ağdan) her yüklendiğinde artar; şehir gösteren ekranlar yeniden çizilir. */
+export function useAirportDisplayVersion(): number {
+  return useSyncExternalStore(
+    (listener) => {
+      airportDisplayListeners.add(listener);
+      return () => airportDisplayListeners.delete(listener);
+    },
+    () => airportDisplayVersion,
+    () => airportDisplayVersion,
+  );
 }
 
 const AIRPORT_DISPLAY_PAGE = 1000;
+const AIRPORT_DISPLAY_STORAGE_KEY = 'flyfam.airportDisplay.v1';
+type StoredAirportRow = [icao: string, iata: string | null, city: string | null, city_tr: string | null, tz: string | null];
 
-/** Supabase public.airports tablosunu çeker ve cache'i doldurur (kaynak: airport-codes.csv). */
-export async function loadAirportDisplayFromSupabase(
-  supabase: Pick<SupabaseClient, 'from'>,
-): Promise<void> {
+let airportDisplayLoadedFromNetwork = false;
+let airportDisplayLoading: Promise<void> | null = null;
+
+async function hydrateAirportDisplayFromStorage(): Promise<void> {
+  if (airportDisplayCache.size > 0) return;
   try {
-    const rows: AirportCacheRow[] = [];
-    let from = 0;
-    while (true) {
-      const { data } = await supabase
-        .from('airports')
-        .select('icao,iata,city,city_tr,timezone_iana')
-        .not('iata', 'is', null)
-        .range(from, from + AIRPORT_DISPLAY_PAGE - 1);
-      const chunk = (data || []) as AirportCacheRow[];
-      if (chunk.length === 0) break;
-      rows.push(...chunk);
-      if (chunk.length < AIRPORT_DISPLAY_PAGE) break;
-      from += AIRPORT_DISPLAY_PAGE;
-    }
-    if (rows.length > 0) setAirportDisplayCache(rows);
+    const raw = await AsyncStorage.getItem(AIRPORT_DISPLAY_STORAGE_KEY);
+    if (!raw || airportDisplayCache.size > 0) return;
+    const stored = JSON.parse(raw) as StoredAirportRow[];
+    if (!Array.isArray(stored) || stored.length === 0) return;
+    setAirportDisplayCache(
+      stored.map(([icao, iata, city, city_tr, timezone_iana]) => ({ icao, iata, city, city_tr, timezone_iana })),
+    );
   } catch {
-    // offline veya hata → static fallback kullanılır
+    // bozuk kopya: ağdan yüklemeye devam
   }
+}
+
+async function fetchAirportDisplayRows(supabase: Pick<SupabaseClient, 'from'>): Promise<AirportCacheRow[] | null> {
+  const rows: AirportCacheRow[] = [];
+  let from = 0;
+  while (true) {
+    const { data, error } = await supabase
+      .from('airports')
+      .select('icao,iata,city,city_tr,timezone_iana')
+      .not('iata', 'is', null)
+      .order('icao')
+      .range(from, from + AIRPORT_DISPLAY_PAGE - 1);
+    if (error) return null;
+    const chunk = (data || []) as AirportCacheRow[];
+    rows.push(...chunk);
+    if (chunk.length < AIRPORT_DISPLAY_PAGE) return rows;
+    from += AIRPORT_DISPLAY_PAGE;
+  }
+}
+
+/**
+ * Önce cihazdaki kopyayı hemen kullanır, sonra Supabase public.airports tablosunu çeker (kaynak: airport-codes.csv).
+ * Yarım kalan yükleme cache'i ezmez; başarılı yükleme cihaza yazılır. Oturum içinde ağdan bir kez yüklenir.
+ */
+export function loadAirportDisplayFromSupabase(supabase: Pick<SupabaseClient, 'from'>): Promise<void> {
+  if (airportDisplayLoadedFromNetwork) return Promise.resolve();
+  airportDisplayLoading ??= (async () => {
+    await hydrateAirportDisplayFromStorage();
+    try {
+      const rows = await fetchAirportDisplayRows(supabase);
+      if (!rows || rows.length === 0) return;
+      setAirportDisplayCache(rows);
+      airportDisplayLoadedFromNetwork = true;
+      const stored: StoredAirportRow[] = rows.map((r) => [
+        r.icao,
+        r.iata,
+        r.city,
+        r.city_tr,
+        r.timezone_iana ?? null,
+      ]);
+      await AsyncStorage.setItem(AIRPORT_DISPLAY_STORAGE_KEY, JSON.stringify(stored)).catch(() => undefined);
+    } catch {
+      // offline veya hata → cihaz kopyası / statik liste kullanılır, sonraki çağrıda yeniden denenir
+    } finally {
+      airportDisplayLoading = null;
+    }
+  })();
+  return airportDisplayLoading;
 }
 
 function cityForLocale(info: AirportDisplay | null): string | undefined {
@@ -596,6 +658,24 @@ export function formatCityAndCode(
   const codeDisplay = info?.iata ?? code.trim();
   if (city) return `${city} (${codeDisplay})`;
   return codeDisplay;
+}
+
+/** Yalnız şehir (dil ve İstanbul/Hatay kuralları dahil); bilinmiyorsa undefined. */
+export function airportCityName(code: string | null | undefined, cityFromDb?: string | null): string | undefined {
+  if (!code || !code.trim()) return cityFromDb?.trim() || undefined;
+  return displayCityName(cityFromDb, getAirportDisplay(code));
+}
+
+/** ICAO veya IATA → gösterilecek IATA (bilinmiyorsa büyük harfli kodun kendisi). */
+export function airportIataForDisplay(code: string | null | undefined): string {
+  if (!code || !code.trim()) return '';
+  return getAirportDisplay(code)?.iata || code.trim().toUpperCase();
+}
+
+/** Dar alanlar için: şehir; şehir bilinmiyorsa IATA. */
+export function formatAirportCity(code: string | null | undefined, cityFromDb?: string | null): string {
+  if (!code || !code.trim()) return '—';
+  return airportCityName(code, cityFromDb) || airportIataForDisplay(code);
 }
 
 /** Divert satırı: parantez içinde şehir (tr → city_tr); yoksa IATA. */

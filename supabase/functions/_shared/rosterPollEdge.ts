@@ -12,6 +12,7 @@ import {
 import { mergeTimetableRowsPreferFirst, timetableRowIsSufficient } from './flightTimetableWaterfall.ts';
 import { fr24AircraftRegistrationFromFlight } from './fr24AircraftRegistration.ts';
 import { buildAerodataboxFlightNumberSources } from './aerodataboxHttp.ts';
+import { ensureAirportTimezonesForPayload } from './airportDbTimezones.ts';
 import {
   airlabsLimitCooldownSeconds,
   apply429ToCooldown,
@@ -365,6 +366,7 @@ async function fetchAeroDataBoxFlight(
         }
         if (!res.ok) continue;
         const json = await res.json().catch(() => null);
+        await ensureAirportTimezonesForPayload(supabase, json);
         const node = (Array.isArray(json) ? json[0] : json) as Record<string, unknown> | null;
         if (!node || typeof node !== 'object') continue;
       const { dep, arr } = aeroRootLegs(node);
@@ -467,6 +469,7 @@ async function fetchAirLabsFlight(
         break;
       }
       const json = await res.json().catch(() => null);
+      await ensureAirportTimezonesForPayload(supabase, json);
       const limitSec = airlabsLimitCooldownSeconds(json);
       if (limitSec) {
         await applyCooldownSeconds(supabase, cooldownMap, COOLDOWN_AIRLABS, limitSec);
@@ -554,6 +557,7 @@ async function fetchAeroApiFlight(
       }
       if (!res.ok) continue;
       const json = await res.json().catch(() => null) as Record<string, unknown> | null;
+      await ensureAirportTimezonesForPayload(supabase, json);
       if (!json || !Array.isArray(json.flights) || json.flights.length === 0) continue;
       const r = json.flights[0] as Record<string, unknown>;
       const scheduledOut = toUtcIsoAssumeUtc((r.scheduled_out as string | undefined) ?? null) ?? null;
@@ -641,6 +645,7 @@ async function selectFr24Flight(
     return null;
   }
   const json = await res.json().catch(() => null);
+  await ensureAirportTimezonesForPayload(supabase, json);
   if (!res.ok || !json?.data || !Array.isArray(json.data) || json.data.length === 0) return null;
   const list = json.data as Fr24Flight[];
   const candidates = list.filter((f) =>

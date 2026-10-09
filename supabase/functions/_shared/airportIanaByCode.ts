@@ -424,7 +424,16 @@ export const AIRPORT_IANA_BY_CODE: Record<string, string> = {
   TLS: 'Europe/Paris',
 };
 
+/** Statik tabloda olmayan meydanlar: `public.airports` tablosundan çalışma anında eklenir (airportDbTimezones.ts). */
+const AIRPORT_IANA_FROM_DB = new Map<string, string>();
+
+export function registerAirportIanaFromDb(code: string, iana: string): void {
+  const u = code.trim().toUpperCase();
+  if (u && !AIRPORT_IANA_BY_CODE[u]) AIRPORT_IANA_FROM_DB.set(u, iana);
+}
+
 export function airportIanaForCode(code: string | null | undefined): string | undefined {
   if (!code || typeof code !== 'string') return undefined;
-  return AIRPORT_IANA_BY_CODE[code.trim().toUpperCase()];
+  const u = code.trim().toUpperCase();
+  return AIRPORT_IANA_BY_CODE[u] ?? AIRPORT_IANA_FROM_DB.get(u);
 }

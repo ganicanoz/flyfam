@@ -27,7 +27,13 @@ import {
   getLocalDateStringTomorrow,
   flightTimeToUtcHHMM,
 } from '../lib/dateUtils';
-import { getAirportDisplay, getAirportTimezone } from '../constants/airports';
+import {
+  formatAirportCity,
+  formatCityAndCode,
+  getAirportDisplay,
+  getAirportTimezone,
+  useAirportDisplayVersion,
+} from '../constants/airports';
 import { colors, useThemeMode } from '../theme/colors';
 import { radius, shadow } from '../theme/tokens';
 import * as DocumentPicker from 'expo-document-picker';
@@ -231,6 +237,7 @@ function createEmptyRow(dateIsoPrefill?: string, airlineIataPrefill?: string): F
 export default function AddFlight() {
   const { t } = useTranslation();
   const themeMode = useThemeMode();
+  useAirportDisplayVersion();
   const styles = useMemo(() => createAddFlightStyles(), [themeMode]);
   const { crewProfile, refreshProfile } = useSession();
   const [rows, setRows] = useState<FlightRow[]>([createEmptyRow()]);
@@ -1100,7 +1107,8 @@ export default function AddFlight() {
                       <Text style={styles.previewNumber}>{displayNumber}</Text>
                       <Text style={styles.previewSep}> · </Text>
                       <Text style={styles.previewRoute}>
-                        {originIata || '—'} → {destinationIata || '—'}
+                        {originIata ? formatCityAndCode(originIata) : '—'} →{' '}
+                        {destinationIata ? formatCityAndCode(destinationIata) : '—'}
                       </Text>
                     </Text>
                     {timeSummary ? (
@@ -1295,7 +1303,8 @@ export default function AddFlight() {
                           <Text style={styles.previewNumber}>{displayNumber}</Text>
                           <Text style={styles.previewSep}> · </Text>
                           <Text style={styles.previewRoute}>
-                            {originIata || '—'} → {destinationIata || '—'}
+                            {originIata ? formatCityAndCode(originIata) : '—'} →{' '}
+                            {destinationIata ? formatCityAndCode(destinationIata) : '—'}
                           </Text>
                         </Text>
                         {durationText ? (
@@ -1314,7 +1323,7 @@ export default function AddFlight() {
                       <View style={styles.col}>
                         <Text style={styles.fieldLabel}>
                           {t('addFlight.previewDepLocal')}
-                          {originIata ? ` · ${originIata}` : ''}
+                          {originIata ? ` · ${formatAirportCity(originIata)}` : ''}
                         </Text>
                         <TimeRollerField
                           value={depLocal}
@@ -1328,7 +1337,7 @@ export default function AddFlight() {
                       <View style={styles.col}>
                         <Text style={styles.fieldLabel}>
                           {t('addFlight.previewArrLocal')}
-                          {destinationIata ? ` · ${destinationIata}` : ''}
+                          {destinationIata ? ` · ${formatAirportCity(destinationIata)}` : ''}
                         </Text>
                         <TimeRollerField
                           value={arrLocal}

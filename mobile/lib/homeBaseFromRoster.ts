@@ -1,6 +1,6 @@
 import { Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getAirportDisplay } from '../constants/airports';
+import { airportCityName, getAirportDisplay } from '../constants/airports';
 import type { PdfFlightRow } from './pdfRosterImport';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
@@ -74,9 +74,10 @@ export async function maybePromptHomeBaseAfterRosterImport(params: {
   if (dismissed && dismissed === detected) return;
 
   const city = getAirportDisplay(detected)?.city?.trim() || null;
+  const displayCity = airportCityName(detected) ?? city;
 
   await new Promise<void>((resolve) => {
-    Alert.alert(params.copy.title, params.copy.message(detected, city), [
+    Alert.alert(params.copy.title, params.copy.message(detected, displayCity), [
       {
         text: params.copy.no,
         style: 'cancel',
