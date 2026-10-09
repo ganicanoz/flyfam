@@ -21,7 +21,7 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - **Faturalar:** Mevcut borç kayıtları «Faturalar» başlığıyla kalır (kalan, vade, taksit, ödendi, sil). Uzun açıklama yok.
 - **Doğrulama:** `node scripts/test-aile-eso.mjs` OK; inline `node --check` OK. Tarayıcı: 1.000 sabah + 2.500 öğlen Acıbadem ve 400 Konsolosluk, toplam 3.900 ₺; fatura kartı kaldı; ciro penceresi açılmadı. 390 px’te kart taşmıyor.
 - **Koruma:** Yer anahtarı, adres, hastane adı, tatil cümlesi, roster düğmesi ve borç kayıtlarının sunucu eylemleri aynı. `assist` ve `family-planner` fonksiyonu deploy edilmedi.
-- **Canlı:** Henüz `main`’de değil.
+- **Canlı:** PR #15 merge `41dc260`. Deploy support site `37902658790` success. `https://app.flyfamapp.com/aile/` içinde «Gelir ekle», «Faturalar», `Ciro girişleri` yok ve `aile-shell-v9` doğrulandı (2026-10-09). PWA açıksa bir kez yenilemek gerekir.
 
 ### 2026-10-08 — Aile planı: Para ekle, roster kontrolü, randevuya yol süresi
 
