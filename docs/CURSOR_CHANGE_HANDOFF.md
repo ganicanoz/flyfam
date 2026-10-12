@@ -21,7 +21,7 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - **11 Ekim:** Hastane sabit işine `skipDates`, o güne ait tek seferlik hastane kaydı ve o günün hastane seçimi kalkar. Üniversite işi aynı kalır. İlk çevrimiçi açılışta `save_config`.
 - **Doğrulama:** `node scripts/test-aile-eso.mjs` OK; inline `node --check` OK; `git diff --check` OK. Tarayıcı: onaydan önce abonelik yok; 11 Ekim’de hastane logosu yok, 13 Ekim’de var; onay kaydı jeton yazar, 11 Ekim atlanır, dosya iner.
 - **Koruma:** Yer anahtarı, adres, 6 Ekim imza, 10 Ekim ve 16 Ekim kayıtları, gelir ve borç aynı. `family-planner` deploy edilmedi.
-- **Canlı:** Henüz main’de değil. Takvim abonelik fonksiyonu bu oturumda yayınlanamadı (erişim jetonu yok); sayfa dosyayı onaydan sonra indirir.
+- **Canlı:** PR #23 merge `c815545`. Deploy support site `38303593151` success. `https://app.flyfamapp.com/aile/` içinde `aile-shell-v13`, «Onayla ve senkronize et», `partner_off_acibadem_2026_10_11` ve `work-cal.mjs` 200 doğrulandı (2026-10-12). PWA açıksa bir kez yenilemek gerekir. Takvim abonelik fonksiyonu bu oturumda yayınlanamadı (erişim jetonu yok); sayfa dosyayı onaydan sonra indirir.
 
 ### 2026-10-09 — Aile planı: doğru logolar, gri geçmiş, çakışma ve saatli gün
 
