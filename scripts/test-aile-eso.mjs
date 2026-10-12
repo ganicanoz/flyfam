@@ -4,6 +4,7 @@
  * Çalıştırma: node scripts/test-aile-eso.mjs
  */
 import fs from 'fs';
+import { buildWorkIcs, WORK_HOLIDAYS } from '../supabase/functions/_shared/workCalendar.mjs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -80,7 +81,7 @@ eq('eso duruyor', html.includes('id="esoDock"') && html.includes('Konuşarak sö
 eq('İ ikonu üretilmiyor', !html.includes("icon: 'İ'") && !html.includes('short: \'İmza\''));
 eq('sohbet dışarı tıklayınca kapanmaz', !html.includes("closeAssist();\n    });\n    $('assist')") && !html.includes('Bir bakayım'));
 eq('gelir ekle ve roster', html.includes('>Gelir ekle<') && html.includes('id="moneyMemo"') && html.includes('class="clinic-btn') && html.includes('id="btnRoster"') && html.includes('function moneyMonthTotals') && !html.includes('id="moneyClinic"') && !html.includes('Ciro girişleri') && !html.includes('Son 6 ay'));
-eq('önbellek v12', sw.includes("const CACHE = 'aile-shell-v12'") && !sw.includes('logo-dis-wide') && !html.includes('logo-dis-wide') && !html.includes("'<span>' + esc(c.label)") && html.includes('id="conflicts"') && html.includes('class="sug"') && html.includes('hours ticks') && html.includes("const bad = past ? ''"));
+eq('önbellek v13', sw.includes("const CACHE = 'aile-shell-v13'") && sw.includes('/aile/work-cal.mjs') && !sw.includes('logo-dis-wide') && !html.includes('logo-dis-wide') && !html.includes("'<span>' + esc(c.label)") && html.includes('id="conflicts"') && html.includes('class="sug"') && html.includes('hours ticks') && html.includes("const bad = past ? ''") && html.includes('id="calYes"') && html.includes('family-planner-calendar') && html.includes('partner_off_acibadem_2026_10_11'));
 eq('geçmiş kilit', html.includes('Geçmiş gün değişmez') && html.includes('Gerçekleşti') && html.includes('partner_off_2026_10_10') && html.includes('vfs_cekya_2026_10_16'));
 eq('selamlama', html.includes("const ESO_HI = 'Buyrun Doktor Hanımcım...'"));
 
@@ -265,6 +266,39 @@ eq('diş logosu T', money.clinicLogo({ places: { klinik: { label: 'Maltepe', sho
 eq('üniversite alev', money.clinicLogo({ places: { maltepe: { label: 'Maltepe Üniversitesi', short: 'Maltepe' } } }, 'maltepe').endsWith('logo-maltepe.png'));
 const noted = money.moneyReceipts({ finance: { receipts: [{ id: 'n', ymd: '2026-10-08', place: 'altunizade', amount: 10, note: 'öğleden' }] } });
 eq('gelir notu', noted.length === 1 && noted[0].note === 'öğleden' && noted[0].amount === 10);
+
+const hospOff = {
+  configMigrations: ['partner_fixed_2026_10_06_imza', 'partner_place_acibadem_hastanesi', 'partner_off_2026_10_10', 'vfs_cekya_2026_10_16'],
+  places: { altunizade: { label: 'Acıbadem Hastanesi', short: 'Acıbadem', address: 'Üsküdar' }, maltepe: { label: 'Maltepe Üniversitesi', short: 'Maltepe' } },
+  partnerFixed: [
+    { place: 'altunizade', label: 'Acıbadem Hastanesi', weekdays: [2], start: '09:00', end: '16:00' },
+    { place: 'altunizade', label: 'Acıbadem Hastanesi', dates: ['2026-10-11'], start: '10:00', end: '14:00' },
+    { place: 'maltepe', label: 'Maltepe Üniversitesi', weekdays: [4], start: '09:00', end: '16:00' },
+  ],
+  plans: { '2026-10': {
+    '2026-10-11': { place: 'altunizade', label: 'Acıbadem Hastanesi', start: '09:00', end: '16:00' },
+    '2026-10-12': { place: 'maltepe', label: 'Maltepe Üniversitesi', start: '16:00', end: '20:00' },
+  } },
+  rosters: [{ flight_number: 'PC9999' }],
+};
+eq('dün hastane yaması', migrate(hospOff) === true);
+eq('hastane 11 ekim atlanır', hospOff.partnerFixed[0].skipDates && hospOff.partnerFixed[0].skipDates.includes('2026-10-11'));
+eq('o gün tek sefer hastane kalkar', !hospOff.partnerFixed.some((x) => Array.isArray(x.dates) && x.dates.includes('2026-10-11')));
+eq('üniversite 11 ekim durur', !(hospOff.partnerFixed.find((x) => x.place === 'maltepe').skipDates || []).includes('2026-10-11'));
+eq('o gün hastane seçimi silinir', !hospOff.plans['2026-10']['2026-10-11'] && hospOff.plans['2026-10']['2026-10-12']);
+eq('dün hastane tekrar yok', migrate(hospOff) === false);
+const ics = buildWorkIcs(hospOff, { today: '2026-10-12', from: '2026-10-01', to: '2026-10-31' });
+eq('11 ekim takvimde yok', !ics.includes('20261011T'));
+eq('sonraki salı durur', ics.includes('DTSTART;TZID=Europe/Istanbul:20261013T090000') && ics.includes('SUMMARY:Acıbadem Hastanesi'));
+eq('uçuş takvime girmez', !ics.includes('PC9999') && ics.includes('X-WR-CALNAME:Çalışma'));
+eq('onaysız otomatik yok', !html.includes('st.full.calendarOk = true;\n      ensureCalendarToken'));
+const calA = fs.readFileSync(path.join(root, 'supabase/functions/_shared/workCalendar.mjs'));
+const calB = fs.readFileSync(path.join(root, 'support/aile/work-cal.mjs'));
+eq('takvim dosyası aynı', calA.equals(calB));
+const holStart = script.indexOf('const HOLIDAYS = ');
+const holEnd = script.indexOf(';', holStart);
+const pageHolidays = new Function(script.slice(holStart, holEnd + 1) + '\nreturn HOLIDAYS;')();
+eq('tatil günleri aynı', JSON.stringify(pageHolidays) === JSON.stringify(WORK_HOLIDAYS));
 
 if (failed) {
   console.error(failed + ' failed');

@@ -422,6 +422,10 @@ verify_jwt = false
 [functions.family-planner]
 verify_jwt = false
 
+# Apple Takvim aboneliği. JWT yok; sorgu jetonu ve onay bayrağı function içinde kontrol edilir.
+[functions.family-planner-calendar]
+verify_jwt = false
+
 # cron-job.org → POST + x-cron-secret; FR24 /api/usage (veya env URL) çekip DB'ye yazar.
 [functions.sync-fr24-usage-metrics]
 verify_jwt = false

@@ -82,6 +82,8 @@
     .vac-form input[type="text"] { flex: 1 1 160px; min-width: 0; }
     #vacStatus:empty, #vacList:empty { display: none; }
     #vacStatus, #vacList { margin-top: 8px; }
+    .cal-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .cal-actions button { white-space: nowrap; }
     #vacList > div { padding: 4px 0; }
     #vacList .past { opacity: .5; }
     .vac-bad { color: var(--bad); }
@@ -524,6 +526,24 @@
         </div>
       </section>
 
+      <section class="card" id="boxCal">
+        <div class="card-h">Apple Takvim</div>
+        <p class="small muted" style="margin-top:0;">Uçuşlar eklenmez. Eşin sabit işleri ve fixlenmiş çalışma günleri, onaydan sonra Takvim’e yazılır.</p>
+        <div id="calAsk">
+          <button type="button" class="primary" id="calYes">Onayla ve senkronize et</button>
+        </div>
+        <div id="calReady" hidden>
+          <p class="small muted" id="calLiveNote" hidden>Abone olunca plan kaydı bir süre sonra yenilenir. Dosya bir kerelik ekler.</p>
+          <div class="cal-actions">
+            <button type="button" class="primary" id="calFile">Dosyayı indir</button>
+            <button type="button" class="primary" id="calOpen" hidden>Takvime ekle</button>
+            <button type="button" id="calCopy" hidden>Bağlantıyı kopyala</button>
+            <button type="button" class="ghost" id="calStop">Senkronu kapat</button>
+          </div>
+        </div>
+        <div id="calStatus" class="small muted"></div>
+      </section>
+
       <div class="board">
       <section class="card cal-card">
         <div class="cal-head card-h">
@@ -648,6 +668,7 @@
   <div id="confAlert" class="sheet-bg conf-bg" hidden></div>
   <div id="ciroAlert" class="sheet-bg conf-bg ciro-bg" hidden></div>
 
+  <script type="module" src="work-cal.mjs"></script>
   <script>
     'use strict';
     const SUPABASE_URL = 'https://slmgmcpluanezvkgkozw.supabase.co';
@@ -736,6 +757,7 @@
       return out;
     }
     const settingsOf = (full) => { const o = {}; for (const [k, v] of Object.entries(full || {})) if (!DATA_KEYS.includes(k)) o[k] = v; return o; };
+    const editorSettings = (full) => { const o = settingsOf(full); delete o.calendarToken; return o; };
     const fmtCache = {};
     function absOf(iso, tz) {
       if (!iso) return null;
@@ -1451,6 +1473,7 @@
       renderGoals(res);
       renderLegend(cfg);
       renderConflicts(res);
+      renderCalendarLink();
       renderSummary(res);
       renderRuns(res);
       renderFinance(res);
@@ -1877,6 +1900,7 @@
     const CONFIG_MIG_HOSPITAL = 'partner_place_acibadem_hastanesi';
     const CONFIG_MIG_SAT_OFF = 'partner_off_2026_10_10';
     const CONFIG_MIG_VFS = 'vfs_cekya_2026_10_16';
+    const CONFIG_MIG_HOSP_OFF = 'partner_off_acibadem_2026_10_11';
     const HOSPITAL_LABEL = 'Acıbadem Hastanesi';
     const HOSPITAL_SHORT = 'Acıbadem';
     const isHospitalText = (s) => /altunizade|acıbadem|acibadem/.test(String(s || '').toLocaleLowerCase('tr-TR'));
@@ -2015,6 +2039,28 @@
         done.push(CONFIG_MIG_VFS);
         changed = true;
       }
+      if (!done.includes(CONFIG_MIG_HOSP_OFF)) {
+        const ymd = '2026-10-11';
+        for (const item of pf) {
+          if (!item || typeof item !== 'object') continue;
+          const blob = String(item.label || '') + ' ' + String(item.short || '') + ' ' + String(item.place || '');
+          if (!isHospitalText(blob)) continue;
+          const skip = Array.isArray(item.skipDates) ? item.skipDates.slice() : [];
+          if (!skip.includes(ymd)) item.skipDates = skip.concat(ymd);
+          if (Array.isArray(item.dates) && item.dates.includes(ymd)) item.dates = item.dates.filter((d) => d !== ymd);
+        }
+        pf = pf.filter((item) => item && !(Array.isArray(item.dates) && !item.dates.length && !(Array.isArray(item.weekdays) && item.weekdays.length)));
+        const plans = full.plans && typeof full.plans === 'object' ? full.plans : null;
+        const bucket = plans && plans[ymd.slice(0, 7)];
+        if (bucket && typeof bucket === 'object' && bucket[ymd]) {
+          const picks = Array.isArray(bucket[ymd]) ? bucket[ymd] : [bucket[ymd]];
+          const keep = picks.filter((p) => p && !isHospitalText(String(p.place || '') + ' ' + String(p.label || '') + ' ' + String(p.short || '')));
+          if (!keep.length) delete bucket[ymd];
+          else bucket[ymd] = keep.length === 1 ? keep[0] : keep;
+        }
+        done.push(CONFIG_MIG_HOSP_OFF);
+        changed = true;
+      }
       if (!changed) return false;
       full.partnerFixed = pf;
       full.configMigrations = done;
@@ -2033,6 +2079,63 @@
       if (res.status === 401 && action !== 'pin_login') { clearCache(); showGate(); throw new Error('Giriş gerekli'); }
       if (!res.ok) throw new Error(j.error || 'HTTP ' + res.status);
       return j;
+    }
+    function randomToken() {
+      const bytes = new Uint8Array(16);
+      crypto.getRandomValues(bytes);
+      return [...bytes].map((b) => b.toString(16).padStart(2, '0')).join('');
+    }
+    function calendarHttps(token) { return SUPABASE_URL + '/functions/v1/family-planner-calendar?t=' + token; }
+    function renderCalendarLink() {
+      const on = !!(st.full && st.full.calendarOk);
+      const ask = $('calAsk');
+      const ready = $('calReady');
+      if (ask) ask.hidden = on;
+      if (ready) ready.hidden = !on;
+      const live = on && st.calendarLive === true;
+      const open = $('calOpen');
+      const copy = $('calCopy');
+      const note = $('calLiveNote');
+      if (open) open.hidden = !live;
+      if (copy) copy.hidden = !live;
+      if (note) note.hidden = !live;
+    }
+    let calendarProbeFor = '';
+    async function probeCalendar() {
+      const token = String((st.full && st.full.calendarToken) || '');
+      if (!st.full || !st.full.calendarOk || !/^[a-f0-9]{32}$/.test(token) || st.offline) {
+        st.calendarLive = false;
+        renderCalendarLink();
+        return;
+      }
+      if (calendarProbeFor === token && st.calendarLive != null) { renderCalendarLink(); return; }
+      calendarProbeFor = token;
+      let live = false;
+      try {
+        const res = await fetch(calendarHttps(token));
+        live = res.ok && String(await res.text()).startsWith('BEGIN:VCALENDAR');
+      } catch (_) { live = false; }
+      if (calendarProbeFor !== token) return;
+      st.calendarLive = live;
+      renderCalendarLink();
+    }
+    function downloadWorkIcs() {
+      if (typeof buildWorkIcs !== 'function') { $('calStatus').textContent = 'Takvim dosyası hazır değil'; return; }
+      const ics = buildWorkIcs(st.full || {});
+      const file = new File([ics], 'calisma.ics', { type: 'text/calendar' });
+      const save = () => {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(new Blob([ics], { type: 'text/calendar' }));
+        a.download = 'calisma.ics';
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(a.href), 1500);
+        $('calStatus').textContent = 'Dosya indirildi. Takvim uygulamasında aç.';
+      };
+      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+        navigator.share({ files: [file], title: 'Çalışma' }).catch(save);
+        return;
+      }
+      save();
     }
     async function persist(statusId, okText) {
       const el = statusId ? $(statusId) : null;
@@ -2082,16 +2185,17 @@
       const migrated = !st.cfgDirty && !st.travelDirty && !st.offline ? migrateConfigInPlace(st.full) : false;
       if (!st.draftDirty) st.draft = { ...((st.full.plans || {})[st.month] || {}) };
       rebuildConfig();
-      if (!st.cfgDirty) $('cfg').value = JSON.stringify(settingsOf(st.full), null, 2);
+      if (!st.cfgDirty) $('cfg').value = JSON.stringify(editorSettings(st.full), null, 2);
       $('status').textContent = (st.via === 'admin' ? 'Admin girişi' : 'PIN girişi') + ' · uygulama ' + (j.entries || []).length + ' kayıt';
       renderIcons();
       renderWeather();
       render();
       if (migrated) {
         persist(null).then((ok) => {
-          if (ok && !st.cfgDirty) $('cfg').value = JSON.stringify(settingsOf(st.full), null, 2);
+          if (ok && !st.cfgDirty) $('cfg').value = JSON.stringify(editorSettings(st.full), null, 2);
+          probeCalendar();
         });
-      }
+      } else probeCalendar();
     }
     /** quiet: arka plan yenilemesi — yalnız sunucuda değişiklik varsa ve kullanıcı bir şey düzenlemiyorsa ekranı günceller. */
     async function load(opts) {
@@ -3018,6 +3122,36 @@
       render();
     }));
     $('travelSave').addEventListener('click', async () => { if (await persist('travelStatus', 'Kaydedildi ✓')) { st.travelDirty = false; } });
+    $('calYes').addEventListener('click', async () => {
+      st.full.calendarOk = true;
+      if (!/^[a-f0-9]{32}$/.test(String(st.full.calendarToken || ''))) st.full.calendarToken = randomToken();
+      calendarProbeFor = '';
+      renderCalendarLink();
+      const ok = await persist('calStatus', 'Onaylandı. Çalışma günleri hazır.');
+      if (!ok) { st.full.calendarOk = false; delete st.full.calendarToken; renderCalendarLink(); return; }
+      probeCalendar();
+    });
+    $('calFile').addEventListener('click', () => { if (st.full && st.full.calendarOk) downloadWorkIcs(); });
+    $('calOpen').addEventListener('click', () => {
+      const token = String(st.full.calendarToken || '');
+      if (!st.full.calendarOk || !/^[a-f0-9]{32}$/.test(token)) return;
+      location.href = calendarHttps(token).replace(/^https:/, 'webcal:');
+    });
+    $('calCopy').addEventListener('click', async () => {
+      const token = String(st.full.calendarToken || '');
+      if (!st.full.calendarOk || !/^[a-f0-9]{32}$/.test(token)) return;
+      const url = calendarHttps(token);
+      try { await navigator.clipboard.writeText(url); $('calStatus').textContent = 'Bağlantı kopyalandı. Takvimde abonelik olarak ekle.'; }
+      catch (_) { $('calStatus').textContent = url; }
+    });
+    $('calStop').addEventListener('click', async () => {
+      st.full.calendarOk = false;
+      delete st.full.calendarToken;
+      st.calendarLive = false;
+      calendarProbeFor = '';
+      renderCalendarLink();
+      await persist('calStatus', 'Senkron kapatıldı.');
+    });
     $('vacAdd').addEventListener('click', async () => {
       const from = $('vacFrom').value, to = $('vacTo').value || $('vacFrom').value;
       const bad = vacationProblem(from, to);
@@ -3042,7 +3176,9 @@
       if (!o) return;
       const data = {};
       for (const k of DATA_KEYS) if (st.full[k] !== undefined) data[k] = st.full[k];
+      const token = st.full.calendarToken;
       st.full = { ...o, ...data };
+      if (st.full.calendarOk && !st.full.calendarToken && token) st.full.calendarToken = token;
       rebuildConfig();
       if (await persist('cfgStatus', 'Kaydedildi ✓')) { st.cfgDirty = false; st.travelDirty = false; renderIcons(); render(); }
     });
@@ -3636,7 +3772,7 @@
       pend.apply(st.full);
       assistState.draft = '';
       rebuildConfig();
-      try { $('cfg').value = JSON.stringify(settingsOf(st.full), null, 2); } catch (_) { /* */ }
+      try { $('cfg').value = JSON.stringify(editorSettings(st.full), null, 2); } catch (_) { /* */ }
       const ok = await persist(null, 'Kaydedildi');
       if (!ok) { assistBubble('err', 'Kayıt başarısız. İnterneti kontrol et.'); return; }
       st.cfgDirty = false;

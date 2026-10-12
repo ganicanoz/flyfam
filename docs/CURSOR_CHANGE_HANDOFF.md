@@ -13,6 +13,16 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+### 2026-10-12 — Aile planı: Apple Takvim onayı, 11 Ekim hastane yok
+
+- **Amaç:** Eşin çalışma günleri Apple Takvim’e uçuşlar olmadan, yalnız onaydan sonra yazılsın. 11 Ekim hastane işi olmasın.
+- **Dosyalar:** `support/aile/index.html`, `support/aile/sw.js` (`aile-shell-v13`), `support/aile/work-cal.mjs`, `supabase/functions/_shared/workCalendar.mjs` (aynı dosya), `supabase/functions/family-planner-calendar/index.ts`, `supabase/config.toml`, `scripts/test-aile-eso.mjs`.
+- **Takvim:** «Onayla ve senkronize et» kaydı açar. Ondan önce jeton yazılmaz. Dosya, sabit işleri ve fixlenmiş günleri içerir; uçuş, okul yolu ve taslak yok. Abonelik adresi, takvim servisi takvim dosyası döndürünce görünür. «Senkronu kapat» jetonu siler.
+- **11 Ekim:** Hastane sabit işine `skipDates`, o güne ait tek seferlik hastane kaydı ve o günün hastane seçimi kalkar. Üniversite işi aynı kalır. İlk çevrimiçi açılışta `save_config`.
+- **Doğrulama:** `node scripts/test-aile-eso.mjs` OK; inline `node --check` OK; `git diff --check` OK. Tarayıcı: onaydan önce abonelik yok; 11 Ekim’de hastane logosu yok, 13 Ekim’de var; onay kaydı jeton yazar, 11 Ekim atlanır, dosya iner.
+- **Koruma:** Yer anahtarı, adres, 6 Ekim imza, 10 Ekim ve 16 Ekim kayıtları, gelir ve borç aynı. `family-planner` deploy edilmedi.
+- **Canlı:** Henüz main’de değil. Takvim abonelik fonksiyonu bu oturumda yayınlanamadı (erişim jetonu yok); sayfa dosyayı onaydan sonra indirir.
+
 ### 2026-10-09 — Aile planı: doğru logolar, gri geçmiş, çakışma ve saatli gün
 
 - **Amaç:** Lacivert A hastanede, alev üniversitede, diş işaretinde büyük T. Geçmiş günler yeşil olunca çakışmasız gün gibi duruyordu; gri olsun. Gün kutusunda saatli zaman çizelgesi. Boş günlerde renkli öneri noktası. Çakışan gün kalın kırmızı çerçeve ve ayrı listede sebep. Okul bırakma-alma tablosu daha sıkı; takvim ve altındaki kartlar 2–3 sütun.
