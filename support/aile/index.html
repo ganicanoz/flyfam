@@ -88,15 +88,21 @@
     #vacList .past { opacity: .5; }
     .vac-bad { color: var(--bad); }
     main { max-width: 1280px; margin: 0 auto; padding: 12px; display: grid; gap: 14px; }
-    .board { display: grid; gap: 10px; align-items: start; }
-    @media (min-width: 880px) {
-      .board { grid-template-columns: minmax(0, 1.4fr) minmax(260px, 1fr); }
-      .board .cal-card { grid-row: span 2; }
+    .board { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; align-items: start; }
+    .board > * { min-width: 0; }
+    .board .cal-card { grid-column: 1 / -1; }
+    @media (min-width: 960px) {
+      .board { grid-template-columns: repeat(3, minmax(0, 1fr)); }
     }
-    @media (min-width: 1180px) {
-      .board { grid-template-columns: minmax(0, 1.35fr) minmax(240px, 1fr) minmax(240px, 1fr); }
-      .board .cal-card { grid-row: span 3; }
-    }
+    .board > .card > .card-h { color: #164e63; }
+    .cal-card { border-top: 3px solid #0f766e; }
+    .suitability-key { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 0 12px; font-size: 11px; color: var(--muted); }
+    .fit { display: inline-flex; align-items: center; gap: 4px; border: 1px solid; border-radius: 6px; padding: 2px 5px; font-size: 10px; font-weight: 700; line-height: 1.4; }
+    .fit.high { color: #166534; background: #f0fdf4; border-color: #bbf7d0; }
+    .fit.mid { color: #854d0e; background: #fefce8; border-color: #fde68a; }
+    .fit.low { color: #9a3412; background: #fff7ed; border-color: #fed7aa; }
+    .fit-symbol { font-size: 12px; font-weight: 800; }
+    .fit-clinic { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .card { background: var(--panel); border-radius: var(--radius); border: 1px solid #d5dde8; padding: 14px; box-shadow: 0 1px 2px rgba(15,23,42,.05), 0 6px 18px rgba(15,23,42,.05); }
     .card-h { font-weight: 800; font-size: 15px; margin: -2px 0 10px; padding-bottom: 8px; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 8px; }
     .tabpane { display: grid; gap: 14px; }
@@ -180,7 +186,7 @@
     .daypick .x { border: 0; background: transparent; color: var(--muted); padding: 0 2px; font-size: 12px; line-height: 1; }
     .dayline { display: flex; align-items: center; gap: 6px; padding: 4px 0; font-size: 14px; }
     .done-line { margin: 6px 0; font-weight: 800; color: #475569; }
-    .sug { display: flex; gap: 3px; align-items: center; min-height: 8px; }
+    .sug { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin-top: 3px; max-width: 100%; }
     .sug i { width: 7px; height: 7px; border-radius: 50%; display: block; flex: none; }
     .conf-row { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; width: 100%; text-align: left; padding: 6px 8px; margin: 0 0 6px; border-radius: 10px; border: 2px solid #dc2626; background: #fef2f2; font-weight: 700; }
     .conf-row b { color: #991b1b; }
@@ -432,6 +438,8 @@
       .grid, .weekdays { gap: 3px; }
       .cell { min-height: 76px; padding: 3px; border-radius: 9px; }
       .cell .crew, .cell .flag, .cell .run, .cell .d small, .cell .opt-mini .stars { display: none; }
+      .cell .sug .fit { padding: 1px 2px; font-size: 8px; gap: 2px; }
+      .cell .sug .fit-clinic { display: none; }
       .cell .newtag { font-size: 8px; padding: 0 3px; }
       .cell.vac::after { font-size: 20px; right: 2px; bottom: 1px; }
       .vac-tag { font-size: 8px; padding: 0 4px; letter-spacing: 0; }
@@ -552,6 +560,12 @@
             <button type="button" data-viewmode="list">☰ Liste</button>
             <button type="button" data-viewmode="grid">▦ Takvim</button>
           </div>
+        </div>
+        <div class="suitability-key" aria-label="Öneri seviyeleri">
+          <span>Öneri:</span>
+          <span class="fit high" title="4–5 puan: daha az bağımlılık"><span aria-hidden="true">↑</span> Rahat</span>
+          <span class="fit mid" title="3 puan: ulaşım veya bakım planı gerekebilir"><span aria-hidden="true">→</span> Planla</span>
+          <span class="fit low" title="1–2 puan: rezerv, görev yakınlığı veya ek bağımlılık"><span aria-hidden="true">!</span> Dikkat</span>
         </div>
         <div id="gridWrap">
           <div class="weekdays"><span>Pzt</span><span>Sal</span><span>Çar</span><span>Per</span><span>Cum</span><span>Cmt</span><span>Paz</span></div>
@@ -702,7 +716,6 @@
       'IBB', 'IBE', 'IBX', 'IOZ', 'IBC', 'IBY', 'IBI', 'III', 'VAC', 'AVAC', 'VAV', 'UPV']);
     const COLORS = { duty: '#1a5cf5', away: '#818cf8', standby: '#f59e0b', home: '#06b6d4', school: '#22a55b', fixed: '#7c3aed' };
     const PALETTE = ['#0284c7', '#0d9488', '#db2777', '#65a30d'];
-    const STAR_COLORS = ['', '#dc2626', '#ea580c', '#ca8a04', '#65a30d', '#16a34a'];
     const DAY_NAMES = ['', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi', 'Pazar'];
     const DAY_SHORT = ['', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
     const DATA_KEYS = ['rosters', 'plans'];
@@ -747,7 +760,6 @@
     const dateLong = (ymd) => new Date(ymd + 'T12:00:00Z').toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', timeZone: 'UTC' }) + ' ' + DAY_NAMES[weekday(ymd)];
     const monthName = (m) => new Date(m + '-15T12:00:00Z').toLocaleDateString('tr-TR', { month: 'long', year: 'numeric', timeZone: 'UTC' });
     const pairKey = (a, b) => [a, b].sort().join('|');
-    const starsText = (n) => '★'.repeat(n) + '☆'.repeat(5 - n);
     function merge(base, over) {
       if (!over || typeof over !== 'object' || Array.isArray(over)) return base;
       const out = Array.isArray(base) ? base.slice() : { ...base };
@@ -1422,19 +1434,24 @@
       return '<div class="rows"><span>' + esc(P.crew || 'Crew') + '</span>' + row(ev.segs.crew) + '<span>' + esc(P.child || 'Çocuk') + '</span>' + row(ev.segs.child) +
         '<span>' + esc(P.partner || 'Eş') + '</span>' + row(ev.segs.partner) + '<span></span>' + hours + '</div>';
     }
+    // Keep the existing five-point calculation; present it as three clear levels.
+    const suitability = (n) => n >= 4 ? { cls: 'high', symbol: '↑', label: 'Rahat' } : n === 3 ? { cls: 'mid', symbol: '→', label: 'Planla' } : { cls: 'low', symbol: '!', label: 'Dikkat' };
     function sugDots(ev) {
-      if (!ev.inMonth || ev.vac || ev.fixed.length || ev.plans.length || !ev.opts.length) return '';
+      const today = new Date().toLocaleDateString('en-CA', { timeZone: st.lastRes?.cfg?.timezone || 'Europe/Istanbul' });
+      if (!ev.inMonth || ev.ymd < today || ev.vac || ev.fixed.length || ev.plans.length || !ev.opts.length) return '';
       const seen = new Set();
-      const dots = [];
+      const badges = [];
       for (const o of ev.opts) {
         if (seen.has(o.cand)) continue;
         seen.add(o.cand);
         const best = ev.opts.filter((x) => x.cand === o.cand).sort((a, b) => b.stars - a.stars)[0];
-        dots.push('<i style="background:' + STAR_COLORS[best.stars] + '" title="' + esc((best.short || best.label) + ' ' + fmt(best.s) + '–' + fmt(best.e)) + '"></i>');
+        const fit = suitability(best.stars);
+        const clinic = best.short || best.label;
+        const detail = clinic + ' · ' + fit.label + ' · ' + fmt(best.s) + '–' + fmt(best.e) + ' · ' + (best.why || []).join(' · ');
+        badges.push('<span class="fit ' + fit.cls + '" title="' + esc(detail) + '" aria-label="' + esc(detail) + '"><span class="fit-symbol" aria-hidden="true">' + fit.symbol + '</span><span class="fit-clinic">' + esc(clinic) + '</span><span class="fit-label">' + fit.label + '</span></span>');
       }
-      return '<div class="sug">' + dots.join('') + '</div>';
+      return '<div class="sug">' + badges.join('') + '</div>';
     }
-    const starsHtml = (n) => '<span class="stars" style="color:' + STAR_COLORS[n] + '">' + starsText(n) + '</span>';
 
     function render() {
       const res = compute();
