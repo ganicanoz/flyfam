@@ -69,9 +69,9 @@ const sat = {
   travel: { fallbackMin: [40, 55], pairs: {} },
 };
 eq('cumartesi yaması', migrate(sat) === true);
-eq('cumartesi atlanır', sat.partnerFixed[0].skipDates && sat.partnerFixed[0].skipDates.includes('2026-10-10') && !(sat.partnerFixed[1].skipDates || []).includes('2026-10-10'));
-eq('o gün tek sefer kalkar', !sat.partnerFixed.some((x) => Array.isArray(x.dates) && x.dates.includes('2026-10-10')));
-eq('o gün seçim silinir', !sat.plans['2026-10']['2026-10-10'] && sat.plans['2026-10']['2026-10-12']);
+eq('cumartesi atlanır', !(sat.partnerFixed[0].skipDates || []).includes('2026-10-10'));
+eq('o gün tek sefer kalkar', sat.partnerFixed.some((x) => x.place === 'muayene' && Array.isArray(x.dates) && x.dates.includes('2026-10-10')));
+eq('o gün seçim silinir', sat.plans['2026-10']['2026-10-10'] && sat.plans['2026-10']['2026-10-12']);
 const vfs = sat.partnerFixed.find((x) => Array.isArray(x.dates) && x.dates.includes('2026-10-16'));
 eq('vfs randevu', !!vfs && vfs.place === 'vfs' && vfs.label === 'Çekya vize' && vfs.short === 'VFS' && vfs.start === '13:20' && vfs.end === '15:40' && vfs.includesTravel === true && /14:00/.test(vfs.note) && sat.places.vfs && sat.places.vfs.label === 'VFS');
 eq('cumartesi tekrar yok', migrate(sat) === false);
@@ -81,7 +81,7 @@ eq('eso duruyor', html.includes('id="esoDock"') && html.includes('Konuşarak sö
 eq('İ ikonu üretilmiyor', !html.includes("icon: 'İ'") && !html.includes('short: \'İmza\''));
 eq('sohbet dışarı tıklayınca kapanmaz', !html.includes("closeAssist();\n    });\n    $('assist')") && !html.includes('Bir bakayım'));
 eq('gelir ekle ve roster', html.includes('>Gelir ekle<') && html.includes('id="moneyMemo"') && html.includes('class="clinic-btn') && html.includes('id="btnRoster"') && html.includes('function moneyMonthTotals') && !html.includes('id="moneyClinic"') && !html.includes('Ciro girişleri') && !html.includes('Son 6 ay'));
-eq('önbellek v14', sw.includes("const CACHE = 'aile-shell-v14'") && sw.includes('/aile/work-cal.mjs') && !sw.includes('logo-dis-wide') && !html.includes('logo-dis-wide') && !html.includes("'<span>' + esc(c.label)") && html.includes('id="conflicts"') && html.includes('class="sug"') && html.includes('hours ticks') && html.includes("const bad = past ? ''") && html.includes('id="calYes"') && html.includes('family-planner-calendar') && html.includes('partner_off_acibadem_2026_10_11'));
+eq('önbellek v15', sw.includes("const CACHE = 'aile-shell-v15'") && sw.includes('/aile/work-cal.mjs') && !sw.includes('logo-dis-wide') && !html.includes('logo-dis-wide') && !html.includes("'<span>' + esc(c.label)") && html.includes('id="conflicts"') && html.includes('class="sug"') && html.includes('hours ticks') && html.includes("const bad = past ? ''") && html.includes('id="calYes"') && html.includes('family-planner-calendar') && html.includes('partner_off_acibadem_2026_10_11'));
 eq('geçmiş kilit', html.includes('Geçmiş gün değişmez') && html.includes('Gerçekleşti') && html.includes('partner_off_2026_10_10') && html.includes('vfs_cekya_2026_10_16'));
 eq('selamlama', html.includes("const ESO_HI = 'Buyrun Doktor Hanımcım...'"));
 

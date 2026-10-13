@@ -88,6 +88,19 @@
     #vacList .past { opacity: .5; }
     .vac-bad { color: var(--bad); }
     main { max-width: 1280px; margin: 0 auto; padding: 12px; display: grid; gap: 14px; }
+    .overview { display:grid; grid-template-columns:minmax(0,1fr); gap:10px; align-items:start; }
+    .overview > .card { min-width:0; padding:10px; }
+    .overview .card-h { font-size:13px; margin-bottom:6px; padding-bottom:6px; }
+    .overview .rc-head, .overview .rc-actions, .overview .row { gap:6px; }
+    .overview button, .overview label.upload { padding:6px 8px; font-size:12px; }
+    .overview .vac-head { gap:6px; margin-bottom:6px; }
+    .overview .vac-head b { font-size:13px; }
+    .overview .vac-emoji { font-size:22px; }
+    .overview .vac-form input[type="text"] { flex-basis:100%; }
+    .overview .plan { grid-template-columns:minmax(0,1fr); }
+    .appointment { color:#9a3412; background:#fff7ed; border-radius:5px; padding:3px 4px; font-size:11px; overflow-wrap:anywhere; }
+    @media (min-width:700px) { .overview { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+    @media (min-width:1100px) { .overview { grid-template-columns:repeat(4,minmax(0,1fr)); } }
     .board { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; align-items: start; }
     .board > * { min-width: 0; }
     .board .cal-card { grid-column: 1 / -1; }
@@ -489,6 +502,7 @@
       </nav>
       <div id="tabFin" class="tabpane" hidden></div>
       <div id="tabPlan" class="tabpane">
+      <div class="overview">
       <section class="card roster-card">
         <div class="rc-head">
           <div class="rc-info">
@@ -552,6 +566,7 @@
         <div id="calStatus" class="small muted"></div>
       </section>
 
+      </div>
       <div class="board">
       <section class="card cal-card">
         <div class="cal-head card-h">
@@ -735,6 +750,7 @@
       },
       school: { weekdays: [1, 2, 3, 4, 5], start: '09:30', end: '15:00', halfDayEnd: '12:30', skipPublicHolidays: true, closedDates: [], place: 'school', dropBeforeMin: 10 },
       crewDuty: { homeBase: '', reportBeforeDepMin: 90, releaseAfterArrMin: 30, commutePlace: 'crewBase', homeDutyCodes: ['COTD'] },
+      familyAppointments: [],
       partnerFixed: [],
       partnerCandidates: [],
       goals: {},
@@ -1267,6 +1283,17 @@
         if (day.holHalf) notes.push({ k: 'warn', t: 'Arife: okul çıkışı ' + fmt(day.sEnd) });
       }
       if (day.vac) notes.push({ k: 'muted', t: '🏖️ Tatil: ' + (day.vac.label || '') });
+      const appointments = (cfg.familyAppointments || []).filter((a) => a.date === ymd && ['crew','child','partner'].includes(a.person));
+      for (const a of appointments) {
+        const s = hm(a.start), e = a.end ? hm(a.end) : s + 5;
+        const title = (P[a.person] || '') + ' · ' + a.label + ' · ' + a.start + ' · ' + (a.location || '');
+        // A five-minute marker indicates the start, not an assumed appointment duration.
+        segs[a.person].push({ s, e, kind: 'appointment', point: !a.end, color: '#ea580c', title: title + (a.end ? '–' + a.end : ' · bitiş belirtilmedi') });
+        notes.push({ k: 'muted', t: title });
+        if (a.person === 'crew' && crewState(ctx.crew.intervals, day.base+s, day.base+e) === 'duty') {
+          conflict = true; notes.push({ k:'bad', t:title + ': uçuş göreviyle çakışıyor' });
+        }
+      }
       const fixed = [];
       if (!day.vac) (cfg.partnerFixed || []).forEach((f, fi) => {
         if (day.holFull && f.skipPublicHolidays !== false) return;
@@ -1311,7 +1338,7 @@
         conflict = true;
       }
       const run = day.schoolDay ? schoolRun(ctx, day, [...fixed, ...plans]) : null;
-      return { ...day, segs, notes, fixed, opts, rejected, plans, plan: plans[0] || null, conflict, run, crewLabels: ctx.crew.labels[ymd] || [] };
+      return { ...day, appointments, segs, notes, fixed, opts, rejected, plans, plan: plans[0] || null, conflict, run, crewLabels: ctx.crew.labels[ymd] || [] };
     }
 
     function compute() {
@@ -1414,6 +1441,9 @@
     }
 
     // ---------- çizim ----------
+    function appointmentHtml(ev, cfg) {
+      return (ev.appointments || []).map((a) => '<div class="appointment">📍 ' + esc((cfg.people[a.person] || '') + ' · ' + a.start + ' · ' + a.label + ' · ' + (a.location || '') + (a.end ? '–' + a.end : '')) + '</div>').join('');
+    }
     function timeline(ev, cfg, big) {
       const vs = hm(cfg.view?.start || '06:00'), ve = hm(cfg.view?.end || '23:00');
       const span = Math.max(60, ve - vs);
@@ -1421,7 +1451,7 @@
         const s = Math.max(vs, x.s), e = Math.min(ve, x.e);
         if (e <= s) return '';
         const color = x.color || COLORS[x.kind] || '#94a3b8';
-        return '<span class="seg' + (x.kind === 'cand' ? ' cand' : x.kind === 'travel' ? ' travel' : '') + '" title="' + esc((x.title || '') + ' ' + fmt(x.s) + '–' + fmt(x.e)) + '" style="left:' + ((s - vs) / span * 100).toFixed(2) + '%;width:' +
+        return '<span class="seg' + (x.kind === 'cand' ? ' cand' : x.kind === 'travel' ? ' travel' : '') + '" title="' + esc((x.title || '') + ' ' + fmt(x.s) + (x.point ? '' : '–' + fmt(x.e))) + '" style="left:' + ((s - vs) / span * 100).toFixed(2) + '%;width:' +
           ((e - s) / span * 100).toFixed(2) + '%;' + (x.kind === 'travel' ? '--c:' : 'background-color:') + color + '"></span>';
       };
       const row = (a) => '<div class="tl-row">' + a.map(seg).join('') + '</div>';
@@ -1482,7 +1512,7 @@
         if (isNew) cls.push('newconf');
         return '<div class="' + cls.join(' ') + '" data-day="' + ev.ymd + '"' + (ev.inMonth && !past ? ' draggable="true" data-drag-day="' + ev.ymd + '"' : '') + ' role="button" tabindex="0">' +
           '<div class="d"><b>' + Number(ev.ymd.slice(8, 10)) + '</b>' + (isNew ? '<span class="newtag">YENİ ⚠</span>' : top ? '<small>' + esc(top) + '</small>' : '') + '</div>' +
-          timeline(ev, cfg, false) + crew + bad + (ev.inMonth ? runMini(cfg, ev) : '') + (ev.vac && ev.inMonth ? '<span class="vac-tag">okul yok · iş yok</span>' : '<div class="work">' + work + sugDots(ev) + '</div>') + '</div>';
+          timeline(ev, cfg, false) + appointmentHtml(ev, cfg) + crew + bad + (ev.inMonth ? runMini(cfg, ev) : '') + (ev.vac && ev.inMonth ? '<span class="vac-tag">okul yok · iş yok</span>' : '<div class="work">' + work + sugDots(ev) + '</div>') + '</div>';
       }).join('');
       st.lastRes = res;
       renderList(res, today);
@@ -1538,7 +1568,7 @@
         for (const p of ev.plans) badges.push('<span class="pill" style="background:' + p.color + '1f">' + icHtml(p) + ' ' + fmt(p.s) + '–' + fmt(p.e) + '</span>');
         out.push('<div class="' + cls.join(' ') + '" style="border-left-color:' + strip + ';' + bg + '" data-day="' + ev.ymd + '"' + (past ? '' : ' draggable="true" data-drag-day="' + ev.ymd + '"') + ' role="button" tabindex="0">' +
           '<div class="dt"><b>' + Number(ev.ymd.slice(8, 10)) + '</b><span>' + DAY_SHORT[ev.wd] + '</span>' + (past ? '<span class="done-tag">oldu</span>' : '') + '</div>' +
-          '<div class="bd">' + timeline(ev, cfg, false) + lines.join('') + (badges.length ? '<div class="wk-badges">' + badges.join('') + '</div>' : '') + sugDots(ev) + '</div></div>');
+          '<div class="bd">' + timeline(ev, cfg, false) + appointmentHtml(ev, cfg) + lines.join('') + (badges.length ? '<div class="wk-badges">' + badges.join('') + '</div>' : '') + sugDots(ev) + '</div></div>');
       });
       $('list').innerHTML = out.join('');
     }
@@ -1657,7 +1687,7 @@
       }
       const why = ev.notes.filter((n) => n.k === 'bad').map((n) => '<p class="flag">' + esc(n.t) + '</p>').join('');
       $('sheet').innerHTML = '<div class="sheet' + (past ? ' done' : '') + '"><h3><span>' + esc(dateLong(ev.ymd)) + '</span><button type="button" class="ghost" data-close="1" aria-label="Kapat">✕</button></h3>' +
-        timeline(ev, cfg, true) + why + body + '</div>';
+        timeline(ev, cfg, true) + appointmentHtml(ev, cfg) + why + body + '</div>';
       $('sheet').hidden = false;
     }
     function closeDay() { st.openDay = null; $('sheet').hidden = true; $('sheet').innerHTML = ''; }
@@ -1994,8 +2024,9 @@
         const ymd = '2026-10-10';
         for (const item of pf) {
           if (!item || typeof item !== 'object') continue;
+          if (!isHospitalText((item.place || '') + ' ' + (item.label || '') + ' ' + (item.short || ''))) continue;
           const wds = Array.isArray(item.weekdays) ? item.weekdays.map(Number) : [];
-          if (wds.includes(6)) {
+          if (wds.includes(6) || Number(item.monthlyNth?.weekday) === 6) {
             const skip = Array.isArray(item.skipDates) ? item.skipDates.slice() : [];
             if (!skip.includes(ymd)) item.skipDates = skip.concat(ymd);
           }
@@ -2005,7 +2036,11 @@
         const plans = full.plans && typeof full.plans === 'object' ? full.plans : null;
         if (plans) {
           for (const bucket of Object.values(plans)) {
-            if (bucket && typeof bucket === 'object' && bucket[ymd]) delete bucket[ymd];
+            if (!bucket || !bucket[ymd]) continue;
+            const picks = Array.isArray(bucket[ymd]) ? bucket[ymd] : [bucket[ymd]];
+            const keep = picks.filter((p) => !isHospitalText((p.place || '') + ' ' + (p.label || '') + ' ' + (p.short || '')));
+            if (!keep.length) delete bucket[ymd];
+            else bucket[ymd] = Array.isArray(bucket[ymd]) ? keep : keep[0];
           }
         }
         done.push(CONFIG_MIG_SAT_OFF);
