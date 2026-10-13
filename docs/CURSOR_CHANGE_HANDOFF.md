@@ -1536,3 +1536,6 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 - FlyFam ikonu ADMIN etiketiyle hazırlandı. Admin HTML, Apple touch icon ve manifest bağlantılarını kullanır. 180/192/512 px ikonlar support/admin içinde; Safari ana ekrana ekleme için 180 px PNG.
 - Doğrulama: PNG boyutları, manifest JSON ve üç HTML kopyası eşit.
+
+### 2026-10-13 — Admin ikon siyah köşeler
+- Siyah dış köşeler gerçek PNG alfa şeffaflığıyla kaldırıldı. İkonlar v2 dosyalarıyla önbellekten ayrıldı. Köşe alfa değeri 0 doğrulandı.
