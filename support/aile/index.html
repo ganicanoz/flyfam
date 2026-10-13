@@ -103,9 +103,18 @@
     @media (min-width:1100px) { .overview { grid-template-columns:repeat(4,minmax(0,1fr)); } }
     .board { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; align-items: start; }
     .board > * { min-width: 0; }
+    .board-column { display: grid; gap: 14px; min-width: 0; align-content: start; }
+    .calendar-addon { position: relative; margin-left: auto; font-size: 12px; font-weight: 500; }
+    .calendar-addon > summary { cursor: pointer; list-style: none; color: var(--brand); padding: 5px 8px; border: 1px solid var(--line); border-radius: 8px; white-space: nowrap; }
+    .calendar-popover { position: absolute; z-index: 30; right: 0; top: calc(100% + 8px); width: min(320px, calc(100vw - 48px)); padding: 14px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 8px 24px rgba(15,23,42,.16); }
+    .calendar-popover p { font-weight: 400; }
+    .calendar-popover button { font-size: 12px; padding: 6px 8px; }
+    .cal-head { flex-wrap: wrap; }
+    @media (max-width: 959px) { .board-column { display: contents; } }
+
     .board .cal-card { grid-column: 1 / -1; }
     @media (min-width: 960px) {
-      .board { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .board { grid-template-columns: minmax(0, .9fr) minmax(0, 1.15fr) minmax(0, 1.25fr); }
     }
     .board > .card > .card-h { color: #164e63; }
     .cal-card { border-top: 3px solid #0f766e; }
@@ -548,8 +557,13 @@
         </div>
       </section>
 
-      <section class="card" id="boxCal">
-        <div class="card-h">Apple Takvim</div>
+      </div>
+      <div class="board">
+      <section class="card cal-card">
+        <div class="cal-head card-h">
+          <span>🗓️ Takvim</span>
+      <details class="calendar-addon" id="boxCal">
+        <summary>Apple Takvim ↗</summary><div class="calendar-popover">
         <p class="small muted" style="margin-top:0;">Uçuşlar eklenmez. Eşin sabit işleri ve fixlenmiş çalışma günleri, onaydan sonra Takvim’e yazılır.</p>
         <div id="calAsk">
           <button type="button" class="primary" id="calYes">Onayla ve senkronize et</button>
@@ -564,13 +578,7 @@
           </div>
         </div>
         <div id="calStatus" class="small muted"></div>
-      </section>
-
-      </div>
-      <div class="board">
-      <section class="card cal-card">
-        <div class="cal-head card-h">
-          <span>🗓️ Takvim</span>
+      </div></details>
           <div class="seg-toggle" id="viewToggle">
             <button type="button" data-viewmode="list">☰ Liste</button>
             <button type="button" data-viewmode="grid">▦ Takvim</button>
@@ -590,28 +598,40 @@
         <div class="legend" id="legend"></div>
       </section>
 
+      <div class="board-column">
       <section class="card" id="boxConf">
         <div class="card-h">Çakışmalar</div>
         <div id="conflicts" class="small">—</div>
       </section>
-
-      <section class="card share-card">
-        <div class="card-h">📤 Özet · kliniklerle paylaş</div>
-        <div id="summary" class="small muted">—</div>
-      </section>
-
-      <section class="card">
-        <div class="card-h">🏫 Okul yolu · taksi</div>
-        <div id="runs" class="small muted">—</div>
-      </section>
-
       <details class="card">
         <summary>ℹ️ Bilgiler · konumlar, kurallar</summary>
         <div class="inner">
           <div id="frame" class="small"></div>
         </div>
       </details>
-
+      </div>
+      <div class="board-column">
+      <section class="card share-card">
+        <div class="card-h">📤 Özet · kliniklerle paylaş</div>
+        <div id="summary" class="small muted">—</div>
+      </section>
+      <details class="card">
+        <summary>⚙️ Gelişmiş ayarlar (JSON)</summary>
+        <div class="inner">
+          <textarea id="cfg" class="cfg" spellcheck="false"></textarea>
+          <div class="row" style="margin-top:8px;">
+            <button type="button" class="primary" id="cfgSave">Kaydet</button>
+            <button type="button" id="cfgPreview">Önizle</button>
+            <span id="cfgStatus" class="small muted"></span>
+          </div>
+        </div>
+      </details>
+      </div>
+      <div class="board-column">
+      <section class="card">
+        <div class="card-h">🏫 Okul yolu · taksi</div>
+        <div id="runs" class="small muted">—</div>
+      </section>
       <details class="card">
         <summary>🚗 Ulaşım süreleri (manuel)</summary>
         <div class="inner">
@@ -629,18 +649,7 @@
           </div>
         </div>
       </details>
-
-      <details class="card">
-        <summary>⚙️ Gelişmiş ayarlar (JSON)</summary>
-        <div class="inner">
-          <textarea id="cfg" class="cfg" spellcheck="false"></textarea>
-          <div class="row" style="margin-top:8px;">
-            <button type="button" class="primary" id="cfgSave">Kaydet</button>
-            <button type="button" id="cfgPreview">Önizle</button>
-            <span id="cfgStatus" class="small muted"></span>
-          </div>
-        </div>
-      </details>
+      </div>
       </div>
       </div>
 
