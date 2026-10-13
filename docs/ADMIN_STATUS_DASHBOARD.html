@@ -17,7 +17,7 @@
   <meta http-equiv="Expires" content="0" />
   <script>
     (function () {
-      var UI = '63';
+      var UI = '64';
       var p = new URLSearchParams(location.search);
       if (p.get('ui') !== UI) {
         p.set('ui', UI);
@@ -98,8 +98,8 @@
     }
     .cmd-brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
     .cmd-brand img {
-      width: 28px; height: 28px; border-radius: 7px;
-      border: 1px solid var(--border); background: #fff; object-fit: contain;
+      width: 44px; height: 44px; flex: none;
+      border: 0; background: transparent; object-fit: contain;
     }
     .cmd-brand-title { font-weight: 750; font-size: 14px; letter-spacing: -0.02em; }
     .cmd-brand-sub { font-size: 10px; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; }
@@ -1077,7 +1077,7 @@
   <header class="cmd-bar">
     <div class="cmd-brand">
       <button type="button" class="btn-mobile-nav" id="btnMobileNav" aria-label="Menü" title="Menü">☰</button>
-      <img src="./Görseller/image.png" alt="FlyFam logo" onerror="this.style.display='none'" />
+      <img src="/admin/admin-icon-v2-192.png" width="44" height="44" alt="FlyFam Admin" />
       <div>
         <div class="cmd-brand-title">FlyFam Ops</div>
         <div class="cmd-brand-sub">Admin console</div>

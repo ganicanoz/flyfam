@@ -1539,3 +1539,6 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ### 2026-10-13 — Admin ikon siyah köşeler
 - Siyah dış köşeler gerçek PNG alfa şeffaflığıyla kaldırıldı. İkonlar v2 dosyalarıyla önbellekten ayrıldı. Köşe alfa değeri 0 doğrulandı.
+
+### 2026-10-13 — Admin başlık ikonu
+- Şeffaf ADMIN ikonu üst sol başlığa 44 px boyutunda eklendi. Eksik eski logo yolu değiştirildi; UI önbellek sürümü 64. HTML kopyaları eşit, ikon dosyası mevcut.
