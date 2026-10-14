@@ -401,11 +401,11 @@
     .sum header span:last-child { flex: 0 0 auto; white-space: nowrap; font-size: 12px; }
     .sum ul { margin: 0; padding: 8px 18px 6px; font-size: 13px; list-style: none; }
     .sum li.bad { color: var(--bad); font-weight: 700; } .sum li.warn { color: #b45309; }
-    .sum li { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: nowrap; margin: 0; min-height: 40px; }
-    .sum li > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .sum li .tv { display: inline-flex; align-items: center; gap: 4px; margin-left: auto; flex: 0 0 auto; white-space: nowrap; }
+    .sum li { display: flex; align-items: flex-start; gap: 5px; flex-direction: column; margin: 0; padding: 8px 0; min-height: 40px; border-bottom: 1px solid var(--line); }
+    .sum li > span:first-child { min-width: 0; white-space: normal; overflow-wrap: anywhere; }
+    .sum li .tv { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; max-width: 100%; white-space: nowrap; }
     .tm { display: inline-flex; align-items: center; gap: 3px; white-space: nowrap; }
-    .tm input[type="time"] { width: 4.7rem; height: 28px; min-height: 0; padding: 0 2px; font-size: 13px; font-variant-numeric: tabular-nums; }
+    .tm input[type="time"] { width: 7.5rem; min-width: 7.5rem; flex-shrink: 0; height: 28px; min-height: 0; padding: 0 2px; font-size: 13px; font-variant-numeric: tabular-nums; }
     .tedit { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 8px; padding: 8px 10px; border-radius: 12px; background: #f8fafc; border: 1px dashed var(--line); font-size: 13px; }
     button.mini { min-height: 0; padding: 2px 6px; }
     .sum footer { display: flex; gap: 8px; padding: 8px 18px 14px; flex-wrap: wrap; }
