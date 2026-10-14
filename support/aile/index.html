@@ -89,6 +89,8 @@
     .vac-bad { color: var(--bad); }
     main { max-width: 1280px; margin: 0 auto; padding: 12px; display: grid; gap: 14px; }
     .overview { display:grid; grid-template-columns:minmax(0,1fr); gap:10px; align-items:start; }
+    .overview-side { display:grid; gap:10px; min-width:0; align-content:start; }
+    .overview-side > .card { min-width:0; padding:10px; }
     .overview > .card { min-width:0; padding:10px; }
     .overview .card-h { font-size:13px; margin-bottom:6px; padding-bottom:6px; }
     .overview .rc-head, .overview .rc-actions, .overview .row { gap:6px; }
@@ -107,12 +109,12 @@
     .clinic-card .fixed-detail { grid-column:1/-1; border-top:1px solid var(--line); padding-top:8px; }
     .clinic-card .fixed-days { display:flex; gap:5px; flex-wrap:wrap; margin-top:5px; }
     @media (min-width:700px) {
-      .overview .clinic-card { grid-column:span 2; }
+      .overview .clinic-card { grid-column:auto; }
       .overview .clinic-card .plan { grid-template-columns:repeat(2,minmax(0,1fr)); }
     }
     .appointment { color:#9a3412; background:#fff7ed; border-radius:5px; padding:3px 4px; font-size:11px; overflow-wrap:anywhere; }
-    @media (min-width:700px) { .overview { grid-template-columns:repeat(2,minmax(0,1fr)); } }
-    @media (min-width:1100px) { .overview { grid-template-columns:repeat(4,minmax(0,1fr)); } }
+    @media (min-width:700px) { .overview { grid-template-columns:minmax(220px,1fr) minmax(0,2fr); } }
+    @media (min-width:1100px) { .overview { grid-template-columns:minmax(0,1fr) minmax(0,3fr); } .overview .clinic-card .plan { grid-template-columns:repeat(3,minmax(0,1fr)); } }
     .board { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; align-items: start; }
     .board > * { min-width: 0; }
     .board-column { display: grid; gap: 14px; min-width: 0; align-content: start; }
@@ -524,6 +526,7 @@
       <div id="tabFin" class="tabpane" hidden></div>
       <div id="tabPlan" class="tabpane">
       <div class="overview">
+      <div class="overview-side">
       <section class="card roster-card">
         <div class="rc-head">
           <div class="rc-info">
@@ -558,14 +561,16 @@
         <div id="vacList" class="small"></div>
       </section>
 
+      </div>
       <section class="card clinic-card">
         <div class="card-h">Klinik günleri</div>
         <div class="plan" id="goals"></div>
         <div class="actions" id="actionBar" style="margin-top:10px;">
           <button type="button" class="ghost" id="btnSuggest">Günleri doldur</button>
-          <button type="button" id="btnFix">✓ Fixle</button>
+          <button type="button" id="btnFix">✓ Günleri kaydet</button>
           <button type="button" class="ghost" id="btnClear">Temizle</button>
           <span id="selStatus" class="small muted"></span>
+          <div id="planSaveStamp" class="small muted" style="flex-basis:100%;"></div>
         </div>
       </section>
 
@@ -754,7 +759,7 @@
     const PALETTE = ['#0284c7', '#0d9488', '#db2777', '#65a30d'];
     const DAY_NAMES = ['', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi', 'Pazar'];
     const DAY_SHORT = ['', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
-    const DATA_KEYS = ['rosters', 'plans'];
+    const DATA_KEYS = ['rosters', 'plans', 'planSavedAt'];
     const DEFAULT_CONFIG = {
       version: 3,
       timezone: 'Europe/Istanbul',
@@ -1604,10 +1609,17 @@
       const [y, m, d] = today.split('-').map(Number);
       return d > 25 ? new Date(Date.UTC(y, m, 1)).toISOString().slice(0, 7) : today.slice(0, 7);
     }
+    function savedPlanInfo() {
+      const at = (st.full.planSavedAt || {})[st.month];
+      const dates = Object.keys((st.full.plans || {})[st.month] || {}).sort();
+      const stamp = at ? new Date(at).toLocaleString('tr-TR', { timeZone:'Europe/Istanbul', day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }) : '';
+      return stamp ? 'Son kayıt: ' + stamp + ' · ' + dates.length + ' gün' : dates.length ? 'Kayıtlı ' + dates.length + ' gün · kayıt tarihi mevcut değil' : 'Bu ay henüz gün kaydedilmedi';
+    }
     function renderGoals(res) {
       const { cfg, days } = res;
       const today = todayYmd(cfg);
       const inMonth = days.filter((d) => d.inMonth);
+      $('planSaveStamp').textContent = savedPlanInfo();
       const groups = goalGroups(cfg);
       const html = groups.map((grp, gi) => {
         const picked = inMonth.filter((d) => planOf(d, grp.cand) && typeOk(d, grp.type));
@@ -1717,7 +1729,7 @@
       const k = esc(ymd + '|' + p.cand);
       return '<span class="tm"><input type="time" step="300" value="' + fmt(p.s) + '" data-time="' + k + '|start" aria-label="Başlangıç" />–<input type="time" step="300" value="' + fmt(p.e) + '" data-time="' + k + '|end" aria-label="Bitiş" /></span>';
     };
-    /** Seçimin saatini elle değiştirir (taslakta kalır, «Fixle» ile kaydedilir). */
+    /** Seçimin saatini elle değiştirir (taslakta kalır, «Günleri kaydet» ile kaydedilir). */
     function editPickTime(el) {
       const [ymd, cand, which] = el.getAttribute('data-time').split('|');
       if (ymd < todayYmd(st.config)) { render(); return; }
@@ -1755,8 +1767,8 @@
         for (const p of d.plans) add(p.place, p, d.ymd, p.s, p.e, false, p.worst === 'bad' || d.conflict ? 'bad' : p.stars <= 2 ? 'warn' : '', p);
       }
       st.summaryGroups = [...groups.values()];
-      if (!groups.size) { $('summary').innerHTML = 'Gün seç, sonra «Fixle».'; return; }
-      let html = st.draftDirty ? '<p class="dirty" style="margin-top:0;">Seçimler henüz fixlenmedi.</p>' : '';
+      if (!groups.size) { $('summary').innerHTML = '<p class="small muted">' + esc(savedPlanInfo()) + '</p>Gün seç, sonra «Günleri kaydet».'; return; }
+      let html = '<p class="small muted" style="margin-top:0;">' + esc(savedPlanInfo()) + '</p>' + (st.draftDirty ? '<p class="dirty">Seçimler henüz kaydedilmedi.</p>' : '');
       html += '<div class="sum-grid">' + st.summaryGroups.map((g, gi) => {
         g.items.sort((a, b) => a.ymd.localeCompare(b.ymd));
         g.hours = Math.round(g.items.reduce((a, x) => a + (x.e - x.s), 0) / 6) / 10;
@@ -1769,7 +1781,7 @@
       $('summary').innerHTML = html;
     }
     function groupText(g) {
-      return monthName(st.month) + ' · ' + g.label + '\n' + g.items.map((x) => '• ' + dateLong(x.ymd) + ' ' + fmt(x.s) + '–' + fmt(x.e)).join('\n') + '\nToplam: ' + g.items.length + ' gün · ' + String(g.hours).replace('.', ',') + ' saat';
+      return monthName(st.month) + ' · ' + g.label + '\n' + savedPlanInfo() + '\n' + g.items.map((x) => '• ' + dateLong(x.ymd) + ' ' + fmt(x.s) + '–' + fmt(x.e)).join('\n') + '\nToplam: ' + g.items.length + ' gün · ' + String(g.hours).replace('.', ',') + ' saat';
     }
     function groupImage(g) {
       const W = 1080, rowH = 74, head = 250, foot = 120;
@@ -1866,7 +1878,7 @@
           }
           return out;
         }),
-        'Önerilen saatler varsayılandır; gün detayında veya özette değiştirilip «✓ Fixle» ile kaydedilir.',
+        'Önerilen saatler varsayılandır; gün detayında veya özette değiştirilip «✓ Günleri kaydet» ile kaydedilir.',
       ];
       for (const [id, g] of Object.entries(cfg.goals || {})) {
         const c = (cfg.partnerCandidates || []).find((x) => x.id === id);
@@ -2315,7 +2327,7 @@
       $('titleIcons').innerHTML = ics.map((m) => icHtml(m)).join('');
     }
     function shiftMonth(delta) {
-      if (st.draftDirty && !confirm('Fixlenmemiş seçimler var. Ay değiştirilsin mi?')) return;
+      if (st.draftDirty && !confirm('Günleri kaydetnmemiş seçimler var. Ay değiştirilsin mi?')) return;
       const [y, m] = st.month.split('-').map(Number);
       st.month = new Date(Date.UTC(y, m - 1 + delta, 1)).toISOString().slice(0, 7);
       st.draftDirty = false;
@@ -2524,7 +2536,7 @@
       const c = [...(cfg.partnerCandidates || []), ...(cfg.partnerFixed || [])].find((x) => x && String(x.place || x.id) === place);
       return (c && (c.short || c.label)) || placeLabel(cfg, place);
     }
-    /** Fixlenmiş seçimler + sabit işler (taslak değil); tatil ve tam gün resmi tatil hariç. */
+    /** Günleri kaydetnmiş seçimler + sabit işler (taslak değil); tatil ve tam gün resmi tatil hariç. */
     function savedWorks(cfg, ymd) {
       const day = dayBase(cfg, ymd);
       if (day.vac) return [];
@@ -2910,7 +2922,7 @@
       if (/[?&]ciro=1/.test(u || '')) { st.ciroForce = true; checkCiro(true); }
       if (/[?&]tab=fin/.test(u || '')) setTab('fin');
       const m = /[?&]month=(\d{4}-\d{2})/.exec(u || '');
-      if (!m || m[1] === st.month || (st.draftDirty && !confirm('Fixlenmemiş seçimler var. Ay değiştirilsin mi?'))) return;
+      if (!m || m[1] === st.month || (st.draftDirty && !confirm('Günleri kaydetnmemiş seçimler var. Ay değiştirilsin mi?'))) return;
       st.month = m[1]; st.draftDirty = false; st.activeGroup = null; closeDay(); load();
     }
 
@@ -3148,15 +3160,19 @@
       if (/^\d{4}-\d{2}-\d{2}$/.test(ymd)) addToGroup(Number(t.getAttribute('data-drop')), ymd, t.getAttribute('data-box-day'));
     });
     $('btnFix').addEventListener('click', async () => {
+      const previousPlans = st.full.plans;
+      const previousStamps = st.full.planSavedAt;
       const plans = { ...(st.full.plans || {}) };
       const monthSel = {};
       for (const [d, v] of Object.entries(st.draft)) if (d.slice(0, 7) === st.month) monthSel[d] = v;
       if (Object.keys(monthSel).length) plans[st.month] = monthSel; else delete plans[st.month];
       st.full.plans = plans;
-      if (await persist('selStatus', Object.keys(monthSel).length + ' gün fixlendi ✓')) { st.draftDirty = false; ackConflicts(confDays(compute())); setTimeout(render, 900); }
+      st.full.planSavedAt = { ...(st.full.planSavedAt || {}), [st.month]: new Date().toISOString() };
+      if (await persist('selStatus', Object.keys(monthSel).length + ' gün kaydedildi ✓')) { st.draftDirty = false; ackConflicts(confDays(compute())); render(); }
+      else { st.full.plans = previousPlans; st.full.planSavedAt = previousStamps; }
     });
     $('btnClear').addEventListener('click', () => {
-      if (!Object.keys(st.draft).length || !confirm('Bu ayın seçimleri temizlensin mi? («Fixle» ile kaydedilir)')) return;
+      if (!Object.keys(st.draft).length || !confirm('Bu ayın seçimleri temizlensin mi? («Günleri kaydet» ile kaydedilir)')) return;
       const today = todayYmd(st.config);
       for (const d of Object.keys(st.draft)) if (d.slice(0, 7) === st.month && d >= today) delete st.draft[d];
       st.draftDirty = true;
