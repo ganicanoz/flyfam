@@ -98,6 +98,18 @@
     .overview .vac-emoji { font-size:22px; }
     .overview .vac-form input[type="text"] { flex-basis:100%; }
     .overview .plan { grid-template-columns:minmax(0,1fr); }
+    .clinic-card .grp-h { flex-wrap:wrap; }
+    .clinic-card .grp-name { min-width:0; flex:1; }
+    .clinic-card .grp-name small { display:block; font-weight:400; color:var(--muted); margin-top:2px; }
+    .clinic-card .daypick { flex-wrap:wrap; gap:5px; }
+    .clinic-card .pick-time { font-size:10px; font-weight:400; }
+    .clinic-card .section-label { margin:8px 0 5px; font-size:11px; color:var(--muted); }
+    .clinic-card .fixed-detail { grid-column:1/-1; border-top:1px solid var(--line); padding-top:8px; }
+    .clinic-card .fixed-days { display:flex; gap:5px; flex-wrap:wrap; margin-top:5px; }
+    @media (min-width:700px) {
+      .overview .clinic-card { grid-column:span 2; }
+      .overview .clinic-card .plan { grid-template-columns:repeat(2,minmax(0,1fr)); }
+    }
     .appointment { color:#9a3412; background:#fff7ed; border-radius:5px; padding:3px 4px; font-size:11px; overflow-wrap:anywhere; }
     @media (min-width:700px) { .overview { grid-template-columns:repeat(2,minmax(0,1fr)); } }
     @media (min-width:1100px) { .overview { grid-template-columns:repeat(4,minmax(0,1fr)); } }
@@ -546,7 +558,7 @@
         <div id="vacList" class="small"></div>
       </section>
 
-      <section class="card">
+      <section class="card clinic-card">
         <div class="card-h">Klinik günleri</div>
         <div class="plan" id="goals"></div>
         <div class="actions" id="actionBar" style="margin-top:10px;">
@@ -1603,7 +1615,7 @@
         const chosen = picked.map((d) => {
           const past = d.ymd < today;
           return '<span class="daypick' + (past ? ' past' : '') + '" data-box-day="' + d.ymd + '">' +
-            Number(d.ymd.slice(8, 10)) + ' ' + DAY_SHORT[d.wd] +
+            Number(d.ymd.slice(8, 10)) + ' ' + DAY_SHORT[d.wd] + '<span class="pick-time">' + esc(planOf(d, grp.cand).start + '–' + planOf(d, grp.cand).end) + '</span>' +
             (past ? '' : '<button type="button" class="x" data-unpick="' + d.ymd + '|' + esc(grp.cand) + '" aria-label="Çıkar">✕</button>') +
             '</span>';
         }).join('');
@@ -1611,9 +1623,9 @@
           .sort((a, b) => a.ymd.localeCompare(b.ymd)).map((d) => '<button type="button" class="chip" data-add="' + gi + '|' + d.ymd + '">' + Number(d.ymd.slice(8, 10)) + '</button>').join('');
         const title = grp.type === 'sat' ? 'Cumartesi' : 'Hafta içi';
         const cap = grp.n == null ? String(picked.length) : picked.length + '/' + n;
-        return '<div class="grp" data-drop="' + gi + '"><div class="grp-h">' + icHtml(grp.meta) + '<b>' + title + '</b><span class="cnt">' + cap + '</span></div>' +
-          '<div class="daypicks">' + (chosen || '<span class="small muted">seçim yok</span>') + '</div>' +
-          (pool ? '<div class="pool">' + pool + '</div>' : '') + '</div>';
+        return '<div class="grp" data-drop="' + gi + '"><div class="grp-h">' + icHtml(grp.meta) + '<div class="grp-name"><b>' + esc(grp.label) + '</b><small>' + title + '</small></div><span class="cnt" title="Seçilen / hedef gün">' + cap + ' gün</span></div>' +
+          '<div class="section-label">Seçilen günler</div><div class="daypicks">' + (chosen || '<span class="small muted">seçim yok</span>') + '</div>' +
+          (pool ? '<div class="section-label">Eklenebilecek günler · tıkla ekle</div><div class="pool">' + pool + '</div>' : '') + '</div>';
       }).join('');
       const extra = [];
       const fixedPlaces = new Set();
@@ -1621,11 +1633,12 @@
         if (fixedPlaces.has(f.place)) return;
         fixedPlaces.add(f.place);
         const cnt = inMonth.filter((d) => d.fixed.some((x) => x.place === f.place)).length;
-        extra.push('<span class="goal">' + icHtml(workMeta(cfg, f, fi, true)) + '<span><b>' + cnt + '</b> sabit</span></span>');
+        const rows = inMonth.flatMap((d) => d.fixed.filter((x) => x.place === f.place).map((x) => '<span class="daypick">' + Number(d.ymd.slice(8)) + ' ' + DAY_SHORT[d.wd] + ' <span class="pick-time">' + fmt(x.s) + '–' + fmt(x.e) + '</span></span>')).join('');
+        extra.push('<div class="fixed-detail">' + icHtml(workMeta(cfg, f, fi, true)) + ' <b>' + esc(f.label || f.short) + '</b> · ' + cnt + ' sabit gün<div class="fixed-days">' + (rows || '<span class="small muted">Bu ay sabit gün yok</span>') + '</div></div>');
       });
       const conf = inMonth.filter((d) => d.ymd >= today && d.conflict).length;
       if (conf) extra.push('<span class="goal" style="background:#fee2e2;color:#991b1b;">⚠ <b>' + conf + '</b></span>');
-      $('goals').innerHTML = html + (extra.length ? '<div class="goals">' + extra.join('') + '</div>' : '');
+      $('goals').innerHTML = html + (extra.length ? '<div class="fixed-detail">' + extra.join('') + '</div>' : '');
     }
     function addToGroup(gi, ymd, replaceYmd) {
       const res = compute();
