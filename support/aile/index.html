@@ -2327,7 +2327,7 @@
       $('titleIcons').innerHTML = ics.map((m) => icHtml(m)).join('');
     }
     function shiftMonth(delta) {
-      if (st.draftDirty && !confirm('Günleri kaydetnmemiş seçimler var. Ay değiştirilsin mi?')) return;
+      if (st.draftDirty && !confirm('Kaydedilmemiş seçimler var. Ay değiştirilsin mi?')) return;
       const [y, m] = st.month.split('-').map(Number);
       st.month = new Date(Date.UTC(y, m - 1 + delta, 1)).toISOString().slice(0, 7);
       st.draftDirty = false;
@@ -2536,7 +2536,7 @@
       const c = [...(cfg.partnerCandidates || []), ...(cfg.partnerFixed || [])].find((x) => x && String(x.place || x.id) === place);
       return (c && (c.short || c.label)) || placeLabel(cfg, place);
     }
-    /** Günleri kaydetnmiş seçimler + sabit işler (taslak değil); tatil ve tam gün resmi tatil hariç. */
+    /** Kaydedilmiş seçimler + sabit işler (taslak değil); tatil ve tam gün resmi tatil hariç. */
     function savedWorks(cfg, ymd) {
       const day = dayBase(cfg, ymd);
       if (day.vac) return [];
@@ -2922,7 +2922,7 @@
       if (/[?&]ciro=1/.test(u || '')) { st.ciroForce = true; checkCiro(true); }
       if (/[?&]tab=fin/.test(u || '')) setTab('fin');
       const m = /[?&]month=(\d{4}-\d{2})/.exec(u || '');
-      if (!m || m[1] === st.month || (st.draftDirty && !confirm('Günleri kaydetnmemiş seçimler var. Ay değiştirilsin mi?'))) return;
+      if (!m || m[1] === st.month || (st.draftDirty && !confirm('Kaydedilmemiş seçimler var. Ay değiştirilsin mi?'))) return;
       st.month = m[1]; st.draftDirty = false; st.activeGroup = null; closeDay(); load();
     }
 
