@@ -1,0 +1,56 @@
+{
+  "winter": {
+    "path": "assets/winter.jpg",
+    "page": "https://hydeparkwinterwonderland.com/hyde-park/",
+    "image": "https://d1kgj8r9rzpmlp.cloudfront.net/wp-content/uploads/2026/10/05224114/Winter-Wonderland_28th-November-2024_Joshua-Atkins-40-Web-1200x800.jpeg",
+    "bytes": 192927
+  },
+  "polar": {
+    "path": "assets/polar.png",
+    "page": "https://londonthepolarexpressride.com/",
+    "image": "https://londonthepolarexpressride.com/wp-content/uploads/2026/01/Untitled-6.png",
+    "bytes": 626763
+  },
+  "nhm": {
+    "path": "assets/nhm.jpg",
+    "page": "https://www.nhm.ac.uk/visit.html",
+    "image": "https://www.nhm.ac.uk/content/dam/nhm-www/home/2025-new-home-page-test/resized-fern-for-homepage-desktop.jpg",
+    "bytes": 461208
+  },
+  "somerset": {
+    "path": "assets/somerset.jpg",
+    "page": "https://www.somersethouse.org.uk/whats-on/skate-somerset-house",
+    "image": "https://admin.somersethouse.org.uk/images/sVbxorOige8YoaQx29zH3KFi4gI=/6862/width-600/Skate-HEADER-DAYTIME.jpg",
+    "bytes": 86105
+  },
+  "mash": {
+    "path": "assets/mash.jpg",
+    "page": "https://www.mothermash.co.uk/",
+    "image": "https://framerusercontent.com/assets/vn6X14wNHYSk4ToxeBgja2aI.jpg",
+    "bytes": 794375
+  },
+  "dishoom": {
+    "path": "assets/dishoom.jpg",
+    "page": "https://www.dishoom.com/covent-garden/",
+    "image": "https://cdn.sanity.io/images/daku84np/production/b492504165ed7b5327abddaf1086b7a099f65418-1200x797.jpg?rect=0,86,1200,627&w=1200&h=627&fit=crop&auto=format",
+    "bytes": 112574
+  },
+  "beigel": {
+    "path": "assets/beigel.jpg",
+    "page": "https://www.beigelbake.co.uk/",
+    "image": "http://www.beigelbake.co.uk/cdn/shop/files/beigel-bake-top-sm.jpg?v=1728656554",
+    "bytes": 153159
+  },
+  "bread": {
+    "path": "assets/bread.jpg",
+    "page": "https://www.breadahead.com/borough",
+    "image": "https://www.breadahead.com/wp-content/uploads/cropped-Bread-Ahead-Bakery-Borough-Market.jpeg",
+    "bytes": 80586
+  },
+  "hawksmoor": {
+    "path": "assets/hawksmoor.jpg",
+    "page": "https://thehawksmoor.com/locations/seven-dials/",
+    "image": "https://thehawksmoor.com/wp-content/uploads/2022/03/seven-dials-04-X3.jpeg",
+    "bytes": 673003
+  }
+}
