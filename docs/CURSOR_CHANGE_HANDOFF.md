@@ -13,6 +13,14 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+### 2026-10-24 — Sim satırları Roster listesinde görünmüyordu
+
+- **Sorun:** Admin PDF parse CPI/IPT/SIM satırlarını gösteriyordu; uygulama `displayFlights` / takvimde `roster_entry_kind === 'sim'` satırlarını sabit eleyordu. Katalog yayınından bağımsız.
+- **Dosyalar:** `mobile/screens/Roster.tsx`, `mobile/lib/rosterListPreferences.ts`
+- **Düzeltme:** Sim gizleme kaldırıldı; görünürlük `rosterListRowVisible` / `flights_only` ile. CPI* → simulator, BDF → off_days, RTC*/SNV → training sınıflandırması.
+- **Doğrulama:** helper OK; `git diff --check` OK. Cihazda: Profilde «Yalnız uçuşlar» kapalı olmalı; PDF’yi yeniden içe aktarıp sim/BDF kartlarını kontrol et.
+- **Koruma:** `flights_only` açıkken sim/off hâlâ gizlenir.
+
 ### 2026-10-24 — Görev kodları: CPI*, BDF, RTC*, IPT/SNV
 
 - **Amaç:** Roster occupation kataloğuna (DB) ve baked etiketlere kullanıcıdan gelen kodları eklemek.

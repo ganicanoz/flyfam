@@ -1489,13 +1489,11 @@ export default function Roster({
     }
   }, [isCrew, rosterListPrefs.time_display, familyRosterTz]);
 
-  /** Uçuş + duty_off satırları gösterilir; sim blokları listede gizlenir. Önümüzdeki N gün. Geçmiş kartlar slim archive ile kalır. */
+  /** Uçuş + duty_off + sim gösterilir; «Yalnız uçuşlar» açıksa rosterListRowVisible sim/off/eğitimi eker. */
   const displayFlights = React.useMemo(() => {
     const maxDate = getLocalDateStringPlusDays(ROSTER_MAX_DAYS_AHEAD);
     const minDate = getLocalDateStringPlusDays(-getRosterMinDaysAgo(exemptLandedAutoPurge, isCrew));
     const visible = flights.filter((f) => {
-      const kind = (f.roster_entry_kind ?? 'flight').toLowerCase();
-      if (kind === 'sim') return false;
       if ((f.flight_date || '') > maxDate) return false;
       if ((f.flight_date || '') < minDate) return false;
       return rosterListRowVisible(f, rosterListPrefs);
@@ -4852,8 +4850,8 @@ export default function Roster({
     // Liste filtresinden bağımsız varsayılan: takvim renkleri tüm roster satırlarından.
     // flights_only açıkken yalnızca uçuş günleri.
     for (const f of flights) {
-      const kind = (f.roster_entry_kind ?? 'flight').toLowerCase();
-      if (kind === 'sim') continue;
+      // sim → calendarDayKindForEntry duty_off (yeşil çubuk); «Yalnız uçuşlar»da zaten elenir.
+      if (flightsOnly && !rosterListRowVisible(f, rosterListPrefs)) continue;
       const dayKind = calendarDayKindForEntry(f);
       if (flightsOnly && dayKind !== 'flight') continue;
       const ymd = listGroupDate(f);
@@ -4884,7 +4882,7 @@ export default function Roster({
     persistedDayKinds,
     rosterTodayYmd,
     calendarLayoverDateSet,
-    rosterListPrefs.flights_only,
+    rosterListPrefs,
   ]);
 
   /** Hibrit takvim: nokta (uçuş) + çizgi (yatı / nöbet / off). Uçuş olan günde nöbet çizgisi yok. */
@@ -4894,8 +4892,7 @@ export default function Roster({
     const dutyOff = new Set<string>();
     const flightsOnly = rosterListPrefs.flights_only;
     for (const f of flights) {
-      const rk = (f.roster_entry_kind ?? 'flight').toLowerCase();
-      if (rk === 'sim') continue;
+      if (flightsOnly && !rosterListRowVisible(f, rosterListPrefs)) continue;
       const ymd = listGroupDate(f);
       const kind = calendarDayKindForEntry(f);
       if (kind === 'flight') {
@@ -4903,6 +4900,7 @@ export default function Roster({
       } else if (!flightsOnly && kind === 'standby') {
         standby.add(ymd);
       } else if (!flightsOnly && kind === 'duty_off') {
+        // sim de duty_off gün rengine düşer (yeşil çubuk)
         dutyOff.add(ymd);
       }
     }
@@ -4918,7 +4916,7 @@ export default function Roster({
       if ((flightCount.get(ymd) ?? 0) > 0) standby.delete(ymd);
     }
     return { flightCount, standby, dutyOff };
-  }, [flights, listGroupDate, persistedDayKinds, rosterTodayYmd, rosterListPrefs.flights_only]);
+  }, [flights, listGroupDate, persistedDayKinds, rosterTodayYmd, rosterListPrefs]);
 
   const calendarMarksUserKey =
     (isCrew ? crewProfile?.id : profile?.id) ?? (isCrew ? 'crew' : 'family');
