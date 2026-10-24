@@ -337,7 +337,14 @@ function formatNonPcRow(r: PdfFlightRow, i: number, listed: 'Evet' | 'Hayır', d
 function nonPcTypeLabel(r: PdfFlightRow): string {
   const fn = (r.flight_number || '').replace(/\s/g, '').toUpperCase();
   if (fn === 'FSF' || fn === 'FOF' || fn === 'SOF') return 'Boş Gün';
-  if (fn.includes('SIM') || fn.includes('IPT') || r.roster_entry_kind === 'sim') return 'Simülatör';
+  if (
+    fn.includes('SIM') ||
+    fn.includes('IPT') ||
+    fn.startsWith('CPI') ||
+    r.roster_entry_kind === 'sim'
+  ) {
+    return 'Simülatör';
+  }
   if (/^STBY/i.test(fn)) return 'Nöbet';
   if (r.roster_entry_kind === 'duty_off') return 'Boş Gün';
   return r.roster_entry_kind ?? 'Diğer';
