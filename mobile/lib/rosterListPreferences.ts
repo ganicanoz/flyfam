@@ -95,15 +95,16 @@ type FlightLike = {
 
 export function flightNumberLooksLikeTraining(flightNumber: string): boolean {
   const u = flightNumber.replace(/\s/g, '').toUpperCase();
-  if (u.includes('SIM') || u.includes('IPT')) return false;
+  if (u.includes('SIM') || u.includes('IPT') || u.startsWith('CPI')) return false;
   if (u.includes('YERDR')) return true;
+  if (u === 'SNV' || u === 'RTC' || /^RTC\d+$/.test(u)) return true;
   return ROSTER_TRAINING_FLIGHT_PREFIXES.some((p) => u === p || u.startsWith(p));
 }
 
 /** Uçuş segmenti her zaman flight; filtre dışı. Off-day kodları (MSF vb.) kind flight yazılmış olsa bile off. */
 export function categorizeRosterListRow(f: FlightLike): RosterListRowCategory {
   const fn = (f.flight_number || '').replace(/\s/g, '').toUpperCase();
-  if (fn.includes('SIM') || fn.includes('IPT')) return 'simulator';
+  if (fn.includes('SIM') || fn.includes('IPT') || fn.startsWith('CPI')) return 'simulator';
   if (flightNumberLooksLikeTraining(f.flight_number)) return 'training';
   if (
     fn === 'FSF' ||
@@ -117,10 +118,12 @@ export function categorizeRosterListRow(f: FlightLike): RosterListRowCategory {
     fn === 'VAC' ||
     fn === 'VAV' ||
     fn === 'AVAC' ||
-    fn === 'III'
+    fn === 'III' ||
+    fn === 'BDF'
   ) {
     return 'off_days';
   }
+  if (fn === 'RTC' || /^RTC\d+$/.test(fn) || fn === 'SNV') return 'training';
   const kind = f.roster_entry_kind ?? 'flight';
   if (kind === 'flight' || kind === '' || kind == null) return 'flight';
   if (kind === 'sim') return 'simulator';
