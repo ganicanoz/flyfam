@@ -60,7 +60,7 @@ import {
 } from '../lib/rosterOccupationLocalOverrides';
 import { subscribeOccupationCatalog } from '../lib/rosterOccupationCatalog';
 import { SuggestOccupationModal } from '../components/SuggestOccupationModal';
-import { importPdfFlightsViaRpc, isOffDayOccupationCode, isAnnualLeaveOccupationCode, isUnpaidLeaveOccupationCode, isGroundDutyOccupationCode, isOfficeDutyOccupationCode, isStandbyOccupationCode, isTrainingOccupationCode, isHomeDutyOccupationCode, isRosterPdfImportSupportedForCrewAirline } from '../lib/pdfRosterImport';
+import { importPdfFlightsViaRpc, isOffDayOccupationCode, isAnnualLeaveOccupationCode, isUnpaidLeaveOccupationCode, isGroundDutyOccupationCode, isOfficeDutyOccupationCode, isStandbyOccupationCode, isTrainingOccupationCode, isHomeDutyOccupationCode, isBirthdayOffOccupationCode, isRosterPdfImportSupportedForCrewAirline } from '../lib/pdfRosterImport';
 import {
   indigoDutyBlockTitleEn,
   indigoDutyBlockTitleTr,
@@ -6101,6 +6101,9 @@ export default function Roster({
               isSimulatorOccupationCode(blockCode) ||
               isSimulatorOccupationCode(item.duty_occupation_code);
             const isOffDayDutyCode = isOffDayOccupationCode(blockCode);
+            const isBirthdayOffCode =
+              isBirthdayOffOccupationCode(blockCode) ||
+              isBirthdayOffOccupationCode(item.duty_occupation_code);
             const isAnnualLeaveCode = isAnnualLeaveOccupationCode(blockCode);
             const isUnpaidLeaveCode = isUnpaidLeaveOccupationCode(blockCode);
             const isGroundDutyCode = isGroundDutyOccupationCode(blockCode);
@@ -6153,9 +6156,11 @@ export default function Roster({
                       ? (isTr ? 'Yer Dersi' : 'Ground Training')
                       : isOfficeDutyCode
                         ? (isTr ? 'Ofis' : 'Office Duty')
-                        : isOffDayDutyCode
-                          ? (isTr ? 'Boş Gün' : 'Off Day')
-                          : catalogDutyLabel ?? item.flight_number);
+                        : isBirthdayOffCode
+                          ? (isTr ? 'Doğum Günü İzni' : 'Birthday Off')
+                          : isOffDayDutyCode
+                            ? (isTr ? 'Boş Gün' : 'Off Day')
+                            : catalogDutyLabel ?? item.flight_number);
             const blockTitle =
               isDutyOffBlock
                 ? blockLabel
@@ -6429,6 +6434,7 @@ export default function Roster({
                 !!blockCode &&
                 !isOccupationCodeDefined(blockCode, crewProfile?.airline_icao) &&
                 occupationSuggestTick >= 0,
+              birthdayOff: isBirthdayOffCode,
               aircraftReg: isEnRoute
                 ? aircraftRegById[item.id] ||
                   formatAircraftRegistration(item.aircraft_registration) ||

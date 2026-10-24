@@ -54,6 +54,8 @@ export function isTrainingOccupationCode(code: string | null | undefined): boole
     u === 'SNV' ||
     u === 'SDM' ||
     u === 'EMM' ||
+    u === 'RTC' ||
+    /^RTC\d+$/.test(u) ||
     /^RC\d+$/.test(u)
   );
 }
@@ -223,7 +225,15 @@ const CREW_PLANNING_ABBR_EN: Record<string, string> = {
   SIM8M: 'PFTC Simulator-M 737',
   SMA: 'Simulator Training',
   IPT: 'Simulator',
+  CPI: 'CPI',
+  CPI1: 'CPI 1',
+  CPI2: 'CPI 2',
+  CPIX: 'CPI X',
   SNV: 'Exam',
+  BDF: 'Birthday Off',
+  RTC: 'Route To Commander',
+  RTC1: 'Route To Commander 1',
+  RTC2: 'Route To Commander 2',
   SOF: 'Special Day Off',
   SOS: 'Special Time Off',
   SRH: 'Sick Report',
@@ -316,7 +326,15 @@ const CREW_PLANNING_ABBR_TR: Record<string, string> = {
   SIM8M: 'Sim M (737)',
   SMA: 'Sim eğitimi',
   IPT: 'Simülatör',
+  CPI: 'CPI',
+  CPI1: 'CPI 1',
+  CPI2: 'CPI 2',
+  CPIX: 'CPI X',
   SNV: 'Sınav',
+  BDF: 'Doğum Günü İzni',
+  RTC: 'Route To Commander',
+  RTC1: 'Route To Commander 1',
+  RTC2: 'Route To Commander 2',
   SOF: 'Özel Boş Gün',
   SOS: 'Özel izin',
   SRH: 'Raporlu',
@@ -341,6 +359,8 @@ const CREW_PLANNING_ABBR_TR: Record<string, string> = {
 export function rosterOccupationLabelTr(code: string | null | undefined): string | null {
   if (!code) return null;
   const u = code.replace(/\s/g, '').toUpperCase();
+  // CPI* — PDF başlığı CPI; kartta «Simülatör:» öneki ayrıca eklenir
+  if (u.startsWith('CPI')) return CREW_PLANNING_ABBR_TR[u] ?? 'CPI';
   if (isSimulatorOccupationCode(u)) return 'Simülatör';
   // SDM = Safety Department Meeting (eğitim sınıfı) — `SB…` nöbet kuralına düşmesin
   if (u === 'SDM' || u.startsWith('SDM')) return ROSTER_OCCUPATION_TR.SDM ?? 'Toplantı';
@@ -352,9 +372,12 @@ export function rosterOccupationLabelTr(code: string | null | undefined): string
   if (/^RSV\d*$/.test(u)) return 'Rezerv';
   if (u === 'TOF') return 'Serbest Zaman';
   if (u === 'FSF' || u === 'FOF' || u === 'MSF') return 'Boş Gün';
+  if (u === 'BDF') return CREW_PLANNING_ABBR_TR.BDF ?? 'Doğum Günü İzni';
   if (u === 'UPV') return 'Ücretsiz İzin';
   if (u === 'VAV' || u === 'VAC' || u === 'AVAC' || u === 'III') return 'Yıllık İzin';
   if (u.includes('YERDR')) return 'Yer Dersi';
+  if (u === 'SNV') return CREW_PLANNING_ABBR_TR.SNV ?? 'Sınav';
+  if (/^RTC\d*$/.test(u)) return CREW_PLANNING_ABBR_TR[u] ?? 'Route To Commander';
   if (ROSTER_OCCUPATION_TR[u]) return ROSTER_OCCUPATION_TR[u]!;
   if (isTrainingOccupationCode(u)) return 'Görev';
   if (isOfficeDutyOccupationCode(u)) return 'Ofis';
@@ -364,6 +387,7 @@ export function rosterOccupationLabelTr(code: string | null | undefined): string
 export function rosterOccupationLabelEn(code: string | null | undefined): string | null {
   if (!code) return null;
   const u = code.replace(/\s/g, '').toUpperCase();
+  if (u.startsWith('CPI')) return CREW_PLANNING_ABBR_EN[u] ?? 'CPI';
   if (isSimulatorOccupationCode(u)) return 'Simulator';
   if (u === 'SDM' || u.startsWith('SDM')) return ROSTER_OCCUPATION_EN.SDM ?? 'Meeting';
   if (u === 'SBYP') return ROSTER_OCCUPATION_EN.SBYP ?? 'Home Standby';
@@ -373,9 +397,12 @@ export function rosterOccupationLabelEn(code: string | null | undefined): string
   if (/^RSV\d*$/.test(u)) return 'Reserve';
   if (u === 'TOF') return 'Time Off';
   if (u === 'MSF') return 'Off Day';
+  if (u === 'BDF') return CREW_PLANNING_ABBR_EN.BDF ?? 'Birthday Off';
   if (u === 'UPV') return 'Unpaid Leave';
   if (u === 'VAV' || u === 'VAC' || u === 'AVAC' || u === 'III') return 'Annual Leave';
   if (u.includes('YERDR')) return 'Ground Training';
+  if (u === 'SNV') return CREW_PLANNING_ABBR_EN.SNV ?? 'Exam';
+  if (/^RTC\d*$/.test(u)) return CREW_PLANNING_ABBR_EN[u] ?? 'Route To Commander';
   if (ROSTER_OCCUPATION_EN[u]) return ROSTER_OCCUPATION_EN[u]!;
   if (isTrainingOccupationCode(u)) return 'Duty';
   if (isOfficeDutyOccupationCode(u)) return 'Office Duty';
@@ -465,6 +492,13 @@ export function isOffDayOccupationCode(code: string | null | undefined): boolean
     u === 'JSV' ||
     u === 'TAV' ||
     u === 'SRH' ||
-    u === 'SXH'
+    u === 'SXH' ||
+    u === 'BDF'
   );
+}
+
+/** Doğum günü izni (BDF) — şirket 2 gün verir; kartta pasta ikonu. */
+export function isBirthdayOffOccupationCode(code: string | null | undefined): boolean {
+  const u = (code || '').replace(/\s/g, '').toUpperCase();
+  return u === 'BDF';
 }

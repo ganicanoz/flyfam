@@ -73,6 +73,8 @@ export type RosterFlightCardModel = {
   /** Nöbet kartı rozeti yerine (Rezerv, CFR). */
   standbyBadgeLabel?: string | null;
   showSuggestOccupation?: boolean;
+  /** BDF — doğum günü izni; off kartında pasta. */
+  birthdayOff?: boolean;
   aircraftReg?: string | null;
   aircraftType?: string | null;
   isPast?: boolean;
@@ -252,7 +254,9 @@ export function RosterFlightCard({
         ]
           .filter((x) => !!(x && String(x).trim()))
           .join(' · ')
-      : model.blockTitle?.trim() || t('roster.restDay');
+      : model.birthdayOff
+        ? `🎂 ${model.blockTitle?.trim() || t('roster.restDay')}`
+        : model.blockTitle?.trim() || t('roster.restDay');
 
     return (
       <TouchableOpacity

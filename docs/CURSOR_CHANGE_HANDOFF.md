@@ -13,6 +13,19 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+### 2026-10-24 — Görev kodları: CPI*, BDF, RTC*, IPT/SNV
+
+- **Amaç:** Roster occupation kataloğuna (DB) ve baked etiketlere kullanıcıdan gelen kodları eklemek.
+- **Dosyalar:** `supabase/migrations/20261024190000_roster_occupation_cpi_bdf_rtc_ipt.sql`, `simulatorDuty.ts`, `occupationLabels.ts`, `normalize.ts`, `public.ts`, `mobile/screens/Roster.tsx`, `mobile/components/roster/RosterFlightCard.tsx`, `mobile/scripts/pdf-roster-preview.ts`.
+- **Kodlar (PGT):**
+  - `CPI` / `CPI1` / `CPI2` / `CPIX` (+ `CPI*` pattern): simülatör; `flight_number` etiketi `CPI`.
+  - `IPT` (*IPT* zaten sim): açıklama güncellendi; SIM gibi.
+  - `SNV`: sınav (ofiste); açıklama netleştirildi.
+  - `BDF`: doğum günü izni (off; genelde 2 gün); kartta 🎂.
+  - `RTC` / `RTC1` / `RTC2`: Route To Commander (training; IPT yanında detay olabilir).
+- **Doğrulama:** occupation helper 18/18 OK; `git diff --check` OK. Canlı DB bu oturumda `SUPABASE_ACCESS_TOKEN` yok — migration + yayın uygulanamadı; merge sonrası `db query --linked -f` + `migration repair --status applied 20261024190000` veya admin «Kaydet + yayınla».
+- **Koruma:** Mevcut SIM/IPT/STBY/off kuralları aynı; BDF yalnız off + pasta; CPI* sim sınıfına eklendi.
+
 ### 2026-10-12 — Aile planı: Apple Takvim onayı, 11 Ekim hastane yok
 
 - **Amaç:** Eşin çalışma günleri Apple Takvim’e uçuşlar olmadan, yalnız onaydan sonra yazılsın. 11 Ekim hastane işi olmasın.
