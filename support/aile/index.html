@@ -1000,13 +1000,13 @@
       const back = already ? end : end + T(place, 'home', end);
       const needs = [];
       if (day.schoolDay) {
-        const S = day.sStart, E = day.sEnd, sch = day.schoolPlace;
+        const S = day.schoolFrom || day.sStart, E = day.sEnd, sch = day.schoolPlace;
         const pre = Number.isFinite(Number(cfg.school.dropBeforeMin)) ? Number(cfg.school.dropBeforeMin) : 10;
         const dStart = S - pre - T('home', sch, S - 30), dEnd = S + T(sch, 'home', S);
         const pStart = E - pre - T('home', sch, E - 30), pEnd = E + T(sch, 'home', E);
         const mineDrops = leave >= dEnd || S + T(sch, place, S) <= start;
         const minePicks = back <= pStart || leave >= pEnd || end + T(place, sch, end) <= E;
-        if (!mineDrops) needs.push({ what: 'okula götürme', s: Math.min(leave, dStart), e: dEnd, run: true, slot: 'drop' });
+        if (!day.skipDrop && !mineDrops) needs.push({ what: 'okula götürme', s: Math.min(leave, dStart), e: dEnd, run: true, slot: 'drop' });
         if (!minePicks) needs.push({ what: 'okuldan alma + evde', s: pStart, e: Math.max(pEnd, back), run: true, slot: 'pick' });
         else if (leave >= E) needs.push({ what: 'evde bakım', s: leave, e: back });
       } else needs.push({ what: 'evde bakım', s: leave, e: back });
@@ -1058,6 +1058,7 @@
       const win = { drop: [S - pre - T('home', sch, S - 30), S + T(sch, 'home', S), S], pick: [E - pre - T('home', sch, E - 30), E + T(sch, 'home', E), E] };
       const out = {};
       for (const slot of ['drop', 'pick']) {
+        if (slot === 'drop' && day.skipDrop) { out.drop = null; continue; }
         const [s, e, at] = win[slot];
         const cs = crewState(ctx.crew.intervals, day.base + s, day.base + e);
         const crewFree = !cs || cs === 'standby';
@@ -1097,18 +1098,21 @@
       return C + ' ' + cw(r.cs) + ', ' + pw;
     }
     const taxiText = (cfg, t) => '🚕 ' + shortPlace(cfg, t.from) + '→' + shortPlace(cfg, t.to) + ' ~' + tl(t.fare);
-    const runTaxi = (run) => (run ? (run.drop.taxi ? run.drop.taxi.fare : 0) + (run.pick.taxi ? run.pick.taxi.fare : 0) : 0);
+    const runTaxi = (run) => (run ? ((run.drop && run.drop.taxi) ? run.drop.taxi.fare : 0) + (run.pick.taxi ? run.pick.taxi.fare : 0) : 0);
     function runMini(cfg, ev) {
       if (!ev.run) return '';
       const r = ev.run;
       const t = (x, arrow) => arrow + ' ' + runWho(cfg, x, true) + ' (' + runWhy(cfg, x) + ')' + (x.taxi ? ' ' + taxiText(cfg, x.taxi) : '');
-      return '<div class="run' + (r.drop.who === 'none' || r.pick.who === 'none' ? ' bad' : '') + '" title="' + esc(t(r.drop, 'Bırakma') + '\n' + t(r.pick, 'Alma')) + '">↓' + esc(runWho(cfg, r.drop, true)) + ' ↑' + esc(runWho(cfg, r.pick, true)) + (runTaxi(r) ? ' 🚕' : '') + '</div>';
+      const bad = (r.drop && r.drop.who === 'none') || r.pick.who === 'none';
+      const dropTxt = r.drop ? '↓' + esc(runWho(cfg, r.drop, true)) + ' ' : '';
+      const title = (r.drop ? t(r.drop, 'Bırakma') + '\n' : '') + t(r.pick, 'Alma');
+      return '<div class="run' + (bad ? ' bad' : '') + '" title="' + esc(title) + '">' + dropTxt + '↑' + esc(runWho(cfg, r.pick, true)) + (runTaxi(r) ? ' 🚕' : '') + '</div>';
     }
     function runSheet(cfg, ev) {
       if (!ev.run) return '';
       const row = (x, label) => '<div class="' + (x.who === 'none' ? 'bad' : x.risk ? 'warn' : '') + '">' + label + ' ' + fmt(x.at) + ' — <b>' + esc(runWho(cfg, x)) + '</b> <span class="muted">(' + esc(runWhy(cfg, x)) + ')</span>' +
         (x.taxi ? '<br><span class="taxi">' + esc(taxiText(cfg, x.taxi)) + ' · ' + String(x.taxi.km).replace('.', ',') + ' km, ~' + x.taxi.min + ' dk' + (x.slot === 'pick' ? ' · okuldan istasyona toplu taşıma' : '') + '</span>' : '') + '</div>';
-      return '<div class="runbox"><b>🏫 Okul yolu</b>' + row(ev.run.drop, '↓ Bırakma') + row(ev.run.pick, '↑ Alma') + '</div>';
+      return '<div class="runbox"><b>🏫 Okul yolu</b>' + (ev.run.drop ? row(ev.run.drop, '↓ Bırakma') : '') + row(ev.run.pick, '↑ Alma') + '</div>';
     }
     function renderRuns(res) {
       const { cfg, days } = res;
@@ -1119,10 +1123,10 @@
       let total = 0, rides = 0;
       const pill = (x) => '<span class="who ' + x.who + (x.risk ? ' risk' : '') + '" title="' + esc(runWhy(cfg, x)) + '">' + esc(runWho(cfg, x)) + '</span>';
       const rows = list.map((d) => {
-        for (const s of ['drop', 'pick']) { const x = d.run[s]; cnt[s][x.who] = (cnt[s][x.who] || 0) + 1; if (x.taxi) { total += x.taxi.fare; rides += 1; } }
-        const fares = ['drop', 'pick'].map((s) => d.run[s].taxi).filter(Boolean);
-        const bad = d.run.drop.who === 'none' || d.run.pick.who === 'none';
-        return '<tr class="' + (bad ? 'bad' : '') + (st.newConf.has(d.ymd) ? ' newconf' : '') + '" data-runday="' + d.ymd + '"><td><b>' + Number(d.ymd.slice(8, 10)) + '</b> ' + DAY_SHORT[d.wd] + (d.holHalf ? ' <span class="muted">(arife)</span>' : '') + '</td><td>' + pill(d.run.drop) + '</td><td>' + pill(d.run.pick) + '</td><td class="num">' +
+        for (const s of ['drop', 'pick']) { const x = d.run[s]; if (!x) continue; cnt[s][x.who] = (cnt[s][x.who] || 0) + 1; if (x.taxi) { total += x.taxi.fare; rides += 1; } }
+        const fares = ['drop', 'pick'].map((s) => d.run[s] && d.run[s].taxi).filter(Boolean);
+        const bad = (d.run.drop && d.run.drop.who === 'none') || d.run.pick.who === 'none';
+        return '<tr class="' + (bad ? 'bad' : '') + (st.newConf.has(d.ymd) ? ' newconf' : '') + '" data-runday="' + d.ymd + '"><td><b>' + Number(d.ymd.slice(8, 10)) + '</b> ' + DAY_SHORT[d.wd] + (d.holHalf ? ' <span class="muted">(arife)</span>' : '') + '</td><td>' + (d.run.drop ? pill(d.run.drop) : '<span class="muted">sonra</span>') + '</td><td>' + pill(d.run.pick) + '</td><td class="num">' +
           (fares.length ? fares.map((f) => tl(f.fare)).join(' + ') : '<span class="muted">—</span>') + '</td></tr>';
       }).join('');
       const counts = (s) => keys.filter((k) => cnt[s][k]).map((k) => esc(runWho(cfg, { who: k })) + ' <b>' + cnt[s][k] + '</b>').join(' · ');
@@ -1219,6 +1223,11 @@
       const cfg = ctx.cfg;
       const P = cfg.people || {};
       const day = dayBase(cfg, ymd);
+      const laterSchool = (cfg.familyAppointments || []).find((a) => a && a.date === ymd && a.person === 'child' && a.thenSchool && a.start);
+      if (day.schoolDay && laterSchool) {
+        day.skipDrop = true;
+        day.schoolFrom = Math.max(day.sStart, hm(laterSchool.start));
+      }
       const segs = { crew: [], child: [], partner: [] };
       const notes = [];
       let conflict = false;
@@ -1237,10 +1246,10 @@
         if (post) road(segs.crew, clipS(iv.e - post), clipE(iv.e), COLORS.duty, base, 'home');
       }
       if (day.schoolDay) {
-        const S = day.sStart, E = day.sEnd, sch = day.schoolPlace;
+        const S = day.schoolFrom || day.sStart, E = day.sEnd, sch = day.schoolPlace;
         const pre = Number.isFinite(Number(cfg.school.dropBeforeMin)) ? Number(cfg.school.dropBeforeMin) : 10;
-        road(segs.child, S - pre - travel(cfg, 'home', sch, ymd, S - 30), S - pre, COLORS.school, 'home', sch);
-        segs.child.push({ s: day.sStart, e: day.sEnd, kind: 'school', title: 'Okul' });
+        if (!day.skipDrop) road(segs.child, S - pre - travel(cfg, 'home', sch, ymd, S - 30), S - pre, COLORS.school, 'home', sch);
+        segs.child.push({ s: S, e: E, kind: 'school', title: 'Okul' });
         road(segs.child, E, E + travel(cfg, sch, 'home', ymd, E), COLORS.school, sch, 'home');
         if (day.holHalf) notes.push({ k: 'warn', t: 'Arife: okul çıkışı ' + fmt(day.sEnd) });
       }
@@ -1249,9 +1258,9 @@
       const appointments = (cfg.familyAppointments || []).filter((a) => a.date === ymd && ['crew','child','partner'].includes(a.person));
       for (const a of appointments) {
         const s = hm(a.start), e = a.end ? hm(a.end) : s + 5;
-        const title = (P[a.person] || '') + ' · ' + a.label + ' · ' + a.start + ' · ' + (a.location || '');
+        const title = [(P[a.person] || ''), a.start, a.label, a.location].filter((x) => x).join(' · ') + (a.end ? '–' + a.end : '');
         // A five-minute marker indicates the start, not an assumed appointment duration.
-        segs[a.person].push({ s, e, kind: 'appointment', point: !a.end, color: '#ea580c', title: title + (a.end ? '–' + a.end : ' · bitiş belirtilmedi') });
+        segs[a.person].push({ s, e, kind: 'appointment', point: !a.end, color: '#ea580c', title });
         notes.push({ k: 'muted', t: title });
         if (a.person === 'crew' && crewState(ctx.crew.intervals, day.base+s, day.base+e) === 'duty') {
           conflict = true; notes.push({ k:'bad', t:title + ': uçuş göreviyle çakışıyor' });
@@ -1417,7 +1426,7 @@
       return '<span class="care" title="' + esc(label) + '">' + carpetSvg() + (withName ? '<span>' + esc(name || 'Evde') + '</span>' : '') + '</span>';
     }
     function appointmentHtml(ev, cfg) {
-      return (ev.appointments || []).map((a) => '<div class="appointment">📍 ' + esc((cfg.people[a.person] || '') + ' · ' + a.start + ' · ' + a.label + ' · ' + (a.location || '') + (a.end ? '–' + a.end : '')) + '</div>').join('');
+      return (ev.appointments || []).map((a) => '<div class="appointment">📍 ' + esc([(cfg.people[a.person] || ''), a.start, a.label, a.location].filter((x) => x).join(' · ') + (a.end ? '–' + a.end : '')) + '</div>').join('');
     }
     function timeline(ev, cfg, big) {
       const vs = hm(cfg.view?.start || '06:00'), ve = hm(cfg.view?.end || '23:00');
@@ -1544,7 +1553,7 @@
         if (ev.homeHelp) lines.push('<div class="ln">' + careMark(ev.homeHelp, true) + ' evde</div>');
         if (ev.run) {
           const fare = runTaxi(ev.run);
-          lines.push('<div class="ln run' + (ev.run.drop.who === 'none' || ev.run.pick.who === 'none' ? ' bad' : '') + '">🏫 ↓ ' + esc(runWho(cfg, ev.run.drop)) + ' · ↑ ' + esc(runWho(cfg, ev.run.pick)) + (fare ? ' · 🚕 ~' + tl(fare) : '') + '</div>');
+          lines.push('<div class="ln run' + ((ev.run.drop && ev.run.drop.who === 'none') || ev.run.pick.who === 'none' ? ' bad' : '') + '">🏫 ' + (ev.run.drop ? '↓ ' + esc(runWho(cfg, ev.run.drop)) + ' · ' : '') + '↑ ' + esc(runWho(cfg, ev.run.pick)) + (fare ? ' · 🚕 ~' + tl(fare) : '') + '</div>');
         }
         if (!past && st.newConf.has(ev.ymd)) { cls.push('newconf'); lines.unshift('<div class="ln bad"><span class="newtag">YENİ ⚠</span> yeni çakışma</div>'); }
         const badges = [];
@@ -1971,6 +1980,7 @@
     const CONFIG_MIG_NOV26_SCHOOL = 'school_closed_2026_11_16_20';
     const CONFIG_MIG_NOV26_HK = 'vacation_hongkong_2026_11_18_25';
     const CONFIG_MIG_VISA_NO = 'visa_norway_2026_11_05';
+    const CONFIG_MIG_VISA_NO_BRIEF = 'visa_norway_2026_11_05_brief';
     const NOV26_SCHOOL_CLOSED = ['2026-11-16', '2026-11-17', '2026-11-18', '2026-11-19', '2026-11-20'];
     const NOV26_HK = { from: '2026-11-18', to: '2026-11-25', label: 'Hong Kong' };
     const HOSPITAL_LABEL = 'Acıbadem Hastanesi';
@@ -2184,26 +2194,41 @@
       if (!done.includes(CONFIG_MIG_VISA_NO)) {
         const ymd = '2026-11-05';
         const list = Array.isArray(full.familyAppointments) ? full.familyAppointments.filter(Boolean).map((a) => ({ ...a })) : [];
-        const loc = 'Ofton Elysium, Hacıahmet Mh. Kurtuluş Deresi Cd. No:29, Beyoğlu · NOR23622921493 · açık';
         for (const person of ['child', 'partner', 'crew']) {
-          const has = list.some((a) => a.date === ymd && a.person === person && /norveç|norvec|norway/i.test(String(a.label || '') + ' ' + String(a.location || '')));
+          const has = list.some((a) => a.date === ymd && a.person === person && /vize|norveç|norvec|norway/i.test(String(a.label || '') + ' ' + String(a.location || '')));
           if (has) continue;
-          list.push({
-            id: 'visa-norway-2026-11-05-' + person,
-            person,
-            date: ymd,
-            start: '10:15',
-            label: 'Norveç vize görüşmesi',
-            location: loc,
-          });
+          const row = { id: 'visa-norway-2026-11-05-' + person, person, date: ymd, start: '10:15', label: 'vize görüşmesi' };
+          if (person === 'child') row.thenSchool = true;
+          list.push(row);
         }
         full.familyAppointments = list;
-        const school = full.school && typeof full.school === 'object' && !Array.isArray(full.school) ? { ...full.school } : { closedDates: [] };
-        const closed = Array.isArray(school.closedDates) ? school.closedDates.slice() : [];
-        if (!closed.includes(ymd)) closed.push(ymd);
-        school.closedDates = closed.sort();
-        full.school = school;
         done.push(CONFIG_MIG_VISA_NO);
+        changed = true;
+      }
+      if (!done.includes(CONFIG_MIG_VISA_NO_BRIEF)) {
+        const ymd = '2026-11-05';
+        const list = Array.isArray(full.familyAppointments) ? full.familyAppointments.filter(Boolean).map((a) => ({ ...a })) : [];
+        const mine = (a) => a && a.date === ymd && /vize|norveç|norvec|norway|visa-norway-2026-11-05/i.test(String(a.label || '') + ' ' + String(a.location || '') + ' ' + String(a.id || ''));
+        for (const a of list) {
+          if (!mine(a)) continue;
+          a.label = 'vize görüşmesi';
+          delete a.location;
+          if (a.person === 'child') a.thenSchool = true;
+          else delete a.thenSchool;
+        }
+        for (const person of ['child', 'partner', 'crew']) {
+          if (list.some((a) => mine(a) && a.person === person)) continue;
+          const row = { id: 'visa-norway-2026-11-05-' + person, person, date: ymd, start: '10:15', label: 'vize görüşmesi' };
+          if (person === 'child') row.thenSchool = true;
+          list.push(row);
+        }
+        full.familyAppointments = list;
+        const school = full.school && typeof full.school === 'object' && !Array.isArray(full.school) ? { ...full.school } : null;
+        if (school && Array.isArray(school.closedDates) && school.closedDates.includes(ymd)) {
+          school.closedDates = school.closedDates.filter((d) => d !== ymd);
+          full.school = school;
+        }
+        done.push(CONFIG_MIG_VISA_NO_BRIEF);
         changed = true;
       }
       if (!changed) return false;
