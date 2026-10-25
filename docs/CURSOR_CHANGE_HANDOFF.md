@@ -13,6 +13,15 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+### 2026-10-25 — Aile planı: evde bakım yardımcısı
+
+- **Amaç:** Çocuk evde bakıma kaldığında ve ekip görevde, yatıda ya da nöbetteyse yardımcı o boşluğu kapatır. O günlerde takvim hücresinde, listede ve gün detayında Türkmen halı motifi (yeşil zemin, kırmızı şerit, sarı motif) görünür. Okul bırakma ve alma bu turda değişmez.
+- **Dosyalar:** `support/aile/index.html`, `support/aile/sw.js` (`aile-shell-v22`), `scripts/test-aile-eso.mjs`.
+- **Veri:** `config.homeHelp`. `covers` içinde `home` yoksa eklenir; `mark` `carpet`. Ad repoya yazılmaz; canlı kayıtta `homeHelp.name` durur. İlk çevrimiçi açılış `save_config` ile yamayı kaydeder ve mevcut adı silmez.
+- **Doğrulama:** `node scripts/test-aile-eso.mjs` OK; sayfa betiği `node --check` OK; `git diff --check` OK.
+- **Koruma:** Okul yolu, çakışma (okul bırakma/alma hâlâ kırmızı), Kasım okul kapalı, Hong Kong, gelir ve takvim onayı aynı. `family-planner` deploy edilmedi.
+- **Canlı:** Yayın sonrası doğrulanacak.
+
 ### 2026-10-25 — Aile «indi» push: eski iniş koruması
 
 - **Sorun:** Roster yeniden import / satır yeniden oluşturunca cron FR24’teki eski ATA’yı bulup `null → landed` yapıyor; aileye «Gani indi» gidiyordu (PC582/PC583, iniş saatlerce önce).

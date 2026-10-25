@@ -43,6 +43,10 @@ eq('salı adı', fresh.partnerFixed[0].label === 'Acıbadem Hastanesi' && fresh.
 eq('yer adı', fresh.places.altunizade.label === 'Acıbadem Hastanesi' && fresh.places.altunizade.address === 'Üsküdar');
 eq('başka iş durur', fresh.partnerFixed.some((x) => x.icon === 'T' && x.label === 'Toplantı'));
 eq('ikinci çağrı yok', migrate(fresh) === false);
+eq('ev bakımı kaydı adsız', fresh.homeHelp && fresh.homeHelp.covers.includes('home') && fresh.homeHelp.mark === 'carpet' && !fresh.homeHelp.name);
+const named = { configMigrations: (fresh.configMigrations || []).filter((x) => x !== 'home_help_carpet'), homeHelp: { name: 'Keep', covers: ['home'], mark: 'carpet' } };
+eq('ad korunur', migrate(named) === true && named.homeHelp.name === 'Keep' && named.homeHelp.covers.includes('home'));
+eq('ad ikinci yok', migrate(named) === false);
 
 const legacy = {
   places: { altunizade: { label: 'Altunizade', short: 'Altunizade' } },
@@ -80,8 +84,9 @@ eq('tatil cümlesi', html.includes('Doktor Hanıım, bu ay bir seyehatiniz olaca
 eq('eso yok', !html.includes('id="esoDock"') && !html.includes('ESO_HI') && !html.includes('interpretAssist') && !html.includes('Buyrun Doktor') && !html.includes('Konuşarak söyle'));
 eq('İ ikonu üretilmiyor', !html.includes("icon: 'İ'") && !html.includes('short: \'İmza\''));
 eq('gelir ekle ve roster', html.includes('>Gelir ekle<') && html.includes('id="moneyMemo"') && html.includes('class="clinic-btn') && html.includes('id="btnRoster"') && html.includes('function moneyMonthTotals') && !html.includes('id="moneyClinic"') && !html.includes('Ciro girişleri') && !html.includes('Son 6 ay'));
-eq('önbellek v21', sw.includes("const CACHE = 'aile-shell-v21'") && sw.includes('/aile/work-cal.mjs') && !sw.includes('logo-dis-wide') && !html.includes('logo-dis-wide') && !html.includes("'<span>' + esc(c.label)") && html.includes('id="conflicts"') && html.includes('class="sug"') && html.includes('hours ticks') && html.includes("const bad = past ? ''") && html.includes('id="calYes"') && html.includes('family-planner-calendar') && html.includes('partner_off_acibadem_2026_10_11') && html.includes('id="schAdd"') && html.includes('school_closed_2026_11_16_20') && html.includes('vacation_hongkong_2026_11_18_25'));
+eq('önbellek v22', sw.includes("const CACHE = 'aile-shell-v22'") && sw.includes('/aile/work-cal.mjs') && !sw.includes('logo-dis-wide') && !html.includes('logo-dis-wide') && !html.includes("'<span>' + esc(c.label)") && html.includes('id="conflicts"') && html.includes('class="sug"') && html.includes('hours ticks') && html.includes("const bad = past ? ''") && html.includes('id="calYes"') && html.includes('family-planner-calendar') && html.includes('partner_off_acibadem_2026_10_11') && html.includes('id="schAdd"') && html.includes('school_closed_2026_11_16_20') && html.includes('vacation_hongkong_2026_11_18_25'));
 eq('geçmiş kilit', html.includes('Geçmiş gün değişmez') && html.includes('Gerçekleşti') && html.includes('partner_off_2026_10_10') && html.includes('vfs_cekya_2026_10_16'));
+eq('halı motifi', html.includes('function carpetSvg') && html.includes('home_help_carpet') && html.includes("fill=\"#c8102e\"") && !html.includes('function schoolRunHelp'));
 
 const moneyStart = script.indexOf('function placeBlob');
 const moneyEnd = script.indexOf('function moneyMonthEnd');
@@ -185,6 +190,29 @@ eq('okul 16-20 kapalı', JSON.stringify(nov.school.closedDates) === JSON.stringi
 eq('hong kong tatil', nov.vacations.some((v) => v.from === '2026-11-18' && v.to === '2026-11-25' && v.label === 'Hong Kong'));
 eq('tatilde iş seçimi silinir', !nov.plans['2026-11']['2026-11-19'] && !!nov.plans['2026-11']['2026-11-26']);
 eq('kasım tekrar yok', migrate(nov) === false);
+
+const helpStart = script.indexOf('function homeHelpOf');
+const helpEnd = script.indexOf('function needText');
+if (helpStart < 0 || helpEnd < helpStart) {
+  console.error('ev bakımı bloğu bulunamadı');
+  process.exit(1);
+}
+const help = new Function(script.slice(helpStart, helpEnd) + '\nreturn { homeHelpOf, coverHomeCare };')();
+const helpCfg = { homeHelp: { name: 'Yardimci', covers: ['home'] } };
+eq('ev bakımı açık', help.homeHelpOf(helpCfg).name === 'Yardimci');
+eq('okul yolu kapalı', help.homeHelpOf({ homeHelp: { covers: ['drop', 'pick'] } }) == null);
+const needs = [
+  { what: 'evde bakım', st: 'away' },
+  { what: 'okula götürme', st: 'duty', run: true },
+  { what: 'evde bakım', st: null },
+  { what: 'evde bakım', st: 'standby' },
+];
+help.coverHomeCare(helpCfg, needs);
+eq('yatıda evde bakar', needs[0].help === true && needs[0].st == null && needs[0].helpName === 'Yardimci');
+eq('okul bırakma durur', needs[1].st === 'duty' && !needs[1].help);
+eq('müsait crew durur', needs[2].st == null && !needs[2].help);
+eq('nöbette evde bakar', needs[3].help === true && needs[3].st == null);
+
 if (failed) {
   console.error(failed + ' failed');
   process.exit(1);

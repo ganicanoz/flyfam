@@ -268,7 +268,12 @@
     .lrow.bad { box-shadow: inset 4px 0 0 #dc2626; }
     .done-tag { color: #64748b; font-weight: 800; font-size: 9.5px; text-transform: none; }
     .d { display: flex; justify-content: space-between; align-items: baseline; gap: 2px; }
+    .d-l { display: inline-flex; align-items: center; gap: 3px; min-width: 0; }
     .d b { font-size: 14px; }
+    .care { display: inline-flex; align-items: center; gap: 3px; color: #0b7a43; font-size: 10px; font-weight: 800; line-height: 1; }
+    .care .carpet { width: 14px; height: 14px; display: block; flex: none; }
+    .care-line { display: flex; align-items: center; gap: 6px; margin: 8px 0; font-weight: 800; color: #0b7a43; }
+    .seg.care { background-color: #0b7a43; background-image: repeating-linear-gradient(180deg, #c8102e 0 2px, #0b7a43 2px 5px); }
     .d small { font-size: 9.5px; font-weight: 600; color: #c2410c; text-align: right; line-height: 1.1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .tl { display: grid; gap: 2px; }
     .tl-row { position: relative; height: 5px; border-radius: 3px; background: rgba(148,163,184,.16); overflow: hidden; }
@@ -1005,22 +1010,43 @@
         if (!minePicks) needs.push({ what: 'okuldan alma + evde', s: pStart, e: Math.max(pEnd, back), run: true, slot: 'pick' });
         else if (leave >= E) needs.push({ what: 'evde bakım', s: leave, e: back });
       } else needs.push({ what: 'evde bakım', s: leave, e: back });
+      for (const n of needs) n.st = crewState(ctx.crew.intervals, day.base + n.s, day.base + n.e);
+      coverHomeCare(cfg, needs);
       let worst = 'ok';
       for (const n of needs) {
-        n.st = crewState(ctx.crew.intervals, day.base + n.s, day.base + n.e);
         if (n.st === 'duty' || n.st === 'away') worst = 'bad';
         else if ((n.st === 'standby' || (n.st === 'home' && n.run)) && worst === 'ok') worst = 'risk';
       }
       return { needs, worst };
     }
+    /** Evde bakım boşluğunu config.homeHelp kapatır. Okul bırakma/alma covers içinde olsa bile bu turda değişmez. */
+    function homeHelpOf(cfg) {
+      const h = cfg && cfg.homeHelp;
+      if (!h || typeof h !== 'object' || Array.isArray(h) || h.enabled === false) return null;
+      const covers = Array.isArray(h.covers) ? h.covers.map(String) : [];
+      if (!covers.includes('home')) return null;
+      return { name: String(h.name || '').trim(), covers };
+    }
+    function coverHomeCare(cfg, needs) {
+      const help = homeHelpOf(cfg);
+      if (!help) return;
+      for (const n of needs || []) {
+        if (!n || n.run || n.what !== 'evde bakım') continue;
+        if (n.st !== 'duty' && n.st !== 'away' && n.st !== 'standby') continue;
+        n.help = true;
+        n.helpName = help.name;
+        n.st = null;
+      }
+    }
     function needText(cfg, n) {
       const P = cfg.people || {};
       const C = P.crew || 'Crew', CH = P.child || 'Çocuk';
+      if (n.help) return CH + ' evde ' + fmt(n.s) + '–' + fmt(n.e) + ': ' + (n.helpName || 'Evde bakım') + ' bakar';
       const s = !n.st ? C + ' müsait' : n.st === 'standby' ? C + ' nöbet/rezerv (riskli)' : n.st === 'home' ? (n.run ? C + ' ev görevinde, okul yolu riskli' : C + ' ev görevinde, evde bakabilir') :
         n.st === 'away' ? C + ' yatıda' : C + ' görevde';
       return CH + ' ' + n.what + ' ' + fmt(n.s) + '–' + fmt(n.e) + ': ' + s;
     }
-    const needKind = (n) => (!n.st ? 'ok' : n.st === 'home' ? (n.run ? 'warn' : 'ok') : n.st === 'standby' ? 'warn' : 'bad');
+    const needKind = (n) => (n.help || !n.st ? 'ok' : n.st === 'home' ? (n.run ? 'warn' : 'ok') : n.st === 'standby' ? 'warn' : 'bad');
 
     // ---------- okul yolu + taksi ----------
     /** Okula bırakma / okuldan alma: ikisi müsaitse ailece, biri müsaitse o. Crew nöbet/rezervde müsait sayılır; ev görevinde yalnız eş yapamıyorsa (riskli). */
@@ -1274,8 +1300,13 @@
         notes.push({ k: 'bad', t: canShareDay(cfg, plans[i].cand, plans[j].cand) ? plans[i].label + ' ve ' + plans[j].label + ' saatleri/yolu çakışıyor' : plans[i].label + ' ve ' + plans[j].label + ' aynı gün olmaz' });
         conflict = true;
       }
+      let homeHelp = '';
+      for (const w of [...fixed, ...plans]) for (const n of w.needs || []) if (n.help) {
+        homeHelp = n.helpName || homeHelp || 'Evde';
+        segs.child.push({ s: n.s, e: n.e, kind: 'care', title: (n.helpName || 'Evde bakım') + ' evde' });
+      }
       const run = day.schoolDay ? schoolRun(ctx, day, [...fixed, ...plans]) : null;
-      return { ...day, appointments, segs, notes, fixed, opts, rejected, plans, plan: plans[0] || null, conflict, run, crewLabels: ctx.crew.labels[ymd] || [] };
+      return { ...day, appointments, segs, notes, fixed, opts, rejected, plans, plan: plans[0] || null, conflict, run, homeHelp, crewLabels: ctx.crew.labels[ymd] || [] };
     }
 
     function compute() {
@@ -1378,6 +1409,13 @@
     }
 
     // ---------- çizim ----------
+    function carpetSvg() {
+      return '<svg class="carpet" viewBox="0 0 16 16" aria-hidden="true"><rect width="16" height="16" rx="2" fill="#0b7a43"/><rect x="1" width="4" height="16" fill="#c8102e"/><circle cx="3" cy="3.2" r="1" fill="#f6d56b"/><circle cx="3" cy="8" r="1" fill="#f6d56b"/><circle cx="3" cy="12.8" r="1" fill="#f6d56b"/><path d="M11.3 6.1a2.5 2.5 0 1 0 .2 3.7 2 2 0 1 1-.2-3.7z" fill="#fff"/></svg>';
+    }
+    function careMark(name, withName) {
+      const label = (name || 'Evde bakım') + ' evde';
+      return '<span class="care" title="' + esc(label) + '">' + carpetSvg() + (withName ? '<span>' + esc(name || 'Evde') + '</span>' : '') + '</span>';
+    }
     function appointmentHtml(ev, cfg) {
       return (ev.appointments || []).map((a) => '<div class="appointment">📍 ' + esc((cfg.people[a.person] || '') + ' · ' + a.start + ' · ' + a.label + ' · ' + (a.location || '') + (a.end ? '–' + a.end : '')) + '</div>').join('');
     }
@@ -1388,8 +1426,9 @@
         const s = Math.max(vs, x.s), e = Math.min(ve, x.e);
         if (e <= s) return '';
         const color = x.color || COLORS[x.kind] || '#94a3b8';
-        return '<span class="seg' + (x.kind === 'cand' ? ' cand' : x.kind === 'travel' ? ' travel' : '') + '" title="' + esc((x.title || '') + ' ' + fmt(x.s) + (x.point ? '' : '–' + fmt(x.e))) + '" style="left:' + ((s - vs) / span * 100).toFixed(2) + '%;width:' +
-          ((e - s) / span * 100).toFixed(2) + '%;' + (x.kind === 'travel' ? '--c:' : 'background-color:') + color + '"></span>';
+        const kindCls = x.kind === 'cand' ? ' cand' : x.kind === 'travel' ? ' travel' : x.kind === 'care' ? ' care' : '';
+        return '<span class="seg' + kindCls + '" title="' + esc((x.title || '') + ' ' + fmt(x.s) + (x.point ? '' : '–' + fmt(x.e))) + '" style="left:' + ((s - vs) / span * 100).toFixed(2) + '%;width:' +
+          ((e - s) / span * 100).toFixed(2) + '%;' + (x.kind === 'travel' ? '--c:' : x.kind === 'care' ? '' : 'background-color:') + (x.kind === 'care' ? '' : color) + '"></span>';
       };
       const row = (a) => '<div class="tl-row">' + a.map(seg).join('') + '</div>';
       if (!big) return '<div class="tl">' + row(ev.segs.crew) + row(ev.segs.child) + row(ev.segs.partner) + '</div>';
@@ -1451,8 +1490,9 @@
         const foot = ev.vac && ev.inMonth
           ? '<span class="vac-tag">okul yok · iş yok</span>'
           : (ev.schoolClosed && ev.inMonth ? '<span class="vac-tag sch">okul yok</span><div class="work">' + work + sugDots(ev) + '</div>' : '<div class="work">' + work + sugDots(ev) + '</div>');
+        const care = ev.homeHelp ? careMark(ev.homeHelp, false) : '';
         return '<div class="' + cls.join(' ') + '" data-day="' + ev.ymd + '"' + (ev.inMonth && !past ? ' draggable="true" data-drag-day="' + ev.ymd + '"' : '') + ' role="button" tabindex="0">' +
-          '<div class="d"><b>' + Number(ev.ymd.slice(8, 10)) + '</b>' + (isNew ? '<span class="newtag">YENİ ⚠</span>' : top ? '<small>' + esc(top) + '</small>' : '') + '</div>' +
+          '<div class="d"><span class="d-l"><b>' + Number(ev.ymd.slice(8, 10)) + '</b>' + care + '</span>' + (isNew ? '<span class="newtag">YENİ ⚠</span>' : top ? '<small>' + esc(top) + '</small>' : '') + '</div>' +
           timeline(ev, cfg, false) + appointmentHtml(ev, cfg) + crew + bad + (ev.inMonth ? runMini(cfg, ev) : '') + foot + '</div>';
       }).join('');
       st.lastRes = res;
@@ -1501,6 +1541,7 @@
         else if (ev.hol) lines.push('<div class="ln hol">' + esc(ev.hol[0]) + '</div>');
         for (const l of ev.crewLabels.slice(0, 2)) lines.push('<div class="ln ' + l.k + '">' + esc(l.t) + '</div>');
         for (const n of ev.notes.filter((x) => x.k === 'bad').slice(0, 1)) lines.push('<div class="ln bad">⚠ ' + esc(n.t) + '</div>');
+        if (ev.homeHelp) lines.push('<div class="ln">' + careMark(ev.homeHelp, true) + ' evde</div>');
         if (ev.run) {
           const fare = runTaxi(ev.run);
           lines.push('<div class="ln run' + (ev.run.drop.who === 'none' || ev.run.pick.who === 'none' ? ' bad' : '') + '">🏫 ↓ ' + esc(runWho(cfg, ev.run.drop)) + ' · ↑ ' + esc(runWho(cfg, ev.run.pick)) + (fare ? ' · 🚕 ~' + tl(fare) : '') + '</div>');
@@ -1601,6 +1642,7 @@
         (cfg.partnerCandidates || []).map((c, i) => { const m = workMeta(cfg, c, i, false); const b = clinicBrandOf(cfg, c); return '<span>' + icHtml(m) + ' ' + esc(b ? b.name : '') + '</span>'; }).join('') +
         (cfg.partnerFixed || []).filter((f, i, a) => a.findIndex((x) => x.place === f.place) === i).map((f, i) => { const m = workMeta(cfg, f, i, true); const b = clinicBrandOf(cfg, f); return '<span>' + icHtml(m) + ' ' + esc(b ? b.name : '') + '</span>'; }).join('') +
         '<span><i class="sw" style="background:#cbd5e1"></i>Gerçekleşti</span>' +
+        (homeHelpOf(cfg) ? '<span>' + careMark(homeHelpOf(cfg).name || 'Evde bakım', true) + ' evde</span>' : '') +
         '<span><i class="sw" style="background:#dc2626"></i>Çakışma</span>';
     }
     function renderConflicts(res) {
@@ -1638,8 +1680,9 @@
         body = schNote + opts + times + clear + runSheet(cfg, ev);
       }
       const why = ev.notes.filter((n) => n.k === 'bad').map((n) => '<p class="flag">' + esc(n.t) + '</p>').join('');
+      const careLine = ev.homeHelp ? '<p class="care-line">' + careMark(ev.homeHelp, true) + ' evde bakar</p>' : '';
       $('sheet').innerHTML = '<div class="sheet' + (past ? ' done' : '') + '"><h3><span>' + esc(dateLong(ev.ymd)) + '</span><button type="button" class="ghost" data-close="1" aria-label="Kapat">✕</button></h3>' +
-        timeline(ev, cfg, true) + appointmentHtml(ev, cfg) + why + body + '</div>';
+        timeline(ev, cfg, true) + appointmentHtml(ev, cfg) + careLine + why + body + '</div>';
       $('sheet').hidden = false;
     }
     function closeDay() { st.openDay = null; $('sheet').hidden = true; $('sheet').innerHTML = ''; }
@@ -2125,6 +2168,16 @@
           full.plans = plans;
         }
         done.push(CONFIG_MIG_NOV26_HK);
+        changed = true;
+      }
+      if (!done.includes('home_help_carpet')) {
+        const cur = full.homeHelp && typeof full.homeHelp === 'object' && !Array.isArray(full.homeHelp) ? { ...full.homeHelp } : {};
+        const covers = Array.isArray(cur.covers) ? cur.covers.map(String) : [];
+        if (!covers.includes('home')) covers.push('home');
+        cur.covers = covers;
+        if (!cur.mark) cur.mark = 'carpet';
+        full.homeHelp = cur;
+        done.push('home_help_carpet');
         changed = true;
       }
       if (!changed) return false;
