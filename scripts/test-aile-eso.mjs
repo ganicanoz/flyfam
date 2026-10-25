@@ -81,7 +81,7 @@ eq('eso duruyor', html.includes('id="esoDock"') && html.includes('Konuşarak sö
 eq('İ ikonu üretilmiyor', !html.includes("icon: 'İ'") && !html.includes('short: \'İmza\''));
 eq('sohbet dışarı tıklayınca kapanmaz', !html.includes("closeAssist();\n    });\n    $('assist')") && !html.includes('Bir bakayım'));
 eq('gelir ekle ve roster', html.includes('>Gelir ekle<') && html.includes('id="moneyMemo"') && html.includes('class="clinic-btn') && html.includes('id="btnRoster"') && html.includes('function moneyMonthTotals') && !html.includes('id="moneyClinic"') && !html.includes('Ciro girişleri') && !html.includes('Son 6 ay'));
-eq('önbellek v16', sw.includes("const CACHE = 'aile-shell-v19'") && sw.includes('/aile/work-cal.mjs') && !sw.includes('logo-dis-wide') && !html.includes('logo-dis-wide') && !html.includes("'<span>' + esc(c.label)") && html.includes('id="conflicts"') && html.includes('class="sug"') && html.includes('hours ticks') && html.includes("const bad = past ? ''") && html.includes('id="calYes"') && html.includes('family-planner-calendar') && html.includes('partner_off_acibadem_2026_10_11'));
+eq('önbellek v20', sw.includes("const CACHE = 'aile-shell-v20'") && sw.includes('/aile/work-cal.mjs') && !sw.includes('logo-dis-wide') && !html.includes('logo-dis-wide') && !html.includes("'<span>' + esc(c.label)") && html.includes('id="conflicts"') && html.includes('class="sug"') && html.includes('hours ticks') && html.includes("const bad = past ? ''") && html.includes('id="calYes"') && html.includes('family-planner-calendar') && html.includes('partner_off_acibadem_2026_10_11') && html.includes('id="schAdd"') && html.includes('school_closed_2026_11_16_20') && html.includes('vacation_hongkong_2026_11_18_25'));
 eq('geçmiş kilit', html.includes('Geçmiş gün değişmez') && html.includes('Gerçekleşti') && html.includes('partner_off_2026_10_10') && html.includes('vfs_cekya_2026_10_16'));
 eq('selamlama', html.includes("const ESO_HI = 'Buyrun Doktor Hanımcım...'"));
 
@@ -299,6 +299,29 @@ const holStart = script.indexOf('const HOLIDAYS = ');
 const holEnd = script.indexOf(';', holStart);
 const pageHolidays = new Function(script.slice(holStart, holEnd + 1) + '\nreturn HOLIDAYS;')();
 eq('tatil günleri aynı', JSON.stringify(pageHolidays) === JSON.stringify(WORK_HOLIDAYS));
+
+const nov = {
+  configMigrations: ['partner_fixed_2026_10_06_imza', 'partner_place_acibadem_hastanesi', 'partner_off_2026_10_10', 'vfs_cekya_2026_10_16', 'partner_off_acibadem_2026_10_11'],
+  school: { weekdays: [1, 2, 3, 4, 5], start: '09:30', end: '15:00', closedDates: [] },
+  vacations: [],
+  plans: { '2026-11': { '2026-11-19': { place: 'maltepe', label: 'Maltepe', start: '16:00', end: '20:00' }, '2026-11-26': { place: 'maltepe', start: '16:00', end: '20:00' } } },
+  partnerFixed: [{ place: 'altunizade', label: 'Acıbadem Hastanesi', weekdays: [2], start: '09:00', end: '16:00' }],
+};
+eq('kasım yaması', migrate(nov) === true);
+eq('okul 16-20 kapalı', JSON.stringify(nov.school.closedDates) === JSON.stringify(['2026-11-16', '2026-11-17', '2026-11-18', '2026-11-19', '2026-11-20']));
+eq('hong kong tatil', nov.vacations.some((v) => v.from === '2026-11-18' && v.to === '2026-11-25' && v.label === 'Hong Kong'));
+eq('tatilde iş seçimi silinir', !nov.plans['2026-11']['2026-11-19'] && !!nov.plans['2026-11']['2026-11-26']);
+eq('kasım tekrar yok', migrate(nov) === false);
+const schOff = interpret.interpretAssist('16-20 kasım okul yok', { vacations: [], school: { closedDates: [] }, partnerFixed: [] }, '2026-10-25');
+eq('eso okul kapalı', schOff.ok && /Okul kapalı/.test(schOff.summary));
+const schOffFull = { school: { closedDates: [] } };
+schOff.apply(schOffFull);
+eq('eso okul yazar', JSON.stringify(schOffFull.school.closedDates) === JSON.stringify(['2026-11-16', '2026-11-17', '2026-11-18', '2026-11-19', '2026-11-20']));
+const hk = interpret.interpretAssist('18-25 kasım hong kong', { vacations: [], partnerFixed: [] }, '2026-10-25');
+eq('eso hong kong', hk.ok && /Tatil/.test(hk.summary));
+const hkFull = { vacations: [] };
+hk.apply(hkFull);
+eq('eso hong kong yazar', hkFull.vacations[0] && hkFull.vacations[0].from === '2026-11-18' && hkFull.vacations[0].to === '2026-11-25' && hkFull.vacations[0].label === 'Hong Kong');
 
 if (failed) {
   console.error(failed + ' failed');
