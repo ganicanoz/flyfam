@@ -21,7 +21,7 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - **UI:** Tatil kartının altında «Okul kapalı» tarih ekleme. Takvimde okul kapalı gün «okul yok»; tatilde «okul yok · iş yok». Eso: «16-20 kasım okul yok», «18-25 kasım hong kong».
 - **Doğrulama:** `node scripts/test-aile-eso.mjs` OK; inline `node --check` OK; `git diff --check` OK.
 - **Koruma:** Yer anahtarı, sabit işler, önceki Ekim yamaları, Apple Takvim onayı aynı. `family-planner` deploy edilmedi.
-- **Canlı:** Henüz main’de değil. Kasım roster PDF’si yüklenince FlyFam / aile «Roster PDF» ile alınır.
+- **Canlı:** PR #37 merge `548e0bf`. Deploy support site `40225397617` success. `https://app.flyfamapp.com/aile/` içinde `aile-shell-v20`, `schAdd`, `school_closed_2026_11_16_20` ve `vacation_hongkong_2026_11_18_25` doğrulandı (2026-10-25). PWA açıksa bir kez yenilemek gerekir. Kasım roster PDF’si yüklenince FlyFam / aile «Roster PDF» ile alınır.
 
 ### 2026-10-25 — Mertcan Apple Developer hesabı onaylandı
 
