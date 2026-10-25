@@ -13,6 +13,15 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+### 2026-10-25 — Aile planı: 5 Kasım vize satırı kısaldı
+
+- **Amaç:** 5 Kasım metni yalnız «vize görüşmesi». Adres ve randevu numarası planda yok. Çocuk görüşmeden sonra okula gider: gün okul kapalı değil, sabah bırakma üretilmez, akşam alma durur.
+- **Dosyalar:** `support/aile/index.html` (`visa_norway_2026_11_05_brief`, `thenSchool`), `support/aile/sw.js` (`aile-shell-v24`), `scripts/test-aile-eso.mjs`.
+- **Veri:** Üç randevunun etiketi kısaltılır, `location` silinir. Çocuk satırında `thenSchool`. `school.closedDates` içinden `2026-11-05` çıkar; 16–20 Kasım durur.
+- **Doğrulama:** `node scripts/test-aile-eso.mjs` OK; sayfa betiği `node --check` OK; `git diff --check` OK.
+- **Koruma:** Diğer randevular, salı hastane, Çekya vize, Hong Kong, evde bakım ve gelir aynı. `family-planner` deploy edilmedi.
+- **Canlı:** Yayın sonrası doğrulanacak.
+
 ### 2026-10-25 — Aile planı: Norveç vize görüşmesi
 
 - **Amaç:** 5 Kasım 2026, 10:15. Üç kişi (çocuk, eş, ekip) aynı randevuda. O gün okul kapalı; okul yolu üretilmez. Bitiş saati yok (başlangıç işareti).
