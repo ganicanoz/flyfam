@@ -13,6 +13,13 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+### 2026-10-25 — Aile «indi» push: eski iniş koruması
+
+- **Sorun:** Roster yeniden import / satır yeniden oluşturunca cron FR24’teki eski ATA’yı bulup `null → landed` yapıyor; aileye «Gani indi» gidiyordu (PC582/PC583, iniş saatlerce önce).
+- **Dosyalar:** `supabase/functions/_shared/landedFamilyPushFreshness.ts` (iniş kanıtı >6 sa → push yok), `notify-family/index.ts` (merkez kapı + `notification_log` seed), `check-flight-status-and-notify/index.ts` (taze inişte sayaç), `mobile/scripts/test-landed-family-push-freshness.ts`.
+- **Doğrulama:** `npx tsx scripts/test-landed-family-push-freshness.ts` OK. Deploy: `notify-family` v114, `check-flight-status-and-notify` v135 ACTIVE.
+- **Koruma:** Gerçek inişten sonraki 6 saat içinde aile push’u aynı. took_off / cancelled / diverted değişmedi.
+
 ### 2026-10-25 — Aile planı: Eso kaldırıldı
 
 - **Amaç:** Kullanıcı kararı: Eso işe yaramıyor, sayfadan silinsin.
@@ -20,6 +27,7 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - **Koruma:** Okul kapalı ekleme, 16–20 Kasım ve Hong Kong tatili yamaları, gelir, faturalar, roster düğmesi, Apple Takvim onayı ve klinik logoları aynı. `family-planner` deploy edilmedi. Canlı fonksiyondaki kullanılmayan `assist` eylemi duruyor; sayfa artık onu çağırmaz.
 - **Doğrulama:** `node scripts/test-aile-eso.mjs` OK; sayfa betiği `node --check` OK; `git diff --check` OK.
 - **Canlı:** PR #39 merge `2b600c7`. Deploy support site `40226639168` success. `https://app.flyfamapp.com/aile/` içinde `aile-shell-v21` var, `esoDock` yok; okul kapalı ve gelir düğmeleri duruyor. PIN ekranında Eso yok (2026-10-25). PWA açıksa bir kez yenilemek gerekir.
+
 
 ### 2026-10-25 — Aile planı: Kasım okul kapalı + Hong Kong
 

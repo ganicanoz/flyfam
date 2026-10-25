@@ -29,6 +29,7 @@ import { rosterPollCacheKey } from '../_shared/rosterPollCacheKey.ts';
 import { fr24AircraftRegistrationFromFlight } from '../_shared/fr24AircraftRegistration.ts';
 import { buildAerodataboxFlightNumberSources } from '../_shared/aerodataboxHttp.ts';
 import { ensureAirportTimezonesForPayload } from '../_shared/airportDbTimezones.ts';
+import { isLandedEventFreshForFamilyPush } from '../_shared/landedFamilyPushFreshness.ts';
 
 const COOLDOWN_PROVIDER_AIRLABS = 'airlabs';
 const COOLDOWN_PROVIDER_FR24 = 'fr24';
@@ -1001,6 +1002,7 @@ Deno.serve(async (req) => {
     'actual_departure',
     'actual_arrival',
     'fr24_datetime_takeoff_utc',
+    'fr24_datetime_landed_utc',
     'roster_entry_kind',
     'api_refresh_phase',
     'internal_status',
@@ -1097,15 +1099,19 @@ Deno.serve(async (req) => {
           .eq('type', notifType)
           .limit(1);
         if (!logHit?.length) {
+          // landed tazelik: notify-family içinde (eski inişte log yazar, push yok).
           const notifRes = await fetch(notifyUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'x-cron-secret': cronHeader },
             body: JSON.stringify({ type: notifType, flightId: row.id }),
           });
           if (notifRes.ok) {
-            if (notifType === 'landed') landedSent++;
-            else if (notifType === 'cancelled') cancelledSent++;
-            else divertedSent++;
+            const body = (await notifRes.json().catch(() => null)) as { sent?: number; skipped?: string } | null;
+            if (body?.skipped !== 'stale_landing' && (body?.sent ?? 1) > 0) {
+              if (notifType === 'landed') landedSent++;
+              else if (notifType === 'cancelled') cancelledSent++;
+              else divertedSent++;
+            }
           } else {
             console.error(
               '[check-flight-status] notify-family terminal backfill failed',
@@ -1576,7 +1582,15 @@ Deno.serve(async (req) => {
     if (newStatus === 'en_route') {
       if (await sendNotif('took_off')) tookOffSent++;
     } else if (newStatus === 'landed') {
-      if (strongLandedEvidence && (await sendNotif('landed'))) landedSent++;
+      const landedFresh = isLandedEventFreshForFamilyPush({
+        fr24LandedUtc: fr24LandedTs ?? (row as Record<string, unknown>).fr24_datetime_landed_utc as string | null | undefined,
+        actualArrivalUtc:
+          (al?.actualIn as string | null | undefined) ??
+          ((row as Record<string, unknown>).actual_arrival as string | null | undefined),
+        scheduledArrivalUtc: (row as Record<string, unknown>).scheduled_arrival as string | null | undefined,
+        nowMs,
+      });
+      if (strongLandedEvidence && landedFresh && (await sendNotif('landed'))) landedSent++;
     } else if (newStatus === 'cancelled') {
       if (await sendNotif('cancelled')) cancelledSent++;
     } else if (newStatus === 'diverted') {
@@ -1686,11 +1700,16 @@ Deno.serve(async (req) => {
           body: JSON.stringify({ type: notifType, flightId: tr.id }),
         });
         if (notifRes.ok) {
-          terminalNotifyBackfill++;
-          if (notifType === 'took_off') tookOffSent++;
-          else if (notifType === 'landed') landedSent++;
-          else if (notifType === 'cancelled') cancelledSent++;
-          else if (notifType === 'diverted') divertedSent++;
+          const body = (await notifRes.json().catch(() => null)) as { sent?: number; skipped?: string } | null;
+          if (body?.skipped === 'stale_landing') {
+            /* log seeded in notify-family; no push */
+          } else if ((body?.sent ?? 1) > 0) {
+            terminalNotifyBackfill++;
+            if (notifType === 'took_off') tookOffSent++;
+            else if (notifType === 'landed') landedSent++;
+            else if (notifType === 'cancelled') cancelledSent++;
+            else if (notifType === 'diverted') divertedSent++;
+          }
         } else {
           console.error(
             '[check-flight-status] notify-family terminal backfill (passive list) failed',
@@ -1709,7 +1728,7 @@ Deno.serve(async (req) => {
   const sixHoursAgoIso = new Date(nowMs - 6 * 60 * 60 * 1000).toISOString();
   const { data: recentLanded } = await supabase
     .from('flights')
-    .select('id, flight_date, updated_at')
+    .select('id, flight_date, updated_at, fr24_datetime_landed_utc, actual_arrival, scheduled_arrival')
     .eq('roster_entry_kind', 'flight')
     .eq('flight_status', 'landed')
     .eq('api_refresh_phase', 'passive_past')
@@ -1726,13 +1745,16 @@ Deno.serve(async (req) => {
       .eq('type', 'landed')
       .limit(1);
     if (existing?.length) continue;
+    // Tazelik + eski inişte log seed: notify-family (yeniden import gürültüsünü keser).
     const notifRes = await fetch(notifyUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-cron-secret': cronHeader },
       body: JSON.stringify({ type: 'landed', flightId }),
     });
     if (notifRes.ok) {
-      landedBackfillSent++;
+      const body = (await notifRes.json().catch(() => null)) as { sent?: number; skipped?: string } | null;
+      if (body?.skipped === 'stale_landing') continue;
+      if ((body?.sent ?? 1) > 0) landedBackfillSent++;
     } else {
       console.error('[check-flight-status] notify-family landed backfill failed', flightId, notifRes.status);
     }

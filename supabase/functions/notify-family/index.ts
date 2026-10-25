@@ -4,6 +4,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { publicNotificationArtworkUrl } from '../_shared/notificationArtwork.ts';
+import { isLandedEventFreshForFamilyPush } from '../_shared/landedFamilyPushFreshness.ts';
 
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
 
@@ -867,7 +868,9 @@ Deno.serve(async (req) => {
     }
     const { data: flight, error: flightError } = await supabaseAdmin
       .from('flights')
-      .select('id, crew_id, flight_number, origin_city, origin_airport, destination_city, destination_airport, diverted_to')
+      .select(
+        'id, crew_id, flight_number, origin_city, origin_airport, destination_city, destination_airport, diverted_to, fr24_datetime_landed_utc, actual_arrival, scheduled_arrival',
+      )
       .eq('id', flightId)
       .single();
     if (flightError || !flight) {
@@ -875,6 +878,46 @@ Deno.serve(async (req) => {
         status: 404,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
+    }
+
+    // Eski iniş (yeniden import vb.): push yok; log yazılınca cron tekrar denemez.
+    if (payload.type === 'landed') {
+      const fresh = isLandedEventFreshForFamilyPush({
+        fr24LandedUtc: (flight as { fr24_datetime_landed_utc?: string | null }).fr24_datetime_landed_utc,
+        actualArrivalUtc: (flight as { actual_arrival?: string | null }).actual_arrival,
+        scheduledArrivalUtc: (flight as { scheduled_arrival?: string | null }).scheduled_arrival,
+      });
+      if (!fresh) {
+        console.log('[notify-family] landed skipped: stale landing evidence', { flightId });
+        // Alıcıları aşağıda bilmeden önce crew user ile tek satır yaz — check-flight existence check yeter.
+        const crewIdForLog = (flight as { crew_id?: string | null }).crew_id;
+        if (crewIdForLog) {
+          const { data: crewRow } = await supabaseAdmin
+            .from('crew_profiles')
+            .select('user_id')
+            .eq('id', crewIdForLog)
+            .maybeSingle();
+          if (crewRow?.user_id) {
+            const { data: existingSkip } = await supabaseAdmin
+              .from('notification_log')
+              .select('id')
+              .eq('flight_id', flightId)
+              .eq('type', 'landed')
+              .eq('user_id', crewRow.user_id)
+              .limit(1);
+            if (!existingSkip?.length) {
+              await supabaseAdmin.from('notification_log').insert({
+                user_id: crewRow.user_id,
+                flight_id: flightId,
+                type: 'landed',
+              });
+            }
+          }
+        }
+        return new Response(JSON.stringify({ ok: true, sent: 0, skipped: 'stale_landing' }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
     }
 
     const { data: fcRows } = await supabaseAdmin
