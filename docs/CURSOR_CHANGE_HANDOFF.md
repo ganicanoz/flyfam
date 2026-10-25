@@ -19,7 +19,7 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - **Dosyalar:** `support/aile/index.html` (yüz, sohbet, mikrofon, Türkçe yorumlayıcı ve `assist` çağrısı), `support/aile/sw.js` (`aile-shell-v21`), `scripts/test-aile-eso.mjs` (sohbet testleri çıktı).
 - **Koruma:** Okul kapalı ekleme, 16–20 Kasım ve Hong Kong tatili yamaları, gelir, faturalar, roster düğmesi, Apple Takvim onayı ve klinik logoları aynı. `family-planner` deploy edilmedi. Canlı fonksiyondaki kullanılmayan `assist` eylemi duruyor; sayfa artık onu çağırmaz.
 - **Doğrulama:** `node scripts/test-aile-eso.mjs` OK; sayfa betiği `node --check` OK; `git diff --check` OK.
-- **Canlı:** Yayın sonrası `https://app.flyfamapp.com/aile/` içinde `aile-shell-v21` ve `esoDock` yok diye doğrulanacak.
+- **Canlı:** PR #39 merge `2b600c7`. Deploy support site `40226639168` success. `https://app.flyfamapp.com/aile/` içinde `aile-shell-v21` var, `esoDock` yok; okul kapalı ve gelir düğmeleri duruyor. PIN ekranında Eso yok (2026-10-25). PWA açıksa bir kez yenilemek gerekir.
 
 ### 2026-10-25 — Aile planı: Kasım okul kapalı + Hong Kong
 
