@@ -20,7 +20,7 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - **Veri:** `config.homeHelp`. `covers` içinde `home` yoksa eklenir; `mark` `carpet`. Ad repoya yazılmaz; canlı kayıtta `homeHelp.name` durur. İlk çevrimiçi açılış `save_config` ile yamayı kaydeder ve mevcut adı silmez.
 - **Doğrulama:** `node scripts/test-aile-eso.mjs` OK; sayfa betiği `node --check` OK; `git diff --check` OK.
 - **Koruma:** Okul yolu, çakışma (okul bırakma/alma hâlâ kırmızı), Kasım okul kapalı, Hong Kong, gelir ve takvim onayı aynı. `family-planner` deploy edilmedi.
-- **Canlı:** Yayın sonrası doğrulanacak.
+- **Canlı:** PR #41 merge `b858f84`. Deploy support site `40227905202` success. `https://app.flyfamapp.com/aile/` içinde `aile-shell-v22`, `carpetSvg` ve `home_help_carpet` var (2026-10-25). Yardımcı adı canlı `config.homeHelp.name` alanına yazıldı; `covers` yalnız `home`. PWA açıksa bir kez yenilemek gerekir.
 
 ### 2026-10-25 — Aile «indi» push: eski iniş koruması
 
