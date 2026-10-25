@@ -13,6 +13,22 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+### 2026-10-25 — Aile planı: Kasım okul kapalı + Hong Kong
+
+- **Amaç:** 16–20 Kasım okul kapalı. 18–25 Kasım Hong Kong tatili (eş + çocuk; crew uçabilir). Kasım roster/simülatör bu turda PDF olmadığından girilmedi.
+- **Dosyalar:** `support/aile/index.html`, `support/aile/sw.js` (`aile-shell-v20`), `scripts/test-aile-eso.mjs`.
+- **Veri:** İstemci yamaları `school_closed_2026_11_16_20` ve `vacation_hongkong_2026_11_18_25`. İlk çevrimiçi açılışta `save_config`. Tatil aralığındaki iş seçimleri silinir. Okul kapalı günlerde iş seçilebilir.
+- **UI:** Tatil kartının altında «Okul kapalı» tarih ekleme. Takvimde okul kapalı gün «okul yok»; tatilde «okul yok · iş yok». Eso: «16-20 kasım okul yok», «18-25 kasım hong kong».
+- **Doğrulama:** `node scripts/test-aile-eso.mjs` OK; inline `node --check` OK; `git diff --check` OK.
+- **Koruma:** Yer anahtarı, sabit işler, önceki Ekim yamaları, Apple Takvim onayı aynı. `family-planner` deploy edilmedi.
+- **Canlı:** Henüz main’de değil. Kasım roster PDF’si yüklenince FlyFam / aile «Roster PDF» ile alınır.
+
+### 2026-10-25 — Mertcan Apple Developer hesabı onaylandı
+
+- **Kullanıcı doğrulaması:** Mertcan Öz'ün Apple Developer hesabı onaylandı. `docs/ROUTE_TO_LIVE.html` içindeki sahiplik bölümü güncel tek-sahip kararına döndürüldü ve `mertcan-apple-account` maddesi OK yapıldı.
+- **Sıradaki adım:** Mertcan hesabında App Store Connect erişimi ve Team bilgileri ekranda doğrulanacak; ardından yeni Bundle ID ve yeni FlyFam uygulama kaydı oluşturulacak.
+- **Koruma:** Yeni Team ID ve Bundle ID kesinleşmeden mevcut `com.flyfam.app`, App Store kaydı, sertifikalar, EAS kimlikleri, RevenueCat ürünleri veya mobil kaynaklar değiştirilmez.
+
 ### 2026-10-24 — Sim satırları Roster listesinde görünmüyordu
 
 - **Sorun:** Admin PDF parse CPI/IPT/SIM satırlarını gösteriyordu; uygulama `displayFlights` / takvimde `roster_entry_kind === 'sim'` satırlarını sabit eleyordu. Katalog yayınından bağımsız.
