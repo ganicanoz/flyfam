@@ -20,7 +20,7 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - **Veri:** Üç randevunun etiketi kısaltılır, `location` silinir. Çocuk satırında `thenSchool`. `school.closedDates` içinden `2026-11-05` çıkar; 16–20 Kasım durur.
 - **Doğrulama:** `node scripts/test-aile-eso.mjs` OK; sayfa betiği `node --check` OK; `git diff --check` OK.
 - **Koruma:** Diğer randevular, salı hastane, Çekya vize, Hong Kong, evde bakım ve gelir aynı. `family-planner` deploy edilmedi.
-- **Canlı:** Yayın sonrası doğrulanacak.
+- **Canlı:** PR #45 merge `bebc1d4`. Deploy support site `40230426681` success. `https://app.flyfamapp.com/aile/` içinde `visa_norway_2026_11_05_brief` ve `skipDrop` var; `sw.js` `aile-shell-v24` (2026-10-25). Canlı planda 5 Kasım etiketi kısa, `location` yok, okul o gün kapalı değil, çocuk satırında `thenSchool`. PWA açıksa bir kez yenilemek gerekir.
 
 ### 2026-10-25 — Aile planı: Norveç vize görüşmesi
 
