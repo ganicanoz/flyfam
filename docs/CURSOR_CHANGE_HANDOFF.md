@@ -20,7 +20,7 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - **Veri:** `familyAppointments` üç satır, etiket «Norveç vize görüşmesi». Adres ve randevu numarası sayfa yamasında; kişisel ad yok. Aynı gün ve kişi için kayıt varsa üzerine yazılmaz. `school.closedDates` içine `2026-11-05` eklenir; 16–20 Kasım durur.
 - **Doğrulama:** `node scripts/test-aile-eso.mjs` OK; sayfa betiği `node --check` OK; `git diff --check` OK.
 - **Koruma:** Salı hastane, Çekya vize, Hong Kong, evde bakım halı motifi ve gelir aynı. `family-planner` deploy edilmedi.
-- **Canlı:** Yayın sonrası doğrulanacak.
+- **Canlı:** PR #43 merge `83a9f02`. Deploy support site `40229784812` success. `https://app.flyfamapp.com/aile/` içinde `visa_norway_2026_11_05` var; `sw.js` `aile-shell-v23` (2026-10-25). Canlı planda 5 Kasım 10:15 üç kişi ve okul o gün kapalı. PWA açıksa bir kez yenilemek gerekir.
 
 ### 2026-10-25 — Aile planı: evde bakım yardımcısı
 
