@@ -1970,6 +1970,7 @@
     const CONFIG_MIG_HOSP_OFF = 'partner_off_acibadem_2026_10_11';
     const CONFIG_MIG_NOV26_SCHOOL = 'school_closed_2026_11_16_20';
     const CONFIG_MIG_NOV26_HK = 'vacation_hongkong_2026_11_18_25';
+    const CONFIG_MIG_VISA_NO = 'visa_norway_2026_11_05';
     const NOV26_SCHOOL_CLOSED = ['2026-11-16', '2026-11-17', '2026-11-18', '2026-11-19', '2026-11-20'];
     const NOV26_HK = { from: '2026-11-18', to: '2026-11-25', label: 'Hong Kong' };
     const HOSPITAL_LABEL = 'Acıbadem Hastanesi';
@@ -2178,6 +2179,31 @@
         if (!cur.mark) cur.mark = 'carpet';
         full.homeHelp = cur;
         done.push('home_help_carpet');
+        changed = true;
+      }
+      if (!done.includes(CONFIG_MIG_VISA_NO)) {
+        const ymd = '2026-11-05';
+        const list = Array.isArray(full.familyAppointments) ? full.familyAppointments.filter(Boolean).map((a) => ({ ...a })) : [];
+        const loc = 'Ofton Elysium, Hacıahmet Mh. Kurtuluş Deresi Cd. No:29, Beyoğlu · NOR23622921493 · açık';
+        for (const person of ['child', 'partner', 'crew']) {
+          const has = list.some((a) => a.date === ymd && a.person === person && /norveç|norvec|norway/i.test(String(a.label || '') + ' ' + String(a.location || '')));
+          if (has) continue;
+          list.push({
+            id: 'visa-norway-2026-11-05-' + person,
+            person,
+            date: ymd,
+            start: '10:15',
+            label: 'Norveç vize görüşmesi',
+            location: loc,
+          });
+        }
+        full.familyAppointments = list;
+        const school = full.school && typeof full.school === 'object' && !Array.isArray(full.school) ? { ...full.school } : { closedDates: [] };
+        const closed = Array.isArray(school.closedDates) ? school.closedDates.slice() : [];
+        if (!closed.includes(ymd)) closed.push(ymd);
+        school.closedDates = closed.sort();
+        full.school = school;
+        done.push(CONFIG_MIG_VISA_NO);
         changed = true;
       }
       if (!changed) return false;

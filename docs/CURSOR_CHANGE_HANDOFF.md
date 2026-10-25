@@ -13,6 +13,15 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+### 2026-10-25 — Aile planı: Norveç vize görüşmesi
+
+- **Amaç:** 5 Kasım 2026, 10:15. Üç kişi (çocuk, eş, ekip) aynı randevuda. O gün okul kapalı; okul yolu üretilmez. Bitiş saati yok (başlangıç işareti).
+- **Dosyalar:** `support/aile/index.html` (`visa_norway_2026_11_05`), `support/aile/sw.js` (`aile-shell-v23`), `scripts/test-aile-eso.mjs`.
+- **Veri:** `familyAppointments` üç satır, etiket «Norveç vize görüşmesi». Adres ve randevu numarası sayfa yamasında; kişisel ad yok. Aynı gün ve kişi için kayıt varsa üzerine yazılmaz. `school.closedDates` içine `2026-11-05` eklenir; 16–20 Kasım durur.
+- **Doğrulama:** `node scripts/test-aile-eso.mjs` OK; sayfa betiği `node --check` OK; `git diff --check` OK.
+- **Koruma:** Salı hastane, Çekya vize, Hong Kong, evde bakım halı motifi ve gelir aynı. `family-planner` deploy edilmedi.
+- **Canlı:** Yayın sonrası doğrulanacak.
+
 ### 2026-10-25 — Aile planı: evde bakım yardımcısı
 
 - **Amaç:** Çocuk evde bakıma kaldığında ve ekip görevde, yatıda ya da nöbetteyse yardımcı o boşluğu kapatır. O günlerde takvim hücresinde, listede ve gün detayında Türkmen halı motifi (yeşil zemin, kırmızı şerit, sarı motif) görünür. Okul bırakma ve alma bu turda değişmez.
