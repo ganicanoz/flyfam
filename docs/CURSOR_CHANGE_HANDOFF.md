@@ -13,6 +13,14 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+### 2026-10-25 — Aile planı: Eso kaldırıldı
+
+- **Amaç:** Kullanıcı kararı: Eso işe yaramıyor, sayfadan silinsin.
+- **Dosyalar:** `support/aile/index.html` (yüz, sohbet, mikrofon, Türkçe yorumlayıcı ve `assist` çağrısı), `support/aile/sw.js` (`aile-shell-v21`), `scripts/test-aile-eso.mjs` (sohbet testleri çıktı).
+- **Koruma:** Okul kapalı ekleme, 16–20 Kasım ve Hong Kong tatili yamaları, gelir, faturalar, roster düğmesi, Apple Takvim onayı ve klinik logoları aynı. `family-planner` deploy edilmedi. Canlı fonksiyondaki kullanılmayan `assist` eylemi duruyor; sayfa artık onu çağırmaz.
+- **Doğrulama:** `node scripts/test-aile-eso.mjs` OK; sayfa betiği `node --check` OK; `git diff --check` OK.
+- **Canlı:** Yayın sonrası `https://app.flyfamapp.com/aile/` içinde `aile-shell-v21` ve `esoDock` yok diye doğrulanacak.
+
 ### 2026-10-25 — Aile planı: Kasım okul kapalı + Hong Kong
 
 - **Amaç:** 16–20 Kasım okul kapalı. 18–25 Kasım Hong Kong tatili (eş + çocuk; crew uçabilir). Kasım roster/simülatör bu turda PDF olmadığından girilmedi.
