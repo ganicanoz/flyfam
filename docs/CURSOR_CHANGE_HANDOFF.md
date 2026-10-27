@@ -1622,3 +1622,8 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ### 2026-10-13 — Admin başlık ikonu
 - Şeffaf ADMIN ikonu üst sol başlığa 44 px boyutunda eklendi. Eksik eski logo yolu değiştirildi; UI önbellek sürümü 64. HTML kopyaları eşit, ikon dosyası mevcut.
+
+### 2026-10-27 — 5 Kasım tek vize kutusu
+
+- Takvim, liste ve detayda üç kişilik vize görüşmesi tek kutuda “10:15 · vize görüşmesi · hepimiz” gösterilir. Katılım kayıtları ve görüşme sonrası okul korunur.
+- Önbellek v25. Aile testleri ve betik sözdizimi kontrol edilir.
