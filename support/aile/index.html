@@ -1426,7 +1426,14 @@
       return '<span class="care" title="' + esc(label) + '">' + carpetSvg() + (withName ? '<span>' + esc(name || 'Evde') + '</span>' : '') + '</span>';
     }
     function appointmentHtml(ev, cfg) {
-      return (ev.appointments || []).map((a) => '<div class="appointment">📍 ' + esc([(cfg.people[a.person] || ''), a.start, a.label, a.location].filter((x) => x).join(' · ') + (a.end ? '–' + a.end : '')) + '</div>').join('');
+      let visaShown = false;
+      return (ev.appointments || []).map((a) => {
+        const familyVisa = ev.ymd === '2026-11-05' && a.label === 'vize görüşmesi';
+        if (familyVisa && visaShown) return '';
+        if (familyVisa) visaShown = true;
+        const parts = familyVisa ? [a.start, a.label, 'hepimiz'] : [(cfg.people[a.person] || ''), a.start, a.label, a.location];
+        return '<div class="appointment">📍 ' + esc(parts.filter((x) => x).join(' · ') + (a.end ? '–' + a.end : '')) + '</div>';
+      }).join('');
     }
     function timeline(ev, cfg, big) {
       const vs = hm(cfg.view?.start || '06:00'), ve = hm(cfg.view?.end || '23:00');
