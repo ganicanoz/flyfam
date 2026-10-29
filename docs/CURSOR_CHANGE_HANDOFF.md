@@ -13,6 +13,15 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+### 2026-10-29 — Build 55 finished; Android submit; iOS TestFlight ASC key bekliyor
+
+- **iOS build:** `167104a2…` finished — 1.3.0 (55), Team `ZF66PC5AN7`, IPA hazır. Credential + push key kuruldu.
+- **Android build:** `f3b7ba0a…` finished — versionCode 55.
+- **Android submit:** Play internal track submission `63cbc866…` scheduled (App Review değil).
+- **iOS submit:** EAS non-interactive ASC API key seçemedi; Mertcan App Store Connect API key ile interaktif `eas submit` gerekli. App Store Review / Submit for Review yapılmadı.
+- **RevenueCat:** Yeni `com.flyfamapp.mobile` public key hâlâ açık.
+
+
 ### 2026-10-29 — Build 55: main merge + Android EAS; iOS credential bekliyor
 
 - **Git:** PR #48 `release/ios-1.3.0-build-55` → `main` merge `77b94aa` (yerel geride ağaçtan force-push yok).
