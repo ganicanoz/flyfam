@@ -13,6 +13,14 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+### 2026-10-29 — Build 55: main merge + Android EAS; iOS credential bekliyor
+
+- **Git:** PR #48 `release/ios-1.3.0-build-55` → `main` merge `77b94aa` (yerel geride ağaçtan force-push yok).
+- **Android:** EAS production build başlatıldı `f3b7ba0a-6777-416b-acaa-3f0dec2437e2` (versionCode 55, package `com.flyfam.app`).
+- **iOS:** Non-interactive credential kurulumu yeni bundle’lar için başarısız (`com.flyfamapp.mobile` + ShareExtension + NotificationService). Apple hesabı interaktif giriş gerekli (Team `ZF66PC5AN7`).
+- **RevenueCat:** EAS production’da `EXPO_PUBLIC_REVENUECAT_IOS_API_KEY` var; yeni bundle için ayrı RC app/key hâlâ açık (IAP).
+- **Submit:** Yok.
+
 ### 2026-10-29 — iOS 1.3.0 (55) Mertcan hesabı kimlik/sürüm hizası
 
 - **Hedef:** Marketing `1.3.0`, iOS build **55**, Android `versionCode` **55**, Android package **`com.flyfam.app` (değişmedi)**.
