@@ -122,7 +122,9 @@ function isSignupOrEmailVerificationUrl(url: string): boolean {
 function isFlyFamAuthCallbackUrl(url: string): boolean {
   const lower = url.toLowerCase();
   const okScheme =
-    lower.startsWith('flyfam://') || lower.startsWith('com.flyfam.app://');
+    lower.startsWith('flyfam://') ||
+    lower.startsWith('com.flyfamapp.mobile://') ||
+    lower.startsWith('com.flyfam.app://');
   if (!okScheme) return false;
   return (
     lower.includes('auth/callback') ||

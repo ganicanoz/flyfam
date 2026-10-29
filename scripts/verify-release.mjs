@@ -57,9 +57,8 @@ async function verifyVersions() {
   if (androidCode !== expectedVersionCode) {
     errors.push(`Android versionCode=${androidCode} expected=${expectedVersionCode}`);
   }
-  if (expectedBuild !== String(expectedVersionCode)) {
-    errors.push(`Expo iOS build=${expectedBuild} and Android code=${expectedVersionCode} differ`);
-  }
+  // iOS ve Android build sayıları bilerek ayrılabilir (ör. yeni Apple hesabı / App ID).
+  // Her platform kendi Expo alanıyla native değere eşit olmalı.
   if (iosVersions.length !== 1 || iosVersions[0] !== expectedVersion) {
     errors.push(`Xcode MARKETING_VERSION=${iosVersions.join(',')} expected=${expectedVersion}`);
   }
@@ -68,7 +67,14 @@ async function verifyVersions() {
   }
   if (errors.length) throw new Error(errors.join('\n'));
 
-  console.log(`[release] OK ${expectedVersion} (${expectedBuild}) on Expo, iOS and Android`);
+  if (expectedBuild !== String(expectedVersionCode)) {
+    console.log(
+      `[release] NOTE iOS build=${expectedBuild} Android versionCode=${expectedVersionCode} (platforms diverge by design)`,
+    );
+  }
+  console.log(
+    `[release] OK ${expectedVersion} — iOS ${expectedBuild}, Android ${expectedVersionCode}`,
+  );
 }
 
 let exportRoot;

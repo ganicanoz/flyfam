@@ -26,7 +26,7 @@ export function ForceUpdateModal({ visible, policy }: Props) {
 
   const title = policy ? policyTitle(policy, lang) : t('forceUpdate.title');
   const body = policy ? policyBody(policy, lang) : t('forceUpdate.body');
-  const iosUrl = policy?.ios_store_url || 'https://apps.apple.com/app/id6759844455';
+  const iosUrl = policy?.ios_store_url || 'https://apps.apple.com/app/id6827960794';
   const androidUrl =
     policy?.android_store_url || 'https://play.google.com/store/apps/details?id=com.flyfam.app';
   const inviteEmail = policy?.android_invite_email || 'support@flyfamapp.com';

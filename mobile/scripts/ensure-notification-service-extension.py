@@ -302,7 +302,7 @@ def main() -> int:
 			isa = XCBuildConfiguration;
 			buildSettings = {{
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 41;
+				CURRENT_PROJECT_VERSION = 55;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = FlyFamNotificationService/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
@@ -312,7 +312,7 @@ def main() -> int:
 					"@executable_path/../../Frameworks",
 				);
 				MARKETING_VERSION = 1.3.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.flyfam.app.NotificationService;
+				PRODUCT_BUNDLE_IDENTIFIER = com.flyfamapp.mobile.NotificationService;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				SWIFT_VERSION = 5.0;
@@ -325,7 +325,7 @@ def main() -> int:
 			isa = XCBuildConfiguration;
 			buildSettings = {{
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 41;
+				CURRENT_PROJECT_VERSION = 55;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = FlyFamNotificationService/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
@@ -335,7 +335,7 @@ def main() -> int:
 					"@executable_path/../../Frameworks",
 				);
 				MARKETING_VERSION = 1.3.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.flyfam.app.NotificationService;
+				PRODUCT_BUNDLE_IDENTIFIER = com.flyfamapp.mobile.NotificationService;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				SWIFT_VERSION = 5.0;

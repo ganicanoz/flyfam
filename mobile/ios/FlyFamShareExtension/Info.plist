@@ -3,9 +3,9 @@
 <plist version="1.0">
 <dict>
 	<key>AppGroup</key>
-	<string>group.com.flyfam.app</string>
+	<string>group.com.flyfamapp.mobile</string>
 	<key>AppGroupIdentifier</key>
-	<string>group.com.flyfam.app</string>
+	<string>group.com.flyfamapp.mobile</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
