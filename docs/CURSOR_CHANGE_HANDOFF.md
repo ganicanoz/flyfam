@@ -13,6 +13,16 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+### 2026-10-29 — iOS 1.3.0 (55) Mertcan hesabı kimlik/sürüm hizası
+
+- **Hedef:** Marketing `1.3.0`, iOS build **55**, Android `versionCode` **55**, Android package **`com.flyfam.app` (değişmedi)**.
+- **Kimlik:** `com.flyfamapp.mobile` + `.NotificationService` + `.ShareExtension`; App Group `group.com.flyfamapp.mobile`; `ascAppId` `6827960794`; deep link `flyfam` / `com.flyfamapp.mobile` / legacy `com.flyfam.app`.
+- **Dosyalar:** `mobile/app.config.js`, native iOS/Android sürüm alanları, entitlements/Info.plist, `ForceUpdateModal`, `authSessionFromUrl`, `ensure-notification-service-extension.py`, `scripts/verify-release.mjs`, OTA LaunchWait `8000`.
+- **Kaynak:** `origin/main` üzerine cherry-pick (`release/ios-1.3.0-build-55`). Yerel geride `main` ağacından force-push yok.
+- **Açık blocker:** RevenueCat public iOS key hâlâ eski `com.flyfam.app` app’ine ait; yeni bundle için RC app + key + EAS env. Team `ZF66PC5AN7` EAS credential doğrulaması. Submit yok.
+- **Koruma:** Supabase / EAS project id / Updates URL aynı.
+
+
 ### 2026-10-25 — Aile planı: 5 Kasım vize satırı kısaldı
 
 - **Amaç:** 5 Kasım metni yalnız «vize görüşmesi». Adres ve randevu numarası planda yok. Çocuk görüşmeden sonra okula gider: gün okul kapalı değil, sabah bırakma üretilmez, akşam alma durur.

@@ -3,9 +3,9 @@
 <plist version="1.0">
 <dict>
 	<key>AppGroup</key>
-	<string>group.com.flyfam.app</string>
+	<string>group.com.flyfamapp.mobile</string>
 	<key>AppGroupIdentifier</key>
-	<string>group.com.flyfam.app</string>
+	<string>group.com.flyfamapp.mobile</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>
@@ -48,6 +48,7 @@
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>flyfam</string>
+				<string>com.flyfamapp.mobile</string>
 				<string>com.flyfam.app</string>
 			</array>
 		</dict>

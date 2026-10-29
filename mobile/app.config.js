@@ -19,7 +19,13 @@ export default {
     updates: {
       url: 'https://u.expo.dev/5c9f4f99-9766-4d38-bfe0-6b1cd6a7e83f',
       checkAutomatically: 'ON_LOAD',
-      fallbackToCacheTimeout: 0,
+      /**
+       * Native cold start: wait briefly for a remote update before showing cached JS.
+       * 0 = always start embedded/cached first (OTA only after a second force-quit).
+       * JS `applyOtaUpdateIfAvailable` also fetches+reloads; this helps the first apply
+       * on binaries that still have the old LaunchWaitMs until the next store build.
+       */
+      fallbackToCacheTimeout: 8000,
     },
     orientation: 'portrait',
     icon: APP_ICON_1024,
@@ -27,7 +33,7 @@ export default {
     scheme: 'flyfam',
     /** E-posta doğrulama deep link (Supabase redirect). */
     linking: {
-      schemes: ['flyfam', 'com.flyfam.app'],
+      schemes: ['flyfam', 'com.flyfamapp.mobile', 'com.flyfam.app'],
     },
     /** Düz zemin SPLASH_BACKGROUND + ortada SPLASH_LOGO_IMAGE (contain). */
     splash: {
@@ -37,13 +43,13 @@ export default {
     },
     ios: {
       supportsTablet: true,
-      bundleIdentifier: 'com.flyfam.app',
+      bundleIdentifier: 'com.flyfamapp.mobile',
       /** Her App Store / TestFlight yüklemesinde bir öncekinden büyük olmalı (CFBundleVersion). */
-      buildNumber: '52',
+      buildNumber: '55',
       jsEngine: 'hermes',
       infoPlist: {
         /** expo-share-extension ana uygulama + uzantı için App Group */
-        AppGroup: 'group.com.flyfam.app',
+        AppGroup: 'group.com.flyfamapp.mobile',
         ITSAppUsesNonExemptEncryption: false,
         // CFBundleDocumentTypes tanımlı olduğunda iOS gereksinimi:
         // UIDocumentBrowser kullanılmıyorsa in-place açmayı açık tut.
@@ -59,7 +65,7 @@ export default {
       },
     },
     android: {
-      versionCode: 52,
+      versionCode: 55,
       jsEngine: 'hermes',
       /** Play + adaptive foreground: iOS App Store ikonu ile aynı 1024 kaynak. */
       icon: APP_ICON_1024,
