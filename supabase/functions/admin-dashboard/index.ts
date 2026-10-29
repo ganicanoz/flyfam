@@ -1378,6 +1378,7 @@ Deno.serve(async (req) => {
       const bodyRaw = typeof body?.body === 'string' ? body.body.trim() : '';
       const title = titleRaw || 'FlyFam';
       const url = typeof body?.url === 'string' ? body.url.trim() : '';
+      const dryRun = body?.dry_run === true || body?.dry_run === 'true' || body?.dry_run === 1;
       const roleFilter =
         typeof body?.role === 'string' && (body.role === 'crew' || body.role === 'family')
           ? body.role
@@ -1388,13 +1389,18 @@ Deno.serve(async (req) => {
         typeof body?.platform === 'string' ? body.platform.trim().toLowerCase() : 'all';
       const platformFilter =
         platformRaw === 'ios' || platformRaw === 'android' ? platformRaw : 'all';
-      if (!bodyRaw) {
-        return new Response(JSON.stringify({ error: 'body is required' }), {
+      const activeWithinDaysRaw = Number(body?.active_within_days);
+      const activeWithinDays =
+        Number.isFinite(activeWithinDaysRaw) && activeWithinDaysRaw > 0
+          ? Math.min(365, Math.floor(activeWithinDaysRaw))
+          : 0;
+      if (!dryRun && !bodyRaw) {
+        return new Response(JSON.stringify({ error: 'body is required (or set dry_run)' }), {
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
-      if (title.length > 100 || bodyRaw.length > 500) {
+      if (!dryRun && (title.length > 100 || bodyRaw.length > 500)) {
         return new Response(JSON.stringify({ error: 'title max 100 / body max 500 chars' }), {
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -1443,9 +1449,66 @@ Deno.serve(async (req) => {
           userIds = userIds.filter((id) => allowed.has(id));
         }
       }
+      // Active filter: last app_open / device last_used / auth last_sign_in within N days.
+      const lastSeenByUser = new Map<string, string>();
+      if (activeWithinDays > 0 && userIds.length > 0) {
+        const sinceIso = new Date(Date.now() - activeWithinDays * 24 * 60 * 60 * 1000).toISOString();
+        const { data: openRows } = await adminClient
+          .from('user_activity_events')
+          .select('user_id, occurred_at')
+          .eq('event_type', 'app_open')
+          .gte('occurred_at', sinceIso)
+          .in('user_id', userIds)
+          .limit(20000);
+        for (const row of openRows ?? []) {
+          const uid = String((row as { user_id: string }).user_id || '');
+          const at = String((row as { occurred_at: string }).occurred_at || '');
+          if (!uid || !at) continue;
+          const prev = lastSeenByUser.get(uid);
+          if (!prev || at > prev) lastSeenByUser.set(uid, at);
+        }
+        const { data: deviceRows } = await adminClient
+          .from('device_tokens')
+          .select('user_id, last_used_at, updated_at, created_at')
+          .in('user_id', userIds)
+          .limit(10000);
+        for (const row of deviceRows ?? []) {
+          const uid = String((row as { user_id: string }).user_id || '');
+          const at = String(
+            (row as { last_used_at?: string | null }).last_used_at ||
+              (row as { updated_at?: string | null }).updated_at ||
+              (row as { created_at?: string | null }).created_at ||
+              '',
+          );
+          if (!uid || !at || at < sinceIso) continue;
+          const prev = lastSeenByUser.get(uid);
+          if (!prev || at > prev) lastSeenByUser.set(uid, at);
+        }
+        // Auth last_sign_in as fallback for users without activity rows yet.
+        for (const uid of userIds) {
+          if (lastSeenByUser.has(uid)) continue;
+          try {
+            const { data: authUser } = await adminClient.auth.admin.getUserById(uid);
+            const at = authUser?.user?.last_sign_in_at ?? null;
+            if (at && at >= sinceIso) lastSeenByUser.set(uid, at);
+          } catch {
+            // ignore per-user auth lookup failures
+          }
+        }
+        userIds = userIds.filter((id) => lastSeenByUser.has(id));
+      }
       if (userIds.length === 0) {
         return new Response(
-          JSON.stringify({ ok: true, action, sent: 0, users_matched: 0, users_with_tokens: 0 }),
+          JSON.stringify({
+            ok: true,
+            action,
+            dry_run: dryRun,
+            sent: 0,
+            users_matched: 0,
+            users_with_tokens: 0,
+            active_within_days: activeWithinDays || null,
+            audience: [],
+          }),
           { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
         );
       }
@@ -1468,6 +1531,46 @@ Deno.serve(async (req) => {
       const allTokens = Array.from(
         new Set([...tokensByUser.values()].flat()),
       );
+      const profileById = new Map((profiles ?? []).map((p) => [p.id as string, p]));
+      const audience = userIds.slice(0, 200).map((uid) => {
+        const prof = profileById.get(uid);
+        return {
+          user_id: uid,
+          full_name: (prof as { full_name?: string | null } | undefined)?.full_name ?? null,
+          has_token: tokensByUser.has(uid),
+          token_count: tokensByUser.get(uid)?.length ?? 0,
+          last_seen_at: lastSeenByUser.get(uid) ?? null,
+        };
+      });
+      if (dryRun) {
+        console.log('[admin-dashboard] send_group_push dry_run', {
+          requester: requesterEmail,
+          role: roleFilter,
+          airline_icao: airlineFilter || null,
+          platform: platformFilter,
+          active_within_days: activeWithinDays || null,
+          users_matched: userIds.length,
+          users_with_tokens: tokensByUser.size,
+          token_count: allTokens.length,
+        });
+        return new Response(
+          JSON.stringify({
+            ok: true,
+            action,
+            dry_run: true,
+            users_matched: userIds.length,
+            users_with_tokens: tokensByUser.size,
+            token_count: allTokens.length,
+            role: roleFilter,
+            airline_icao: airlineFilter || null,
+            platform: platformFilter,
+            active_within_days: activeWithinDays || null,
+            audience,
+            sent: 0,
+          }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        );
+      }
       const dataPayload = url ? { url } : null;
       const pushResult = await sendExpoPush(allTokens, title, bodyRaw, dataPayload);
       const activityRows = [...tokensByUser.keys()].map((uid) => ({
@@ -1481,6 +1584,7 @@ Deno.serve(async (req) => {
           role: roleFilter,
           airline_icao: airlineFilter || null,
           platform: platformFilter,
+          active_within_days: activeWithinDays || null,
         },
       }));
       if (activityRows.length) {
@@ -1490,10 +1594,14 @@ Deno.serve(async (req) => {
         JSON.stringify({
           ok: true,
           action,
+          dry_run: false,
           users_matched: userIds.length,
           users_with_tokens: tokensByUser.size,
           token_count: allTokens.length,
           platform: platformFilter,
+          airline_icao: airlineFilter || null,
+          active_within_days: activeWithinDays || null,
+          audience,
           sent: pushResult.sent,
           expo_errors: pushResult.errors,
         }),

@@ -13,6 +13,14 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+### 2026-10-29 — Aktif üye grup push + temiz PGS TestFlight
+
+- **Admin:** `send_group_push` artık `active_within_days` + `dry_run` destekliyor (app_open / device / last_sign_in). `AdminPanel` içinde PGT/aktif önizleme+gönder UI.
+- **TestFlight (6827960794):** `FlyFam External (migrated)` silindi. `PGS Test Group` 6 kişiyle yenilendi (eski PGS 4 + 2 @flypgs.com). Team (Expo) + Aile aynı.
+- **Deploy:** `admin-dashboard` edge function. Bildirim henüz toplu gönderilmedi — admin Önizleme sonra Grup Gönder.
+- **Koruma:** Submit for Review yok. RevenueCat yeni key hâlâ açık.
+
+
 ### 2026-10-29 — TestFlight tester’lar Mertcan app’ine taşındı
 
 - **Kaynak:** Eski ASC app `6759844455` (FlyFam Legacy / `com.flyfam.app`) grupları: Team (Expo), Aile, PGS Test Group + adlı external tester’lar.

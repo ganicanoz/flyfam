@@ -74,6 +74,16 @@ export default function AdminPanel() {
   const [pushBody, setPushBody] = useState('');
   const [pushSending, setPushSending] = useState(false);
   const [pushStatus, setPushStatus] = useState<string | null>(null);
+  const [groupAirline, setGroupAirline] = useState<'PGT' | ''>('PGT');
+  const [groupRole, setGroupRole] = useState<'crew' | 'all'>('crew');
+  const [groupPlatform, setGroupPlatform] = useState<'all' | 'ios' | 'android'>('ios');
+  const [groupActiveDays, setGroupActiveDays] = useState<0 | 7 | 30 | 90>(30);
+  const [groupTitle, setGroupTitle] = useState('FlyFam güncellendi');
+  const [groupBody, setGroupBody] = useState(
+    'Yeni iOS sürümü TestFlight’ta. Eski uygulamayı silip yeni davetten FlyFam’ı kurun.',
+  );
+  const [groupBusy, setGroupBusy] = useState(false);
+  const [groupStatus, setGroupStatus] = useState<string | null>(null);
 
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
@@ -177,6 +187,84 @@ export default function AdminPanel() {
     ]);
   }, [pushBody, pushTitle, selectedUser, selectedUserId]);
 
+  const runGroupPush = useCallback(
+    async (dryRun: boolean) => {
+      const body = groupBody.trim();
+      if (!dryRun && !body) {
+        setGroupStatus('Mesaj gerekli');
+        return;
+      }
+      const title = groupTitle.trim() || 'FlyFam';
+      const payload = {
+        action: 'send_group_push' as const,
+        title,
+        body: body || '(dry-run)',
+        role: groupRole === 'all' ? 'all' : 'crew',
+        airline_icao: groupAirline || undefined,
+        platform: groupPlatform,
+        active_within_days: groupActiveDays > 0 ? groupActiveDays : undefined,
+        dry_run: dryRun,
+        url: 'https://apps.apple.com/app/id6827960794',
+      };
+      const doInvoke = async () => {
+        setGroupBusy(true);
+        setGroupStatus(null);
+        const { data: res, error: invokeError } = await supabase.functions.invoke('admin-dashboard', {
+          body: payload,
+        });
+        setGroupBusy(false);
+        if (invokeError) {
+          setGroupStatus(invokeError.message);
+          return;
+        }
+        const json = res as {
+          users_matched?: number;
+          users_with_tokens?: number;
+          token_count?: number;
+          sent?: number;
+          dry_run?: boolean;
+          expo_errors?: string[];
+          audience?: { full_name?: string | null; has_token?: boolean }[];
+        };
+        if (json?.dry_run) {
+          const named = (json.audience ?? [])
+            .filter((a) => a.has_token)
+            .map((a) => a.full_name || '?')
+            .slice(0, 8)
+            .join(', ');
+          setGroupStatus(
+            `Önizleme: ${json.users_matched ?? 0} üye · ${json.users_with_tokens ?? 0} tokenlı · ${json.token_count ?? 0} cihaz` +
+              (named ? `\nÖrnek: ${named}` : ''),
+          );
+          return;
+        }
+        const sent = Number(json?.sent ?? 0);
+        if (sent <= 0) {
+          setGroupStatus(json?.expo_errors?.join('; ') || 'Gönderilemedi (token/Expo)');
+          return;
+        }
+        setGroupStatus(
+          `Gönderildi: ${sent} · eşleşen ${json.users_matched ?? 0} · tokenlı ${json.users_with_tokens ?? 0}`,
+        );
+      };
+      if (dryRun) {
+        await doInvoke();
+        return;
+      }
+      Alert.alert(
+        'Grup push',
+        `${groupAirline || 'tüm airline'} · ${groupRole} · ${groupPlatform}` +
+          (groupActiveDays ? ` · son ${groupActiveDays}g aktif` : ' · aktif filtresiz') +
+          `\n\n${title}\n${body}`,
+        [
+          { text: 'İptal', style: 'cancel' },
+          { text: 'Gönder', onPress: () => void doInvoke() },
+        ],
+      );
+    },
+    [groupActiveDays, groupAirline, groupBody, groupPlatform, groupRole, groupTitle],
+  );
+
   if (!isAdminUser || !adminRosterMode) {
     return (
       <View style={styles.center}>
@@ -255,6 +343,122 @@ export default function AdminPanel() {
               <Text style={styles.btnText}>{pushSending ? 'Gönderiliyor…' : 'Push Gönder'}</Text>
             </TouchableOpacity>
             {!!pushStatus && <Text style={pushStatus.startsWith('Gönderildi') ? styles.ok : styles.err}>{pushStatus}</Text>}
+          </View>
+
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Grup Push (PGS / aktif)</Text>
+            <Text style={styles.mutedSmall}>
+              Inaktifleri ele: airline + son N gün aktif. Önce Önizleme, sonra Gönder.
+            </Text>
+            <Text style={styles.fieldLabel}>Airline</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.userChips}>
+              {(
+                [
+                  { id: 'PGT' as const, label: 'PGT (PGS)' },
+                  { id: '' as const, label: 'Tümü' },
+                ] as const
+              ).map((opt) => (
+                <TouchableOpacity
+                  key={opt.label}
+                  style={[styles.chip, groupAirline === opt.id && styles.chipActive]}
+                  onPress={() => setGroupAirline(opt.id)}
+                >
+                  <Text style={[styles.chipText, groupAirline === opt.id && styles.chipTextActive]}>{opt.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            <Text style={styles.fieldLabel}>Rol</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.userChips}>
+              {(
+                [
+                  { id: 'crew' as const, label: 'Crew' },
+                  { id: 'all' as const, label: 'Tümü' },
+                ] as const
+              ).map((opt) => (
+                <TouchableOpacity
+                  key={opt.id}
+                  style={[styles.chip, groupRole === opt.id && styles.chipActive]}
+                  onPress={() => setGroupRole(opt.id)}
+                >
+                  <Text style={[styles.chipText, groupRole === opt.id && styles.chipTextActive]}>{opt.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            <Text style={styles.fieldLabel}>Platform</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.userChips}>
+              {(
+                [
+                  { id: 'ios' as const, label: 'iOS' },
+                  { id: 'android' as const, label: 'Android' },
+                  { id: 'all' as const, label: 'Tümü' },
+                ] as const
+              ).map((opt) => (
+                <TouchableOpacity
+                  key={opt.id}
+                  style={[styles.chip, groupPlatform === opt.id && styles.chipActive]}
+                  onPress={() => setGroupPlatform(opt.id)}
+                >
+                  <Text style={[styles.chipText, groupPlatform === opt.id && styles.chipTextActive]}>{opt.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            <Text style={styles.fieldLabel}>Aktiflik</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.userChips}>
+              {(
+                [
+                  { id: 30 as const, label: '30 gün' },
+                  { id: 7 as const, label: '7 gün' },
+                  { id: 90 as const, label: '90 gün' },
+                  { id: 0 as const, label: 'Filtre yok' },
+                ] as const
+              ).map((opt) => (
+                <TouchableOpacity
+                  key={String(opt.id)}
+                  style={[styles.chip, groupActiveDays === opt.id && styles.chipActive]}
+                  onPress={() => setGroupActiveDays(opt.id)}
+                >
+                  <Text style={[styles.chipText, groupActiveDays === opt.id && styles.chipTextActive]}>{opt.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            <Text style={styles.fieldLabel}>Başlık</Text>
+            <TextInput
+              style={styles.input}
+              value={groupTitle}
+              onChangeText={setGroupTitle}
+              maxLength={100}
+              placeholderTextColor={colors.textSecondary}
+            />
+            <Text style={styles.fieldLabel}>Mesaj</Text>
+            <TextInput
+              style={[styles.input, styles.textArea]}
+              value={groupBody}
+              onChangeText={setGroupBody}
+              maxLength={500}
+              multiline
+              placeholderTextColor={colors.textSecondary}
+            />
+            <View style={styles.rowBtns}>
+              <TouchableOpacity
+                style={[styles.btnHalf, styles.btnOutline, groupBusy && styles.btnDisabled]}
+                onPress={() => void runGroupPush(true)}
+                disabled={groupBusy}
+              >
+                <Text style={styles.btnOutlineText}>{groupBusy ? '…' : 'Önizleme'}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.btnHalf, groupBusy && styles.btnDisabled]}
+                onPress={() => void runGroupPush(false)}
+                disabled={groupBusy}
+              >
+                <Text style={styles.btnText}>Grup Gönder</Text>
+              </TouchableOpacity>
+            </View>
+            {!!groupStatus && (
+              <Text style={groupStatus.startsWith('Gönderildi') || groupStatus.startsWith('Önizleme') ? styles.ok : styles.err}>
+                {groupStatus}
+              </Text>
+            )}
           </View>
 
           <View style={styles.card}>
@@ -359,4 +563,18 @@ const styles = StyleSheet.create({
   },
   btnDisabled: { opacity: 0.5 },
   btnText: { color: colors.white, fontWeight: '700' },
+  rowBtns: { flexDirection: 'row', gap: 8, marginTop: 12 },
+  btnHalf: {
+    flex: 1,
+    backgroundColor: colors.primary,
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  btnOutline: {
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.primary,
+  },
+  btnOutlineText: { color: colors.primary, fontWeight: '700' },
 });
