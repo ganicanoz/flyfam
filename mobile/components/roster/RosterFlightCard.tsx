@@ -32,7 +32,7 @@ import {
 } from '../../theme/tokens';
 import { scaleListBodyText } from '../../theme/fontScale';
 
-export type RosterCompactKind = 'standby' | 'off' | 'layover' | 'training';
+export type RosterCompactKind = 'standby' | 'off' | 'layover' | 'training' | 'simulator';
 
 export type RosterFlightCardModel = {
   flightNumber: string;
@@ -73,8 +73,6 @@ export type RosterFlightCardModel = {
   /** Nöbet kartı rozeti yerine (Rezerv, CFR). */
   standbyBadgeLabel?: string | null;
   showSuggestOccupation?: boolean;
-  /** BDF — doğum günü izni; off kartında pasta. */
-  birthdayOff?: boolean;
   aircraftReg?: string | null;
   aircraftType?: string | null;
   isPast?: boolean;
@@ -126,6 +124,7 @@ export function RosterFlightCard({
   const isOffCompact = compactKind === 'off';
   const isLayover = compactKind === 'layover';
   const isTraining = compactKind === 'training';
+  const isSimulator = compactKind === 'simulator';
   const inFlight = visual === 'in_flight';
   const isLanded = visual === 'landed' || (!!model.isPast && !inFlight);
   const rawSkew =
@@ -176,13 +175,15 @@ export function RosterFlightCard({
   const accent =
     isLayover
       ? cardAccent('layover', themeMode)
-      : isTraining
-        ? cardAccent('training', themeMode)
-        : isOffCompact
-          ? cardAccent('duty_off', themeMode)
-          : isStandby
-            ? cardAccent('standby', themeMode)
-            : chrome.accentColor;
+      : isSimulator
+        ? cardAccent('simulator', themeMode)
+        : isTraining
+          ? cardAccent('training', themeMode)
+          : isOffCompact
+            ? cardAccent('duty_off', themeMode)
+            : isStandby
+              ? cardAccent('standby', themeMode)
+              : chrome.accentColor;
 
   const [reduceMotion, setReduceMotion] = useState(false);
   useEffect(() => {
@@ -218,22 +219,24 @@ export function RosterFlightCard({
 
   const badgeCompact = windowWidth < 360;
 
-  // —— Kompakt: nöbet / off / yatı ——
-  if (isStandby || isOffCompact || isLayover || isTraining) {
+  // —— Kompakt: nöbet / off / yatı / eğitim / sim ——
+  if (isStandby || isOffCompact || isLayover || isTraining || isSimulator) {
     const kindBadge = isStandby
       ? { bg: marks.standbyBadgeBg, text: marks.standbyBadgeText }
       : isLayover
         ? { bg: marks.layoverBadgeBg, text: marks.layoverBadgeText }
-        : isTraining
-          ? { bg: marks.trainingBadgeBg, text: marks.trainingBadgeText }
-          : { bg: marks.offBadgeBg, text: marks.offBadgeText };
+        : isSimulator
+          ? { bg: marks.simulatorBadgeBg, text: marks.simulatorBadgeText }
+          : isTraining
+            ? { bg: marks.trainingBadgeBg, text: marks.trainingBadgeText }
+            : { bg: marks.offBadgeBg, text: marks.offBadgeText };
     const kindLabel = isStandby
       ? model.homeDutyLike
         ? t('roster.trainingBadge')
         : model.standbyBadgeLabel?.trim() || t('roster.statusStandby')
       : isLayover
         ? t('roster.legendLayover')
-        : isTraining
+        : isSimulator || isTraining
           ? t('roster.trainingBadge')
           : t('roster.offBadge');
     const station = model.layoverStationLabel?.trim() || null;
@@ -254,9 +257,7 @@ export function RosterFlightCard({
         ]
           .filter((x) => !!(x && String(x).trim()))
           .join(' · ')
-      : model.birthdayOff
-        ? `🎂 ${model.blockTitle?.trim() || t('roster.restDay')}`
-        : model.blockTitle?.trim() || t('roster.restDay');
+      : model.blockTitle?.trim() || t('roster.restDay');
 
     return (
       <TouchableOpacity
@@ -349,7 +350,7 @@ export function RosterFlightCard({
                 <Ionicons name="chevron-forward" size={16} color={ink.muted} style={styles.assignChevron} />
               )}
             </View>
-          ) : isTraining ? (
+          ) : isTraining || isSimulator ? (
             <View style={styles.standbyColumns}>
               <View style={styles.standbyLeft}>
                 <View style={styles.standbyRow}>
@@ -391,11 +392,20 @@ export function RosterFlightCard({
                   accessibilityLabel={t('roster.suggestOccupationA11y')}
                   style={[
                     styles.suggestTextBtn,
-                    { borderColor: marks.flightDot, backgroundColor: marks.trainingBadgeBg },
+                    {
+                      borderColor: isSimulator ? marks.simDot : marks.flightDot,
+                      backgroundColor: isSimulator ? marks.simulatorBadgeBg : marks.trainingBadgeBg,
+                    },
                   ]}
                 >
                   <Text
-                    style={[styles.suggestTextBtnLabel, { color: marks.trainingBadgeText, fontSize: chip(11) }]}
+                    style={[
+                      styles.suggestTextBtnLabel,
+                      {
+                        color: isSimulator ? marks.simulatorBadgeText : marks.trainingBadgeText,
+                        fontSize: chip(11),
+                      },
+                    ]}
                     numberOfLines={2}
                   >
                     {t('roster.suggestOccupation')}

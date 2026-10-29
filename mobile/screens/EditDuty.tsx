@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   StyleSheet,
   Alert,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -32,9 +33,12 @@ import {
   localDateTimeInTimezoneToUtcIso,
 } from '../lib/pdfRosterImport';
 import {
-  rosterOccupationLabelEn,
-  rosterOccupationLabelTr,
-} from '../lib/rosterOccupationLabels';
+  dutyDetailAccentKey,
+  dutyDetailHeroSource,
+  resolveDutyDetailKind,
+  resolveDutyPageTitle,
+  type DutyDetailKind,
+} from '../lib/dutyDetailVisual';
 
 /** Base yoksa Pegasus / TR varsayılanı. */
 const DUTY_FALLBACK_TZ = 'Europe/Istanbul';
@@ -107,12 +111,26 @@ function formatRelativeAgo(iso: string, language: string): string {
   return isTr ? `${days} g önce` : `${days}d ago`;
 }
 
+function dutyBadgeKey(kind: DutyDetailKind): string {
+  if (kind === 'simulator') return 'editDuty.badgeSimulator';
+  if (kind === 'ipt') return 'editDuty.badgeIpt';
+  if (kind === 'exam') return 'editDuty.badgeExam';
+  if (kind === 'standby') return 'editDuty.badgeStandby';
+  return 'editDuty.badgeDuty';
+}
+
+function dutyBadgeIcon(kind: DutyDetailKind): React.ComponentProps<typeof Ionicons>['name'] {
+  if (kind === 'simulator' || kind === 'ipt') return 'desktop-outline';
+  if (kind === 'exam') return 'school-outline';
+  if (kind === 'standby') return 'moon';
+  return 'briefcase-outline';
+}
+
 export default function EditDuty() {
   const { t, i18n } = useTranslation();
   const { crewProfile } = useSession();
   const themeMode = useThemeMode();
   useAirportDisplayVersion();
-  const accent = cardAccent('standby', themeMode);
   const marks = rosterMarks(themeMode);
   const styles = useMemo(() => createStyles(), [themeMode]);
   const navigation = useNavigation<any>();
@@ -121,6 +139,7 @@ export default function EditDuty() {
   const readOnly = route.params?.readOnly === true;
 
   const [code, setCode] = useState('');
+  const [rosterEntryKind, setRosterEntryKind] = useState<string | null>(null);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [startTime, setStartTime] = useState('');
@@ -138,7 +157,10 @@ export default function EditDuty() {
 
   const isTr = String(i18n.language || '').toLowerCase().startsWith('tr');
   const fieldFill = colors.inputFill;
-  const isStandby = isStandbyOccupationCode(code);
+  const dutyKind = resolveDutyDetailKind(code, rosterEntryKind);
+  const accent = cardAccent(dutyDetailAccentKey(dutyKind), themeMode);
+  const isStandby = dutyKind === 'standby' || isStandbyOccupationCode(code);
+  const heroSource = dutyDetailHeroSource(dutyKind);
 
   const applyAutoEndDate = useCallback(
     (nextStart: string, nextStartTime: string, nextEndTime: string) => {
@@ -174,6 +196,8 @@ export default function EditDuty() {
     }
     let cancelled = false;
     void (async () => {
+      // Not: `duty_occupation_code` flights tablosunda yok — seçilirse tüm fetch düşer,
+      // code boş kalır → yeşil «boş gün» + hero yok.
       const { data, error } = await supabase
         .from('flights')
         .select('flight_number, flight_date, scheduled_departure, scheduled_arrival, roster_entry_kind')
@@ -184,6 +208,9 @@ export default function EditDuty() {
       if (error || !data) return;
       const fn = ((data.flight_number as string) ?? '').trim().toUpperCase();
       setCode(fn);
+      setRosterEntryKind(
+        data.roster_entry_kind != null ? String(data.roster_entry_kind) : null,
+      );
       const sDate =
         calendarDateFromUtcIsoInTimeZone(data.scheduled_departure as string, dutyTz) ||
         ((data.flight_date as string) ?? '');
@@ -303,7 +330,9 @@ export default function EditDuty() {
   };
 
   const handleDelete = () => {
-    Alert.alert(t('editDuty.deleteTitle'), t('editDuty.deleteMessage'), [
+    const deleteMsg =
+      dutyKind === 'standby' ? t('editDuty.deleteMessage') : t('editDuty.deleteMessageGeneric');
+    Alert.alert(t('editDuty.deleteTitle'), deleteMsg, [
       { text: t('common.cancel'), style: 'cancel' },
       {
         text: t('common.delete'),
@@ -348,37 +377,72 @@ export default function EditDuty() {
       }`
     : t('editDuty.placeholderDate');
 
-  const badgeLabel = String(t('editDuty.nightDutyBadge')).toLocaleUpperCase(i18n.language || 'tr');
+  const pageTitle = resolveDutyPageTitle({
+    code,
+    kind: dutyKind,
+    isTr,
+    airlineIcao: crewProfile?.airline_icao,
+    fallbackDuty: t('editDuty.titleDuty'),
+    fallbackSimulator: t('editDuty.titleSimulator'),
+    fallbackIpt: t('editDuty.titleIpt'),
+    fallbackExam: t('editDuty.titleExam'),
+    fallbackStandby: t('editDuty.badgeStandby'),
+  });
+  const badgeLabel = String(t(dutyBadgeKey(dutyKind))).toLocaleUpperCase(i18n.language || 'tr');
+  const badgeColors =
+    dutyKind === 'simulator' || dutyKind === 'ipt'
+      ? { bg: marks.simulatorBadgeBg, text: marks.simulatorBadgeText }
+      : dutyKind === 'exam'
+        ? { bg: marks.trainingBadgeBg, text: marks.trainingBadgeText }
+        : dutyKind === 'standby'
+          ? { bg: marks.standbyBadgeBg, text: marks.standbyBadgeText }
+          : { bg: marks.offBadgeBg, text: marks.offBadgeText };
+  // Başlık zaten aynı metinse rozeti tekrarlama (örn. «Simülatör» / «Nöbet»).
+  const showKindBadge =
+    pageTitle.title.replace(/\s/g, '').toLocaleUpperCase(i18n.language || 'tr') !==
+    badgeLabel.replace(/\s/g, '');
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <ScreenPageHeader title={t('editDuty.title')} />
+      <ScreenPageHeader title={pageTitle.title} subtitle={pageTitle.subtitle ?? undefined} />
       <KeyboardSafeScroll
         style={styles.scroll}
         contentContainerStyle={[styles.content, !readOnly && { paddingBottom: 140 }]}
         bottomOffset={48}
       >
-        {locationLine ? (
-          <View
-            style={styles.locationRow}
-            accessibilityRole="text"
-            accessibilityLabel={locationLine}
-          >
-            <Ionicons name="location-sharp" size={18} color={colors.primary} />
-            <Text style={styles.locationText}>{locationLine}</Text>
+        {heroSource ? (
+          <View style={styles.heroWrap}>
+            <Image source={heroSource} style={styles.heroImage} resizeMode="cover" />
+            <View style={styles.heroScrim} />
           </View>
         ) : null}
 
-        <View
-          style={[styles.nightBadge, { backgroundColor: colors.primaryLight }]}
-          accessibilityRole="text"
-          accessibilityLabel={badgeLabel}
-          accessible
-        >
-          <Ionicons name="moon" size={12} color={colors.secondary} />
-          <Text style={[styles.nightBadgeText, { color: colors.secondary }]} numberOfLines={1}>
-            {badgeLabel}
-          </Text>
+        <View style={styles.metaRow}>
+          {showKindBadge ? (
+            <View
+              style={[styles.nightBadge, { backgroundColor: badgeColors.bg, marginBottom: 0 }]}
+              accessibilityRole="text"
+              accessibilityLabel={badgeLabel}
+              accessible
+            >
+              <Ionicons name={dutyBadgeIcon(dutyKind)} size={12} color={badgeColors.text} />
+              <Text style={[styles.nightBadgeText, { color: badgeColors.text }]} numberOfLines={1}>
+                {badgeLabel}
+              </Text>
+            </View>
+          ) : null}
+          {locationLine ? (
+            <View
+              style={styles.locationInline}
+              accessibilityRole="text"
+              accessibilityLabel={locationLine}
+            >
+              <Ionicons name="location-sharp" size={15} color={colors.primary} />
+              <Text style={styles.locationInlineText} numberOfLines={1}>
+                {locationLine}
+              </Text>
+            </View>
+          ) : null}
         </View>
 
         <FormCard accentColor={accent}>
@@ -475,14 +539,6 @@ export default function EditDuty() {
             ) : null}
           </View>
         ) : null}
-
-        {!isStandby && code ? (
-          <Text style={styles.codeHint}>
-            {(isTr
-              ? rosterOccupationLabelTr(code, crewProfile?.airline_icao)
-              : rosterOccupationLabelEn(code, crewProfile?.airline_icao)) || code}
-          </Text>
-        ) : null}
       </KeyboardSafeScroll>
 
       {!readOnly ? (
@@ -516,16 +572,37 @@ function createStyles() {
     centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
     scroll: { flex: 1 },
     content: { paddingHorizontal: spacing.md, paddingTop: spacing.xs, paddingBottom: spacing.xl },
-    locationRow: {
+    heroWrap: {
+      height: 132,
+      borderRadius: radius.card,
+      overflow: 'hidden',
+      marginBottom: spacing.sm,
+      backgroundColor: colors.surfaceAlt,
+    },
+    heroImage: { width: '100%', height: '100%' },
+    heroScrim: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: 'rgba(15, 27, 61, 0.12)',
+    },
+    metaRow: {
       flexDirection: 'row',
       alignItems: 'center',
+      flexWrap: 'wrap',
       gap: 8,
       marginBottom: spacing.sm,
-      paddingHorizontal: 2,
+      minHeight: 24,
     },
-    locationText: {
-      ...typography.cardTitle,
-      color: colors.text,
+    locationInline: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      flexShrink: 1,
+      maxWidth: '72%',
+    },
+    locationInlineText: {
+      color: colors.textSecondary,
+      fontSize: 13,
+      fontWeight: '600',
       flexShrink: 1,
     },
     nightBadge: {
@@ -615,13 +692,6 @@ function createStyles() {
       color: colors.textMuted,
       fontSize: 12,
       fontWeight: '500',
-      textAlign: 'center',
-    },
-    codeHint: {
-      color: colors.textMuted,
-      fontSize: 13,
-      fontWeight: '600',
-      marginTop: spacing.sm,
       textAlign: 'center',
     },
     deleteBtn: {

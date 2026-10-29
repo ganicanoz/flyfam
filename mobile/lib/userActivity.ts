@@ -6,6 +6,7 @@ import { AppState, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import { supabase } from './supabase';
+import { otaDiagnostics } from './applyOtaUpdate';
 
 export type ActivityEventType =
   | 'app_open'
@@ -71,6 +72,7 @@ export async function trackAppOpenThrottled(userId: string): Promise<void> {
     await AsyncStorage.setItem(key, String(now));
     await trackActivityEvent(userId, 'app_open', {
       app_state: AppState.currentState,
+      ...otaDiagnostics(),
     });
   } catch {
     // ignore
