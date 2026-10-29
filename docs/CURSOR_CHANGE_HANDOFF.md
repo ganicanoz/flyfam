@@ -13,6 +13,14 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+### 2026-10-29 — Build 55 OTA catch-up (SIM/duty/OTA client)
+
+- **Sorun:** TestFlight 55 gömülü JS, OTA client (`applyOtaUpdate`) ve son SIM/EditDuty JS’ini taşımıyordu; `applyOtaUpdate.ts` / `dutyDetailVisual.ts` hiç `main`’de yoktu. Son production OTA’lar build53 worktree’sinden yayınlanmıştı; 55 sonrası Admin grup push için de yeni OTA yoktu.
+- **Düzeltme:** OTA client + duty hero/SIM mavi + EditDuty başlıkları + publish-ota script `main`’e alındı; production channel OTA yayınlanacak (runtime `1.3.0`).
+- **Cihazda:** TestFlight 55’i tam kapat-aç (LaunchWait 8sn); `ota_update_id` dolmalı.
+- **Koruma:** runtimeVersion string `1.3.0`; fingerprint policy yok. Submit for Review yok.
+
+
 ### 2026-10-29 — Aktif üye grup push + temiz PGS TestFlight
 
 - **Admin:** `send_group_push` artık `active_within_days` + `dry_run` destekliyor (app_open / device / last_sign_in). `AdminPanel` içinde PGT/aktif önizleme+gönder UI.

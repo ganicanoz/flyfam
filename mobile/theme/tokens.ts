@@ -86,6 +86,8 @@ export function statusChrome(token: FlightStatusToken, mode: ThemeMode): StatusC
 export const rosterMarksLight = {
   /** Katman 1 — uçuş günü tek nokta */
   flightDot: '#E53935',
+  /** Simülatör günü — uçuş kartı mavi aksanı ile aynı aile */
+  simDot: '#1A5CF5',
   /** Katman 2 — birleşik çizgiler */
   layoverLine: '#F48FB1',
   standbyLine: '#F59E0B',
@@ -100,6 +102,9 @@ export const rosterMarksLight = {
   /** Eğitim / yer dersi / ofis — takvim kırmızı noktasıyla aynı aile */
   trainingBadgeBg: '#FDECEC',
   trainingBadgeText: '#B42318',
+  /** Simülatör — mavi görev kutusu */
+  simulatorBadgeBg: '#E8EEFE',
+  simulatorBadgeText: '#1A5CF5',
   /** Ortak boş gün ✓ (karşılaştırma) */
   sharedOffMark: '#1B7F3B',
   sharedOffBannerBg: '#E6F6EC',
@@ -109,6 +114,7 @@ export const rosterMarksLight = {
 
 export const rosterMarksDark = {
   flightDot: '#EF5350',
+  simDot: '#4D7FFF',
   layoverLine: '#F8BBD0',
   standbyLine: '#F0B060',
   offLine: '#4ADE80',
@@ -120,6 +126,8 @@ export const rosterMarksDark = {
   layoverBadgeText: '#F9A8D4',
   trainingBadgeBg: '#3A1A1A',
   trainingBadgeText: '#F07171',
+  simulatorBadgeBg: '#1A2744',
+  simulatorBadgeText: '#4D7FFF',
   sharedOffMark: '#7BC47F',
   sharedOffBannerBg: '#1A3324',
   sharedOffBannerBorder: '#2D5A3D',
@@ -136,6 +144,7 @@ export function rosterMarks(mode: ThemeMode) {
  */
 export const calendarLight = {
   flightDot: rosterMarksLight.flightDot,
+  simDot: rosterMarksLight.simDot,
   layoverLine: rosterMarksLight.layoverLine,
   standbyLine: rosterMarksLight.standbyLine,
   offLine: rosterMarksLight.offLine,
@@ -152,6 +161,7 @@ export const calendarLight = {
 
 export const calendarDark = {
   flightDot: rosterMarksDark.flightDot,
+  simDot: rosterMarksDark.simDot,
   layoverLine: rosterMarksDark.layoverLine,
   standbyLine: rosterMarksDark.standbyLine,
   offLine: rosterMarksDark.offLine,
@@ -175,6 +185,7 @@ export const cardAccentLight = {
   duty_off: rosterMarksLight.offLine,
   standby: rosterMarksLight.standbyLine,
   training: rosterMarksLight.flightDot,
+  simulator: rosterMarksLight.simDot,
   in_flight: '#16A34A',
   landed: '#16A34A',
   layover: rosterMarksLight.layoverLine,
@@ -185,6 +196,7 @@ export const cardAccentDark = {
   duty_off: rosterMarksDark.offLine,
   standby: rosterMarksDark.standbyLine,
   training: rosterMarksDark.flightDot,
+  simulator: rosterMarksDark.simDot,
   in_flight: '#4ADE80',
   landed: '#7BC47F',
   layover: rosterMarksDark.layoverLine,

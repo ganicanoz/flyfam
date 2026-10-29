@@ -38,7 +38,8 @@
     "roster:diagnose": "tsx scripts/diagnose-roster-flight.ts",
     "roster:status": "tsx scripts/roster-status-trace.ts",
     "roster:batch": "tsx scripts/roster-batch-table.ts",
-    "postinstall": "patch-package"
+    "postinstall": "patch-package",
+    "ota:production": "node scripts/publish-ota.mjs"
   },
   "dependencies": {
     "@bottom-tabs/react-navigation": "^1.4.0",

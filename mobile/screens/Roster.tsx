@@ -60,7 +60,7 @@ import {
 } from '../lib/rosterOccupationLocalOverrides';
 import { subscribeOccupationCatalog } from '../lib/rosterOccupationCatalog';
 import { SuggestOccupationModal } from '../components/SuggestOccupationModal';
-import { importPdfFlightsViaRpc, isOffDayOccupationCode, isAnnualLeaveOccupationCode, isUnpaidLeaveOccupationCode, isGroundDutyOccupationCode, isOfficeDutyOccupationCode, isStandbyOccupationCode, isTrainingOccupationCode, isHomeDutyOccupationCode, isBirthdayOffOccupationCode, isRosterPdfImportSupportedForCrewAirline } from '../lib/pdfRosterImport';
+import { importPdfFlightsViaRpc, isOffDayOccupationCode, isAnnualLeaveOccupationCode, isUnpaidLeaveOccupationCode, isGroundDutyOccupationCode, isOfficeDutyOccupationCode, isStandbyOccupationCode, isTrainingOccupationCode, isHomeDutyOccupationCode, isRosterPdfImportSupportedForCrewAirline } from '../lib/pdfRosterImport';
 import {
   indigoDutyBlockTitleEn,
   indigoDutyBlockTitleTr,
@@ -214,7 +214,8 @@ function calendarDayKindForEntry(f: {
     f.roster_entry_kind === 'sim' ||
     isSimulatorOccupationCode(blockCode) ||
     isSimulatorOccupationCode(occCode);
-  if (isSim) return 'duty_off';
+  // Simülatör: boş gün (yeşil) değil — takvimde mavi nokta + mavi görev kartı.
+  if (isSim) return 'flight';
   // Evden görev (COTD): turuncu çizgi — kırmızı uçuş noktası yok.
   if (isHomeDutyOccupationCode(blockCode) || isHomeDutyOccupationCode(occCode)) {
     return 'standby';
@@ -3922,6 +3923,13 @@ export default function Roster({
     let flights = 0;
     for (const f of displayFlights) {
       if (!listGroupDate(f).startsWith(ym)) continue;
+      const blockCode = (f.flight_number || '').trim().toUpperCase();
+      const occCode = (f.duty_occupation_code || '').trim().toUpperCase();
+      const isSimEntry =
+        f.roster_entry_kind === 'sim' ||
+        isSimulatorOccupationCode(blockCode) ||
+        isSimulatorOccupationCode(occCode);
+      if (isSimEntry) continue;
       if (calendarDayKindForEntry(f) === 'flight') flights += 1;
     }
     let layovers = 0;
@@ -4850,7 +4858,7 @@ export default function Roster({
     // Liste filtresinden bağımsız varsayılan: takvim renkleri tüm roster satırlarından.
     // flights_only açıkken yalnızca uçuş günleri.
     for (const f of flights) {
-      // sim → calendarDayKindForEntry duty_off (yeşil çubuk); «Yalnız uçuşlar»da zaten elenir.
+      // sim → calendarDayKindForEntry flight (mavi nokta); «Yalnız uçuşlar»da elenir.
       if (flightsOnly && !rosterListRowVisible(f, rosterListPrefs)) continue;
       const dayKind = calendarDayKindForEntry(f);
       if (flightsOnly && dayKind !== 'flight') continue;
@@ -4882,40 +4890,52 @@ export default function Roster({
     persistedDayKinds,
     rosterTodayYmd,
     calendarLayoverDateSet,
-    rosterListPrefs,
+    rosterListPrefs.flights_only,
   ]);
 
-  /** Hibrit takvim: nokta (uçuş) + çizgi (yatı / nöbet / off). Uçuş olan günde nöbet çizgisi yok. */
+  /** Hibrit takvim: nokta (uçuş/sim) + çizgi (yatı / nöbet / off). Uçuş olan günde nöbet çizgisi yok. */
   const calendarMarkSets = useMemo(() => {
     const flightCount = new Map<string, number>();
+    const sim = new Set<string>();
     const standby = new Set<string>();
     const dutyOff = new Set<string>();
     const flightsOnly = rosterListPrefs.flights_only;
     for (const f of flights) {
       if (flightsOnly && !rosterListRowVisible(f, rosterListPrefs)) continue;
       const ymd = listGroupDate(f);
+      const blockCode = (f.flight_number || '').trim().toUpperCase();
+      const occCode = (f.duty_occupation_code || '').trim().toUpperCase();
+      const isSimEntry =
+        f.roster_entry_kind === 'sim' ||
+        isSimulatorOccupationCode(blockCode) ||
+        isSimulatorOccupationCode(occCode);
+      if (isSimEntry) {
+        if (!flightsOnly) sim.add(ymd);
+        continue;
+      }
       const kind = calendarDayKindForEntry(f);
       if (kind === 'flight') {
         flightCount.set(ymd, (flightCount.get(ymd) ?? 0) + 1);
       } else if (!flightsOnly && kind === 'standby') {
         standby.add(ymd);
       } else if (!flightsOnly && kind === 'duty_off') {
-        // sim de duty_off gün rengine düşer (yeşil çubuk)
         dutyOff.add(ymd);
       }
     }
     for (const [ymd, kind] of Object.entries(persistedDayKinds)) {
       if (ymd >= rosterTodayYmd) continue;
-      if (kind === 'flight' && !flightCount.has(ymd)) flightCount.set(ymd, 1);
+      if (kind === 'flight' && !flightCount.has(ymd) && !sim.has(ymd)) flightCount.set(ymd, 1);
       // Uçuşa dönmüş günlerde turuncu kalmasın; yalnız uçuşsuz nöbet geçmişi.
-      if (!flightsOnly && kind === 'standby' && !flightCount.has(ymd)) standby.add(ymd);
+      if (!flightsOnly && kind === 'standby' && !flightCount.has(ymd) && !sim.has(ymd)) {
+        standby.add(ymd);
+      }
       if (!flightsOnly && kind === 'duty_off') dutyOff.add(ymd);
     }
-    // Aynı günde uçuş varsa nöbet çizgisini bastır (görev tebliği sonrası).
+    // Aynı günde uçuş/sim varsa nöbet çizgisini bastır (görev tebliği sonrası).
     for (const ymd of [...standby]) {
-      if ((flightCount.get(ymd) ?? 0) > 0) standby.delete(ymd);
+      if ((flightCount.get(ymd) ?? 0) > 0 || sim.has(ymd)) standby.delete(ymd);
     }
-    return { flightCount, standby, dutyOff };
+    return { flightCount, sim, standby, dutyOff };
   }, [flights, listGroupDate, persistedDayKinds, rosterTodayYmd, rosterListPrefs]);
 
   const calendarMarksUserKey =
@@ -4951,8 +4971,6 @@ export default function Roster({
     setPersistedDayKinds((prev) => {
       const next: Record<string, CalendarDayKind> = { ...prev };
       for (const f of flights) {
-        const rk = (f.roster_entry_kind ?? 'flight').toLowerCase();
-        if (rk === 'sim') continue;
         const ymd = listGroupDate(f);
         const kind = calendarDayKindForEntry(f);
         if (kind === 'empty') continue;
@@ -5191,13 +5209,15 @@ export default function Roster({
         const focusYm = selectedDate.slice(0, 7);
         const dimOtherMonth = calendarEffectiveExpanded && cell.ymd.slice(0, 7) !== focusYm;
         const flightN = calendarMarkSets.flightCount.get(cell.ymd) ?? 0;
+        const hasSim = calendarMarkSets.sim.has(cell.ymd);
         const hasLayover = calendarLayoverDateSet.has(cell.ymd);
         const hasStandby = calendarMarkSets.standby.has(cell.ymd);
         const hasOff =
           calendarMarkSets.dutyOff.has(cell.ymd) &&
           !hasLayover &&
           !hasStandby &&
-          flightN === 0;
+          flightN === 0 &&
+          !hasSim;
         const isSharedOff =
           !rosterListPrefs.flights_only && sharedOffSet.has(cell.ymd);
         // Öncelik: yatı > nöbet (uçuşsuz) > off. Uçuş varsa kırmızı nokta; nöbet çizgisi yok.
@@ -5217,7 +5237,8 @@ export default function Roster({
             calendarMarkSets.dutyOff.has(ymd) &&
             !calendarLayoverDateSet.has(ymd) &&
             !calendarMarkSets.standby.has(ymd) &&
-            !flightsOnDay
+            !flightsOnDay &&
+            !calendarMarkSets.sim.has(ymd)
           );
         };
         const prevYmd = colIdx > 0 ? week[colIdx - 1]?.ymd : null;
@@ -5321,7 +5342,7 @@ export default function Roster({
               ) : null}
               <View style={styles.calendarMarkers}>
                 <View style={styles.calendarDotsRow}>
-                  {flightN <= 0 && !isSharedOff ? (
+                  {flightN <= 0 && !hasSim && !isSharedOff ? (
                     <View style={{ height: CALENDAR_DOT_SIZE }} />
                   ) : (
                     <>
@@ -5332,6 +5353,16 @@ export default function Roster({
                             height: CALENDAR_DOT_SIZE,
                             borderRadius: CALENDAR_DOT_SIZE / 2,
                             backgroundColor: cal.flightDot,
+                            marginHorizontal: 1,
+                          }}
+                        />
+                      ) : hasSim ? (
+                        <View
+                          style={{
+                            width: CALENDAR_DOT_SIZE,
+                            height: CALENDAR_DOT_SIZE,
+                            borderRadius: CALENDAR_DOT_SIZE / 2,
+                            backgroundColor: cal.simDot,
                             marginHorizontal: 1,
                           }}
                         />
@@ -6099,9 +6130,6 @@ export default function Roster({
               isSimulatorOccupationCode(blockCode) ||
               isSimulatorOccupationCode(item.duty_occupation_code);
             const isOffDayDutyCode = isOffDayOccupationCode(blockCode);
-            const isBirthdayOffCode =
-              isBirthdayOffOccupationCode(blockCode) ||
-              isBirthdayOffOccupationCode(item.duty_occupation_code);
             const isAnnualLeaveCode = isAnnualLeaveOccupationCode(blockCode);
             const isUnpaidLeaveCode = isUnpaidLeaveOccupationCode(blockCode);
             const isGroundDutyCode = isGroundDutyOccupationCode(blockCode);
@@ -6154,11 +6182,9 @@ export default function Roster({
                       ? (isTr ? 'Yer Dersi' : 'Ground Training')
                       : isOfficeDutyCode
                         ? (isTr ? 'Ofis' : 'Office Duty')
-                        : isBirthdayOffCode
-                          ? (isTr ? 'Doğum Günü İzni' : 'Birthday Off')
-                          : isOffDayDutyCode
-                            ? (isTr ? 'Boş Gün' : 'Off Day')
-                            : catalogDutyLabel ?? item.flight_number);
+                        : isOffDayDutyCode
+                          ? (isTr ? 'Boş Gün' : 'Off Day')
+                          : catalogDutyLabel ?? item.flight_number);
             const blockTitle =
               isDutyOffBlock
                 ? blockLabel
@@ -6383,20 +6409,28 @@ export default function Roster({
               flightStatus: item.flight_status ?? displayStatus,
               isStandbyDutyCode: isStandbyDutyCode || isReserveDutyCode || isCfrDuty,
               isNonFlightBlock,
+              // SIM/IPT: tek kısa etiket (eski «Simülatör: Simülatör (SIM)» tekrarı yok).
               blockTitle: isSimBlock
-                ? `${t('roster.simulatorBlockType')} ${blockTitle}`.trim()
+                ? (() => {
+                    const u = blockCode.replace(/\s/g, '').toUpperCase();
+                    if (u.includes('IPT') || u.startsWith('CPI')) return u || 'IPT';
+                    if (u && u !== 'SIM') return u; // örn. SIM8A
+                    return t('roster.simulatorShort');
+                  })()
                 : isStandbyBlock
                   ? undefined
                   : isNonFlightBlock
                     ? blockTitle
                     : undefined,
-              compactKind: (isStandbyBlock || isHomeDutyBlock
-                ? 'standby'
-                : isGroundDutyBlock
-                  ? 'training'
-                  : isNonFlightBlock
-                    ? 'off'
-                    : null) as 'standby' | 'off' | 'layover' | 'training' | null,
+              compactKind: (isSimBlock
+                ? 'simulator'
+                : isStandbyBlock || isHomeDutyBlock
+                  ? 'standby'
+                  : isGroundDutyBlock
+                    ? 'training'
+                    : isNonFlightBlock
+                      ? 'off'
+                      : null) as 'standby' | 'off' | 'layover' | 'training' | 'simulator' | null,
               /** Nöbet: base IATA. Ev görevi (COTD): etiket istasyon yerine. */
               layoverStationLabel: isStandbyBlock
                 ? dutyStationIata && formatCityAndCode(dutyStationIata)
@@ -6409,7 +6443,7 @@ export default function Roster({
                   : `${formatStandbyDayMonth(item.flight_date)} · ${depTime} – ${arrTime}`
                 : isHomeDutyBlock && depTime !== '—' && arrTime !== '—'
                   ? `${depTime} – ${arrTime}`
-                  : isGroundDutyBlock && depTime !== '—' && arrTime !== '—'
+                  : (isGroundDutyBlock || isSimBlock) && depTime !== '—' && arrTime !== '—'
                     ? `${depTime} – ${arrTime}`
                     : undefined,
               progress,
@@ -6432,7 +6466,6 @@ export default function Roster({
                 !!blockCode &&
                 !isOccupationCodeDefined(blockCode, crewProfile?.airline_icao) &&
                 occupationSuggestTick >= 0,
-              birthdayOff: isBirthdayOffCode,
               aircraftReg: isEnRoute
                 ? aircraftRegById[item.id] ||
                   formatAircraftRegistration(item.aircraft_registration) ||

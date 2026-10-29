@@ -66,6 +66,10 @@ import {
   type AppReleasePolicy,
 } from './lib/appReleasePolicy';
 import {
+  applyOtaUpdateIfAvailable,
+  subscribeOtaOnForeground,
+} from './lib/applyOtaUpdate';
+import {
   hydrateOccupationCatalogFromStorage,
   refreshOccupationCatalog,
 } from './lib/rosterOccupationCatalog';
@@ -396,6 +400,19 @@ function RootNavigator() {
   useEffect(() => {
     loadStoredThemeMode();
     void loadStoredFontSizePreset();
+  }, []);
+
+  // OTA: splash/boot bitsin, sonra indir + gecikmeli reload (anında reload 2. açılışta çökertmişti).
+  useEffect(() => {
+    if (Platform.OS === 'web') return;
+    const boot = setTimeout(() => {
+      void applyOtaUpdateIfAvailable({ force: true, reloadDelayMs: 2500 });
+    }, 4000);
+    const unsub = subscribeOtaOnForeground();
+    return () => {
+      clearTimeout(boot);
+      unsub();
+    };
   }, []);
 
   useEffect(() => {
