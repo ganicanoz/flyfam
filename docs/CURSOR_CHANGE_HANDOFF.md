@@ -13,6 +13,15 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+### 2026-10-29 — TestFlight tester’lar Mertcan app’ine taşındı
+
+- **Kaynak:** Eski ASC app `6759844455` (FlyFam Legacy / `com.flyfam.app`) grupları: Team (Expo), Aile, PGS Test Group + adlı external tester’lar.
+- **Hedef:** Yeni app `6827960794` (`com.flyfamapp.mobile`).
+- **Oluşturulan gruplar:** Internal `Team (Expo)` (Gani + Mertcan ASC admin); External `Aile`, `PGS Test Group`, `FlyFam External (migrated)` — 23 adlı e-posta davet/atandı. Eski public-link Anonymous kayıtları e-postasız olduğu için taşınamadı.
+- **Build 55:** Internal `IN_BETA_TESTING`. External Beta App Review `WAITING_FOR_BETA_REVIEW` (lokalizasyon tr/en-US + review detay dolduruldu).
+- **Yapılmadı:** App Store Submit for Review. RevenueCat yeni bundle key hâlâ açık.
+
+
 ### 2026-10-29 — Build 55 finished; Android submit; iOS TestFlight ASC key bekliyor
 
 - **iOS build:** `167104a2…` finished — 1.3.0 (55), Team `ZF66PC5AN7`, IPA hazır. Credential + push key kuruldu.
