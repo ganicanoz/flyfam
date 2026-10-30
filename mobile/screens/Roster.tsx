@@ -379,6 +379,149 @@ function layoverInteriorDates(w: LayoverWindow): string[] {
   return out;
 }
 
+type OffDayWindow = {
+  key: string;
+  startYmd: string;
+  endYmd: string;
+  dayCount: number;
+  /** Süre (ms): satır saatleri veya takvim gün × 24s. */
+  durationMs: number;
+  flightIds: string[];
+  firstFlightId: string;
+};
+
+/** Liste birleştirmesi: gerçek boş/izin satırı (nöbet/SIM/eğitim/yer değil). */
+function isMergeableOffDayRow(f: {
+  id?: string | null;
+  roster_entry_kind?: string | null;
+  flight_number?: string | null;
+  duty_occupation_code?: string | null;
+}): boolean {
+  if (isLayoverPlaceholder(f)) return false;
+  const kind = (f.roster_entry_kind ?? 'flight').toLowerCase();
+  const code = (f.flight_number || '').trim().toUpperCase();
+  const occ = (f.duty_occupation_code || '').trim().toUpperCase();
+  if (
+    kind === 'sim' ||
+    isSimulatorOccupationCode(code) ||
+    isSimulatorOccupationCode(occ)
+  ) {
+    return false;
+  }
+  if (
+    isStandbyOccupationCode(code) ||
+    isCfrDutyCode(code) ||
+    /^RSV\d*$/.test(code) ||
+    code === 'RZV' ||
+    code === 'RZVM'
+  ) {
+    return false;
+  }
+  if (
+    isGroundDutyOccupationCode(code) ||
+    isOfficeDutyOccupationCode(code) ||
+    isHomeDutyOccupationCode(code) ||
+    isTrainingOccupationCode(code)
+  ) {
+    return false;
+  }
+  if (isOffDayOccupationCode(code) || isOffDayOccupationCode(occ)) return true;
+  return kind === 'duty_off';
+}
+
+function inclusiveYmdDayCount(startYmd: string, endYmd: string): number {
+  if (!startYmd || !endYmd || endYmd < startYmd) return 0;
+  let n = 0;
+  let cur = startYmd;
+  while (cur <= endYmd) {
+    n += 1;
+    cur = addUtcDaysToYmd(cur, 1);
+  }
+  return n;
+}
+
+/**
+ * Ardışık salt-boş günleri tek kartta birleştir (yatı span’i gibi).
+ * Tek gün birleşmez; nöbet/uçuş/SIM karışık gün pencereyi böler.
+ */
+function computeOffDayWindows<T extends {
+  id: string;
+  flight_date: string;
+  scheduled_departure: string | null;
+  scheduled_arrival: string | null;
+  roster_entry_kind?: string | null;
+  flight_number?: string | null;
+  duty_occupation_code?: string | null;
+}>(
+  flights: readonly T[],
+  groupYmd: (f: T) => string,
+): OffDayWindow[] {
+  const byDate = new Map<string, typeof flights[number][]>();
+  for (const f of flights) {
+    if (isLayoverPlaceholder(f)) continue;
+    const ymd = groupYmd(f);
+    if (!ymd) continue;
+    if (!byDate.has(ymd)) byDate.set(ymd, []);
+    byDate.get(ymd)!.push(f);
+  }
+  const pureOffYmds: string[] = [];
+  const offsByYmd = new Map<string, typeof flights[number][]>();
+  for (const [ymd, rows] of byDate) {
+    if (rows.length === 0) continue;
+    if (!rows.every((r) => isMergeableOffDayRow(r))) continue;
+    const offs = rows.filter((r) => isMergeableOffDayRow(r));
+    if (offs.length === 0) continue;
+    pureOffYmds.push(ymd);
+    offsByYmd.set(ymd, offs);
+  }
+  pureOffYmds.sort();
+  const windows: OffDayWindow[] = [];
+  let i = 0;
+  while (i < pureOffYmds.length) {
+    const startYmd = pureOffYmds[i]!;
+    let endYmd = startYmd;
+    let j = i + 1;
+    while (j < pureOffYmds.length) {
+      const next = pureOffYmds[j]!;
+      if (next !== addUtcDaysToYmd(endYmd, 1)) break;
+      endYmd = next;
+      j += 1;
+    }
+    const dayCount = inclusiveYmdDayCount(startYmd, endYmd);
+    if (dayCount >= 2) {
+      const flightIds: string[] = [];
+      let startMs = 0;
+      let endMs = 0;
+      let cur = startYmd;
+      while (cur <= endYmd) {
+        for (const r of offsByYmd.get(cur) ?? []) {
+          flightIds.push(r.id);
+          const a = parseUtcMsStatic(r.scheduled_departure);
+          const b = parseUtcMsStatic(r.scheduled_arrival);
+          if (a > 0 && (startMs === 0 || a < startMs)) startMs = a;
+          if (b > 0 && b > endMs) endMs = b;
+        }
+        cur = addUtcDaysToYmd(cur, 1);
+      }
+      const durationMs =
+        startMs > 0 && endMs > startMs ? endMs - startMs : dayCount * 24 * 60 * 60 * 1000;
+      if (flightIds.length > 0) {
+        windows.push({
+          key: `off|${startYmd}|${endYmd}`,
+          startYmd,
+          endYmd,
+          dayCount,
+          durationMs,
+          flightIds,
+          firstFlightId: flightIds[0]!,
+        });
+      }
+    }
+    i = j;
+  }
+  return windows;
+}
+
 const CALENDAR_COL_H = 48;
 const CALENDAR_DAY_RADIUS = 10;
 const CALENDAR_BAR_H = calendarMarkSize.barHeight;
@@ -1850,13 +1993,39 @@ export default function Roster({
         windowKey: string;
         inboundId: string;
         outboundId: string;
+      }
+    | {
+        type: 'offSpan';
+        dateYmd: string;
+        endYmd: string;
+        windowKey: string;
+        dayCount: number;
+        durationMs: number;
+        firstFlightId: string;
       };
   /** Takvim görünümü dışında selectedDate listData’yı yeniden üretmesin (liste→takvim sync sıçratmasın). */
   const listDataDayFocus = calendarDayCardsOnly ? selectedDate : null;
+
+  /** Ardışık boş gün birleşimi — tek gün / takvim-gün odaklı listede kapalı. */
+  const offDayWindows = React.useMemo(() => {
+    if (listDataDayFocus || rosterListPrefs.flights_only) return [] as OffDayWindow[];
+    return computeOffDayWindows(allFlightsSorted, listGroupDate);
+  }, [allFlightsSorted, listGroupDate, listDataDayFocus, rosterListPrefs.flights_only]);
+
+  const mergedOffFlightIds = React.useMemo(() => {
+    const ids = new Set<string>();
+    for (const w of offDayWindows) {
+      for (const id of w.flightIds) ids.add(id);
+    }
+    return ids;
+  }, [offDayWindows]);
+
   const listData = React.useMemo((): ListEntry[] => {
     const byDate = new Map<string, Flight[]>();
     const dayCardsOnly = !!listDataDayFocus;
     for (const f of allFlightsSorted) {
+      // Çok günlük boş span’de tek kart; ara gün satırlarını listeden düş.
+      if (!dayCardsOnly && mergedOffFlightIds.has(f.id)) continue;
       const g = listGroupDate(f);
       // Liste: listMinYmd altını FlatList’e hiç koyma (açılış/navigasyon maliyeti).
       if (dayCardsOnly) {
@@ -1876,15 +2045,29 @@ export default function Roster({
       }
       if (!byDate.has(w.startYmd)) byDate.set(w.startYmd, []);
     }
+    for (const w of offDayWindows) {
+      if (dayCardsOnly) {
+        if (w.startYmd !== listDataDayFocus) continue;
+      } else if (w.startYmd < listMinYmd) {
+        continue;
+      }
+      if (!byDate.has(w.startYmd)) byDate.set(w.startYmd, []);
+    }
     // Bugün + programatik boş gün hedefi (takvim/açılış). Scroll-selectedDate enjekte etme.
+    // Birleşik boş span içindeki güne basınca ara gün boş başlığı açma → span başlangıcına bağla.
     const ensureYmds = dayCardsOnly
       ? [listDataDayFocus]
       : [rosterTodayYmd, listEnsureEmptyYmd];
     for (const ymd of ensureYmds) {
       if (!ymd) continue;
       if (dayCardsOnly && ymd !== listDataDayFocus) continue;
-      if (!dayCardsOnly && ymd < listMinYmd) continue;
-      if (!byDate.has(ymd)) byDate.set(ymd, []);
+      let ensure = ymd;
+      if (!dayCardsOnly) {
+        const covering = offDayWindows.find((w) => w.startYmd <= ymd && w.endYmd >= ymd);
+        if (covering) ensure = covering.startYmd;
+      }
+      if (!dayCardsOnly && ensure < listMinYmd) continue;
+      if (!byDate.has(ensure)) byDate.set(ensure, []);
     }
     const datesToRender = [...byDate.keys()].sort();
     const rebuilt: ListEntry[] = [];
@@ -1936,12 +2119,26 @@ export default function Roster({
           outboundId: w.outboundId,
         });
       }
+      for (const w of offDayWindows) {
+        if (w.startYmd !== ymd) continue;
+        rebuilt.push({
+          type: 'offSpan',
+          dateYmd: ymd,
+          endYmd: w.endYmd,
+          windowKey: w.key,
+          dayCount: w.dayCount,
+          durationMs: w.durationMs,
+          firstFlightId: w.firstFlightId,
+        });
+      }
     }
     return rebuilt;
   }, [
     allFlightsSorted,
     listGroupDate,
     layoverWindows,
+    offDayWindows,
+    mergedOffFlightIds,
     rosterTodayYmd,
     listDataDayFocus,
     listEnsureEmptyYmd,
@@ -4480,13 +4677,14 @@ export default function Roster({
   const listEntryKey = useCallback((item: ListEntry, index: number) => {
     if (item.type === 'dayHeader') return `day-${item.dateYmd}`;
     if (item.type === 'layover') return `layover-${item.windowKey}-${index}`;
+    if (item.type === 'offSpan') return `offspan-${item.windowKey}-${index}`;
     return `${item.flight.id}-${index}`;
   }, []);
 
   const estimateListItemHeight = useCallback((entry: ListEntry | undefined) => {
     if (!entry) return 160;
     if (entry.type === 'dayHeader') return 52;
-    if (entry.type === 'layover') return 100;
+    if (entry.type === 'layover' || entry.type === 'offSpan') return 100;
     // Kartlar tahmin edilenden uzun; düşük tahmin → yanlış (ileri) güne düşüyordu.
     return 168;
   }, []);
@@ -4523,13 +4721,14 @@ export default function Roster({
       const exact = data.findIndex(
         (e) =>
           (e.type === 'flight' && listGroupDate(e.flight) === dateStr) ||
-          (e.type === 'layover' && e.dateYmd === dateStr),
+          (e.type === 'layover' && e.dateYmd === dateStr) ||
+          (e.type === 'offSpan' && e.dateYmd <= dateStr && e.endYmd >= dateStr),
       );
       if (exact >= 0) return exact;
       const next = data.findIndex((e) => {
         if (e.type === 'dayHeader') return e.dateYmd >= dateStr;
         if (e.type === 'flight') return listGroupDate(e.flight) >= dateStr;
-        if (e.type === 'layover') return e.dateYmd >= dateStr;
+        if (e.type === 'layover' || e.type === 'offSpan') return e.dateYmd >= dateStr;
         return false;
       });
       if (next >= 0) return next;
@@ -4659,7 +4858,7 @@ export default function Roster({
       if (!item) return null;
       if (item.type === 'dayHeader') return item.dateYmd;
       if (item.type === 'flight') return listGroupDate(item.flight);
-      if (item.type === 'layover') return item.dateYmd;
+      if (item.type === 'layover' || item.type === 'offSpan') return item.dateYmd;
       return null;
     },
     [listGroupDate],
@@ -5425,7 +5624,9 @@ export default function Roster({
             ? `h:${e.dateYmd}`
             : e.type === 'layover'
               ? `l:${e.windowKey}`
-              : `f:${e.flight.id}`,
+              : e.type === 'offSpan'
+                ? `o:${e.windowKey}`
+                : `f:${e.flight.id}`,
         )
         .join('|'),
     [listData],
@@ -5966,7 +6167,8 @@ export default function Roster({
               const dayHasRows = listData.some(
                 (e) =>
                   (e.type === 'flight' && listGroupDate(e.flight) === entry.dateYmd) ||
-                  (e.type === 'layover' && e.dateYmd === entry.dateYmd),
+                  (e.type === 'layover' && e.dateYmd === entry.dateYmd) ||
+                  (e.type === 'offSpan' && e.dateYmd === entry.dateYmd),
               );
               const canClearDay =
                 isCrew &&
@@ -6061,6 +6263,55 @@ export default function Roster({
                     themeMode={themeMode}
                     fontScale={listFontScale}
                     onPress={() => onDateRollerChipPress(entry.dateYmd)}
+                  />
+                </View>
+              );
+            }
+            if (entry.type === 'offSpan') {
+              const startLabel = formatStandbyDayMonth(entry.dateYmd);
+              const endLabel = formatStandbyDayMonth(entry.endYmd);
+              const sameMonth = entry.dateYmd.slice(0, 7) === entry.endYmd.slice(0, 7);
+              const rangeLabel =
+                entry.dateYmd === entry.endYmd
+                  ? startLabel
+                  : sameMonth
+                    ? `${entry.dateYmd.slice(8, 10)}–${endLabel}`
+                    : `${startLabel} – ${endLabel}`;
+              const offDurationLabel = formatLayoverDurationFromMs(entry.durationMs);
+              return (
+                <View
+                  style={styles.itemWrapper}
+                  onLayout={(e) => recordListItemHeight(index, e.nativeEvent.layout.height)}
+                >
+                  <RosterFlightCard
+                    model={{
+                      flightNumber: 'OFFSPAN',
+                      originIata: '—',
+                      destIata: '—',
+                      depTime: '',
+                      arrTime: '',
+                      durationLabel: '',
+                      compactKind: 'off',
+                      isNonFlightBlock: true,
+                      blockTitle: rangeLabel,
+                      offDurationLabel,
+                      isPast: entry.endYmd < rosterTodayYmd,
+                    }}
+                    themeMode={themeMode}
+                    fontScale={listFontScale}
+                    onPress={() => {
+                      const first = flights.find((f) => f.id === entry.firstFlightId);
+                      if (first) {
+                        navigation.navigate(
+                          'EditDuty',
+                          isCrew
+                            ? { flightId: first.id }
+                            : { flightId: first.id, readOnly: true },
+                        );
+                      } else {
+                        onDateRollerChipPress(entry.dateYmd);
+                      }
+                    }}
                   />
                 </View>
               );

@@ -58,6 +58,8 @@ export type RosterFlightCardModel = {
   isNonFlightBlock?: boolean;
   compactKind?: RosterCompactKind | null;
   blockTitle?: string;
+  /** Birleşik boş gün kartı — yatı süresi gibi parantez içi süre. */
+  offDurationLabel?: string | null;
   layoverStationLabel?: string | null;
   /** Nöbet: "09 Eylül · 22:00 – 06:00" */
   standbyScheduleLine?: string | null;
@@ -257,7 +259,14 @@ export function RosterFlightCard({
         ]
           .filter((x) => !!(x && String(x).trim()))
           .join(' · ')
-      : model.blockTitle?.trim() || t('roster.restDay');
+      : [
+          model.blockTitle?.trim() || t('roster.restDay'),
+          model.offDurationLabel?.trim()
+            ? t('roster.offDurationParen', { duration: model.offDurationLabel.trim() })
+            : null,
+        ]
+          .filter((x) => !!(x && String(x).trim()))
+          .join(' · ');
 
     return (
       <TouchableOpacity

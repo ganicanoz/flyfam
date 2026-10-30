@@ -29,6 +29,15 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - **Koruma:** Submit for Review yok. RevenueCat yeni key hâlâ açık.
 
 
+### 2026-10-30 — Roster: ardışık boş günleri birleştir + süre (yatı gibi)
+
+- **İstek:** Ardışık boş günleri tek kartta göstermek; toplam süreyi yatı süresi formatında yazmak.
+- **Dosyalar:** `mobile/screens/Roster.tsx` (`computeOffDayWindows`, `offSpan`); `RosterFlightCard` `offDurationLabel`; TR/EN `roster.offDurationParen`; `mobile/scripts/test-off-day-windows.ts`.
+- **Davranış:** ≥2 ardışık salt-boş gün → başlangıç gününde tek yeşil kart + `(Boş Süresi: …)`; ara gün kartları düşer. Nöbet/SIM/uçuş/eğitim pencereyi böler.
+- **Doğrulama:** `npx tsx mobile/scripts/test-off-day-windows.ts` PASS; `tsc --noEmit` OK; `git diff --check` OK.
+- **Koruma:** Yatı kartı, tek günlük OFF, CFR/nöbet/SIM, `flights_only` aynı.
+- **OTA:** production channel, bu commit üzerinden `ota:production` (mesajda `[git:sha]`).
+
 ### 2026-10-29 — TestFlight tester’lar Mertcan app’ine taşındı
 
 - **Kaynak:** Eski ASC app `6759844455` (FlyFam Legacy / `com.flyfam.app`) grupları: Team (Expo), Aile, PGS Test Group + adlı external tester’lar.
