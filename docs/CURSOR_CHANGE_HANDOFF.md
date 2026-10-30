@@ -35,6 +35,7 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - **Düzeltme:** `SignIn`/`SignUp`: iOS’ta KAV kapalı, yalnız `automaticallyAdjustKeyboardInsets`, `contentInsetAdjustmentBehavior=never`. `KeyboardSafeScroll` aynı; `CompleteProfile` çift KAV kaldırıldı.
 - **Koruma:** SIM mavi / catch-up JS aynı hatta; off-span main’de duruyor. Production kanalında bozuk off OTA’lar restore edilmişti (`6cf85484…`); bu yayın restore üzerine güncel main.
 - **Doğrulama:** `tsc --noEmit` OK; `test-off-day-windows` PASS; `git diff --check` OK.
+- **OTA:** group `a10001fe-a726-4f89-8f57-7a6d3af2f490` — iOS `01a18c04-86e8-78e9-9b80-3b94ecc7340d`, Android `01a18c04-86e8-7c64-a5bd-26150ae73887` (commit `95aa73c`). SIM mavi + off-span + SignIn titreme düzeltmesi.
 
 ### 2026-10-30 — Roster off span: karışık FOF/SOF/ROF + composition + takvim
 
