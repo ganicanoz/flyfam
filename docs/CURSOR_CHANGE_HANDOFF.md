@@ -36,6 +36,7 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - **Düzeltme:** `computeOffDayWindows` yalnız `flight_date`; takvim-gün seçili günü kapsayan span’i gösterir; BDF zaten `isOffDayOccupationCode`; liste kategorisine SOF/ROF/… eklendi.
 - **Koruma:** SIM mavi / nöbet bölmesi aynı. SignIn titreme düzeltmesi aynı hatta.
 - **Doğrulama:** `test-off-day-windows` PASS (BDF+SOF+FOF+FSF, kaymış UTC saat); `tsc` OK.
+- **OTA:** group `95e2176a-6cf3-4868-8a03-fc20f29c000a` — iOS `01a18c1d-e612-7b8c-bab4-75bda5f433e0`, Android `01a18c1d-e612-7508-b40b-13317b3d4c0a` (commit `602af86`, PR #57).
 
 ### 2026-10-30 — SignIn e-posta titreme + güvenli OTA (SIM koru)
 
