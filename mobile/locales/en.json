@@ -430,6 +430,7 @@
     "legendStandby": "Standby",
     "legendLayover": "Layover",
     "layoverDurationParen": "(Layover: {{duration}})",
+    "offDurationParen": "(Off: {{duration}})",
     "legendOrderHint": "Dot = flight, bar = layover / standby",
     "dayHeader": "{{date}} · {{count}} flight(s){{block}}",
     "dayHeaderBlock": " · Total block {{hours}}h {{mins}}m",

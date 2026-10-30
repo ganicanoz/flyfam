@@ -430,6 +430,7 @@
     "legendStandby": "Nöbet",
     "legendLayover": "Yatı",
     "layoverDurationParen": "(Yatı Süresi: {{duration}})",
+    "offDurationParen": "(Boş Süresi: {{duration}})",
     "legendOrderHint": "Nokta = uçuş, çizgi = yatı / nöbet",
     "dayHeader": "{{date}} · {{count}} uçuş{{block}}",
     "dayHeaderBlock": " · Toplam blok {{hours}}s {{mins}}dk",
