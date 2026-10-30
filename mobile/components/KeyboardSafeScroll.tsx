@@ -4,6 +4,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  View,
   type ScrollViewProps,
   type StyleProp,
   type ViewStyle,
@@ -21,8 +22,8 @@ type Props = {
 
 /**
  * Form screens: keep the focused TextInput above the keyboard.
- * iOS: KeyboardAvoidingView + automaticallyAdjustKeyboardInsets.
- * Android: adjustResize (manifest) + keyboard height padding.
+ * iOS: yalnız `automaticallyAdjustKeyboardInsets` (KAV+insets birlikte e-posta
+ * öneri çubuğunda titreme yapıyordu). Android: klavye yüksekliği padding.
  */
 export default function KeyboardSafeScroll({
   children,
@@ -38,42 +39,50 @@ export default function KeyboardSafeScroll({
   const [keyboardPad, setKeyboardPad] = useState(0);
 
   useEffect(() => {
-    const showEvt = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
-    const hideEvt = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
-    const onShow = Keyboard.addListener(showEvt, (e) => {
+    if (Platform.OS === 'ios') return;
+    const onShow = Keyboard.addListener('keyboardDidShow', (e) => {
       setKeyboardPad(Math.max(0, e.endCoordinates?.height ?? 0));
     });
-    const onHide = Keyboard.addListener(hideEvt, () => setKeyboardPad(0));
+    const onHide = Keyboard.addListener('keyboardDidHide', () => setKeyboardPad(0));
     return () => {
       onShow.remove();
       onHide.remove();
     };
   }, []);
 
+  const scroll = (
+    <ScrollView
+      ref={scrollRef}
+      style={{ flex: 1 }}
+      keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="interactive"
+      automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
+      // Safe-area + keyboard insets birlikte kaydırma sıçratmasın.
+      contentInsetAdjustmentBehavior="never"
+      contentContainerStyle={[
+        {
+          flexGrow: 1,
+          paddingBottom: bottomOffset + (Platform.OS === 'android' ? keyboardPad : 0),
+        },
+        contentContainerStyle,
+      ]}
+      {...scrollProps}
+    >
+      {children}
+    </ScrollView>
+  );
+
+  if (Platform.OS === 'ios') {
+    return <View style={[{ flex: 1 }, style]}>{scroll}</View>;
+  }
+
   return (
     <KeyboardAvoidingView
       style={[{ flex: 1 }, style]}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? headerHeight : 0}
+      behavior="padding"
+      keyboardVerticalOffset={headerHeight}
     >
-      <ScrollView
-        ref={scrollRef}
-        style={{ flex: 1 }}
-        keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="interactive"
-        automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
-        contentInsetAdjustmentBehavior="automatic"
-        contentContainerStyle={[
-          {
-            flexGrow: 1,
-            paddingBottom: bottomOffset + (Platform.OS === 'android' ? keyboardPad : Math.min(keyboardPad * 0.15, 48)),
-          },
-          contentContainerStyle,
-        ]}
-        {...scrollProps}
-      >
-        {children}
-      </ScrollView>
+      {scroll}
     </KeyboardAvoidingView>
   );
 }

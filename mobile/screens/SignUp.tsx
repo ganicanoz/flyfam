@@ -65,7 +65,7 @@ export default function SignUp() {
   const strength = passwordStrength(password);
 
   const focusScroll = (e: { nativeEvent?: { target?: unknown } }) => {
-    setTimeout(() => scrollInputIntoView(scrollRef, e, 160), 80);
+    setTimeout(() => scrollInputIntoView(scrollRef, e, 100), 120);
   };
 
   const formValid =
@@ -183,8 +183,9 @@ export default function SignUp() {
       <ScreenPageHeader title={t('signUp.title')} />
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 8 : 0}
+        behavior={Platform.OS === 'android' ? 'padding' : undefined}
+        enabled={Platform.OS === 'android'}
+        keyboardVerticalOffset={0}
       >
         <ScrollView
           ref={scrollRef}
@@ -194,7 +195,7 @@ export default function SignUp() {
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="interactive"
           automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
-          contentInsetAdjustmentBehavior="automatic"
+          contentInsetAdjustmentBehavior="never"
         >
           <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>
             {t('signUp.preferredLanguage')}

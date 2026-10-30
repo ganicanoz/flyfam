@@ -29,6 +29,13 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - **Koruma:** Submit for Review yok. RevenueCat yeni key hâlâ açık.
 
 
+### 2026-10-30 — SignIn e-posta titreme + güvenli OTA (SIM koru)
+
+- **Sorun:** Girişte e-posta yazarken ekran titriyor. iOS’ta `KeyboardAvoidingView padding` + `automaticallyAdjustKeyboardInsets` + `contentInsetAdjustmentBehavior=automatic` birlikte e-posta öneri çubuğu yüksekliğiyle savaşınca layout zıplıyor.
+- **Düzeltme:** `SignIn`/`SignUp`: iOS’ta KAV kapalı, yalnız `automaticallyAdjustKeyboardInsets`, `contentInsetAdjustmentBehavior=never`. `KeyboardSafeScroll` aynı; `CompleteProfile` çift KAV kaldırıldı.
+- **Koruma:** SIM mavi / catch-up JS aynı hatta; off-span main’de duruyor. Production kanalında bozuk off OTA’lar restore edilmişti (`6cf85484…`); bu yayın restore üzerine güncel main.
+- **Doğrulama:** `tsc --noEmit` OK; `test-off-day-windows` PASS; `git diff --check` OK.
+
 ### 2026-10-30 — Roster off span: karışık FOF/SOF/ROF + composition + takvim
 
 - **İstek:** Doğum/özel (SOF), FOF, FSF, ROF vb. yeşil boş görünen her şeyi birleştir; kartta hangi off’lar var yaz; takvimde de birleşik yeşil çubuk.

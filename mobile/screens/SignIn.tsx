@@ -44,9 +44,6 @@ export default function SignIn() {
   const emailRef = useRef<TextInput>(null);
   const passwordRef = useRef<TextInput>(null);
 
-  const focusScroll = (e: { nativeEvent?: { target?: unknown } }) => {
-    setTimeout(() => scrollInputIntoView(scrollRef, e, 140), 80);
-  };
   useFocusEffect(
     useCallback(() => {
       runPendingResendOnSignInFocus(setEmail);
@@ -101,10 +98,12 @@ export default function SignIn() {
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       <ScreenPageHeader title={t('signIn.title')} />
+      {/* iOS: KAV+automaticallyAdjustKeyboardInsets birlikte e-posta yazarken titretiyordu. */}
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 8 : 0}
+        behavior={Platform.OS === 'android' ? 'padding' : undefined}
+        enabled={Platform.OS === 'android'}
+        keyboardVerticalOffset={0}
       >
         <ScrollView
           ref={scrollRef}
@@ -113,7 +112,7 @@ export default function SignIn() {
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="interactive"
           automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
-          contentInsetAdjustmentBehavior="automatic"
+          contentInsetAdjustmentBehavior="never"
         >
           <View style={styles.hero}>
             <Image source={splashIconAsset} style={styles.logo} resizeMode="contain" />
@@ -134,7 +133,10 @@ export default function SignIn() {
             blurOnSubmit={false}
             enablesReturnKeyAutomatically
             inputAccessoryViewID={FORM_KEYBOARD_ACCESSORY_ID}
-            onFocus={focusScroll}
+            onFocus={(e) => {
+              // Tek seferlik hizalama; yazarken tekrar kaydırma yok (titreme).
+              setTimeout(() => scrollInputIntoView(scrollRef, e, 100), 120);
+            }}
             onSubmitEditing={() => passwordRef.current?.focus()}
           />
 
@@ -151,7 +153,9 @@ export default function SignIn() {
             returnKeyType="go"
             enablesReturnKeyAutomatically
             inputAccessoryViewID={FORM_KEYBOARD_ACCESSORY_ID}
-            onFocus={focusScroll}
+            onFocus={(e) => {
+              setTimeout(() => scrollInputIntoView(scrollRef, e, 100), 120);
+            }}
             onSubmitEditing={() => {
               if (canSubmit) void handleSignIn();
             }}
