@@ -34,7 +34,8 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - **Dosyalar:** `Roster.tsx` (`prevFlightArrivalMsBeforeOff`, `nextDutyDepartureMsAfterOff`, `offDayLines`); `RosterFlightCard` `offDayLines`; `test-off-day-windows.ts`.
 - **Davranış:** Başlık `12–14 Eki · (Boş Süresi: …)` aynı; altında `12 Eki · FOF (…)`, `13 Eki · …`. Süre = son önceki uçuş `scheduled_arrival` → span sonrası ilk görev `scheduled_departure` (yoksa off satır saatleri / gün×24s).
 - **Koruma:** SIM mavi, tek-gün off, yatı, SignIn klavye, buildNumber 56. OTA yalnız temiz `origin/main` worktree + runtime `1.3.0`.
-- **Doğrulama:** `test-off-day-windows` PASS; `tsc` OK. OTA id aşağıdaki yayın satırında.
+- **Doğrulama:** `test-off-day-windows` PASS; `tsc` OK.
+- **OTA:** group `a43cc011-5bf9-4d27-bfc4-81b234943257` — iOS `01a18d53-b887-7151-9708-04782e490fa0` (commit `3435fa6`, PR #60). Build 56 + runtime `1.3.0`.
 
 ### 2026-10-30 — Build 56: gömülü JS reset + SignIn titreme (OTA zinciri terk)
 
