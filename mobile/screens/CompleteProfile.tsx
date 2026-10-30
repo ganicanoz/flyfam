@@ -5,8 +5,6 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
   Alert,
   Image,
   Modal,
@@ -122,12 +120,7 @@ export default function CompleteProfile() {
         subtitle={isCrew ? t('completeProfile.subtitleCrew') : t('completeProfile.subtitleFamily')}
         showBack={false}
       />
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={8}
-      >
-        <KeyboardSafeScroll
+      <KeyboardSafeScroll
           style={styles.flex}
           contentContainerStyle={[styles.scroll, { paddingBottom: 100 + footerPad }]}
           bottomOffset={40}
@@ -228,7 +221,6 @@ export default function CompleteProfile() {
             loading={loading}
           />
         </View>
-      </KeyboardAvoidingView>
     </View>
   );
 }
