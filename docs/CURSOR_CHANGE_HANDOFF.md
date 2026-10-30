@@ -37,6 +37,7 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - **Takvim:** span günleri `dutyOff` set’ine eklenir → komşu yeşil çubuklar birleşir.
 - **Doğrulama:** `test-off-day-windows.ts` PASS (FOF+SOF+ROF+FSF); `tsc` / `diff --check` OK.
 - **Koruma:** Nöbet/SIM/uçuş hâlâ böler; tek gün ayrı kart.
+- **OTA:** group `cbe90dfa-1ca1-4dc3-8e1d-63932a0a6f79` — iOS `01a18beb-b8b6-736e-a6dd-24c21c3f21b7`, Android `01a18beb-b8b6-7028-aff8-757df78363b0` (commit `e9cacd6`, runtime `1.3.0`). PR #55.
 
 ### 2026-10-30 — Roster: ardışık boş günleri birleştir + süre (yatı gibi)
 
