@@ -60,7 +60,9 @@ export type RosterFlightCardModel = {
   blockTitle?: string;
   /** Birleşik boş gün kartı — yatı süresi gibi parantez içi süre. */
   offDurationLabel?: string | null;
-  /** Birleşik boş: FOF×2 · SOF (Özel Boş Gün) · ROF */
+  /** Birleşik boş: her gün ayrı satır («12 Eki · FOF (Üs Boş)»). */
+  offDayLines?: string[] | null;
+  /** Eski tek satır özet (day lines yoksa). */
   offCompositionLine?: string | null;
   layoverStationLabel?: string | null;
   /** Nöbet: "09 Eylül · 22:00 – 06:00" */
@@ -448,7 +450,23 @@ export function RosterFlightCard({
                     {offDetailLine}
                   </Text>
                 </View>
-                {isOffCompact && model.offCompositionLine?.trim() ? (
+                {isOffCompact && model.offDayLines && model.offDayLines.length > 0 ? (
+                  <View style={{ marginTop: 4, gap: 3 }}>
+                    {model.offDayLines.map((line, i) => (
+                      <Text
+                        key={`off-day-${i}`}
+                        style={[
+                          styles.standbySchedule,
+                          typography.tabularNums,
+                          { color: ink.muted, fontSize: fs(13) },
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {line}
+                      </Text>
+                    ))}
+                  </View>
+                ) : isOffCompact && model.offCompositionLine?.trim() ? (
                   <Text
                     style={[
                       styles.standbySchedule,

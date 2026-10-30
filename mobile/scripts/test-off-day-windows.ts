@@ -21,6 +21,12 @@ function inclusiveYmdDayCount(startYmd: string, endYmd: string): number {
   return n;
 }
 
+function parseUtcMs(iso: string | null): number {
+  if (!iso) return 0;
+  const t = Date.parse(iso);
+  return Number.isFinite(t) ? t : 0;
+}
+
 const OFF_CODES = new Set([
   'FOF',
   'OFF',
@@ -83,8 +89,14 @@ function computeOffDayWindows(flights: Row[]) {
     offsBy.set(ymd, offs);
   }
   pure.sort();
-  const windows: { start: string; end: string; days: number; ids: string[]; dayCodes: string[] }[] =
-    [];
+  const windows: {
+    start: string;
+    end: string;
+    days: number;
+    ids: string[];
+    dayCodes: string[];
+    durationMs: number;
+  }[] = [];
   let i = 0;
   while (i < pure.length) {
     const start = pure[i]!;
@@ -98,14 +110,42 @@ function computeOffDayWindows(flights: Row[]) {
     if (days >= 2) {
       const ids: string[] = [];
       const dayCodes: string[] = [];
+      let offStartMs = 0;
+      let offEndMs = 0;
       let cur = start;
       while (cur <= end) {
         const dayRows = offsBy.get(cur) ?? [];
         if (dayRows[0]) dayCodes.push(dayRows[0].flight_number.toUpperCase());
-        for (const r of dayRows) ids.push(r.id);
+        for (const r of dayRows) {
+          ids.push(r.id);
+          const a = parseUtcMs(r.scheduled_departure);
+          const b = parseUtcMs(r.scheduled_arrival);
+          if (a > 0 && (offStartMs === 0 || a < offStartMs)) offStartMs = a;
+          if (b > 0 && b > offEndMs) offEndMs = b;
+        }
         cur = addUtcDaysToYmd(cur, 1);
       }
-      windows.push({ start, end, days, ids, dayCodes });
+      let prevFlightEnd = 0;
+      for (const f of flights) {
+        const kind = (f.roster_entry_kind || 'flight').toLowerCase();
+        if (kind !== 'flight' && kind !== '') continue;
+        if (isMergeableOff(f.flight_number, f.roster_entry_kind)) continue;
+        if (!f.flight_date || f.flight_date >= start) continue;
+        const arr = parseUtcMs(f.scheduled_arrival);
+        if (arr > prevFlightEnd) prevFlightEnd = arr;
+      }
+      let nextDutyStart = 0;
+      for (const f of flights) {
+        if (isMergeableOff(f.flight_number, f.roster_entry_kind)) continue;
+        if (!f.flight_date || f.flight_date <= end) continue;
+        const dep = parseUtcMs(f.scheduled_departure);
+        if (dep > 0 && (nextDutyStart === 0 || dep < nextDutyStart)) nextDutyStart = dep;
+      }
+      const startMs = prevFlightEnd > 0 ? prevFlightEnd : offStartMs;
+      const endMs = nextDutyStart > 0 ? nextDutyStart : offEndMs;
+      const durationMs =
+        startMs > 0 && endMs > startMs ? endMs - startMs : days * 24 * 60 * 60 * 1000;
+      windows.push({ start, end, days, ids, dayCodes, durationMs });
     }
     i = j;
   }
@@ -113,6 +153,14 @@ function computeOffDayWindows(flights: Row[]) {
 }
 
 const rows: Row[] = [
+  {
+    id: '0',
+    flight_date: '2026-10-09',
+    flight_number: 'PC123',
+    roster_entry_kind: 'flight',
+    scheduled_departure: '2026-10-09T08:00:00Z',
+    scheduled_arrival: '2026-10-09T12:00:00Z',
+  },
   {
     id: '1',
     flight_date: '2026-10-10',
@@ -151,8 +199,8 @@ const rows: Row[] = [
     flight_date: '2026-10-15',
     flight_number: 'HSBY',
     roster_entry_kind: 'duty_off',
-    scheduled_departure: null,
-    scheduled_arrival: null,
+    scheduled_departure: '2026-10-15T06:00:00Z',
+    scheduled_arrival: '2026-10-15T18:00:00Z',
   },
   {
     id: '6',
@@ -184,5 +232,10 @@ assert.deepEqual(
   { start: wins[1]!.start, end: wins[1]!.end, days: wins[1]!.days },
   { start: '2026-10-16', end: '2026-10-17', days: 2 },
 );
+
+// Süre: 09.10 uçuş inişi 12:00Z → 15.10 HSBY kalkış 06:00Z
+const expectedMs =
+  Date.parse('2026-10-15T06:00:00Z') - Date.parse('2026-10-09T12:00:00Z');
+assert.equal(wins[0]!.durationMs, expectedMs, 'boş süresi önceki uçuş inişinden sonraki göreve');
 
 console.log('test-off-day-windows: PASS');
