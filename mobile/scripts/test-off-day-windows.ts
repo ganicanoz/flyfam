@@ -21,13 +21,40 @@ function inclusiveYmdDayCount(startYmd: string, endYmd: string): number {
   return n;
 }
 
-const OFF_CODES = new Set(['FOF', 'OFF', 'FSF', 'MSF', 'IBB', 'IBI', 'AVAC']);
+const OFF_CODES = new Set([
+  'FOF',
+  'OFF',
+  'FSF',
+  'MSF',
+  'SOF',
+  'ROF',
+  'RSF',
+  'IBB',
+  'IBI',
+  'AVAC',
+]);
 
 function isMergeableOff(code: string, kind: string): boolean {
   const u = code.replace(/\s/g, '').toUpperCase();
   if (['STBY', 'HSBY', 'CFR', 'RSV', 'SIM', 'COTD', 'YERDR'].includes(u)) return false;
   if (OFF_CODES.has(u)) return true;
   return kind === 'duty_off';
+}
+
+function formatOffSpanComposition(dayCodes: string[]): string {
+  const order: string[] = [];
+  const counts = new Map<string, number>();
+  for (const raw of dayCodes) {
+    const c = (raw || 'OFF').trim().toUpperCase() || 'OFF';
+    if (!counts.has(c)) order.push(c);
+    counts.set(c, (counts.get(c) ?? 0) + 1);
+  }
+  return order
+    .map((c) => {
+      const n = counts.get(c) ?? 1;
+      return n > 1 ? `${c}×${n}` : c;
+    })
+    .join(' · ');
 }
 
 type Row = {
@@ -55,7 +82,8 @@ function computeOffDayWindows(flights: Row[]) {
     offsBy.set(ymd, offs);
   }
   pure.sort();
-  const windows: { start: string; end: string; days: number; ids: string[] }[] = [];
+  const windows: { start: string; end: string; days: number; ids: string[]; dayCodes: string[] }[] =
+    [];
   let i = 0;
   while (i < pure.length) {
     const start = pure[i]!;
@@ -68,12 +96,15 @@ function computeOffDayWindows(flights: Row[]) {
     const days = inclusiveYmdDayCount(start, end);
     if (days >= 2) {
       const ids: string[] = [];
+      const dayCodes: string[] = [];
       let cur = start;
       while (cur <= end) {
-        for (const r of offsBy.get(cur) ?? []) ids.push(r.id);
+        const dayRows = offsBy.get(cur) ?? [];
+        if (dayRows[0]) dayCodes.push(dayRows[0].flight_number.toUpperCase());
+        for (const r of dayRows) ids.push(r.id);
         cur = addUtcDaysToYmd(cur, 1);
       }
-      windows.push({ start, end, days, ids });
+      windows.push({ start, end, days, ids, dayCodes });
     }
     i = j;
   }
@@ -92,7 +123,7 @@ const rows: Row[] = [
   {
     id: '2',
     flight_date: '2026-10-11',
-    flight_number: 'FOF',
+    flight_number: 'SOF',
     roster_entry_kind: 'duty_off',
     scheduled_departure: '2026-10-11T00:00:00Z',
     scheduled_arrival: '2026-10-11T23:59:00Z',
@@ -100,14 +131,14 @@ const rows: Row[] = [
   {
     id: '3',
     flight_date: '2026-10-12',
-    flight_number: 'OFF',
+    flight_number: 'ROF',
     roster_entry_kind: 'duty_off',
     scheduled_departure: '2026-10-12T00:00:00Z',
     scheduled_arrival: '2026-10-12T23:59:00Z',
   },
   {
     id: '4',
-    flight_date: '2026-10-14',
+    flight_date: '2026-10-13',
     flight_number: 'FSF',
     roster_entry_kind: 'duty_off',
     scheduled_departure: null,
@@ -140,16 +171,16 @@ const rows: Row[] = [
 ];
 
 const wins = computeOffDayWindows(rows);
-assert.equal(wins.length, 2, 'FOF/OFF üçlü + OFF ikili; FSF tek + HSBY ayırır');
+assert.equal(wins.length, 2, 'FOF/SOF/ROF/FSF dörtlü + OFF ikili; HSBY böler');
 assert.deepEqual(
-  { start: wins[0]!.start, end: wins[0]!.end, days: wins[0]!.days },
-  { start: '2026-10-10', end: '2026-10-12', days: 3 },
+  { start: wins[0]!.start, end: wins[0]!.end, days: wins[0]!.days, dayCodes: wins[0]!.dayCodes },
+  { start: '2026-10-10', end: '2026-10-13', days: 4, dayCodes: ['FOF', 'SOF', 'ROF', 'FSF'] },
 );
+assert.equal(formatOffSpanComposition(wins[0]!.dayCodes), 'FOF · SOF · ROF · FSF');
+assert.equal(formatOffSpanComposition(['OFF', 'OFF', 'SOF']), 'OFF×2 · SOF');
 assert.deepEqual(
   { start: wins[1]!.start, end: wins[1]!.end, days: wins[1]!.days },
   { start: '2026-10-16', end: '2026-10-17', days: 2 },
 );
-assert.deepEqual(wins[0]!.ids, ['1', '2', '3']);
-assert.equal(inclusiveYmdDayCount('2026-10-10', '2026-10-10'), 1);
 
 console.log('test-off-day-windows: PASS');

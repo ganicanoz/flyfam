@@ -388,6 +388,8 @@ type OffDayWindow = {
   durationMs: number;
   flightIds: string[];
   firstFlightId: string;
+  /** Gün sırasıyla occupation kodları (FOF, SOF, ROF…). */
+  dayCodes: string[];
 };
 
 /** Liste birleştirmesi: gerçek boş/izin satırı (nöbet/SIM/eğitim/yer değil). */
@@ -425,8 +427,39 @@ function isMergeableOffDayRow(f: {
   ) {
     return false;
   }
+  // FOF / FSF / SOF / ROF / doğum-özel boş / izin — yeşil «boş» görünen her şey.
   if (isOffDayOccupationCode(code) || isOffDayOccupationCode(occ)) return true;
   return kind === 'duty_off';
+}
+
+/** Birleşik kartta gösterilecek kod (FOF, SOF…). */
+function mergeableOffRowCode(f: {
+  flight_number?: string | null;
+  duty_occupation_code?: string | null;
+}): string {
+  const code = (f.flight_number || '').trim().toUpperCase();
+  const occ = (f.duty_occupation_code || '').trim().toUpperCase();
+  if (isOffDayOccupationCode(code)) return code;
+  if (isOffDayOccupationCode(occ)) return occ;
+  return code || occ || 'OFF';
+}
+
+/** FOF×2 · SOF · ROF — gün sırası korunur, tekrarlar ×n. */
+function formatOffSpanComposition(dayCodes: readonly string[]): string {
+  if (dayCodes.length === 0) return '';
+  const order: string[] = [];
+  const counts = new Map<string, number>();
+  for (const raw of dayCodes) {
+    const c = (raw || 'OFF').trim().toUpperCase() || 'OFF';
+    if (!counts.has(c)) order.push(c);
+    counts.set(c, (counts.get(c) ?? 0) + 1);
+  }
+  return order
+    .map((c) => {
+      const n = counts.get(c) ?? 1;
+      return n > 1 ? `${c}×${n}` : c;
+    })
+    .join(' · ');
 }
 
 function inclusiveYmdDayCount(startYmd: string, endYmd: string): number {
@@ -490,11 +523,15 @@ function computeOffDayWindows<T extends {
     const dayCount = inclusiveYmdDayCount(startYmd, endYmd);
     if (dayCount >= 2) {
       const flightIds: string[] = [];
+      const dayCodes: string[] = [];
       let startMs = 0;
       let endMs = 0;
       let cur = startYmd;
       while (cur <= endYmd) {
-        for (const r of offsByYmd.get(cur) ?? []) {
+        const dayRows = offsByYmd.get(cur) ?? [];
+        // Gün başına bir kod (birden fazla satır varsa ilk mergeable).
+        if (dayRows.length > 0) dayCodes.push(mergeableOffRowCode(dayRows[0]!));
+        for (const r of dayRows) {
           flightIds.push(r.id);
           const a = parseUtcMsStatic(r.scheduled_departure);
           const b = parseUtcMsStatic(r.scheduled_arrival);
@@ -514,12 +551,26 @@ function computeOffDayWindows<T extends {
           durationMs,
           flightIds,
           firstFlightId: flightIds[0]!,
+          dayCodes,
         });
       }
     }
     i = j;
   }
   return windows;
+}
+
+/** Takvim yeşil çubuğu: off span günlerini eksiksiz birleştir. */
+function offSpanDatesFromWindows(windows: readonly OffDayWindow[]): Set<string> {
+  const dates = new Set<string>();
+  for (const w of windows) {
+    let cur = w.startYmd;
+    while (cur <= w.endYmd) {
+      dates.add(cur);
+      cur = addUtcDaysToYmd(cur, 1);
+    }
+  }
+  return dates;
 }
 
 const CALENDAR_COL_H = 48;
@@ -2002,15 +2053,29 @@ export default function Roster({
         dayCount: number;
         durationMs: number;
         firstFlightId: string;
+        dayCodes: string[];
       };
   /** Takvim görünümü dışında selectedDate listData’yı yeniden üretmesin (liste→takvim sync sıçratmasın). */
   const listDataDayFocus = calendarDayCardsOnly ? selectedDate : null;
 
-  /** Ardışık boş gün birleşimi — tek gün / takvim-gün odaklı listede kapalı. */
-  const offDayWindows = React.useMemo(() => {
-    if (listDataDayFocus || rosterListPrefs.flights_only) return [] as OffDayWindow[];
+  /**
+   * Ardışık tüm boş türleri (FOF/FSF/SOF/ROF/izin…) tek pencerede.
+   * Takvim çubuğu her zaman; liste kartı yalnız çok-günlü liste modunda.
+   */
+  const rosterOffDayWindows = React.useMemo(() => {
+    if (rosterListPrefs.flights_only) return [] as OffDayWindow[];
     return computeOffDayWindows(allFlightsSorted, listGroupDate);
-  }, [allFlightsSorted, listGroupDate, listDataDayFocus, rosterListPrefs.flights_only]);
+  }, [allFlightsSorted, listGroupDate, rosterListPrefs.flights_only]);
+
+  const offDayWindows = React.useMemo(
+    () => (listDataDayFocus ? ([] as OffDayWindow[]) : rosterOffDayWindows),
+    [listDataDayFocus, rosterOffDayWindows],
+  );
+
+  const calendarOffSpanDateSet = React.useMemo(
+    () => offSpanDatesFromWindows(rosterOffDayWindows),
+    [rosterOffDayWindows],
+  );
 
   const mergedOffFlightIds = React.useMemo(() => {
     const ids = new Set<string>();
@@ -2129,6 +2194,7 @@ export default function Roster({
           dayCount: w.dayCount,
           durationMs: w.durationMs,
           firstFlightId: w.firstFlightId,
+          dayCodes: w.dayCodes,
         });
       }
     }
@@ -5130,12 +5196,26 @@ export default function Roster({
       }
       if (!flightsOnly && kind === 'duty_off') dutyOff.add(ymd);
     }
+    // Birleşik boş span günleri (FOF+SOF+ROF…) yeşil çubukta eksiksiz birleşsin.
+    if (!flightsOnly) {
+      for (const ymd of calendarOffSpanDateSet) {
+        if ((flightCount.get(ymd) ?? 0) > 0 || sim.has(ymd)) continue;
+        dutyOff.add(ymd);
+      }
+    }
     // Aynı günde uçuş/sim varsa nöbet çizgisini bastır (görev tebliği sonrası).
     for (const ymd of [...standby]) {
       if ((flightCount.get(ymd) ?? 0) > 0 || sim.has(ymd)) standby.delete(ymd);
     }
     return { flightCount, sim, standby, dutyOff };
-  }, [flights, listGroupDate, persistedDayKinds, rosterTodayYmd, rosterListPrefs]);
+  }, [
+    flights,
+    listGroupDate,
+    persistedDayKinds,
+    rosterTodayYmd,
+    rosterListPrefs,
+    calendarOffSpanDateSet,
+  ]);
 
   const calendarMarksUserKey =
     (isCrew ? crewProfile?.id : profile?.id) ?? (isCrew ? 'crew' : 'family');
@@ -6278,6 +6358,32 @@ export default function Roster({
                     ? `${entry.dateYmd.slice(8, 10)}–${endLabel}`
                     : `${startLabel} – ${endLabel}`;
               const offDurationLabel = formatLayoverDurationFromMs(entry.durationMs);
+              const isTr = String(i18n.language || '').toLowerCase().startsWith('tr');
+              const airlineIcao = crewProfile?.airline_icao;
+              // FOF×2 · SOF (Özel Boş Gün) · ROF — hangi boşlar birleşti.
+              const offCompositionLine = (() => {
+                const order: string[] = [];
+                const counts = new Map<string, number>();
+                for (const raw of entry.dayCodes) {
+                  const c = (raw || 'OFF').trim().toUpperCase() || 'OFF';
+                  if (!counts.has(c)) order.push(c);
+                  counts.set(c, (counts.get(c) ?? 0) + 1);
+                }
+                return order
+                  .map((c) => {
+                    const n = counts.get(c) ?? 1;
+                    const label = isTr
+                      ? rosterOccupationLabelTr(c, airlineIcao)
+                      : rosterOccupationLabelEn(c, airlineIcao);
+                    const labelOk =
+                      !!label &&
+                      label.replace(/\s/g, '').toUpperCase() !== c &&
+                      label.trim().length > 0;
+                    const base = labelOk ? `${c} (${label})` : c;
+                    return n > 1 ? `${base}×${n}` : base;
+                  })
+                  .join(' · ');
+              })();
               return (
                 <View
                   style={styles.itemWrapper}
@@ -6295,6 +6401,7 @@ export default function Roster({
                       isNonFlightBlock: true,
                       blockTitle: rangeLabel,
                       offDurationLabel,
+                      offCompositionLine: offCompositionLine || formatOffSpanComposition(entry.dayCodes),
                       isPast: entry.endYmd < rosterTodayYmd,
                     }}
                     themeMode={themeMode}
