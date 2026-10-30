@@ -29,6 +29,7 @@ const OFF_CODES = new Set([
   'SOF',
   'ROF',
   'RSF',
+  'BDF',
   'IBB',
   'IBI',
   'AVAC',
@@ -115,23 +116,24 @@ const rows: Row[] = [
   {
     id: '1',
     flight_date: '2026-10-10',
-    flight_number: 'FOF',
+    flight_number: 'BDF',
     roster_entry_kind: 'duty_off',
-    scheduled_departure: '2026-10-10T00:00:00Z',
-    scheduled_arrival: '2026-10-10T23:59:00Z',
+    // Bilerek UTC grubu kaymış gibi saat — birleştirme flight_date kullanmalı.
+    scheduled_departure: '2026-10-09T21:00:00Z',
+    scheduled_arrival: '2026-10-10T20:59:00Z',
   },
   {
     id: '2',
     flight_date: '2026-10-11',
     flight_number: 'SOF',
     roster_entry_kind: 'duty_off',
-    scheduled_departure: '2026-10-11T00:00:00Z',
-    scheduled_arrival: '2026-10-11T23:59:00Z',
+    scheduled_departure: '2026-10-10T21:00:00Z',
+    scheduled_arrival: '2026-10-11T20:59:00Z',
   },
   {
     id: '3',
     flight_date: '2026-10-12',
-    flight_number: 'ROF',
+    flight_number: 'FOF',
     roster_entry_kind: 'duty_off',
     scheduled_departure: '2026-10-12T00:00:00Z',
     scheduled_arrival: '2026-10-12T23:59:00Z',
@@ -171,12 +173,12 @@ const rows: Row[] = [
 ];
 
 const wins = computeOffDayWindows(rows);
-assert.equal(wins.length, 2, 'FOF/SOF/ROF/FSF dörtlü + OFF ikili; HSBY böler');
+assert.equal(wins.length, 2, 'BDF/SOF/FOF/FSF dörtlü + OFF ikili; HSBY böler');
 assert.deepEqual(
   { start: wins[0]!.start, end: wins[0]!.end, days: wins[0]!.days, dayCodes: wins[0]!.dayCodes },
-  { start: '2026-10-10', end: '2026-10-13', days: 4, dayCodes: ['FOF', 'SOF', 'ROF', 'FSF'] },
+  { start: '2026-10-10', end: '2026-10-13', days: 4, dayCodes: ['BDF', 'SOF', 'FOF', 'FSF'] },
 );
-assert.equal(formatOffSpanComposition(wins[0]!.dayCodes), 'FOF · SOF · ROF · FSF');
+assert.equal(formatOffSpanComposition(wins[0]!.dayCodes), 'BDF · SOF · FOF · FSF');
 assert.equal(formatOffSpanComposition(['OFF', 'OFF', 'SOF']), 'OFF×2 · SOF');
 assert.deepEqual(
   { start: wins[1]!.start, end: wins[1]!.end, days: wins[1]!.days },

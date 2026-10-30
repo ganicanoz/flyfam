@@ -475,6 +475,8 @@ function inclusiveYmdDayCount(startYmd: string, endYmd: string): number {
 
 /**
  * Ardışık salt-boş günleri tek kartta birleştir (yatı span’i gibi).
+ * Gruplama her zaman `flight_date` (roster takvim günü) — UTC/TZ listGroupDate
+ * kayması ardışık BDF/SOF/FOF zincirini bölmesin.
  * Tek gün birleşmez; nöbet/uçuş/SIM karışık gün pencereyi böler.
  */
 function computeOffDayWindows<T extends {
@@ -485,15 +487,13 @@ function computeOffDayWindows<T extends {
   roster_entry_kind?: string | null;
   flight_number?: string | null;
   duty_occupation_code?: string | null;
-}>(
-  flights: readonly T[],
-  groupYmd: (f: T) => string,
-): OffDayWindow[] {
+}>(flights: readonly T[]): OffDayWindow[] {
   const byDate = new Map<string, typeof flights[number][]>();
   for (const f of flights) {
     if (isLayoverPlaceholder(f)) continue;
-    const ymd = groupYmd(f);
-    if (!ymd) continue;
+    // Boş birleştirme: yalnız roster tarihine bak (SOF/BDF/FOF fark etmez).
+    const ymd = (f.flight_date || '').trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(ymd)) continue;
     if (!byDate.has(ymd)) byDate.set(ymd, []);
     byDate.get(ymd)!.push(f);
   }
@@ -2064,13 +2064,19 @@ export default function Roster({
    */
   const rosterOffDayWindows = React.useMemo(() => {
     if (rosterListPrefs.flights_only) return [] as OffDayWindow[];
-    return computeOffDayWindows(allFlightsSorted, listGroupDate);
-  }, [allFlightsSorted, listGroupDate, rosterListPrefs.flights_only]);
+    return computeOffDayWindows(allFlightsSorted);
+  }, [allFlightsSorted, rosterListPrefs.flights_only]);
 
-  const offDayWindows = React.useMemo(
-    () => (listDataDayFocus ? ([] as OffDayWindow[]) : rosterOffDayWindows),
-    [listDataDayFocus, rosterOffDayWindows],
-  );
+  /**
+   * Liste: tüm span’ler. Takvim-gün: seçili günü kapsayan span (BDF/SOF/FOF fark etmez).
+   * Eskiden takvim-gün modunda birleştirme tamamen kapalıydı → ayrı kartlar kalıyordu.
+   */
+  const offDayWindows = React.useMemo(() => {
+    if (!listDataDayFocus) return rosterOffDayWindows;
+    return rosterOffDayWindows.filter(
+      (w) => w.startYmd <= listDataDayFocus && w.endYmd >= listDataDayFocus,
+    );
+  }, [listDataDayFocus, rosterOffDayWindows]);
 
   const calendarOffSpanDateSet = React.useMemo(
     () => offSpanDatesFromWindows(rosterOffDayWindows),
@@ -2089,13 +2095,13 @@ export default function Roster({
     const byDate = new Map<string, Flight[]>();
     const dayCardsOnly = !!listDataDayFocus;
     for (const f of allFlightsSorted) {
-      // Çok günlük boş span’de tek kart; ara gün satırlarını listeden düş.
-      if (!dayCardsOnly && mergedOffFlightIds.has(f.id)) continue;
+      // Çok günlük boş span’de tek kart; span’deki tüm off satırlarını listeden düş.
+      if (mergedOffFlightIds.has(f.id)) continue;
       const g = listGroupDate(f);
       // Liste: listMinYmd altını FlatList’e hiç koyma (açılış/navigasyon maliyeti).
       if (dayCardsOnly) {
-        if (g !== listDataDayFocus) continue;
-      } else if (g < listMinYmd) {
+        if (g !== listDataDayFocus && f.flight_date !== listDataDayFocus) continue;
+      } else if (g < listMinYmd && f.flight_date < listMinYmd) {
         continue;
       }
       if (!byDate.has(g)) byDate.set(g, []);
@@ -2111,12 +2117,14 @@ export default function Roster({
       if (!byDate.has(w.startYmd)) byDate.set(w.startYmd, []);
     }
     for (const w of offDayWindows) {
+      // Takvim-gün: span kartını seçili gün başlığı altına koy.
+      const anchorYmd = dayCardsOnly && listDataDayFocus ? listDataDayFocus : w.startYmd;
       if (dayCardsOnly) {
-        if (w.startYmd !== listDataDayFocus) continue;
-      } else if (w.startYmd < listMinYmd) {
+        if (anchorYmd !== listDataDayFocus) continue;
+      } else if (anchorYmd < listMinYmd) {
         continue;
       }
-      if (!byDate.has(w.startYmd)) byDate.set(w.startYmd, []);
+      if (!byDate.has(anchorYmd)) byDate.set(anchorYmd, []);
     }
     // Bugün + programatik boş gün hedefi (takvim/açılış). Scroll-selectedDate enjekte etme.
     // Birleşik boş span içindeki güne basınca ara gün boş başlığı açma → span başlangıcına bağla.
@@ -2185,10 +2193,11 @@ export default function Roster({
         });
       }
       for (const w of offDayWindows) {
-        if (w.startYmd !== ymd) continue;
+        const anchorYmd = dayCardsOnly && listDataDayFocus ? listDataDayFocus : w.startYmd;
+        if (anchorYmd !== ymd) continue;
         rebuilt.push({
           type: 'offSpan',
-          dateYmd: ymd,
+          dateYmd: w.startYmd,
           endYmd: w.endYmd,
           windowKey: w.key,
           dayCount: w.dayCount,
