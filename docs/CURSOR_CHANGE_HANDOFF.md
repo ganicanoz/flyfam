@@ -37,6 +37,8 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - **Dosyalar:** `mobile/screens/SignIn.tsx`, `SignUp.tsx`, `KeyboardSafeScroll.tsx`, `app.config.js`, `project.pbxproj`, `android/app/build.gradle`.
 - **Koruma:** 56 kurulunca gömülü JS kaynak. App Store submit ayrı onay. Yeni production OTA yalnız bu commit sonrası `origin/main`’den.
 - **Doğrulama:** `tsc --noEmit` OK; `test-off-day-windows` PASS; `verify-release.mjs --skip-export` ALL CHECKS PASSED.
+- **EAS iOS:** build `46123d14-499d-4ee4-a965-065f781ff720` FINISHED — appVersion `1.3.0` / buildNumber **56**. IPA: Expo artifacts. Submit `47610900-42bb-45c5-afca-98612248c0fb` → App Store Connect TestFlight (Apple processing). App Store Review submit yok.
+- **Cihaz:** 55’i sil → TestFlight **56** kur (processing bitince). SIM mavi + giriş titreme + off-merge gömülü; eski production OTA’ya güvenme.
 
 ### 2026-10-30 — Off birleştirme: flight_date + takvim-gün + BDF/SOF
 
