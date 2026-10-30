@@ -1,14 +1,14 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  KeyboardAvoidingView,
   Platform,
   Alert,
   ScrollView,
   TouchableOpacity,
   Modal,
+  Keyboard,
   type TextInput,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
@@ -54,6 +54,7 @@ export default function SignUp() {
   const [acceptTermsDisclaimer, setAcceptTermsDisclaimer] = useState(false);
   const [loading, setLoading] = useState(false);
   const [legalSheet, setLegalSheet] = useState<LegalDocumentKind | null>(null);
+  const [keyboardPad, setKeyboardPad] = useState(0);
   const navigation = useNavigation<any>();
   const scrollRef = useRef<ScrollView>(null);
   const fullNameRef = useRef<TextInput>(null);
@@ -65,8 +66,22 @@ export default function SignUp() {
   const strength = passwordStrength(password);
 
   const focusScroll = (e: { nativeEvent?: { target?: unknown } }) => {
+    // Alt alanlar için tek seferlik; e-posta öneri çubuğu ile sürekli kaydırma yok.
     setTimeout(() => scrollInputIntoView(scrollRef, e, 100), 120);
   };
+
+  useEffect(() => {
+    const showEvt = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvt = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const onShow = Keyboard.addListener(showEvt, (e) => {
+      setKeyboardPad(Math.max(0, Math.round(e.endCoordinates?.height ?? 0)));
+    });
+    const onHide = Keyboard.addListener(hideEvt, () => setKeyboardPad(0));
+    return () => {
+      onShow.remove();
+      onHide.remove();
+    };
+  }, []);
 
   const formValid =
     !!email.trim() &&
@@ -181,20 +196,15 @@ export default function SignUp() {
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       <ScreenPageHeader title={t('signUp.title')} />
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === 'android' ? 'padding' : undefined}
-        enabled={Platform.OS === 'android'}
-        keyboardVerticalOffset={0}
-      >
+      <View style={styles.flex}>
         <ScrollView
           ref={scrollRef}
           key={activeLocale}
           style={styles.flex}
-          contentContainerStyle={styles.scroll}
+          contentContainerStyle={[styles.scroll, { paddingBottom: 24 + keyboardPad }]}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="interactive"
-          automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
+          automaticallyAdjustKeyboardInsets={false}
           contentInsetAdjustmentBehavior="never"
         >
           <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>
@@ -254,7 +264,6 @@ export default function SignUp() {
             blurOnSubmit={false}
             enablesReturnKeyAutomatically
             inputAccessoryViewID={FORM_KEYBOARD_ACCESSORY_ID}
-            onFocus={focusScroll}
             onSubmitEditing={() => passwordRef.current?.focus()}
           />
           <FormField
@@ -345,7 +354,7 @@ export default function SignUp() {
             disabled={!formValid || loading}
           />
         </BottomActionBar>
-      </KeyboardAvoidingView>
+      </View>
 
       <FormKeyboardAccessory />
 

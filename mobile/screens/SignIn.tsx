@@ -1,15 +1,15 @@
-import { useState, useCallback, useMemo, useRef } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
   Text,
   StyleSheet,
-  KeyboardAvoidingView,
   Platform,
   Alert,
   ScrollView,
   Image,
   TouchableOpacity,
+  Keyboard,
   type TextInput,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
@@ -28,8 +28,12 @@ import {
   FormKeyboardAccessory,
   FORM_KEYBOARD_ACCESSORY_ID,
 } from '../components/FormKeyboardAccessory';
-import { scrollInputIntoView } from '../components/KeyboardSafeScroll';
 
+/**
+ * Giriş formu üstte; e-posta yazarken iOS öneri çubuğu yüksekliği değişir.
+ * `automaticallyAdjustKeyboardInsets` / KAV / scroll-into-view birlikte
+ * sürekli yeniden hizalayıp titreme yapıyordu — tek seferlik klavye pad.
+ */
 export default function SignIn() {
   const { t } = useTranslation();
   const themeMode = useThemeMode();
@@ -39,8 +43,8 @@ export default function SignIn() {
   const [loading, setLoading] = useState(false);
   const [forgotLoading, setForgotLoading] = useState(false);
   const [unconfirmedHint, setUnconfirmedHint] = useState(false);
+  const [keyboardPad, setKeyboardPad] = useState(0);
   const navigation = useNavigation<any>();
-  const scrollRef = useRef<ScrollView>(null);
   const emailRef = useRef<TextInput>(null);
   const passwordRef = useRef<TextInput>(null);
 
@@ -49,6 +53,20 @@ export default function SignIn() {
       runPendingResendOnSignInFocus(setEmail);
     }, []),
   );
+
+  useEffect(() => {
+    const showEvt = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvt = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    // willChangeFrame dinleme — öneri çubuğu her harfte titretmesin.
+    const onShow = Keyboard.addListener(showEvt, (e) => {
+      setKeyboardPad(Math.max(0, Math.round(e.endCoordinates?.height ?? 0)));
+    });
+    const onHide = Keyboard.addListener(hideEvt, () => setKeyboardPad(0));
+    return () => {
+      onShow.remove();
+      onHide.remove();
+    };
+  }, []);
 
   const canSubmit = email.trim().length > 0 && password.length > 0 && !loading;
 
@@ -98,115 +116,100 @@ export default function SignIn() {
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       <ScreenPageHeader title={t('signIn.title')} />
-      {/* iOS: KAV+automaticallyAdjustKeyboardInsets birlikte e-posta yazarken titretiyordu. */}
-      <KeyboardAvoidingView
+      <ScrollView
         style={styles.flex}
-        behavior={Platform.OS === 'android' ? 'padding' : undefined}
-        enabled={Platform.OS === 'android'}
-        keyboardVerticalOffset={0}
+        contentContainerStyle={[styles.scroll, { paddingBottom: 40 + keyboardPad }]}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
+        contentInsetAdjustmentBehavior="never"
+        // iOS e-posta öneri çubuğu: otomatik inset yazarken sürekli kaydırır → titreme.
+        automaticallyAdjustKeyboardInsets={false}
       >
-        <ScrollView
-          ref={scrollRef}
-          style={styles.flex}
-          contentContainerStyle={styles.scroll}
-          keyboardShouldPersistTaps="handled"
-          keyboardDismissMode="interactive"
-          automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
-          contentInsetAdjustmentBehavior="never"
+        <View style={styles.hero}>
+          <Image source={splashIconAsset} style={styles.logo} resizeMode="contain" />
+          <Text style={[styles.welcome, { color: colors.textMuted }]}>{t('signIn.subtitle')}</Text>
+        </View>
+
+        <FormField
+          ref={emailRef}
+          label={t('signIn.email')}
+          value={email}
+          onChangeText={setEmail}
+          placeholder={t('signIn.email')}
+          keyboardType="email-address"
+          autoComplete="email"
+          textContentType="emailAddress"
+          editable={!loading}
+          returnKeyType="next"
+          blurOnSubmit={false}
+          enablesReturnKeyAutomatically
+          inputAccessoryViewID={FORM_KEYBOARD_ACCESSORY_ID}
+          onSubmitEditing={() => passwordRef.current?.focus()}
+        />
+
+        <FormField
+          ref={passwordRef}
+          label={t('signIn.password')}
+          value={password}
+          onChangeText={setPassword}
+          placeholder={t('signIn.password')}
+          secureTextEntry
+          autoComplete="password"
+          textContentType="password"
+          editable={!loading}
+          returnKeyType="go"
+          enablesReturnKeyAutomatically
+          inputAccessoryViewID={FORM_KEYBOARD_ACCESSORY_ID}
+          onSubmitEditing={() => {
+            if (canSubmit) void handleSignIn();
+          }}
+        />
+
+        <TouchableOpacity
+          style={styles.forgotRow}
+          onPress={handleForgotPassword}
+          disabled={loading || forgotLoading}
+          accessibilityRole="button"
         >
-          <View style={styles.hero}>
-            <Image source={splashIconAsset} style={styles.logo} resizeMode="contain" />
-            <Text style={[styles.welcome, { color: colors.textMuted }]}>{t('signIn.subtitle')}</Text>
-          </View>
-
-          <FormField
-            ref={emailRef}
-            label={t('signIn.email')}
-            value={email}
-            onChangeText={setEmail}
-            placeholder={t('signIn.email')}
-            keyboardType="email-address"
-            autoComplete="email"
-            textContentType="emailAddress"
-            editable={!loading}
-            returnKeyType="next"
-            blurOnSubmit={false}
-            enablesReturnKeyAutomatically
-            inputAccessoryViewID={FORM_KEYBOARD_ACCESSORY_ID}
-            onFocus={(e) => {
-              // Tek seferlik hizalama; yazarken tekrar kaydırma yok (titreme).
-              setTimeout(() => scrollInputIntoView(scrollRef, e, 100), 120);
-            }}
-            onSubmitEditing={() => passwordRef.current?.focus()}
-          />
-
-          <FormField
-            ref={passwordRef}
-            label={t('signIn.password')}
-            value={password}
-            onChangeText={setPassword}
-            placeholder={t('signIn.password')}
-            secureTextEntry
-            autoComplete="password"
-            textContentType="password"
-            editable={!loading}
-            returnKeyType="go"
-            enablesReturnKeyAutomatically
-            inputAccessoryViewID={FORM_KEYBOARD_ACCESSORY_ID}
-            onFocus={(e) => {
-              setTimeout(() => scrollInputIntoView(scrollRef, e, 100), 120);
-            }}
-            onSubmitEditing={() => {
-              if (canSubmit) void handleSignIn();
-            }}
-          />
-
-          <TouchableOpacity
-            style={styles.forgotRow}
-            onPress={handleForgotPassword}
-            disabled={loading || forgotLoading}
-            accessibilityRole="button"
-          >
-            <Text style={[styles.forgotText, { color: colors.primary }]}>
-              {forgotLoading ? '…' : t('signIn.forgotPassword')}
-            </Text>
-          </TouchableOpacity>
-
-          {unconfirmedHint ? (
-            <View style={[styles.inlineWarn, { backgroundColor: colors.warningBg, borderColor: colors.warningBorder }]}>
-              <Text style={[styles.inlineWarnText, { color: colors.warningText }]}>
-                {t('signIn.errorEmailNotConfirmed')}
-              </Text>
-              <TouchableOpacity
-                onPress={() => promptResendConfirmationEmail(email.trim())}
-                accessibilityRole="button"
-              >
-                <Text style={[styles.resendLink, { color: colors.primary }]}>
-                  {t('signIn.resendConfirmation')}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          ) : null}
-
-          <PrimaryButton
-            title={t('signIn.submit')}
-            onPress={handleSignIn}
-            loading={loading}
-            disabled={!canSubmit}
-            style={styles.submit}
-          />
-
-          <Text style={[styles.switchRow, { color: colors.textMuted }]}>
-            {t('signIn.noAccount')}{' '}
-            <Text
-              style={{ color: colors.primary, fontWeight: '700' }}
-              onPress={() => navigation.navigate('SignUp')}
-            >
-              {t('welcome.signUp')}
-            </Text>
+          <Text style={[styles.forgotText, { color: colors.primary }]}>
+            {forgotLoading ? '…' : t('signIn.forgotPassword')}
           </Text>
-        </ScrollView>
-      </KeyboardAvoidingView>
+        </TouchableOpacity>
+
+        {unconfirmedHint ? (
+          <View style={[styles.inlineWarn, { backgroundColor: colors.warningBg, borderColor: colors.warningBorder }]}>
+            <Text style={[styles.inlineWarnText, { color: colors.warningText }]}>
+              {t('signIn.errorEmailNotConfirmed')}
+            </Text>
+            <TouchableOpacity
+              onPress={() => promptResendConfirmationEmail(email.trim())}
+              accessibilityRole="button"
+            >
+              <Text style={[styles.resendLink, { color: colors.primary }]}>
+                {t('signIn.resendConfirmation')}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        ) : null}
+
+        <PrimaryButton
+          title={t('signIn.submit')}
+          onPress={handleSignIn}
+          loading={loading}
+          disabled={!canSubmit}
+          style={styles.submit}
+        />
+
+        <Text style={[styles.switchRow, { color: colors.textMuted }]}>
+          {t('signIn.noAccount')}{' '}
+          <Text
+            style={{ color: colors.primary, fontWeight: '700' }}
+            onPress={() => navigation.navigate('SignUp')}
+          >
+            {t('welcome.signUp')}
+          </Text>
+        </Text>
+      </ScrollView>
 
       <FormKeyboardAccessory />
     </View>
@@ -219,7 +222,6 @@ function createStyles() {
     flex: { flex: 1 },
     scroll: {
       paddingHorizontal: spacing.xl,
-      paddingBottom: 40,
       paddingTop: 8,
       flexGrow: 1,
     },

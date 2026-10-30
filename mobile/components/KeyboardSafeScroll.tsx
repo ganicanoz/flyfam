@@ -21,9 +21,10 @@ type Props = {
 } & Omit<ScrollViewProps, 'style' | 'contentContainerStyle' | 'children'>;
 
 /**
- * Form screens: keep the focused TextInput above the keyboard.
- * iOS: yalnız `automaticallyAdjustKeyboardInsets` (KAV+insets birlikte e-posta
- * öneri çubuğunda titreme yapıyordu). Android: klavye yüksekliği padding.
+ * Form screens: keep content above the keyboard.
+ * iOS: tek seferlik keyboardWillShow pad — `automaticallyAdjustKeyboardInsets`
+ * e-posta öneri çubuğunda her harfte titreme yapıyordu.
+ * Android: KAV + keyboardDidShow pad.
  */
 export default function KeyboardSafeScroll({
   children,
@@ -39,11 +40,12 @@ export default function KeyboardSafeScroll({
   const [keyboardPad, setKeyboardPad] = useState(0);
 
   useEffect(() => {
-    if (Platform.OS === 'ios') return;
-    const onShow = Keyboard.addListener('keyboardDidShow', (e) => {
-      setKeyboardPad(Math.max(0, e.endCoordinates?.height ?? 0));
+    const showEvt = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvt = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const onShow = Keyboard.addListener(showEvt, (e) => {
+      setKeyboardPad(Math.max(0, Math.round(e.endCoordinates?.height ?? 0)));
     });
-    const onHide = Keyboard.addListener('keyboardDidHide', () => setKeyboardPad(0));
+    const onHide = Keyboard.addListener(hideEvt, () => setKeyboardPad(0));
     return () => {
       onShow.remove();
       onHide.remove();
@@ -56,13 +58,12 @@ export default function KeyboardSafeScroll({
       style={{ flex: 1 }}
       keyboardShouldPersistTaps="handled"
       keyboardDismissMode="interactive"
-      automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
-      // Safe-area + keyboard insets birlikte kaydırma sıçratmasın.
+      automaticallyAdjustKeyboardInsets={false}
       contentInsetAdjustmentBehavior="never"
       contentContainerStyle={[
         {
           flexGrow: 1,
-          paddingBottom: bottomOffset + (Platform.OS === 'android' ? keyboardPad : 0),
+          paddingBottom: bottomOffset + keyboardPad,
         },
         contentContainerStyle,
       ]}
