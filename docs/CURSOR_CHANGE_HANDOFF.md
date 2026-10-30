@@ -28,6 +28,15 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - **Deploy:** `admin-dashboard` edge function. Bildirim henüz toplu gönderilmedi — admin Önizleme sonra Grup Gönder.
 - **Koruma:** Submit for Review yok. RevenueCat yeni key hâlâ açık.
 
+### 2026-10-30 — Build 56: gömülü JS reset + SignIn titreme (OTA zinciri terk)
+
+- **İstek:** SIM yeşil / OTA emergency karmaşası bitmez; TestFlight **56** ile SIM mavi + off-span + duty heroes + klavye düzeltmesi gömülü gelsin.
+- **Sürüm:** marketing `1.3.0` aynı; iOS `buildNumber` / tüm `CURRENT_PROJECT_VERSION` **56**; Android `versionCode` **56**. `runtimeVersion` **1.3.0** (değişmedi).
+- **Klavye:** Önceki OTA KAV’ı kapatıp `automaticallyAdjustKeyboardInsets` bırakmıştı; iOS e-posta öneri çubuğu yazarken inset’i sürekli değiştiriyordu. Build 56: SignIn/SignUp + `KeyboardSafeScroll` → inset kapalı; yalnız `keyboardWillShow`/`Hide` sabit pad; e-posta alanında `scrollInputIntoView` yok.
+- **Gömülü içerik:** origin/main @ off-merge `flight_date` (PR #57) + SIM mavi + duty assets + OTA client (`fallbackToCacheTimeout: 8000`).
+- **Dosyalar:** `mobile/screens/SignIn.tsx`, `SignUp.tsx`, `KeyboardSafeScroll.tsx`, `app.config.js`, `project.pbxproj`, `android/app/build.gradle`.
+- **Koruma:** 56 kurulunca gömülü JS kaynak. App Store submit ayrı onay. Yeni production OTA yalnız bu commit sonrası `origin/main`’den.
+- **Doğrulama:** `tsc --noEmit` OK; `test-off-day-windows` PASS; `verify-release.mjs --skip-export` ALL CHECKS PASSED.
 
 ### 2026-10-30 — Off birleştirme: flight_date + takvim-gün + BDF/SOF
 
