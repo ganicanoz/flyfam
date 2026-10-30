@@ -60,6 +60,8 @@ export type RosterFlightCardModel = {
   blockTitle?: string;
   /** Birleşik boş gün kartı — yatı süresi gibi parantez içi süre. */
   offDurationLabel?: string | null;
+  /** Birleşik boş: FOF×2 · SOF (Özel Boş Gün) · ROF */
+  offCompositionLine?: string | null;
   layoverStationLabel?: string | null;
   /** Nöbet: "09 Eylül · 22:00 – 06:00" */
   standbyScheduleLine?: string | null;
@@ -446,6 +448,18 @@ export function RosterFlightCard({
                     {offDetailLine}
                   </Text>
                 </View>
+                {isOffCompact && model.offCompositionLine?.trim() ? (
+                  <Text
+                    style={[
+                      styles.standbySchedule,
+                      typography.tabularNums,
+                      { color: ink.muted, fontSize: fs(13), marginTop: 2 },
+                    ]}
+                    numberOfLines={2}
+                  >
+                    {model.offCompositionLine.trim()}
+                  </Text>
+                ) : null}
                 {model.showSuggestOccupation && onSuggestOccupation ? (
                   <Text style={[styles.suggestHint, { color: ink.muted, fontSize: chip(11) }]} numberOfLines={1}>
                     {t('roster.suggestOccupationHint')}

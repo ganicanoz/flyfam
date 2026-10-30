@@ -29,6 +29,15 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - **Koruma:** Submit for Review yok. RevenueCat yeni key hâlâ açık.
 
 
+### 2026-10-30 — Roster off span: karışık FOF/SOF/ROF + composition + takvim
+
+- **İstek:** Doğum/özel (SOF), FOF, FSF, ROF vb. yeşil boş görünen her şeyi birleştir; kartta hangi off’lar var yaz; takvimde de birleşik yeşil çubuk.
+- **Dosyalar:** `Roster.tsx` (`dayCodes`, `calendarOffSpanDateSet`); `RosterFlightCard` `offCompositionLine`; test script.
+- **Kart:** `12–14 Ekim · (Boş Süresi: …)` + alt satır `FOF · SOF (Özel Boş Gün) · ROF`.
+- **Takvim:** span günleri `dutyOff` set’ine eklenir → komşu yeşil çubuklar birleşir.
+- **Doğrulama:** `test-off-day-windows.ts` PASS (FOF+SOF+ROF+FSF); `tsc` / `diff --check` OK.
+- **Koruma:** Nöbet/SIM/uçuş hâlâ böler; tek gün ayrı kart.
+
 ### 2026-10-30 — Roster: ardışık boş günleri birleştir + süre (yatı gibi)
 
 - **İstek:** Ardışık boş günleri tek kartta göstermek; toplam süreyi yatı süresi formatında yazmak.
