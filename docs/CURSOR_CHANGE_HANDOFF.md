@@ -36,7 +36,7 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - **Davranış:** ≥2 ardışık salt-boş gün → başlangıç gününde tek yeşil kart + `(Boş Süresi: …)`; ara gün kartları düşer. Nöbet/SIM/uçuş/eğitim pencereyi böler.
 - **Doğrulama:** `npx tsx mobile/scripts/test-off-day-windows.ts` PASS; `tsc --noEmit` OK; `git diff --check` OK.
 - **Koruma:** Yatı kartı, tek günlük OFF, CFR/nöbet/SIM, `flights_only` aynı.
-- **OTA:** production channel, bu commit üzerinden `ota:production` (mesajda `[git:sha]`).
+- **OTA:** group `e9d740e0-57b6-402d-ae45-275b19df95ff` — iOS `01a18bd4-f0eb-7a92-a86d-779ae8020788`, Android `01a18bd4-f0eb-7ced-b342-4f992a8e8dc5` (commit `0968321`, runtime `1.3.0`, channel production). Manifest OK.
 
 ### 2026-10-29 — TestFlight tester’lar Mertcan app’ine taşındı
 
