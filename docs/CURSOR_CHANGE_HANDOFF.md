@@ -29,6 +29,14 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - **Koruma:** Submit for Review yok. RevenueCat yeni key hâlâ açık.
 
 
+### 2026-10-30 — Off birleştirme: flight_date + takvim-gün + BDF/SOF
+
+- **Sorun:** SIM mavi (OTA OK) ama ardışık boşlar tek kartta değil. Kullanıcı: SOF/BDF fark etmez, boş kategorisi birleşsin.
+- **Kök:** (1) Birleştirme `listGroupDate` (UTC/saat) ile günleri kaydırıp zinciri bölebiliyordu. (2) Takvim-gün modunda (`calendarDayCardsOnly`) span tamamen kapalıydı.
+- **Düzeltme:** `computeOffDayWindows` yalnız `flight_date`; takvim-gün seçili günü kapsayan span’i gösterir; BDF zaten `isOffDayOccupationCode`; liste kategorisine SOF/ROF/… eklendi.
+- **Koruma:** SIM mavi / nöbet bölmesi aynı. SignIn titreme düzeltmesi aynı hatta.
+- **Doğrulama:** `test-off-day-windows` PASS (BDF+SOF+FOF+FSF, kaymış UTC saat); `tsc` OK.
+
 ### 2026-10-30 — SignIn e-posta titreme + güvenli OTA (SIM koru)
 
 - **Sorun:** Girişte e-posta yazarken ekran titriyor. iOS’ta `KeyboardAvoidingView padding` + `automaticallyAdjustKeyboardInsets` + `contentInsetAdjustmentBehavior=automatic` birlikte e-posta öneri çubuğu yüksekliğiyle savaşınca layout zıplıyor.

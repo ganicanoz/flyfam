@@ -106,6 +106,7 @@ export function categorizeRosterListRow(f: FlightLike): RosterListRowCategory {
   const fn = (f.flight_number || '').replace(/\s/g, '').toUpperCase();
   if (fn.includes('SIM') || fn.includes('IPT') || fn.startsWith('CPI')) return 'simulator';
   if (flightNumberLooksLikeTraining(f.flight_number)) return 'training';
+  // BDF/SOF/FOF/MSF/izin… — isOffDayOccupationCode ile aynı küme (elle liste şişmesin).
   if (
     fn === 'FSF' ||
     fn === 'FOF' ||
@@ -119,7 +120,29 @@ export function categorizeRosterListRow(f: FlightLike): RosterListRowCategory {
     fn === 'VAV' ||
     fn === 'AVAC' ||
     fn === 'III' ||
-    fn === 'BDF'
+    fn === 'BDF' ||
+    fn === 'SOF' ||
+    fn === 'SOS' ||
+    fn === 'ROF' ||
+    fn === 'RSF' ||
+    fn === 'RUF' ||
+    fn === 'OFG' ||
+    fn === 'LSF' ||
+    fn === 'IBB' ||
+    fn === 'IBE' ||
+    fn === 'IBX' ||
+    fn === 'IOZ' ||
+    fn === 'IBC' ||
+    fn === 'IBY' ||
+    fn === 'IBI' ||
+    fn === 'UPV' ||
+    fn === 'PRV' ||
+    fn === 'MAV' ||
+    fn === 'DEV' ||
+    fn === 'JSV' ||
+    fn === 'TAV' ||
+    fn === 'SRH' ||
+    fn === 'SXH'
   ) {
     return 'off_days';
   }
