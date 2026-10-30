@@ -28,6 +28,14 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - **Deploy:** `admin-dashboard` edge function. Bildirim henüz toplu gönderilmedi — admin Önizleme sonra Grup Gönder.
 - **Koruma:** Submit for Review yok. RevenueCat yeni key hâlâ açık.
 
+### 2026-10-30 — Birleşik boş kart: günlük satırlar + süre önceki uçuştan
+
+- **İstek:** Tek yeşil kutuda her gün ayrı satır (yükseklik artsın); toplam boş süresi önceki günün uçuş inişinden başlasın. Build 56 üstüne güvenli OTA.
+- **Dosyalar:** `Roster.tsx` (`prevFlightArrivalMsBeforeOff`, `nextDutyDepartureMsAfterOff`, `offDayLines`); `RosterFlightCard` `offDayLines`; `test-off-day-windows.ts`.
+- **Davranış:** Başlık `12–14 Eki · (Boş Süresi: …)` aynı; altında `12 Eki · FOF (…)`, `13 Eki · …`. Süre = son önceki uçuş `scheduled_arrival` → span sonrası ilk görev `scheduled_departure` (yoksa off satır saatleri / gün×24s).
+- **Koruma:** SIM mavi, tek-gün off, yatı, SignIn klavye, buildNumber 56. OTA yalnız temiz `origin/main` worktree + runtime `1.3.0`.
+- **Doğrulama:** `test-off-day-windows` PASS; `tsc` OK. OTA id aşağıdaki yayın satırında.
+
 ### 2026-10-30 — Build 56: gömülü JS reset + SignIn titreme (OTA zinciri terk)
 
 - **İstek:** SIM yeşil / OTA emergency karmaşası bitmez; TestFlight **56** ile SIM mavi + off-span + duty heroes + klavye düzeltmesi gömülü gelsin.
