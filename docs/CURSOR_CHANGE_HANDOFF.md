@@ -13,6 +13,15 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+### 2026-11-01 — Logbook yazdırma, PF sola, uçakta son ekran
+
+- **İstek:** Yazdır çalışsın. PF seçimi solda olsun. Kutular tek satır. Düğmeler renkli ve ikonlu, iPad ve iPhone’da simetrik. iPad’deki üst beyaz örtü kalksın. Logo büyüsün. Gereksiz açıklamalar gitsin. Senkron kayıttan yeniyse kırmızı ünlem yanıp sönsün. Varsayılan Google hesabı yapılandırmadaki hesap olsun. Çevrimdışı, son kaydedilen defter açılsın.
+- **Dosyalar:** `support/logbook/index.html`, `app.js`, `style.css`, `sw.js` (`gani-logbook-v1.4.11`), `gmail-config.js`, `cloud.js`, `scripts/test-gani-logbook-sync.mjs`.
+- **Davranış:** PF ilk sütun. Yazdır önce defteri taşmadan açar, sonra yazdırma penceresini çağırır. Hizmet kaydı kayıtlı sayfayı önce gösterir; ağ gecikse de son cihaz kaydı gelir. Üst güvenli alan başlığın içinde. Kaydet turuncu, yazdır sarı, senkron lacivert.
+- **Koruma:** Uçuşlar, devir, son sayfa, senkron kuralı ve Kaydet’in cihaz seçimi aynı. `gani-logbook` fonksiyonu deploy edilmedi. Kişisel adres bu kayda yazılmadı.
+- **Doğrulama:** `node scripts/test-gani-logbook-sync.mjs` OK. `git diff --check` temiz.
+- **Canlı:** Yayın sonrası doğrulanacak.
+
 ### 2026-10-31 — Logbook Chrome yüklemesi ve gerektiğinde Google
 
 - **İstek:** Chrome penceresi sürekli yükleniyor gibi duruyor. Alttaki Google kaydı yukarı gelsin ya da Kaydet ve Senkron et gerektiğinde kendisi açılsın. Oturum aç yazısı olmasın.
