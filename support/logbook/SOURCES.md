@@ -22,3 +22,8 @@ Navy, white, black theme. PF/PM review queue for newly imported records; pending
 
 ## v1.2.4 correction
 User corrected ME: no flight duration in SE/ME; only previous balance carried. Opening balances are independent and supplied privately via backup JSON, simulator balance in section 13 only. Airport dataset arrays corrected from longitude/latitude to latitude/longitude required by SunCalc.
+
+## v1.3
+- User requests all block time as IFR; applied to records on migration/import and report parsing.
+- Report crew GANI CAN OZ / 21895 FIRSTOFFICER required when a named operating First Officer is present; other role/other FO marked pass and excluded. No FO inference from Submitted By or assigned device. All 22 local EML reports include GANI as FO; none removed from this set.
+- Drive appDataFolder scope: https://developers.google.com/workspace/drive/api/guides/appdata . Online saves create immutable JSON snapshots (no overwrite/delete), verify by reading saved data, check latest snapshot ID before upload, and retain device recovery before remote replacement. Sign in on each device, load last snapshot, use explicit Online kaydet; offline remains device-only until successful online save. OAuth tokens remain closure-memory only.
