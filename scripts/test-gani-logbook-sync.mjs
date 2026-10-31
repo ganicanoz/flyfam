@@ -25,7 +25,9 @@ if (q('latestFlightDate()', context) !== '2026-11-02') throw new Error('son uçu
 if (q('syncAfterQuery(latestFlightDate())', context) !== 'after:2026/11/01') throw new Error('tarama son tarihten önceye kaydı');
 const sw = fs.readFileSync(path.join(dir, 'sw.js'), 'utf8');
 const gmail = fs.readFileSync(path.join(dir, 'gmail.js'), 'utf8');
-if (!sw.includes("const CACHE='gani-logbook-v1.4.3'")) throw new Error('önbellek sürümü artmadı');
+if (!sw.includes("const CACHE='gani-logbook-v1.4.4'")) throw new Error('önbellek sürümü artmadı');
+if (!sw.includes("cache:'no-store'")) throw new Error('yenileme eski kopyayı tutuyor');
+if (!app.includes("updateViaCache:'none'")) throw new Error('servis güncellemesi erteleniyor');
 if (!app.includes("reg:'TC-NBN'") || !app.includes("reg:'TC-RBP'")) throw new Error('11 Ekim uçuşları yok');
 if (app.includes('[1,2,3].map')) throw new Error('üç boş açılış satırı duruyor');
 const slotStart = app.indexOf('function pageSlots');
