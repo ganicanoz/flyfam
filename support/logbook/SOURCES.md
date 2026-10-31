@@ -27,3 +27,9 @@ User corrected ME: no flight duration in SE/ME; only previous balance carried. O
 - User requests all block time as IFR; applied to records on migration/import and report parsing.
 - Report crew GANI CAN OZ / 21895 FIRSTOFFICER required when a named operating First Officer is present; other role/other FO marked pass and excluded. No FO inference from Submitted By or assigned device. All 22 local EML reports include GANI as FO; none removed from this set.
 - Drive appDataFolder scope: https://developers.google.com/workspace/drive/api/guides/appdata . Online saves create immutable JSON snapshots (no overwrite/delete), verify by reading saved data, check latest snapshot ID before upload, and retain device recovery before remote replacement. Sign in on each device, load last snapshot, use explicit Online kaydet; offline remains device-only until successful online save. OAuth tokens remain closure-memory only.
+
+## v1.4.1 supersedes Drive plan
+- Cloud storage now uses private gani-logbook edge function on the same FlyFam Supabase project as family-planner; NO Drive API permission. Google ID token checked by Google JWKS, exact app audience, issuer, expiry, verified owner email; no owner access without authentication. Private storage bucket has no public URL or public policy. Immutable version plus atomic predecessor commit prevents stale or concurrent overwrites; latest pointer is only a cache and commit chain is authoritative.
+- Deploy backend: supabase functions deploy gani-logbook --project-ref slmgmcpluanezvkgkozw --no-verify-jwt --use-api. The function verifies Google JWT itself; Supabase JWT gate is intentionally replaced by exact Google authentication.
+- User overrides crew report on one flight: remove using generic recoverable exclusion control, suppress exact excluded flight keys in Gmail and future imports.
+- Alternate light/navy-grey rows, section header shades and vertical group boundaries. Zero night values blank per flight.
