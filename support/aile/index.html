@@ -1426,12 +1426,19 @@
       return '<span class="care" title="' + esc(label) + '">' + carpetSvg() + (withName ? '<span>' + esc(name || 'Evde') + '</span>' : '') + '</span>';
     }
     function appointmentHtml(ev, cfg) {
-      let visaShown = false;
+      const shown = new Set();
+      const keyOf = (a) => [a.start || '', a.end || '', a.label || '', a.location || ''].join('|');
       return (ev.appointments || []).map((a) => {
-        const familyVisa = ev.ymd === '2026-11-05' && a.label === 'vize görüşmesi';
-        if (familyVisa && visaShown) return '';
-        if (familyVisa) visaShown = true;
-        const parts = familyVisa ? [a.start, a.label, 'hepimiz'] : [(cfg.people[a.person] || ''), a.start, a.label, a.location];
+        const key = keyOf(a);
+        const same = (ev.appointments || []).filter((x) => keyOf(x) === key);
+        const family = same.length >= 3 && ['crew', 'child', 'partner'].every((p) => same.some((x) => x.person === p));
+        if (family) {
+          if (shown.has(key)) return '';
+          shown.add(key);
+          const parts = [a.start, a.label, a.location, 'hepimiz'];
+          return '<div class="appointment">📍 ' + esc(parts.filter((x) => x).join(' · ') + (a.end ? '–' + a.end : '')) + '</div>';
+        }
+        const parts = [(cfg.people[a.person] || ''), a.start, a.label, a.location];
         return '<div class="appointment">📍 ' + esc(parts.filter((x) => x).join(' · ') + (a.end ? '–' + a.end : '')) + '</div>';
       }).join('');
     }
@@ -1988,6 +1995,8 @@
     const CONFIG_MIG_NOV26_HK = 'vacation_hongkong_2026_11_18_25';
     const CONFIG_MIG_VISA_NO = 'visa_norway_2026_11_05';
     const CONFIG_MIG_VISA_NO_BRIEF = 'visa_norway_2026_11_05_brief';
+    const CONFIG_MIG_BDAY_ALP = 'family_appt_2026_11_08_alparslan';
+    const CONFIG_MIG_VISA_UK = 'family_appt_2026_11_09_uk_visa';
     const NOV26_SCHOOL_CLOSED = ['2026-11-16', '2026-11-17', '2026-11-18', '2026-11-19', '2026-11-20'];
     const NOV26_HK = { from: '2026-11-18', to: '2026-11-25', label: 'Hong Kong' };
     const HOSPITAL_LABEL = 'Acıbadem Hastanesi';
@@ -2236,6 +2245,30 @@
           full.school = school;
         }
         done.push(CONFIG_MIG_VISA_NO_BRIEF);
+        changed = true;
+      }
+      if (!done.includes(CONFIG_MIG_BDAY_ALP)) {
+        const ymd = '2026-11-08';
+        const list = Array.isArray(full.familyAppointments) ? full.familyAppointments.filter(Boolean).map((a) => ({ ...a })) : [];
+        for (const person of ['child', 'partner', 'crew']) {
+          const id = 'bday-alparslan-20261108-' + person;
+          if (list.some((a) => a.id === id || (a.date === ymd && a.person === person && /alparslan/i.test(String(a.label || ''))))) continue;
+          list.push({ id, person, date: ymd, start: '10:00', label: 'Alparslan doğum günü kahvaltısı', location: 'Ercan Steakhouse, Başakşehir' });
+        }
+        full.familyAppointments = list;
+        done.push(CONFIG_MIG_BDAY_ALP);
+        changed = true;
+      }
+      if (!done.includes(CONFIG_MIG_VISA_UK)) {
+        const ymd = '2026-11-09';
+        const list = Array.isArray(full.familyAppointments) ? full.familyAppointments.filter(Boolean).map((a) => ({ ...a })) : [];
+        for (const person of ['child', 'partner', 'crew']) {
+          const id = 'visa-uk-20261109-' + person;
+          if (list.some((a) => a.id === id || (a.date === ymd && a.person === person && /uk\b|ingiltere|İngiltere|astoria|visa-uk-20261109/i.test(String(a.label || '') + ' ' + String(a.location || '') + ' ' + String(a.id || ''))))) continue;
+          list.push({ id, person, date: ymd, start: '15:00', label: 'UK vize görüşmesi', location: 'VFS Astoria AVM' });
+        }
+        full.familyAppointments = list;
+        done.push(CONFIG_MIG_VISA_UK);
         changed = true;
       }
       if (!changed) return false;

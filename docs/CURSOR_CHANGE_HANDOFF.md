@@ -1799,3 +1799,11 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 - Takvim, liste ve detayda üç kişilik vize görüşmesi tek kutuda “10:15 · vize görüşmesi · hepimiz” gösterilir. Katılım kayıtları ve görüşme sonrası okul korunur.
 - Önbellek v25. Aile testleri ve betik sözdizimi kontrol edilir.
+
+## 2026-10-31 — Aile planı: 8 Kasım doğum günü + 9 Kasım UK vize
+
+- **Veri (canlı DB):** `admin_planner_state.config.familyAppointments` — 8 Kasım 10:00 Alparslan doğum günü kahvaltısı (Ercan Steakhouse, Başakşehir) ve 9 Kasım 15:00 UK vize görüşmesi (VFS Astoria AVM); her biri crew/partner/child. `configMigrations` işaretleri eklendi.
+- **Sayfa:** `support/aile/index.html` — aynı gün/saat/etiketle üç kişilik randevular takvimde tek kutu + "hepimiz" (Norveç 5 Kasım özel durumu genelleştirildi). Config migration güvenlik ağı: `family_appt_2026_11_08_alparslan`, `family_appt_2026_11_09_uk_visa`. SW `aile-shell-v26`.
+- **Doğrulama:** `node scripts/test-aile-eso.mjs` all ok; `git diff --check` OK. Canlı SQL sonrası 6 satır (8+9 Kasım) doğrulandı.
+- **Korunacak:** Tek kişiye özel randevu kutuları ayrı kalır; yalnız crew+child+partner üçlüsü birleşir.
+

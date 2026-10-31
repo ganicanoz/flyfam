@@ -84,7 +84,7 @@ eq('tatil cümlesi', html.includes('Doktor Hanıım, bu ay bir seyehatiniz olaca
 eq('eso yok', !html.includes('id="esoDock"') && !html.includes('ESO_HI') && !html.includes('interpretAssist') && !html.includes('Buyrun Doktor') && !html.includes('Konuşarak söyle'));
 eq('İ ikonu üretilmiyor', !html.includes("icon: 'İ'") && !html.includes('short: \'İmza\''));
 eq('gelir ekle ve roster', html.includes('>Gelir ekle<') && html.includes('id="moneyMemo"') && html.includes('class="clinic-btn') && html.includes('id="btnRoster"') && html.includes('function moneyMonthTotals') && !html.includes('id="moneyClinic"') && !html.includes('Ciro girişleri') && !html.includes('Son 6 ay'));
-eq('önbellek v25', sw.includes("const CACHE = 'aile-shell-v25'") && sw.includes('/aile/work-cal.mjs') && !sw.includes('logo-dis-wide') && !html.includes('logo-dis-wide') && !html.includes("'<span>' + esc(c.label)") && html.includes('id="conflicts"') && html.includes('class="sug"') && html.includes('hours ticks') && html.includes("const bad = past ? ''") && html.includes('id="calYes"') && html.includes('family-planner-calendar') && html.includes('partner_off_acibadem_2026_10_11') && html.includes('id="schAdd"') && html.includes('school_closed_2026_11_16_20') && html.includes('vacation_hongkong_2026_11_18_25') && html.includes('visa_norway_2026_11_05_brief'));
+eq('önbellek v26', sw.includes("const CACHE = 'aile-shell-v26'") && sw.includes('/aile/work-cal.mjs') && !sw.includes('logo-dis-wide') && !html.includes('logo-dis-wide') && !html.includes("'<span>' + esc(c.label)") && html.includes('id="conflicts"') && html.includes('class="sug"') && html.includes('hours ticks') && html.includes("const bad = past ? ''") && html.includes('id="calYes"') && html.includes('family-planner-calendar') && html.includes('partner_off_acibadem_2026_10_11') && html.includes('id="schAdd"') && html.includes('school_closed_2026_11_16_20') && html.includes('vacation_hongkong_2026_11_18_25') && html.includes('visa_norway_2026_11_05_brief') && html.includes('family_appt_2026_11_08_alparslan') && html.includes('family_appt_2026_11_09_uk_visa') && html.includes("'hepimiz'") && html.includes('keyOf'));
 eq('geçmiş kilit', html.includes('Geçmiş gün değişmez') && html.includes('Gerçekleşti') && html.includes('partner_off_2026_10_10') && html.includes('vfs_cekya_2026_10_16'));
 eq('halı motifi', html.includes('function carpetSvg') && html.includes('home_help_carpet') && html.includes("fill=\"#c8102e\"") && !html.includes('function schoolRunHelp'));
 
@@ -189,6 +189,10 @@ eq('kasım yaması', migrate(nov) === true);
 eq('okul 16-20 kapalı', JSON.stringify(nov.school.closedDates) === JSON.stringify(['2026-11-16', '2026-11-17', '2026-11-18', '2026-11-19', '2026-11-20']));
 const norway = (nov.familyAppointments || []).filter((a) => a.date === '2026-11-05');
 eq('vize görüşmesi üç kişi', norway.length === 3 && ['child', 'partner', 'crew'].every((p) => norway.some((a) => a.person === p && a.start === '10:15' && !a.end && a.label === 'vize görüşmesi' && !a.location)) && norway.find((a) => a.person === 'child').thenSchool === true && !norway.some((a) => a.person !== 'child' && a.thenSchool));
+const bday = (nov.familyAppointments || []).filter((a) => a.date === '2026-11-08');
+eq('doğum günü kahvaltısı üç kişi', bday.length === 3 && ['child', 'partner', 'crew'].every((p) => bday.some((a) => a.person === p && a.start === '10:00' && a.label === 'Alparslan doğum günü kahvaltısı' && a.location === 'Ercan Steakhouse, Başakşehir')));
+const uk = (nov.familyAppointments || []).filter((a) => a.date === '2026-11-09');
+eq('UK vize üç kişi', uk.length === 3 && ['child', 'partner', 'crew'].every((p) => uk.some((a) => a.person === p && a.start === '15:00' && a.label === 'UK vize görüşmesi' && a.location === 'VFS Astoria AVM')));
 eq('hong kong tatil', nov.vacations.some((v) => v.from === '2026-11-18' && v.to === '2026-11-25' && v.label === 'Hong Kong'));
 eq('tatilde iş seçimi silinir', !nov.plans['2026-11']['2026-11-19'] && !!nov.plans['2026-11']['2026-11-26']);
 eq('kasım tekrar yok', migrate(nov) === false);
@@ -233,8 +237,9 @@ const messy = {
   school: { closedDates: ['2026-11-05', '2026-11-16'] },
   vacations: [{ from: '2026-11-18', to: '2026-11-25', label: 'Hong Kong' }],
 };
-eq('uzun metin kısalır', migrate(messy) === true && messy.familyAppointments.every((a) => a.label === 'vize görüşmesi' && !a.location) && messy.familyAppointments.find((a) => a.person === 'child').thenSchool === true && !messy.school.closedDates.includes('2026-11-05') && messy.school.closedDates.includes('2026-11-16'));
+eq('uzun metin kısalır', migrate(messy) === true && messy.familyAppointments.filter((a) => a.date === '2026-11-05').every((a) => a.label === 'vize görüşmesi' && !a.location) && messy.familyAppointments.find((a) => a.person === 'child' && a.date === '2026-11-05').thenSchool === true && !messy.school.closedDates.includes('2026-11-05') && messy.school.closedDates.includes('2026-11-16'));
 eq('kısa tekrar yok', migrate(messy) === false);
+eq('messy doğum/UK eklenir', messy.familyAppointments.filter((a) => a.date === '2026-11-08').length === 3 && messy.familyAppointments.filter((a) => a.date === '2026-11-09').length === 3);
 eq('ad yok', !html.includes('Aybölek') && !html.includes('Aybolek') && !html.includes('Oben') && !html.includes('Ofton') && !html.includes('NOR23622921493'));
 
 if (failed) {
