@@ -13,6 +13,15 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+### 2026-10-31 — Logbook: ilk sayfa 11 Ekim iki uçuşla başlar
+
+- **İstek:** İlk sayfadaki mevcut uçuşlar 3. satırdan başlasın. İlk iki satır fotoğraftaki 11 Ekim uçuşları.
+- **Dosyalar:** `support/logbook/app.js` (`OPENING_FLIGHTS`, `pageSlots`), `support/logbook/index.html`, `support/logbook/sw.js` (`gani-logbook-v1.4.3`), `scripts/test-gani-logbook-sync.mjs`.
+- **Kayıt:** 11 Ekim SAW–AYT 02:56–04:24 UTC, TC-NBN, A320, PF, gece 14 dk, gündüz iniş. 11 Ekim AYT–SAW 07:03–08:18 UTC, TC-RBP, A321, PM, gündüz iniş. İkisi de 12 Ekim kesitinden önce olduğu için `openingSlot` ile görünür. Kaptan adı fotoğrafta net okunamadığı için boş. HEL–SAW boş satırı öğleden sonraki yerine durur; saat uydurulmaz.
+- **Doğrulama:** `node scripts/test-gani-logbook-sync.mjs` OK. İki kayıt `valid` geçer (blok 88 ve 75 dk). Mevcut Gmail senkron testi OK.
+- **Koruma:** 12 Ekim ve sonrası kayıtlar, PF varsayılanı ve kısaltılmış senkron aynı. `gani-logbook` fonksiyonu deploy edilmedi.
+- **Canlı:** Yayın sonrası doğrulanacak.
+
 ### 2026-10-31 — Logbook: PF/PM hatırlanır, senkron son günden sonra
 
 - **İstek:** Kimin uçtuğu kaydedilince yeni uçuşlar aynı seçimle gelsin. Senkron, kayıtlı son günden önceki mailleri yeniden taramasın.
