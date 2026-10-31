@@ -20,3 +20,6 @@
 .logbook tfoot tr:nth-child(2)>*{background:#f2f5f8}
 .logbook tfoot tr:last-child>*{background:#cbdbea;border-top:2px solid #10243a;font-weight:bold}
 @media print{.logbook{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+.bookstatus{margin:0;padding:7px 12px;background:#edf1f5;color:#10243a;font-size:13px;line-height:1.35}
+.bookstatus.warn{background:#fff4d6;font-weight:700}
+@media print{.bookstatus{display:none}}

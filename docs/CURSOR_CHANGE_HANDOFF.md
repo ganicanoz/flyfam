@@ -13,6 +13,15 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+### 2026-10-31 — Logbook üstte senkron ve online kayıt
+
+- **İstek:** En üstte son senkron günü, o günden bugüne geçen süre ve son online kayıt görünsün. Online kayıt senkrondan eskiyse ünlem ve kaydedilmedi uyarısı.
+- **Dosyalar:** `support/logbook/app.js` (`calendarDaysSince`, `sinceLabel`, `onlineBehindSync`, `renderBookStatus`), `support/logbook/cloud.js` (`storedAt`), `support/logbook/index.html`, `support/logbook/style.css`, `support/logbook/sw.js` (`gani-logbook-v1.4.7`), `scripts/test-gani-logbook-sync.mjs`.
+- **Davranış:** Son senkron `gmailSync.lastCompletedAt`. Online tarih, kayıt veya son kaydı açınca cihaz meta’sına yazılır. Online tarih yoksa veya senkrondan küçükse ünlem ve “Son değişiklikler kayıtlı değil”.
+- **Koruma:** Uçuşlar, devir toplamları, son sayfa açılışı ve kısaltılmış senkron aynı. `gani-logbook` fonksiyonu deploy edilmedi.
+- **Doğrulama:** `node scripts/test-gani-logbook-sync.mjs` OK. `git diff --check` temiz.
+- **Canlı:** Yayın sonrası doğrulanacak.
+
 ### 2026-10-31 — Logbook önceki sayfa toplamları
 
 - **İstek:** Dijital defter, kâğıt defterdeki bir önceki sayfa toplamlarından devam etsin. 13. bölüm simülatör süresi.

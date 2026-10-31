@@ -25,7 +25,13 @@ if (q('latestFlightDate()', context) !== '2026-11-02') throw new Error('son uçu
 if (q('syncAfterQuery(latestFlightDate())', context) !== 'after:2026/11/01') throw new Error('tarama son tarihten önceye kaydı');
 const sw = fs.readFileSync(path.join(dir, 'sw.js'), 'utf8');
 const gmail = fs.readFileSync(path.join(dir, 'gmail.js'), 'utf8');
-if (!sw.includes("const CACHE='gani-logbook-v1.4.6'")) throw new Error('önbellek sürümü artmadı');
+if (!sw.includes("const CACHE='gani-logbook-v1.4.7'")) throw new Error('önbellek sürümü artmadı');
+if (q("calendarDaysSince('2026-10-29T12:00:00.000Z','2026-10-31T12:00:00.000Z')", context) !== 2) throw new Error('senkron gün farkı');
+if (q('sinceLabel(0)', context) !== 'bugün' || q('sinceLabel(3)', context) !== '3 gün') throw new Error('geçen süre yazısı');
+if (q("onlineBehindSync('2026-10-30T12:00:00.000Z','2026-10-31T12:00:00.000Z')", context) !== true) throw new Error('eski online kayıt uyarısız');
+if (q("onlineBehindSync('2026-10-31T18:00:00.000Z','2026-10-31T12:00:00.000Z')", context) !== false) throw new Error('yeni online kayıt uyarıldı');
+if (q("onlineBehindSync('','2026-10-31T12:00:00.000Z')", context) !== true) throw new Error('online kayıt yokken uyarı yok');
+if (q("onlineBehindSync('2026-10-31T12:00:00.000Z','')", context) !== false) throw new Error('senkron yokken uyarı çıktı');
 if (!sw.includes("cache:'no-store'")) throw new Error('yenileme eski kopyayı tutuyor');
 if (!app.includes("updateViaCache:'none'")) throw new Error('servis güncellemesi erteleniyor');
 if (!app.includes("reg:'TC-NBN'") || !app.includes("reg:'TC-RBP'")) throw new Error('11 Ekim uçuşları yok');
