@@ -13,6 +13,15 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+### 2026-10-31 — Logbook açılışı son sayfada
+
+- **İstek:** Ana ekranda her zaman son sayfa açılsın. Senkron, kayıtlı son hali değiştirir mi?
+- **Dosyalar:** `support/logbook/app.js` (`followLast`, `initialBookPage`), `support/logbook/index.html`, `support/logbook/sw.js` (`gani-logbook-v1.4.5`), `scripts/test-gani-logbook-sync.mjs`.
+- **Davranış:** Açılış son sayfadadır. Önceki sayfaya geçilince orada kalınır; Sonraki ile son sayfaya dönülünce yeni uçuşlar yine orada görünür. Senkron kayıtlı saati ve PF seçimini değiştirmez. Son kayıtlı günden sonraki yeni uçuşları ekler; boş kaptan veya boş kalkış/iniş dolabilir. Çelişen saat mevcut kaydı ezmez. Online yedek ayrı düğmedir.
+- **Koruma:** 11 Ekim satırları, PF varsayılanı, kısaltılmış senkron ve yenilemenin `no-store` davranışı aynı. `gani-logbook` fonksiyonu deploy edilmedi.
+- **Doğrulama:** `node scripts/test-gani-logbook-sync.mjs` OK. `git diff --check` temiz.
+- **Canlı:** Yayın sonrası doğrulanacak.
+
 ### 2026-10-31 — Logbook yenilemesi eski kopyayı bırakır
 
 - **İstek:** `https://app.flyfamapp.com/logbook/` yenilenince 11 Ekim satırları görünmüyordu.
