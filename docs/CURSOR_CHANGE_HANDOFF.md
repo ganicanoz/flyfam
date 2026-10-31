@@ -13,6 +13,15 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+### 2026-10-31 — Logbook önceki sayfa toplamları
+
+- **İstek:** Dijital defter, kâğıt defterdeki bir önceki sayfa toplamlarından devam etsin. 13. bölüm simülatör süresi.
+- **Dosyalar:** `support/logbook/app.js` (`PAPER_CARRY`, `carriedTotal`), `support/logbook/index.html`, `support/logbook/sw.js` (`gani-logbook-v1.4.6`), `scripts/test-gani-logbook-sync.mjs`.
+- **Devir:** SE 159:35, ME 16:35, multi 2075:27, total 2223:24, gündüz iniş 818, gece iniş 349, gece 707:49, IFR 2195:33, PIC 1074:34, co-pilot 1027:58, simülatör 233:30. Yeni uçuşlar bu sütunların üstüne eklenir. SE, ME ve simülatör yeni hat uçuşuyla artmaz.
+- **Koruma:** 11 Ekim satırları, son sayfa açılışı, PF varsayılanı ve kısaltılmış senkron aynı. `gani-logbook` fonksiyonu deploy edilmedi.
+- **Doğrulama:** `node scripts/test-gani-logbook-sync.mjs` OK. `git diff --check` temiz.
+- **Canlı:** Yayın sonrası doğrulanacak.
+
 ### 2026-10-31 — Logbook açılışı son sayfada
 
 - **İstek:** Ana ekranda her zaman son sayfa açılsın. Senkron, kayıtlı son hali değiştirir mi?
