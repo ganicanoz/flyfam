@@ -11,3 +11,11 @@
 
 ## v1.1
 Navy, white, black theme. PF/PM review queue for newly imported records; pending functions are uncredited. Full paginated label scan; existing selections and manual edits preserved. Conflicting changed fields reported without overwriting. Plain text/HTML and attached RFC822 (.eml) decoding; summary table support. Source summary aggregate discrepancies surfaced. UI and offline tested; live OAuth connection requires owner-approved Google Cloud setup and consent.
+
+## v1.2 user layout (31 October 2026)
+- Reference: JAR-FCL 1.080 / IEM logbook columns, official ANAC archived JAR-FCL: https://www.anac.pt/SiteCollectionDocuments/Pessoal_Aeronautico/Licencas/JARFCL1_Emenda3.pdf and Hellenic Air Force IEM https://www.haf.gr/wp-content/uploads/2015/01/JAR-FCL1_AM07_SEC2.pdf . This customized view is not a certification of regulatory compliance.
+- User expressly requested PF-to-PIC mapping and duplicate block duration in an Engine Time / ME column; multi-pilot duration remains separate. PF alone does not establish legal PIC status.
+- Display/import cutoff inclusive 2026-10-12; earlier existing records preserved in device backup but excluded from displayed totals. First three lines reserved; missing HEL-SAW 12 October is a clearly marked empty fourth slot, never a fabricated flight.
+- Every flight counts one day/night arrival using On Block at destination, per user request; approximate and distinct from actual landing timestamp or personal PF landing credit. Night block uses equal-speed great-circle interpolation over full Off/On block.
+- Sunrise/sunset times for departure and arrival dates/coordinates added to remarks in UTC.
+- Each page 16 slots, page totals + prior page cumulative + carried total. Opening earlier logbook balances unknown and explicitly excluded.
