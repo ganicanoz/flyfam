@@ -13,6 +13,15 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+### 2026-10-31 — Logbook yenilemesi eski kopyayı bırakır
+
+- **İstek:** `https://app.flyfamapp.com/logbook/` yenilenince 11 Ekim satırları görünmüyordu.
+- **Kök:** Sayfa sunucuda `v1.4.3` ile duruyordu. Tarayıcı ve eski hizmet kaydı `cache-control: max-age=600` yüzünden on dakika önceki dosyayı yenilemede de geri veriyordu.
+- **Dosyalar:** `support/logbook/sw.js` (`gani-logbook-v1.4.4`, `cache:'no-store'`, açık sayfayı yeni sürüme alır), `support/logbook/app.js` (`updateViaCache:'none'`), `support/logbook/index.html`, `scripts/test-gani-logbook-sync.mjs`.
+- **Koruma:** Uçuş kayıtları, PF varsayılanı, kısaltılmış senkron ve 11 Ekim satırları aynı. `gani-logbook` fonksiyonu deploy edilmedi.
+- **Doğrulama:** `node scripts/test-gani-logbook-sync.mjs` OK. `git diff --check` temiz.
+- **Canlı:** Yayın sonrası doğrulanacak.
+
 ### 2026-10-31 — Logbook: ilk sayfa 11 Ekim iki uçuşla başlar
 
 - **İstek:** İlk sayfadaki mevcut uçuşlar 3. satırdan başlasın. İlk iki satır fotoğraftaki 11 Ekim uçuşları.
