@@ -25,12 +25,12 @@ if (q('latestFlightDate()', context) !== '2026-11-02') throw new Error('son uçu
 if (q('syncAfterQuery(latestFlightDate())', context) !== 'after:2026/11/01') throw new Error('tarama son tarihten önceye kaydı');
 const sw = fs.readFileSync(path.join(dir, 'sw.js'), 'utf8');
 const gmail = fs.readFileSync(path.join(dir, 'gmail.js'), 'utf8');
-if (!sw.includes("const CACHE='gani-logbook-v1.4.4'")) throw new Error('önbellek sürümü artmadı');
+if (!sw.includes("const CACHE='gani-logbook-v1.4.5'")) throw new Error('önbellek sürümü artmadı');
 if (!sw.includes("cache:'no-store'")) throw new Error('yenileme eski kopyayı tutuyor');
 if (!app.includes("updateViaCache:'none'")) throw new Error('servis güncellemesi erteleniyor');
 if (!app.includes("reg:'TC-NBN'") || !app.includes("reg:'TC-RBP'")) throw new Error('11 Ekim uçuşları yok');
 if (app.includes('[1,2,3].map')) throw new Error('üç boş açılış satırı duruyor');
-const slotStart = app.indexOf('function pageSlots');
+const slotStart = app.indexOf('function initialBookPage');
 const slotEnd = app.indexOf('const sums');
 vm.runInContext(app.slice(slotStart, slotEnd), context);
 context.state.records = [
@@ -41,6 +41,9 @@ context.state.records = [
 ];
 const order = q('pageSlots(state.records).map(r=>r&&r.reserved?\'bos\':r.from+\'-\'+r.to)', context);
 if (JSON.stringify(order) !== JSON.stringify(['SAW-AYT', 'AYT-SAW', 'SAW-HEL', 'bos', 'SAW-ADB'])) throw new Error('sıra: ' + JSON.stringify(order));
+if (q('initialBookPage(1)', context) !== 0) throw new Error('tek sayfa kaydı');
+if (q('initialBookPage(4)', context) !== 3) throw new Error('açılış son sayfa değil');
+if (!app.includes('followLast')) throw new Error('açılış ilk sayfada kalıyor');
 if (!gmail.includes('flownForNew(next.defaultFlown)')) throw new Error('senkron yeni uçuşa seçimi yazmıyor');
 if (!gmail.includes('s.defaultFlown=choice')) throw new Error('PF/PM kaydı hatırlanmıyor');
 if (!gmail.includes('known.has(id)')) throw new Error('işlenmiş mail yine indiriliyor');
