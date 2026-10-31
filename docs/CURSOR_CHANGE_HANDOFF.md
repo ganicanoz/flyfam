@@ -20,7 +20,7 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - **Kayıt:** 11 Ekim SAW–AYT 02:56–04:24 UTC, TC-NBN, A320, PF, gece 14 dk, gündüz iniş. 11 Ekim AYT–SAW 07:03–08:18 UTC, TC-RBP, A321, PM, gündüz iniş. İkisi de 12 Ekim kesitinden önce olduğu için `openingSlot` ile görünür. Kaptan adı fotoğrafta net okunamadığı için boş. HEL–SAW boş satırı öğleden sonraki yerine durur; saat uydurulmaz.
 - **Doğrulama:** `node scripts/test-gani-logbook-sync.mjs` OK. İki kayıt `valid` geçer (blok 88 ve 75 dk). Mevcut Gmail senkron testi OK.
 - **Koruma:** 12 Ekim ve sonrası kayıtlar, PF varsayılanı ve kısaltılmış senkron aynı. `gani-logbook` fonksiyonu deploy edilmedi.
-- **Canlı:** Yayın sonrası doğrulanacak.
+- **Canlı:** PR #64 merge `2449c23`. Deploy support site `41232177581` success. `https://app.flyfamapp.com/logbook/` `v1.4.3`; `sw.js` `gani-logbook-v1.4.3`. İlk iki satır 11 Ekim SAW–AYT ve AYT–SAW (2026-10-31). PWA açıksa bir kez yenilemek gerekir.
 
 ### 2026-10-31 — Logbook: PF/PM hatırlanır, senkron son günden sonra
 
