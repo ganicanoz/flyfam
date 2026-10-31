@@ -20,7 +20,7 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - **Davranış:** Hizmet kaydı açılışta sayfayı yeniden gezmiyor; kendi dosyasını da yakalamıyor. Yeni sürüm, zaten açık sayfayı bir kez yeniler. Google sayfa açılışında yüklenmez. Kaydet ve Senkron et basılınca hesap penceresi açılır. Hesap düğmesi gerekirse araç çubuğunda, Kaydet’in yanında görünür.
 - **Koruma:** Uçuşlar, devir, son sayfa, senkron kuralı ve Kaydet’in cihaz seçimi aynı. `gani-logbook` fonksiyonu deploy edilmedi.
 - **Doğrulama:** `node scripts/test-gani-logbook-sync.mjs` OK. `git diff --check` temiz.
-- **Canlı:** Yayın sonrası doğrulanacak.
+- **Canlı:** PR #78, merge `f8e2ff3`, deploy `41239988403`. https://app.flyfamapp.com/logbook/ `v1.4.10`. `sw.js` içinde `navigate` yok, `gani-logbook-v1.4.10` var. Sayfada “Google ile giriş” yok (2026-10-31).
 
 ### 2026-10-31 — Logbook Kaydet, başka cihazda aynı defter
 
