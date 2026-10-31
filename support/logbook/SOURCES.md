@@ -19,3 +19,6 @@ Navy, white, black theme. PF/PM review queue for newly imported records; pending
 - Every flight counts one day/night arrival using On Block at destination, per user request; approximate and distinct from actual landing timestamp or personal PF landing credit. Night block uses equal-speed great-circle interpolation over full Off/On block.
 - Sunrise/sunset times for departure and arrival dates/coordinates added to remarks in UTC.
 - Each page 16 slots, page totals + prior page cumulative + carried total. Opening earlier logbook balances unknown and explicitly excluded.
+
+## v1.2.4 correction
+User corrected ME: no flight duration in SE/ME; only previous balance carried. Opening balances are independent and supplied privately via backup JSON, simulator balance in section 13 only. Airport dataset arrays corrected from longitude/latitude to latitude/longitude required by SunCalc.
