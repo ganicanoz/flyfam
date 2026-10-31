@@ -20,7 +20,7 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - **Davranış:** PF ilk sütun. Yazdır önce defteri taşmadan açar, sonra yazdırma penceresini çağırır. Hizmet kaydı kayıtlı sayfayı önce gösterir; ağ gecikse de son cihaz kaydı gelir. Üst güvenli alan başlığın içinde. Kaydet turuncu, yazdır sarı, senkron lacivert.
 - **Koruma:** Uçuşlar, devir, son sayfa, senkron kuralı ve Kaydet’in cihaz seçimi aynı. `gani-logbook` fonksiyonu deploy edilmedi. Kişisel adres bu kayda yazılmadı.
 - **Doğrulama:** `node scripts/test-gani-logbook-sync.mjs` OK. `git diff --check` temiz.
-- **Canlı:** Yayın sonrası doğrulanacak.
+- **Canlı:** PR #80, merge `6843257`, deploy `41242649812`. https://app.flyfamapp.com/logbook/ `v1.4.11`. PF başlığı solda. `sw.js` `gani-logbook-v1.4.11` ve `return cached` (2026-11-01).
 
 ### 2026-10-31 — Logbook Chrome yüklemesi ve gerektiğinde Google
 
