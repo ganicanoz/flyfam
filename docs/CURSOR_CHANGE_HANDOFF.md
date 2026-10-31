@@ -13,6 +13,15 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+### 2026-10-31 — Logbook Chrome yüklemesi ve gerektiğinde Google
+
+- **İstek:** Chrome penceresi sürekli yükleniyor gibi duruyor. Alttaki Google kaydı yukarı gelsin ya da Kaydet ve Senkron et gerektiğinde kendisi açılsın. Oturum aç yazısı olmasın.
+- **Dosyalar:** `support/logbook/sw.js` (`gani-logbook-v1.4.10`), `support/logbook/app.js`, `support/logbook/cloud.js`, `support/logbook/gmail.js`, `support/logbook/index.html`, `support/logbook/style.css`, `scripts/test-gani-logbook-sync.mjs`.
+- **Davranış:** Hizmet kaydı açılışta sayfayı yeniden gezmiyor; kendi dosyasını da yakalamıyor. Yeni sürüm, zaten açık sayfayı bir kez yeniler. Google sayfa açılışında yüklenmez. Kaydet ve Senkron et basılınca hesap penceresi açılır. Hesap düğmesi gerekirse araç çubuğunda, Kaydet’in yanında görünür.
+- **Koruma:** Uçuşlar, devir, son sayfa, senkron kuralı ve Kaydet’in cihaz seçimi aynı. `gani-logbook` fonksiyonu deploy edilmedi.
+- **Doğrulama:** `node scripts/test-gani-logbook-sync.mjs` OK. `git diff --check` temiz.
+- **Canlı:** Yayın sonrası doğrulanacak.
+
 ### 2026-10-31 — Logbook Kaydet, başka cihazda aynı defter
 
 - **İstek:** Kayıt normal çalışsın. Nereden açılırsa son kaydedilen defterden devam etsin.
