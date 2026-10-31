@@ -13,6 +13,15 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+### 2026-10-31 — Logbook logosu ve sürüm yeri
+
+- **İstek:** Verilen görsel logo olsun. Safari ana ekran ikonu da o olsun. Sürüm üst sağa gelsin.
+- **Dosyalar:** `support/logbook/logo.png`, `apple-touch-icon.png`, `icon-192.png`, `icon-512.png`, `index.html`, `style.css`, `sw.js` (`gani-logbook-v1.4.8`), `scripts/test-gani-logbook-sync.mjs`.
+- **Davranış:** Başlık logosu `logo.png`. Ana ekran ikonu `apple-touch-icon.png` (180) ve manifest 192/512. Sürüm başlığın sağında; bağlantı durumu onun altında.
+- **Koruma:** Uçuşlar, devir, senkron ve online uyarı aynı. `gani-logbook` fonksiyonu deploy edilmedi.
+- **Doğrulama:** `node scripts/test-gani-logbook-sync.mjs` OK. `git diff --check` temiz.
+- **Canlı:** Yayın sonrası doğrulanacak.
+
 ### 2026-10-31 — Logbook üstte senkron ve online kayıt
 
 - **İstek:** En üstte son senkron günü, o günden bugüne geçen süre ve son online kayıt görünsün. Online kayıt senkrondan eskiyse ünlem ve kaydedilmedi uyarısı.

@@ -25,7 +25,10 @@ if (q('latestFlightDate()', context) !== '2026-11-02') throw new Error('son uçu
 if (q('syncAfterQuery(latestFlightDate())', context) !== 'after:2026/11/01') throw new Error('tarama son tarihten önceye kaydı');
 const sw = fs.readFileSync(path.join(dir, 'sw.js'), 'utf8');
 const gmail = fs.readFileSync(path.join(dir, 'gmail.js'), 'utf8');
-if (!sw.includes("const CACHE='gani-logbook-v1.4.7'")) throw new Error('önbellek sürümü artmadı');
+if (!sw.includes("const CACHE='gani-logbook-v1.4.8'")) throw new Error('önbellek sürümü artmadı');
+const page = fs.readFileSync(path.join(dir, 'index.html'), 'utf8');
+if (!page.includes('src="logo.png"') || !page.includes('apple-touch-icon.png') || !page.includes('id="version">v1.4.8')) throw new Error('logo veya sürüm yeri');
+if (!sw.includes('apple-touch-icon.png') || !sw.includes('logo.png')) throw new Error('ikon önbellekte yok');
 if (q("calendarDaysSince('2026-10-29T12:00:00.000Z','2026-10-31T12:00:00.000Z')", context) !== 2) throw new Error('senkron gün farkı');
 if (q('sinceLabel(0)', context) !== 'bugün' || q('sinceLabel(3)', context) !== '3 gün') throw new Error('geçen süre yazısı');
 if (q("onlineBehindSync('2026-10-30T12:00:00.000Z','2026-10-31T12:00:00.000Z')", context) !== true) throw new Error('eski online kayıt uyarısız');
