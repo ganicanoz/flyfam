@@ -20,7 +20,7 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - **Davranış:** Başlık logosu `logo.png`. Ana ekran ikonu `apple-touch-icon.png` (180) ve manifest 192/512. Sürüm başlığın sağında; bağlantı durumu onun altında.
 - **Koruma:** Uçuşlar, devir, senkron ve online uyarı aynı. `gani-logbook` fonksiyonu deploy edilmedi.
 - **Doğrulama:** `node scripts/test-gani-logbook-sync.mjs` OK. `git diff --check` temiz.
-- **Canlı:** Yayın sonrası doğrulanacak.
+- **Canlı:** PR #74 merge `58b17cd`. Deploy support site `41235319697` success. `https://app.flyfamapp.com/logbook/` `v1.4.8`; logo ve `apple-touch-icon.png` yayında (2026-10-31).
 
 ### 2026-10-31 — Logbook üstte senkron ve online kayıt
 
