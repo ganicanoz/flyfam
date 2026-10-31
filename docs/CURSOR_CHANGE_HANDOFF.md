@@ -13,6 +13,15 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+### 2026-10-31 — Logbook Kaydet, başka cihazda aynı defter
+
+- **İstek:** Kayıt normal çalışsın. Nereden açılırsa son kaydedilen defterden devam etsin.
+- **Dosyalar:** `support/logbook/cloud.js` (`kaydet`, `openSaved`), `support/logbook/app.js` (`resumeChoice`), `support/logbook/index.html`, `support/logbook/sw.js` (`gani-logbook-v1.4.9`), `scripts/test-gani-logbook-sync.mjs`.
+- **Davranış:** Kaydet Google hesabını açar. Bu cihazda daha az uçuş varsa kayıtlı defteri açar. Aynıysa dokunmaz. Bu cihaz ilerideyse onu yazar. Kaydedileni aç her zaman buluttaki son kaydı getirir. `gani-logbook` servisi bu adreste açık; fonksiyon yeniden deploy edilmedi.
+- **Koruma:** Uçuş hesabı, devir, senkron ve logo aynı.
+- **Doğrulama:** `node scripts/test-gani-logbook-sync.mjs` OK. Servis GET `version:1`, yetkisiz load 401. `git diff --check` temiz.
+- **Canlı:** Yayın sonrası doğrulanacak.
+
 ### 2026-10-31 — Logbook logosu ve sürüm yeri
 
 - **İstek:** Verilen görsel logo olsun. Safari ana ekran ikonu da o olsun. Sürüm üst sağa gelsin.
