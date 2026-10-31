@@ -25,13 +25,15 @@ if (q('latestFlightDate()', context) !== '2026-11-02') throw new Error('son uçu
 if (q('syncAfterQuery(latestFlightDate())', context) !== 'after:2026/11/01') throw new Error('tarama son tarihten önceye kaydı');
 const sw = fs.readFileSync(path.join(dir, 'sw.js'), 'utf8');
 const gmail = fs.readFileSync(path.join(dir, 'gmail.js'), 'utf8');
-if (!sw.includes("const CACHE='gani-logbook-v1.4.9'")) throw new Error('önbellek sürümü artmadı');
+if (!sw.includes("const CACHE='gani-logbook-v1.4.10'")) throw new Error('önbellek sürümü artmadı');
+if (sw.includes('.navigate(')) throw new Error('yükleme bitmiyor');
 if (q("resumeChoice({remoteCount:0,localCount:3,same:false,joined:false,dirty:false})", context) !== 'save') throw new Error('boş bulut yazılmadı');
 if (q("resumeChoice({remoteCount:20,localCount:2,same:false,joined:false,dirty:false,syncIso:'',remoteSavedIso:'2026-10-31T12:00:00Z'})", context) !== 'open') throw new Error('yeni cihaz kayıtlı defteri açmadı');
 if (q("resumeChoice({remoteCount:20,localCount:22,same:false,joined:true,dirty:true,syncIso:'2026-10-31T18:00:00Z',remoteSavedIso:'2026-10-31T12:00:00Z'})", context) !== 'save') throw new Error('bu cihazdaki yeni iş yazılmadı');
 if (q("resumeChoice({remoteCount:20,localCount:20,same:true,joined:true,dirty:false})", context) !== 'same') throw new Error('aynı kayıt yeniden yazıldı');
 const page = fs.readFileSync(path.join(dir, 'index.html'), 'utf8');
-if (!page.includes('src="logo.png"') || !page.includes('apple-touch-icon.png') || !page.includes('id="version">v1.4.9') || !page.includes('>Kaydet<')) throw new Error('logo, sürüm veya Kaydet');
+if (!page.includes('src="logo.png"') || !page.includes('apple-touch-icon.png') || !page.includes('id="version">v1.4.10') || !page.includes('>Kaydet<')) throw new Error('logo, sürüm veya Kaydet');
+if (page.includes('Google ile giriş') || page.includes('Gmail bağlantısına hazır')) throw new Error('oturum yazısı duruyor');
 if (!sw.includes('apple-touch-icon.png') || !sw.includes('logo.png')) throw new Error('ikon önbellekte yok');
 if (q("calendarDaysSince('2026-10-29T12:00:00.000Z','2026-10-31T12:00:00.000Z')", context) !== 2) throw new Error('senkron gün farkı');
 if (q('sinceLabel(0)', context) !== 'bugün' || q('sinceLabel(3)', context) !== '3 gün') throw new Error('geçen süre yazısı');
@@ -41,6 +43,7 @@ if (q("onlineBehindSync('','2026-10-31T12:00:00.000Z')", context) !== true) thro
 if (q("onlineBehindSync('2026-10-31T12:00:00.000Z','')", context) !== false) throw new Error('senkron yokken uyarı çıktı');
 if (!sw.includes("cache:'no-store'")) throw new Error('yenileme eski kopyayı tutuyor');
 if (!app.includes("updateViaCache:'none'")) throw new Error('servis güncellemesi erteleniyor');
+if (!app.includes('controllerchange')) throw new Error('yeni sürüm sayfayı yenilemiyor');
 if (!app.includes("reg:'TC-NBN'") || !app.includes("reg:'TC-RBP'")) throw new Error('11 Ekim uçuşları yok');
 if (app.includes('[1,2,3].map')) throw new Error('üç boş açılış satırı duruyor');
 const slotStart = app.indexOf('function initialBookPage');
@@ -72,4 +75,5 @@ if(carriedTotal(PAPER_CARRY.block+88,PAPER_CARRY)!==PAPER_CARRY.totalTime+88)thr
 if (!gmail.includes('flownForNew(next.defaultFlown)')) throw new Error('senkron yeni uçuşa seçimi yazmıyor');
 if (!gmail.includes('s.defaultFlown=choice')) throw new Error('PF/PM kaydı hatırlanmıyor');
 if (!gmail.includes('known.has(id)')) throw new Error('işlenmiş mail yine indiriliyor');
+if (gmail.includes('navigator.onLine)loadGIS')) throw new Error('Google sayfa açılır açılmaz yükleniyor');
 console.log('OK logbook sync');
