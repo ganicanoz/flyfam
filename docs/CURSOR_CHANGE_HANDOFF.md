@@ -20,7 +20,7 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - **Davranış:** Açılış son sayfadadır. Önceki sayfaya geçilince orada kalınır; Sonraki ile son sayfaya dönülünce yeni uçuşlar yine orada görünür. Senkron kayıtlı saati ve PF seçimini değiştirmez. Son kayıtlı günden sonraki yeni uçuşları ekler; boş kaptan veya boş kalkış/iniş dolabilir. Çelişen saat mevcut kaydı ezmez. Online yedek ayrı düğmedir.
 - **Koruma:** 11 Ekim satırları, PF varsayılanı, kısaltılmış senkron ve yenilemenin `no-store` davranışı aynı. `gani-logbook` fonksiyonu deploy edilmedi.
 - **Doğrulama:** `node scripts/test-gani-logbook-sync.mjs` OK. `git diff --check` temiz.
-- **Canlı:** Yayın sonrası doğrulanacak.
+- **Canlı:** PR #68 merge `bcbceb1`. Deploy support site `41233604276` success. `https://app.flyfamapp.com/logbook/` `v1.4.5`; `sw.js` `gani-logbook-v1.4.5`. Açılış son sayfada (2026-10-31).
 
 ### 2026-10-31 — Logbook yenilemesi eski kopyayı bırakır
 
