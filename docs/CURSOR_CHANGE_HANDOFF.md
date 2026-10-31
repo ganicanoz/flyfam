@@ -20,7 +20,7 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - **Davranış:** Kaydet Google hesabını açar. Bu cihazda daha az uçuş varsa kayıtlı defteri açar. Aynıysa dokunmaz. Bu cihaz ilerideyse onu yazar. Kaydedileni aç her zaman buluttaki son kaydı getirir. `gani-logbook` servisi bu adreste açık; fonksiyon yeniden deploy edilmedi.
 - **Koruma:** Uçuş hesabı, devir, senkron ve logo aynı.
 - **Doğrulama:** `node scripts/test-gani-logbook-sync.mjs` OK. Servis GET `version:1`, yetkisiz load 401. `git diff --check` temiz.
-- **Canlı:** Yayın sonrası doğrulanacak.
+- **Canlı:** PR #76, merge `71bb192`, deploy `41238296670`. https://app.flyfamapp.com/logbook/ üzerinde `v1.4.9`, Kaydet, `function kaydet` ve `gani-logbook-v1.4.9` doğrulandı.
 
 ### 2026-10-31 — Logbook logosu ve sürüm yeri
 
