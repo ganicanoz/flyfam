@@ -1,10 +1,10 @@
 FLYFAM TERMS OF USE AND DISCLAIMER
-Version: 2026-05-v5 | Effective: 19 Mayıs 2026 / 19 May 2026
+Version: 2026-10-v6 | Effective: 31 Ekim 2026 / 31 October 2026
 
 IMPORTANT: BY DOWNLOADING, ACCESSING, REGISTERING, OR USING THE APP YOU AGREE TO ALL TERMS BELOW. IF YOU DO NOT AGREE, DO NOT USE THE APP.
 
 1. PARTIES AND SCOPE
-FlyFam provides software for displaying flight information, roster management, family connections, and notifications. FlyFam is not an airline, employer, authority, travel agent, insurer, or emergency service.
+The FlyFam service is owned and operated by Mertcan Öz (“FlyFam”, “we”, “us”). Contact: support@flyfamapp.com. FlyFam provides software for displaying flight information, roster management, family connections, and notifications. FlyFam is not an airline, employer, authority, travel agent, insurer, or emergency service.
 
 2. NO OPERATIONAL / SAFETY RELIANCE
 All flight data may come from third parties (e.g. FR24, AirLabs, AeroDataBox) and may be delayed, incomplete, wrong, or withdrawn. NO WARRANTY OF ACCURACY OR TIMELINESS. DO NOT USE AS SOLE BASIS FOR OPERATIONAL, SAFETY-CRITICAL, MEDICAL, LEGAL, FINANCIAL, OR OFFICIAL DECISIONS. Always rely on airline/airport/official sources.
@@ -28,7 +28,7 @@ Paid plans subject to App Store/Google Play rules; billing/refunds via store pol
 No reverse engineering, scraping, abuse, unauthorized access, fraud, malware, or unlawful use.
 
 9. INTELLECTUAL PROPERTY
-App/brand/software owned by FlyFam or licensors. No unauthorized copying or commercial exploitation.
+Rights in the app, brand and software are owned by Mertcan Öz or the applicable licensors. No unauthorized copying or commercial exploitation.
 
 10. SUSPENSION / TERMINATION
 We may suspend/terminate for breach, risk, law, abuse, with or without notice. Legal retention may continue.
