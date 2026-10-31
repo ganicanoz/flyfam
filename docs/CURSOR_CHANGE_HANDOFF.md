@@ -13,6 +13,15 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+### 2026-10-31 — Logbook: PF/PM hatırlanır, senkron son günden sonra
+
+- **İstek:** Kimin uçtuğu kaydedilince yeni uçuşlar aynı seçimle gelsin. Senkron, kayıtlı son günden önceki mailleri yeniden taramasın.
+- **Dosyalar:** `support/logbook/app.js` (`defaultFlown`, `flownForNew`, `syncAfterQuery`), `support/logbook/gmail.js`, `support/logbook/index.html`, `support/logbook/sw.js` (`gani-logbook-v1.4.2`), `scripts/test-gani-logbook-sync.mjs`.
+- **Davranış:** PF tik, düzenleme kaydı veya PF/PM penceresi `defaultFlown` yazar. Yeni Gmail ve yapıştırma kayıtları bunu kullanır; mevcut uçuşun seçimi değişmez. Defterde zaten PF işaretli kayıt varsa ilk açılışta varsayılan PF olur. Gmail sorgusu son uçuş gününün bir gün öncesinden başlar; o günün geç gelen raporu kalır, daha eskiler istenmez. Daha önce işlenen mail kimliği indirilmez.
+- **Doğrulama:** `node scripts/test-gani-logbook-sync.mjs` OK. Mevcut Gmail senkron testi bu sürümle OK.
+- **Koruma:** Gece hesabı, 12 Ekim sınırı, çakışan raporun mevcut kaydı ezmemesi ve online yedek aynı. `gani-logbook` fonksiyonu deploy edilmedi.
+- **Canlı:** Yayın sonrası doğrulanacak.
+
 ### 2026-10-29 — Build 55 OTA catch-up (SIM/duty/OTA client)
 
 - **Sorun:** TestFlight 55 gömülü JS, OTA client (`applyOtaUpdate`) ve son SIM/EditDuty JS’ini taşımıyordu; `applyOtaUpdate.ts` / `dutyDetailVisual.ts` hiç `main`’de yoktu. Son production OTA’lar build53 worktree’sinden yayınlanmıştı; 55 sonrası Admin grup push için de yeni OTA yoktu.
