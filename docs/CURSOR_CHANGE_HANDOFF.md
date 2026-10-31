@@ -20,7 +20,7 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - **Davranış:** Son senkron `gmailSync.lastCompletedAt`. Online tarih, kayıt veya son kaydı açınca cihaz meta’sına yazılır. Online tarih yoksa veya senkrondan küçükse ünlem ve “Son değişiklikler kayıtlı değil”.
 - **Koruma:** Uçuşlar, devir toplamları, son sayfa açılışı ve kısaltılmış senkron aynı. `gani-logbook` fonksiyonu deploy edilmedi.
 - **Doğrulama:** `node scripts/test-gani-logbook-sync.mjs` OK. `git diff --check` temiz.
-- **Canlı:** Yayın sonrası doğrulanacak.
+- **Canlı:** PR #72 merge `682cf11`. Deploy support site `41234872403` success. `https://app.flyfamapp.com/logbook/` `v1.4.7`; `sw.js` `gani-logbook-v1.4.7`. Üst durum satırı yayında (2026-10-31).
 
 ### 2026-10-31 — Logbook önceki sayfa toplamları
 
