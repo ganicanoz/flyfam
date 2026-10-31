@@ -20,7 +20,7 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - **Dosyalar:** `support/logbook/sw.js` (`gani-logbook-v1.4.4`, `cache:'no-store'`, açık sayfayı yeni sürüme alır), `support/logbook/app.js` (`updateViaCache:'none'`), `support/logbook/index.html`, `scripts/test-gani-logbook-sync.mjs`.
 - **Koruma:** Uçuş kayıtları, PF varsayılanı, kısaltılmış senkron ve 11 Ekim satırları aynı. `gani-logbook` fonksiyonu deploy edilmedi.
 - **Doğrulama:** `node scripts/test-gani-logbook-sync.mjs` OK. `git diff --check` temiz.
-- **Canlı:** Yayın sonrası doğrulanacak.
+- **Canlı:** PR #66 merge `45f10fb`. Deploy support site `41233162796` success. `https://app.flyfamapp.com/logbook/` `v1.4.4`; `sw.js` `gani-logbook-v1.4.4` ve `cache:'no-store'`. Açık sayfa yeni sürüme alınır (2026-10-31).
 
 ### 2026-10-31 — Logbook: ilk sayfa 11 Ekim iki uçuşla başlar
 
