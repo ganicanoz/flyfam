@@ -20,7 +20,7 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - **Davranış:** PF tik, düzenleme kaydı veya PF/PM penceresi `defaultFlown` yazar. Yeni Gmail ve yapıştırma kayıtları bunu kullanır; mevcut uçuşun seçimi değişmez. Defterde zaten PF işaretli kayıt varsa ilk açılışta varsayılan PF olur. Gmail sorgusu son uçuş gününün bir gün öncesinden başlar; o günün geç gelen raporu kalır, daha eskiler istenmez. Daha önce işlenen mail kimliği indirilmez.
 - **Doğrulama:** `node scripts/test-gani-logbook-sync.mjs` OK. Mevcut Gmail senkron testi bu sürümle OK.
 - **Koruma:** Gece hesabı, 12 Ekim sınırı, çakışan raporun mevcut kaydı ezmemesi ve online yedek aynı. `gani-logbook` fonksiyonu deploy edilmedi.
-- **Canlı:** Yayın sonrası doğrulanacak.
+- **Canlı:** PR #62 merge `ca8e1b8`. Deploy support site `41231520958` success. `https://app.flyfamapp.com/logbook/` `v1.4.2`; `sw.js` `gani-logbook-v1.4.2`. `flownForNew`, `syncAfterQuery` ve işlenmiş mail atlama canlıda (2026-10-31). PWA açıksa bir kez yenilemek gerekir.
 
 ### 2026-10-29 — Build 55 OTA catch-up (SIM/duty/OTA client)
 
