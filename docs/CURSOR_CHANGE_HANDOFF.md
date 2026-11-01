@@ -13,6 +13,15 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+### 2026-11-01 — Aile akşam özeti ve logbook mavi / yazdırma
+
+- **İstek:** Her akşam 20:00’de ertesi günün özeti bildirimle gitsin. Timeline ve çalışan varsa onlar da yazılsın. Logbook renkleri maviye dönsün, turuncu çok az kalsın. Yazdır hâlâ çalışmıyor.
+- **Dosyalar:** `supabase/functions/family-planner/notify.ts` (20:00–20:20, yarın özeti), `index.ts`, `webpush.ts` (canlı finanslı kopya; eksik repodan deploy edilmedi). `support/logbook/app.js` (`printBook`), `style.css`, `index.html`, `sw.js` (`gani-logbook-v1.4.12`), `scripts/test-gani-logbook-sync.mjs`.
+- **Davranış:** Özet her akşam gider. Varsa uçuş sırası, iş saatleri, okul, randevu ve evde bakım satırı eklenir. İş yoksa da kısa özet gider. Kaydet ve senkron mavi; turuncu yalnız PF işaretinde. Yazdır, defteri ayrı bir sayfada açıp sistem yazdırmasını çağırır.
+- **Koruma:** Ciro, borç ve diğer zamanlı bildirimler aynı. Uçuşlar, devir, PF sütunu ve Kaydet seçimi aynı.
+- **Doğrulama:** `node scripts/test-gani-logbook-sync.mjs` OK. `git diff --check` temiz. Fonksiyon deploy sonrası doğrulanacak.
+- **Canlı:** Yayın sonrası doğrulanacak.
+
 ### 2026-11-01 — Logbook yazdırma, PF sola, uçakta son ekran
 
 - **İstek:** Yazdır çalışsın. PF seçimi solda olsun. Kutular tek satır. Düğmeler renkli ve ikonlu, iPad ve iPhone’da simetrik. iPad’deki üst beyaz örtü kalksın. Logo büyüsün. Gereksiz açıklamalar gitsin. Senkron kayıttan yeniyse kırmızı ünlem yanıp sönsün. Varsayılan Google hesabı yapılandırmadaki hesap olsun. Çevrimdışı, son kaydedilen defter açılsın.
