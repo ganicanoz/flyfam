@@ -29,7 +29,7 @@ header img{width:44px;height:44px;border-radius:8px}
 @media print{.bookstatus{display:none}}
 #cloudGoogleButton:not([hidden]){display:inline-flex;align-items:center}
 #cloudStatus{margin:8px 0}
-:root{--pegasus:#F47920;--sun:#FFC72C;--navy:#10243a}
+:root{--navy:#10243a;--blue:#1b4f86}
 html,body{background:#eef3f8}
 header{padding-top:calc(12px + env(safe-area-inset-top,0px));padding-bottom:12px}
 header img{width:76px;height:76px;border-radius:12px}
@@ -45,16 +45,16 @@ nav button.active{background:var(--navy);color:#fff;border-bottom-color:transpar
 .btn svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;flex:none}
 .btn.quiet{background:#fff;color:var(--navy);border-color:#c5d0dc}
 .btn.sync{background:var(--navy);color:#fff;border-color:var(--navy)}
-.btn.save{background:var(--pegasus);color:#fff;border-color:#d96512}
-.btn.print{background:var(--sun);color:var(--navy);border-color:#e2b000}
+.btn.save{background:var(--blue);color:#fff;border-color:var(--blue)}
+.btn.print{background:#e7eef6;color:var(--navy);border-color:#9eb0c4}
 .btn.add{background:#fff;color:var(--navy);border:2px solid var(--navy)}
 #pageLabel{min-width:92px;text-align:center}
 .scroll{-webkit-overflow-scrolling:auto}
 .logbook td,.logbook td.remarks{height:28px;max-height:28px;line-height:28px;padding:0 4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;overflow-wrap:normal}
 .logbook thead th{height:auto;line-height:1.15;white-space:normal}
-.logbook thead tr:first-child th.pfhead{background:var(--pegasus);color:#fff}
+.logbook thead tr:first-child th.pfhead{background:#18334f;color:#fff}
 .logbook td.pfcell{text-align:center}
-.pf-check{width:20px;height:20px;min-width:20px;accent-color:var(--pegasus)}
+.pf-check{width:20px;height:20px;min-width:20px;accent-color:#F47920}
 #syncStatus:empty{display:none}
 .bookstatus.warn{background:#ffd5d5;color:#8d1212;font-weight:800}
 .bookstatus.warn .bang{display:inline-flex;align-items:center;justify-content:center;width:1.35em;height:1.35em;margin-right:6px;border-radius:50%;background:#d20f0f;color:#fff;animation:bangflash .7s steps(2,end) infinite}
@@ -66,7 +66,6 @@ html.do-print .scroll,html.do-print body,html.do-print main{overflow:visible!imp
   html,body,main,#book,.paper,.scroll{overflow:visible!important;height:auto!important;max-height:none!important;background:#fff}
   body{overflow:visible!important}
   .logbook{width:100%!important;min-width:0!important;font-size:7px}
-  .logbook th,.logbook td,.logbook td.remarks{height:auto;max-height:none;white-space:nowrap;font-size:7px;line-height:1.2;position:static!important;box-shadow:none!important}
-  .logbook td.remarks{white-space:normal}
+  .logbook th,.logbook td,.logbook td.remarks{height:auto!important;max-height:none!important;overflow:visible!important;white-space:normal!important;font-size:7px;line-height:1.2;position:static!important;box-shadow:none!important}
   @page{size:A4 landscape;margin:8mm}
 }
