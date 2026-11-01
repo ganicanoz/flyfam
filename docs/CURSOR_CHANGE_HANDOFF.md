@@ -19,8 +19,8 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - **Dosyalar:** `supabase/functions/family-planner/notify.ts` (20:00–20:20, yarın özeti), `index.ts`, `webpush.ts` (canlı finanslı kopya; eksik repodan deploy edilmedi). `support/logbook/app.js` (`printBook`), `style.css`, `index.html`, `sw.js` (`gani-logbook-v1.4.12`), `scripts/test-gani-logbook-sync.mjs`.
 - **Davranış:** Özet her akşam gider. Varsa uçuş sırası, iş saatleri, okul, randevu ve evde bakım satırı eklenir. İş yoksa da kısa özet gider. Kaydet ve senkron mavi; turuncu yalnız PF işaretinde. Yazdır, defteri ayrı bir sayfada açıp sistem yazdırmasını çağırır.
 - **Koruma:** Ciro, borç ve diğer zamanlı bildirimler aynı. Uçuşlar, devir, PF sütunu ve Kaydet seçimi aynı.
-- **Doğrulama:** `node scripts/test-gani-logbook-sync.mjs` OK. `git diff --check` temiz. Fonksiyon deploy sonrası doğrulanacak.
-- **Canlı:** Yayın sonrası doğrulanacak.
+- **Doğrulama:** `node scripts/test-gani-logbook-sync.mjs` OK. `git diff --check` temiz. Deploy edilen `notify.ts` içinde 20:00 penceresi ve yarın özeti var; `index.ts` finans tablosunu koruyor.
+- **Canlı:** PR #82, merge `b554a77`, support deploy `41279993648`. https://app.flyfamapp.com/logbook/ `v1.4.12`, Kaydet mavi, `printBook` var. `family-planner` bu kaynakla deploy edildi (2026-11-01).
 
 ### 2026-11-01 — Logbook yazdırma, PF sola, uçakta son ekran
 
