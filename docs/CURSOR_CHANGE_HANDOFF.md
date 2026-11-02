@@ -20,7 +20,7 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - **Davranış:** Mavi düğmeler, soldaki PF, Kaydet, yazdırma sayfası ve uçakta son ekran duruyor. Sim düğmesi tarih, sim kodu, tip ve süreyi 13. bölüme yazar. Blok, IFR, PIC ve iniş artmaz. İleri tarihli simülatör Gmail taramasını ötelemez.
 - **Koruma:** 11 Ekim açılış uçuşları, HEL–SAW satırı, kâğıt devir ve Kaydet seçimi aynı. Varsayılan hesap yapılandırması boşaltılmadı.
 - **Doğrulama:** `node scripts/test-gani-logbook-sync.mjs` OK. `node --check support/logbook/app.js` OK. `git diff --check` temiz.
-- **Canlı:** Yayın sonrası doğrulanacak.
+- **Canlı:** PR #86, merge `755c902`, support deploy `41432969620`. https://app.flyfamapp.com/logbook/ `v1.5.2`, solda PF, `printBook`, `addSim`, önbellek `gani-logbook-v1.5.2` (2026-11-02).
 
 - **İstek:** Bilgisayarda takvime gelmeden üst blok çok yer kaplıyor. Yüksekliği boyutlarla azalt.
 - **Dosyalar:** `support/aile/index.html`, `support/aile/sw.js` (`aile-shell-v27`).
