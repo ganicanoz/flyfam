@@ -19,8 +19,8 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - **Dosyalar:** `support/aile/index.html`, `support/aile/sw.js` (`aile-shell-v27`).
 - **Davranış:** 960px ve üstünde sekme ve kart boşlukları daralır. Roster ile tatil aynı satırda, tatil ve okul kapalı yan yana, klinik kutuları altta tek sırada durur. Sığmayan günler yana kayar. Telefon düzeni aynı.
 - **Koruma:** Kayıt, roster, tatil, okul kapalı ve klinik seçimi aynı işi yapar. Metinler silinmedi.
-- **Doğrulama:** Yerel geniş ekran ölçümü yayın sonrası canlı sayfada tekrarlanacak.
-- **Canlı:** Yayın sonrası doğrulanacak.
+- **Doğrulama:** `node --check` ile sayfa betiği OK. `git diff --check` temiz. 1366×768 yerel önizlemede takvim gün satırı ilk ekranda. Telefon sorgusu duruyor.
+- **Canlı:** PR #84, merge `c1c1315`, support deploy `41428781821`. https://app.flyfamapp.com/aile/ `aile-shell-v27` ve masaüstü sıkı düzen (2026-11-02).
 
 - **İstek:** Her akşam 20:00’de ertesi günün özeti bildirimle gitsin. Timeline ve çalışan varsa onlar da yazılsın. Logbook renkleri maviye dönsün, turuncu çok az kalsın. Yazdır hâlâ çalışmıyor.
 - **Dosyalar:** `supabase/functions/family-planner/notify.ts` (20:00–20:20, yarın özeti), `index.ts`, `webpush.ts` (canlı finanslı kopya; eksik repodan deploy edilmedi). `support/logbook/app.js` (`printBook`), `style.css`, `index.html`, `sw.js` (`gani-logbook-v1.4.12`), `scripts/test-gani-logbook-sync.mjs`.
