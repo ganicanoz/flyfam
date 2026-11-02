@@ -20,7 +20,7 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - **Davranış:** Sekmeler ve defter düğmeleri tek satırda, daha alçak. Sayfalama, senkron, Kaydet, yazdır, uçuş, sim ve kayıtlı defter yan yana. Gizli Durdur düğmesi görünmez.
 - **Koruma:** PF, Kaydet, yazdırma, simülatör kaydı ve uçakta son ekran aynı.
 - **Doğrulama:** `node scripts/test-gani-logbook-sync.mjs` OK. 1280 genişlikte araç çubuğu 34px, defter 215px’den başlıyor.
-- **Canlı:** Yayın sonrası doğrulanacak.
+- **Canlı:** PR #88 merge `843be38`, deploy `41433947435`. Canlıda v1.5.3, tek satır araç çubuğu, önbellek `gani-logbook-v1.5.3`.
 
 ### 2026-11-02 — Logbook mavi düzen + simülatör kaydı
 
