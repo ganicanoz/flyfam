@@ -13,6 +13,15 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+### 2026-11-02 — Logbook üst düğmeleri tek satır
+
+- **İstek:** Üst sekmede gereksiz yükseklik var. Düğmeler yan yana dursun, defter sayfası yukarı çıksın.
+- **Dosyalar:** `support/logbook/style.css`, `index.html`, `sw.js` (`gani-logbook-v1.5.3`), `scripts/test-gani-logbook-sync.mjs`.
+- **Davranış:** Sekmeler ve defter düğmeleri tek satırda, daha alçak. Sayfalama, senkron, Kaydet, yazdır, uçuş, sim ve kayıtlı defter yan yana. Gizli Durdur düğmesi görünmez.
+- **Koruma:** PF, Kaydet, yazdırma, simülatör kaydı ve uçakta son ekran aynı.
+- **Doğrulama:** `node scripts/test-gani-logbook-sync.mjs` OK. 1280 genişlikte araç çubuğu 34px, defter 215px’den başlıyor.
+- **Canlı:** Yayın sonrası doğrulanacak.
+
 ### 2026-11-02 — Logbook mavi düzen + simülatör kaydı
 
 - **İstek:** Önceki logbook düzeni canlıda kalsın. Simülatör ekleme de eklensin.
