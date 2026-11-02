@@ -23,9 +23,11 @@ if (q("syncAfterQuery('')", context) !== 'after:2026/10/11') throw new Error('bo
 context.state.records = [{ date: '2026-10-12' }, { date: '2026-11-02' }, { date: '2026-09-01' }];
 if (q('latestFlightDate()', context) !== '2026-11-02') throw new Error('son uçuş tarihi yanlış');
 if (q('syncAfterQuery(latestFlightDate())', context) !== 'after:2026/11/01') throw new Error('tarama son tarihten önceye kaydı');
+context.state.records.push({ kind: 'simulator', date: '2026-12-20' });
+if (q('latestFlightDate()', context) !== '2026-11-02') throw new Error('simülatör tarihi Gmail taramasını ileri aldı');
 const sw = fs.readFileSync(path.join(dir, 'sw.js'), 'utf8');
 const gmail = fs.readFileSync(path.join(dir, 'gmail.js'), 'utf8');
-if (!sw.includes("const CACHE='gani-logbook-v1.4.12'")) throw new Error('önbellek sürümü artmadı');
+if (!sw.includes("const CACHE='gani-logbook-v1.5.2'")) throw new Error('önbellek sürümü artmadı');
 if (!sw.includes('return cached')) throw new Error('uçakta son ekran açılmıyor');
 if (sw.includes('.navigate(')) throw new Error('yükleme bitmiyor');
 if (q("resumeChoice({remoteCount:0,localCount:3,same:false,joined:false,dirty:false})", context) !== 'save') throw new Error('boş bulut yazılmadı');
@@ -33,7 +35,7 @@ if (q("resumeChoice({remoteCount:20,localCount:2,same:false,joined:false,dirty:f
 if (q("resumeChoice({remoteCount:20,localCount:22,same:false,joined:true,dirty:true,syncIso:'2026-10-31T18:00:00Z',remoteSavedIso:'2026-10-31T12:00:00Z'})", context) !== 'save') throw new Error('bu cihazdaki yeni iş yazılmadı');
 if (q("resumeChoice({remoteCount:20,localCount:20,same:true,joined:true,dirty:false})", context) !== 'same') throw new Error('aynı kayıt yeniden yazıldı');
 const page = fs.readFileSync(path.join(dir, 'index.html'), 'utf8');
-if (!page.includes('src="logo.png"') || !page.includes('apple-touch-icon.png') || !page.includes('id="version">v1.4.12') || !page.includes('>Kaydet<')) throw new Error('logo, sürüm veya Kaydet');
+if (!page.includes('src="logo.png"') || !page.includes('apple-touch-icon.png') || !page.includes('id="version">v1.5.2') || !page.includes('>Kaydet<') || !page.includes('id="addSim"')) throw new Error('logo, sürüm, Kaydet veya simülatör');
 const pfAt=page.indexOf('class="pfhead">PF</th>'),dateAt=page.indexOf('>1<br>DATE</th>');
 if(pfAt<0||dateAt<0||pfAt>dateAt) throw new Error('PF sütunu solda değil');
 if(page.includes('Açılış son sayfadadır')) throw new Error('gereksiz açıklama duruyor');
