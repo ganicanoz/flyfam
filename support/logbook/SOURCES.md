@@ -33,3 +33,8 @@ User corrected ME: no flight duration in SE/ME; only previous balance carried. O
 - Deploy backend: supabase functions deploy gani-logbook --project-ref slmgmcpluanezvkgkozw --no-verify-jwt --use-api. The function verifies Google JWT itself; Supabase JWT gate is intentionally replaced by exact Google authentication.
 - User overrides crew report on one flight: remove using generic recoverable exclusion control, suppress exact excluded flight keys in Gmail and future imports.
 - Alternate light/navy-grey rows, section header shades and vertical group boundaries. Zero night values blank per flight.
+
+## v1.5 (2 November 2026)
+- Manual simulator sessions use kind=simulator, custom reg device code, simType, date, optional sessionTime, integer simMinutes. Only section 13 and FSTD page/carry totals increase; no block, IFR, pilot-function, SE/ME or landing credit. Simulator sessions are editable, recoverably removable, backed up and accepted by owner-only online storage.
+- PF choices persist immediately; Seçimleri kaydet preserves page and, when signed in, invokes verified FlyFam online save. Cloud snapshots retain Gmail processed-message IDs and the completed flight watermark across devices; auth tokens are never in state.
+- Incremental Gmail: q after UTC epoch at start of last saved flight day plus Flight Logbook label. Skip known processed immutable message IDs before reading full payload. Add only flights newer than the completed flight timestamp. Future simulator dates never move the flight cursor. Failed fetches remain retryable and prevent advancing the watermark; parsed mail dedup/PF preservation and explicit exclusions remain. Source: https://developers.google.com/workspace/gmail/api/guides/filtering .
