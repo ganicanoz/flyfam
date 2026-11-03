@@ -38,29 +38,130 @@
       border-radius: 12px;
     }
     .mini { font-size: 12px; color: #6b7a90; margin-top: 14px; }
+    .err { color: #b42318; font-size: 14px; margin-top: 12px; display: none; }
   </style>
   <script>
     (function () {
-      var q = window.location.search || '';
-      var hash = window.location.hash || '';
-      if (!q && hash.indexOf('#') === 0) {
-        var raw = hash.slice(1);
-        if (raw.charAt(0) === '/') raw = raw.slice(1);
-        if (raw.indexOf('?') >= 0) q = raw.slice(raw.indexOf('?'));
-        else if (raw.indexOf('=') >= 0) q = '?' + raw;
+      // Public anon key (same pattern as support/admin). Never put secrets in flyfam://.
+      // Handoff accepts only token_hash+type, PKCE code, or safe error fields — never access/refresh tokens.
+      var SUPABASE_URL = 'https://slmgmcpluanezvkgkozw.supabase.co';
+      var ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNsbWdtY3BsdWFuZXp2a2drb3p3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEwODgxNzYsImV4cCI6MjA4NjY2NDE3Nn0.6dFDTjZSEXUSBp4WY10VbPRjk4tQwFczU_Ps9UPXubY';
+      var HANDOFF_URL = SUPABASE_URL + '/functions/v1/auth-link-handoff';
+
+      function parseParams() {
+        var out = {};
+        function absorb(str) {
+          if (!str) return;
+          var q = str.charAt(0) === '?' || str.charAt(0) === '#' ? str.slice(1) : str;
+          if (q.charAt(0) === '/') q = q.slice(1);
+          if (q.indexOf('?') >= 0) q = q.slice(q.indexOf('?') + 1);
+          var sp = new URLSearchParams(q);
+          sp.forEach(function (v, k) {
+            if (v) out[k] = v;
+          });
+        }
+        absorb(window.location.search || '');
+        absorb(window.location.hash || '');
+        return out;
       }
-      var deep = 'flyfam://auth/callback' + q;
-      if (hash && hash.indexOf('access_token') >= 0) deep += hash;
-      window.__flyfamDeepLink = deep;
-      try {
-        window.location.replace(deep);
-      } catch (e) {}
-      window.setTimeout(function () {
+
+      function hasHandoffable(p) {
+        return !!(p.token_hash || p.code || p.error || p.error_code || p.error_description);
+      }
+
+      function hasLegacySessionTokens(p) {
+        return !!(p.access_token || p.refresh_token);
+      }
+
+      function setOpenHref(href) {
+        window.__flyfamDeepLink = href;
         var a = document.getElementById('openApp');
+        if (a) a.setAttribute('href', href);
+      }
+
+      function showFallback(msg) {
         var f = document.getElementById('fallback');
-        if (a) a.setAttribute('href', deep);
         if (f) f.style.display = 'block';
-      }, 600);
+        if (msg) {
+          var e = document.getElementById('err');
+          if (e) {
+            e.style.display = 'block';
+            e.textContent = msg;
+          }
+        }
+      }
+
+      function openCustom(handoffId) {
+        var deep = 'flyfam://auth/callback?handoff=' + encodeURIComponent(handoffId);
+        setOpenHref(deep);
+        try {
+          window.location.replace(deep);
+        } catch (e) {}
+        window.setTimeout(function () {
+          showFallback(null);
+        }, 700);
+      }
+
+      async function createHandoff(params) {
+        var body = {
+          action: 'create',
+          token_hash: params.token_hash || undefined,
+          type: params.type || undefined,
+          code: params.code || undefined,
+          error: params.error_description || params.error || undefined,
+          error_code: params.error_code || undefined
+        };
+        var res = await fetch(HANDOFF_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            apikey: ANON_KEY,
+            Authorization: 'Bearer ' + ANON_KEY
+          },
+          body: JSON.stringify(body)
+        });
+        var data = {};
+        try {
+          data = await res.json();
+        } catch (e) {}
+        if (!res.ok || !data.handoff_id) {
+          throw new Error('handoff_failed');
+        }
+        return String(data.handoff_id);
+      }
+
+      var params = parseParams();
+
+      // Universal Links open the HTTPS URL in-app (this page never runs).
+      // Browser fallback: one-time handoff id only — no secrets in custom scheme.
+      (async function () {
+        try {
+          if (hasLegacySessionTokens(params) && !hasHandoffable(params)) {
+            setOpenHref('flyfam://auth/callback');
+            showFallback(
+              'Bu bağlantı artık desteklenmiyor. E-postanızdaki güncel doğrulama bağlantısına tekrar dokunun.'
+            );
+            return;
+          }
+          if (!hasHandoffable(params)) {
+            setOpenHref('flyfam://auth/callback');
+            try {
+              window.location.replace('flyfam://auth/callback');
+            } catch (e) {}
+            window.setTimeout(function () {
+              showFallback(null);
+            }, 700);
+            return;
+          }
+          var id = await createHandoff(params);
+          openCustom(id);
+        } catch (e) {
+          setOpenHref('flyfam://auth/callback');
+          showFallback(
+            'Uygulama açılamadı. FlyFam yüklüyse aşağıdaki düğmeyi deneyin; olmazsa e-postadaki güncel bağlantıya tekrar dokunun.'
+          );
+        }
+      })();
     })();
   </script>
 </head>
@@ -70,7 +171,8 @@
     <p>E-posta doğrulaması tamamlanıyor. Uygulama otomatik açılmazsa aşağıdaki düğmeyi kullanın.</p>
     <div id="fallback" style="display:none">
       <a class="btn" id="openApp" href="flyfam://auth/callback">FlyFam’i aç</a>
-      <p class="mini">Uygulama yüklü değilse App Store / Play Store’dan FlyFam’i indirin, sonra maildeki linke tekrar dokunun.</p>
+      <p class="mini">Uygulama yüklü değilse App Store’dan FlyFam’i indirin, sonra maildeki linke tekrar dokunun.</p>
+      <p class="err" id="err"></p>
     </div>
   </div>
 </body>
