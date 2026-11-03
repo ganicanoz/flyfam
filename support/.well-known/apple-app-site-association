@@ -1,0 +1,14 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "ZF66PC5AN7.com.flyfamapp.mobile",
+        "paths": [
+          "/auth-callback.html",
+          "/auth-callback.html*"
+        ]
+      }
+    ]
+  }
+}
