@@ -225,8 +225,7 @@
     .debt-chip.soon { background: #fef3c7; color: var(--warn); }
     .debt-chip.ok { background: #dcfce7; color: var(--ok); }
     .money-err { color: var(--bad); font-weight: 800; }
-    .todo-board { display: grid; gap: 12px; align-items: start; }
-    @media (min-width: 860px) { .todo-board { grid-template-columns: minmax(260px, 340px) minmax(0, 1fr); } }
+    .todo-list { position: relative; padding-bottom: 72px; }
     .todo-add { display: grid; gap: 8px; }
     .todo-add input[type="text"] { width: 100%; }
     .pri-pick, .todo-sort { display: flex; gap: 6px; }
@@ -239,13 +238,16 @@
     .todo-when { display: flex; gap: 8px; }
     .todo-when label { flex: 1; }
     .todo-when input { width: 100%; }
-    .todo-item { display: grid; grid-template-columns: 6px minmax(0, 1fr) auto; gap: 10px; align-items: center; margin-top: 8px; padding: 8px 8px 8px 0; border: 1px solid var(--line); border-radius: 12px; background: #fff; }
-    .todo-item .bar { align-self: stretch; border-radius: 12px 0 0 12px; }
-    .todo-item.high .bar { background: #dc2626; }
-    .todo-item.mid .bar { background: #d97706; }
-    .todo-item.low .bar { background: #94a3b8; }
-    .todo-item.late { background: #fef2f2; border-color: #fecaca; }
+    .todo-item { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: center; margin-top: 8px; padding: 10px 12px; border: 1px solid transparent; border-radius: 14px; }
+    .todo-item.high { background: linear-gradient(115deg, rgba(220,38,38,.20), rgba(251,113,133,.08) 58%, rgba(255,255,255,.62)); border-color: rgba(220,38,38,.16); }
+    .todo-item.mid { background: linear-gradient(115deg, rgba(217,119,6,.20), rgba(251,191,36,.10) 58%, rgba(255,255,255,.62)); border-color: rgba(217,119,6,.16); }
+    .todo-item.low { background: linear-gradient(115deg, rgba(100,116,139,.16), rgba(148,163,184,.08) 58%, rgba(255,255,255,.7)); border-color: rgba(100,116,139,.14); }
+    .todo-item.high.late { background: linear-gradient(115deg, rgba(220,38,38,.34), rgba(254,202,202,.28) 62%, rgba(255,255,255,.45)); }
+    .todo-item.mid.late { background: linear-gradient(115deg, rgba(217,119,6,.32), rgba(254,215,170,.26) 62%, rgba(255,255,255,.45)); }
+    .todo-item.low.late { background: linear-gradient(115deg, rgba(100,116,139,.28), rgba(226,232,240,.4) 62%, rgba(255,255,255,.5)); }
     .todo-item.late .ttl b { color: #991b1b; }
+    .todo-fab { position: fixed; right: 16px; bottom: max(16px, env(safe-area-inset-bottom)); z-index: 35; width: 56px; height: 56px; border: 0; border-radius: 50%; background: var(--brand); color: #fff; font-size: 32px; line-height: 1; font-weight: 500; box-shadow: 0 8px 24px rgba(15,23,42,.22); }
+    #todoSheet { z-index: 45; }
     .todo-item .ttl b { display: block; }
     .todo-item .meta { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 3px; color: var(--muted); font-size: 12px; font-weight: 700; }
     .todo-item.late .meta { color: var(--bad); }
@@ -2656,7 +2658,7 @@
         const C = esc((st.config && st.config.people && st.config.people.crew) || 'Crew');
         body = '<p>' + (on ? '✅ Bu cihazda bildirimler <b>açık</b>.' : 'Bu cihazda bildirimler kapalı.') + '</p>' +
           '<ul class="push-list"><li>📅 Plan fixlenince / saat değişince (değişikliği yapan cihaza gelmez)</li><li>⏰ Akşam 20:00: yarın iş varsa hatırlatma</li><li>✈️ Roster (' + C + ') plan günlerinde değişirse, yeni PDF yüklenince</li><li>☔ Sabah: iş günü yağış bekleniyorsa</li><li>🏖️ Tatilden 1 hafta önce, tatil eklenince</li>' +
-          '<li>✅ Yapılacak: yüksek önem 24, 12, 6, 3 ve 1 saat önce; orta 24 ve 3 saat önce; düşük yalnız o günün sabahı</li>' +
+          '<li>✅ Yapılacak: yeni iş eklenince (ekleyen cihaza gelmez). Yüksek önem 24, 12, 6, 3 ve 1 saat önce; orta 24 ve 3 saat önce; düşük yalnız o günün sabahı</li>' +
           (finOn() ? '<li>💰 Ciro hatırlatması (yalnız ' + esc((st.config.people || {}).partner || 'Eş') + ' seçili cihaz)</li>' : '') +
           (debtCfg().sources.length ? '<li>💳 ' + esc(debtCfg().label) + ' vade günü hatırlatması (aynı cihaz)</li>' : '') + '</ul>' +
           (Notification.permission === 'denied' ? '<p class="dirty small">Bildirim izni reddedilmiş; telefon ayarlarından bu uygulamaya izin ver.</p>' : '') +
@@ -3187,27 +3189,28 @@
         return day + (t.dueTime ? ' · ' + t.dueTime : '');
       };
       const line = (t, isDone) => '<article class="todo-item ' + t.pri + (todoLate(t, today) ? ' late' : '') + (isDone ? ' done' : '') + '" data-todo="' + esc(t.id) + '">' +
-        '<span class="bar"></span><div class="ttl"><b>' + esc(t.text) + '</b><div class="meta"><span>' + esc(whenText(t)) + '</span><span>' + TODO_PRI[t.pri] + '</span>' +
+        '<div class="ttl"><b>' + esc(t.text) + '</b><div class="meta"><span>' + esc(whenText(t)) + '</span><span>' + TODO_PRI[t.pri] + '</span>' +
         (t.who ? '<span>' + esc(whoName(t.who)) + '</span>' : '') + '</div></div><div class="todo-side">' +
         '<button type="button" class="ghost" data-todo-del="1" aria-label="Sil">✕</button>' +
         (isDone ? '<button type="button" class="ghost" data-todo-back="1">Geri al</button>' : '<button type="button" class="todo-ok" data-todo-ok="1">OK</button>') +
         '</div></article>';
       const priBtn = (id, label) => '<button type="button" data-todo-pri="' + id + '"' + (st.todoPri === id ? ' class="on"' : '') + '>' + label + '</button>';
-      el.innerHTML = '<div class="todo-board"><section class="card"><div class="card-h">Yeni iş</div><div class="todo-add" id="todoForm">' +
+      el.innerHTML = '<section class="card todo-list"><div class="card-h">Liste <span class="todo-sort" style="margin-left:auto;">' +
+        '<button type="button" data-todo-sort="date"' + (st.todoSort !== 'pri' ? ' class="on"' : '') + '>Tarih</button>' +
+        '<button type="button" data-todo-sort="pri"' + (st.todoSort === 'pri' ? ' class="on"' : '') + '>Önem</button></span></div>' +
+        '<span id="todoStatus" class="small' + (st.todoBad ? ' money-err' : ' muted') + '">' + esc(st.todoNote || '') + '</span>' +
+        (open.length ? open.map((t) => line(t, false)).join('') : '<p class="small muted" style="margin:8px 0 0;">Açık iş yok.</p>') +
+        (done.length ? '<details style="margin-top:12px;"' + (st.todoShowDone ? ' open' : '') + '><summary class="small">Yapılanlar (' + done.length + ')</summary>' + done.slice(0, 40).map((t) => line(t, true)).join('') +
+          '<button type="button" class="ghost small" data-todo-clear="1" style="margin-top:8px;">Yapılanları sil</button></details>' : '') +
+        '</section>' +
+        '<button type="button" class="todo-fab" id="todoFab"' + (st.todoOpen ? ' hidden' : '') + ' aria-label="Yeni iş">+</button>' +
+        '<div class="sheet-bg" id="todoSheet"' + (st.todoOpen ? '' : ' hidden') + '><div class="sheet" role="dialog" aria-label="Yeni iş"><h3><span>Yeni iş</span><button type="button" class="ghost" data-todo-close="1" aria-label="Kapat">✕</button></h3><div class="todo-add" id="todoForm">' +
         '<input type="text" id="todoText" maxlength="140" placeholder="Ne yapılacak?" aria-label="Ne yapılacak?" />' +
         '<div class="todo-when"><label class="small">Tarih <input type="date" id="todoDue" /></label><label class="small">Saat <input type="time" id="todoTime" value="18:00" /></label></div>' +
         '<div class="pri-pick" role="group" aria-label="Önem">' + priBtn('high', 'Yüksek') + priBtn('mid', 'Orta') + priBtn('low', 'Düşük') + '</div>' +
         '<select id="todoWho" aria-label="Kim">' + whoOpt.map((x) => '<option value="' + esc(x[0]) + '">' + esc(x[1]) + '</option>').join('') + '</select>' +
         '<button type="button" class="primary" id="todoAdd">Ekle</button>' +
-        '<span id="todoStatus" class="small' + (st.todoBad ? ' money-err' : ' muted') + '">' + esc(st.todoNote || '') + '</span>' +
-        '<p class="small muted" style="margin:0;">Yüksek: 24, 12, 6, 3 ve 1 saat önce. Orta: 24 ve 3 saat önce. Düşük: yalnız o günün sabahı. Saat yoksa 18:00 sayılır.</p></div></section>' +
-        '<section class="card"><div class="card-h">Liste <span class="todo-sort" style="margin-left:auto;">' +
-        '<button type="button" data-todo-sort="date"' + (st.todoSort !== 'pri' ? ' class="on"' : '') + '>Tarih</button>' +
-        '<button type="button" data-todo-sort="pri"' + (st.todoSort === 'pri' ? ' class="on"' : '') + '>Önem</button></span></div>' +
-        (open.length ? open.map((t) => line(t, false)).join('') : '<p class="small muted" style="margin:8px 0 0;">Açık iş yok.</p>') +
-        (done.length ? '<details style="margin-top:12px;"' + (st.todoShowDone ? ' open' : '') + '><summary class="small">Yapılanlar (' + done.length + ')</summary>' + done.slice(0, 40).map((t) => line(t, true)).join('') +
-          '<button type="button" class="ghost small" data-todo-clear="1" style="margin-top:8px;">Yapılanları sil</button></details>' : '') +
-        '</section></div>';
+        '<p class="small muted" style="margin:0;">Eklenince diğer cihazlara bildirim gider. Saat yoksa 18:00 sayılır.</p></div></div></div>';
       st.todoNote = '';
       st.todoBad = false;
     }
@@ -3234,6 +3237,7 @@
       }
       if (due && !/^\d{4}-\d{2}-\d{2}$/.test(due)) { const el = $('todoStatus'); if (el) { el.textContent = 'Tarih geçersiz'; el.className = 'small money-err'; } return; }
       const row = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), text, due, dueTime, pri, who: ['crew', 'partner', 'child'].includes(who) ? who : '', done: '' };
+      st.todoOpen = false;
       await writeTodos(todoRows().concat(row), 'Eklendi');
     }
     function renderFinance(res) {
@@ -3423,6 +3427,17 @@
       onCiroClick(e, false);
     });
     $('tabTodo').addEventListener('click', (e) => {
+      if (e.target.closest('#todoFab')) {
+        st.todoOpen = true;
+        renderTodos();
+        if ($('todoText')) $('todoText').focus();
+        return;
+      }
+      if (e.target.id === 'todoSheet' || e.target.closest('[data-todo-close]')) {
+        st.todoOpen = false;
+        renderTodos();
+        return;
+      }
       const pri = e.target.closest('[data-todo-pri]');
       if (pri) {
         st.todoPri = pri.getAttribute('data-todo-pri');

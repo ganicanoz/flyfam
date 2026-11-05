@@ -13,6 +13,16 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+### 2026-11-05 — Aile: yapılacak ekleme düğmesi ve yeni iş bildirimi
+
+- **İstek:** Yeni iş eklenince bildirim gitsin. Renk şeridi kalksın, önem arka zeminde görünsün. Listede yalnız liste kalsın; ekleme yüzen artı düğmesiyle açılsın.
+- **Dosyalar:** `support/aile/index.html`, `support/aile/sw.js` (`aile-shell-v30`), `supabase/functions/family-planner/notify.ts`, `scripts/test-aile-eso.mjs`, `scripts/test-aile-todos.mjs`.
+- **Liste:** Sağ altta artı düğmesi ekleme kutusunu açar. Önem, saydam renk geçişiyle satırın zeminindedir. Geciken satırın yazısı kırmızı, OK sağda. Sıra tarih ya da önem.
+- **Bildirim:** Her yeni açık iş, ekleyen cihaz dışında bildirilir. Süre hatırlatması durur: yüksek 24, 12, 6, 3 ve 1 saat; orta 24 ve 3 saat; düşük yalnız sabah.
+- **Koruma:** Plan, fatura, gelir ve akşam özeti durur.
+- **Doğrulama:** `node scripts/test-aile-todos.mjs` ve `node scripts/test-aile-eso.mjs` OK. Tarayıcıda artı kutuyu açtı; geciken yüksek iş kırmızı geçişli zeminde, şerit yok, OK sağda.
+- **Canlı:** Yayın sonrası doğrulanacak.
+
 ### 2026-11-05 — Aile: gelir ekleme ve yapılacaklar düzeni
 
 - **İstek:** Gelir ekle yazmıyordu. Yapılacaklar listesi ayrı kutu olsun, OK sağda, geciken kırmızı, önem sırası ve tarihe göre sıralama olsun. Yüksek önem süre dolmadan 24, 12, 6, 3 ve 1 saat önce; orta daha seyrek; düşük yalnız günlük bildirilsin.

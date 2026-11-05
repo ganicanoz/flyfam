@@ -257,15 +257,13 @@ export function changeNotices(oldCfg: Cfg | null, newCfg: Cfg, today: string): N
     out.push({ title: '🏖️ Tatil eklendi' + (v.label ? ': ' + v.label : ''), body: dshort(v.from) + ' → ' + dshort(v.to) + ' · okul ve iş yok.', url: '/aile/?month=' + v.from.slice(0, 7), tag: 'vac' });
   }
   const prevTodo = new Map(validTodos(o).map((t) => [t.id, t]));
-  const urgent = validTodos(newCfg).filter((t) => {
-    if (t.done || t.pri !== 'high' || !t.due || t.due > today) return false;
-    const prev = prevTodo.get(t.id);
-    return !prev || prev.done || prev.due !== t.due;
-  });
-  if (urgent.length) {
+  const priWord: Record<string, string> = { high: 'Yüksek', mid: 'Orta', low: 'Düşük' };
+  const added = validTodos(newCfg).filter((t) => !t.done && !prevTodo.has(t.id));
+  const todoMeta = (t: { pri: string; due: string }) => (priWord[t.pri] || 'Orta') + (t.due ? (t.due < today ? ' · gecikti' : t.due === today ? ' · bugün' : ' · ' + dshort(t.due)) : '');
+  if (added.length) {
     out.push({
-      title: urgent.length === 1 ? '✅ ' + urgent[0].text : '✅ ' + urgent.length + ' yapılacak',
-      body: urgent.slice(0, 4).map((t) => t.text + (t.due < today ? ' · gecikti' : ' · bugün')).join('\n'),
+      title: added.length === 1 ? '✅ ' + added[0].text : '✅ ' + added.length + ' yeni iş',
+      body: added.length === 1 ? todoMeta(added[0]) : added.slice(0, 4).map((t) => t.text + ' · ' + todoMeta(t)).join('\n'),
       url: '/aile/?tab=todo',
       tag: 'todo',
     });

@@ -7,10 +7,11 @@ const notify = fs.readFileSync(new URL('../supabase/functions/family-planner/not
 let failed = 0;
 const eq = (name, ok) => { if (!ok) { failed += 1; console.error('FAIL', name); } };
 
-eq('önbellek', sw.includes("const CACHE = 'aile-shell-v29'"));
-eq('iki kutu', html.includes('class="todo-board"') && html.includes('>Yeni iş<') && html.includes('>Liste'));
+eq('önbellek', sw.includes("const CACHE = 'aile-shell-v30'"));
+eq('yalnız liste ve artı', html.includes('class="todo-fab"') && html.includes('id="todoSheet"') && html.includes('>Liste') && !html.includes('class="todo-board"') && !html.includes('<span class="bar"></span>'));
 eq('önem ve sıralama', html.includes('data-todo-pri="high"') && html.includes('data-todo-sort="pri"') && html.includes('class="todo-ok"'));
-eq('geciken kırmızı', html.includes('todo-item.late') && html.includes('#fef2f2'));
+eq('önem zemini', html.includes('.todo-item.high { background: linear-gradient') && html.includes('.todo-item.late .ttl b'));
+eq('yeni iş bildirimi', notify.includes('!prevTodo.has(t.id)') && !notify.includes("t.pri !== 'high'"));
 eq('gelir formu', html.includes('id="moneyForm"') && !html.includes('<form class="money-form"') && html.includes('if (!ymd) ymd ='));
 eq('kayıt kilidi', html.includes('st.saveLock') && html.includes('st.dataGen'));
 eq('alarmlar', notify.includes('export function todoAlarms') && notify.includes('high: [24, 12, 6, 3, 1]') && notify.includes('mid: [24, 3]'));
