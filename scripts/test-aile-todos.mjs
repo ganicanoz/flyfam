@@ -7,33 +7,37 @@ const notify = fs.readFileSync(new URL('../supabase/functions/family-planner/not
 let failed = 0;
 const eq = (name, ok) => { if (!ok) { failed += 1; console.error('FAIL', name); } };
 
-eq('önbellek', sw.includes("const CACHE = 'aile-shell-v28'"));
-eq('üç sekme', html.includes('data-tab="todo"') && html.includes('id="tabTodo"') && html.includes('id="todoAdd"'));
-eq('geçmiş ay', html.includes('function moneyViewMonth') && html.includes('data-money-month') && !html.includes('Tarih bu aydan olsun'));
-eq('bildirim metni', notify.includes('export function todoDigest') && notify.includes("'todo:' + today") && notify.includes("'Yapılacak: ' + t"));
+eq('önbellek', sw.includes("const CACHE = 'aile-shell-v29'"));
+eq('iki kutu', html.includes('class="todo-board"') && html.includes('>Yeni iş<') && html.includes('>Liste'));
+eq('önem ve sıralama', html.includes('data-todo-pri="high"') && html.includes('data-todo-sort="pri"') && html.includes('class="todo-ok"'));
+eq('geciken kırmızı', html.includes('todo-item.late') && html.includes('#fef2f2'));
+eq('gelir formu', html.includes('id="moneyForm"') && !html.includes('<form class="money-form"') && html.includes('if (!ymd) ymd ='));
+eq('kayıt kilidi', html.includes('st.saveLock') && html.includes('st.dataGen'));
+eq('alarmlar', notify.includes('export function todoAlarms') && notify.includes('high: [24, 12, 6, 3, 1]') && notify.includes('mid: [24, 3]'));
 
 const start = notify.indexOf('function validTodos');
 const end = notify.indexOf('/** Kayıt öncesi');
-const slice = notify.slice(start, end)
-  .replace(/: Cfg/g, '')
-  .replace(/: \{ id: string; text: string; due: string; done: boolean \}\[\]/g, '')
-  .replace(/: string\[\]/g, '')
-  .replace('export function todoDigest', 'function todoDigest');
-const ctx = { addDays: (ymd, n) => new Date(Math.round(Date.parse(ymd + 'T00:00:00Z') / 86400000 + n) * 86400000).toISOString().slice(0, 10) };
-vm.runInNewContext(slice + '\nthis.todoDigest = todoDigest;', ctx);
-const d = ctx.todoDigest({
+const slice = notify.slice(start, end).replace(/: Cfg/g, '').replace('export function todoAlarms', 'function todoAlarms');
+const ctx = {};
+vm.runInNewContext(slice + '\nthis.todoAlarms = todoAlarms;', ctx);
+const cfg = {
   todos: [
-    { id: 'a', text: 'Ekim fişi', due: '2026-10-31', done: '' },
-    { id: 'b', text: 'Bugün ara', due: '2026-11-05', done: false },
-    { id: 'c', text: 'Yarın evrak', due: '2026-11-06' },
-    { id: 'd', text: 'Bitti', due: '2026-11-05', done: '2026-11-04' },
-    { id: 'e', text: 'Tarihsiz' },
+    { id: 'h', text: 'Yüksek iş', due: '2026-11-06', dueTime: '18:00', pri: 'high' },
+    { id: 'm', text: 'Orta iş', due: '2026-11-06', dueTime: '18:00', pri: 'mid' },
+    { id: 'l', text: 'Düşük iş', due: '2026-11-05', pri: 'low' },
+    { id: 'd', text: 'Bitti', due: '2026-11-05', pri: 'high', done: '2026-11-04' },
   ],
-}, '2026-11-05');
-eq('geciken', d.overdue.length === 1 && d.overdue[0] === 'Ekim fişi');
-eq('bugün', d.dueToday.length === 1 && d.dueToday[0] === 'Bugün ara');
-eq('yarın', d.dueTomorrow.length === 1 && d.dueTomorrow[0] === 'Yarın evrak');
-eq('biten yok', !JSON.stringify(d).includes('Bitti') && !JSON.stringify(d).includes('Tarihsiz'));
+};
+const dayBefore = ctx.todoAlarms(cfg, '2026-11-05', 18 * 60);
+eq('yüksek 24s', dayBefore.some((n) => n.key === 'todo:h:24'));
+eq('orta 24s', dayBefore.some((n) => n.key === 'todo:m:24'));
+eq('düşük 24s yok', !dayBefore.some((n) => n.key.startsWith('todo:l:')));
+const soon = ctx.todoAlarms(cfg, '2026-11-06', 17 * 60);
+eq('yüksek 1s', soon.some((n) => n.key === 'todo:h:1'));
+eq('orta 1s yok', !soon.some((n) => n.key === 'todo:m:1'));
+const morning = ctx.todoAlarms(cfg, '2026-11-05', 9 * 60);
+eq('düşük sabah', morning.some((n) => n.key === 'todo-day:l:2026-11-05'));
+eq('biten yok', !JSON.stringify(morning).includes('Bitti') && !JSON.stringify(soon).includes('Bitti'));
 
 if (failed) { console.error(failed + ' failed'); process.exit(1); }
 console.log('OK aile todo');
