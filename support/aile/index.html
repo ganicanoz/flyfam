@@ -164,13 +164,25 @@
     .calendar-popover p { font-weight: 400; }
     .calendar-popover button { font-size: 12px; padding: 6px 8px; }
     .cal-head { flex-wrap: wrap; }
-    @media (max-width: 959px) { .board-column { display: contents; } }
-
-    .board .cal-card { grid-column: 1; }
+    @media (max-width: 959px) {
+      #tabPlan { grid-template-columns: 1fr 1fr; align-items: start; }
+      #tabPlan > .overview, #tabPlan > .board, #tabPlan .overview-side, #tabPlan .board-column { display: contents; }
+      #tabPlan .cal-card { order: 0; grid-column: 1 / -1; }
+      #tabPlan .roster-card, #tabPlan #boxConf, #tabPlan .share-card,
+      #tabPlan .board-column > details.card:not(#boxConf):not(.share-card) { order: 1; grid-column: span 1; }
+      #tabPlan .vac-card { order: 2; grid-column: 1 / -1; }
+      #tabPlan .clinic-card { order: 3; grid-column: 1 / -1; }
+      #tabPlan .board-column > .card:not(#boxConf):not(.share-card) { order: 4; grid-column: 1 / -1; }
+    }
     @media (min-width: 960px) {
-      .board { grid-template-columns: minmax(0, 1fr) minmax(280px, 340px); }
-      .board .cal-card { grid-column: 1; grid-row: 1 / span 3; }
-      .board-column { grid-column: 2; }
+      #tabPlan { grid-template-columns: repeat(6, minmax(0, 1fr)); align-items: start; }
+      #tabPlan > .overview, #tabPlan > .board, #tabPlan .overview-side, #tabPlan .board-column { display: contents; }
+      #tabPlan .cal-card { order: 0; grid-column: 1 / -1; grid-row: auto; }
+      #tabPlan .roster-card, #tabPlan #boxConf, #tabPlan .share-card { order: 1; grid-column: span 2; }
+      #tabPlan .vac-card { order: 2; grid-column: 1 / -1; }
+      #tabPlan .clinic-card { order: 3; grid-column: 1 / -1; }
+      #tabPlan .board-column > .card:not(#boxConf):not(.share-card) { order: 4; grid-column: 1 / -1; }
+      #tabPlan .board-column > details.card:not(#boxConf):not(.share-card) { order: 5; grid-column: span 2; }
     }
     .board > .card > .card-h { color: #164e63; }
     .cal-card { border-top: 3px solid #1f4f48; }
@@ -185,7 +197,6 @@
     .card { background: rgba(255,253,248,.94); border-radius: var(--radius); border: 1px solid #eadfce; padding: 12px; box-shadow: 0 8px 22px rgba(90,60,30,.05); }
     .card-h { font-weight: 800; font-size: 15px; margin: -2px 0 8px; padding-bottom: 6px; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 8px; }
     .tabpane { display: grid; gap: 10px; }
-    #tabPlan > .board { order: -1; }
     .tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; padding: 5px; border-radius: 16px; background: rgba(255,253,248,.72); border: 1px solid var(--line); }
     .tabs button { border: 0; border-radius: 12px; padding: 9px 8px; font-weight: 800; font-size: 14px; background: transparent; color: #6b5d4e; }
     @media (max-width: 420px) { .tabs button { font-size: 13px; padding: 8px 2px; } }
@@ -327,9 +338,9 @@
     .dirty { color: var(--warn); font-weight: 700; }
 
     /* Takvim */
-    .weekdays, .grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+    .weekdays, .grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
     .weekdays span { text-align: center; font-size: 11px; font-weight: 800; color: #8a6a52; letter-spacing: .04em; }
-    .cell { position: relative; border: 1px solid #eadfce; border-radius: 14px; background: rgba(255,253,248,.96); min-height: 64px; padding: 6px; display: flex; flex-direction: column; gap: 3px; cursor: pointer; overflow: hidden; }
+    .cell { position: relative; border: 1px solid #eadfce; border-radius: 12px; background: rgba(255,253,248,.96); min-height: 48px; padding: 4px; display: flex; flex-direction: column; gap: 2px; cursor: pointer; overflow: hidden; }
     .cell:hover { border-color: #d97756; }
     .cell.out { opacity: .4; }
     .cell.we { background: #f8f1e4; }
@@ -486,7 +497,7 @@
     .pill { display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px 2px 2px; border-radius: 999px; font-size: 12px; font-weight: 700; }
     @media (min-width: 641px) and (max-width: 1024px) {
       main { padding: 10px; }
-      .cell { min-height: 60px; }
+      .cell { min-height: 48px; }
       .crew { font-size: 10px; }
       .crew + .crew { display: none; }
     }
@@ -514,7 +525,7 @@
       body:not(.tab-fin):not(.tab-todo) main { padding-bottom: 96px; }
       body.tab-todo main { padding-bottom: 84px; }
       .grid, .weekdays { gap: 3px; }
-      .cell { min-height: 52px; padding: 3px; border-radius: 9px; }
+      .cell { min-height: 44px; padding: 3px; border-radius: 9px; }
       .cell .crew, .cell .flag, .cell .run, .cell .d small, .cell .opt-mini .stars { display: none; }
       .cell .sug .fit { width: 16px; height: 16px; padding: 0; font-size: 10px; }
       .cell .appointment { display: none; }
