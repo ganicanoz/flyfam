@@ -10,6 +10,7 @@ on:
       - 'docs/ADMIN_STATUS_DASHBOARD.html'
       - 'docs/BASE44_ADMIN_LIVE.html'
       - 'docs/BASE44_ADMIN_EMBED.html'
+      - 'docs/ROUTE_TO_LIVE.html'
       - 'docs/admin/**'
       - 'docs/obens-watches/**'
       - '.github/workflows/deploy-support.yml'
@@ -39,7 +40,7 @@ jobs:
       # Mobil için kısa yol: /admin/ (Chrome adres çubuğunda kolay).
       - name: Copy admin dashboard for GitHub Pages
         run: |
-          for f in ADMIN_STATUS_DASHBOARD.html BASE44_ADMIN_LIVE.html BASE44_ADMIN_EMBED.html; do
+          for f in ADMIN_STATUS_DASHBOARD.html BASE44_ADMIN_LIVE.html BASE44_ADMIN_EMBED.html ROUTE_TO_LIVE.html; do
             if [ -f "docs/$f" ]; then
               cp -f "docs/$f" support/
             fi
