@@ -168,18 +168,18 @@
       #tabPlan { grid-template-columns: 1fr 1fr; align-items: start; }
       #tabPlan > .overview, #tabPlan > .board, #tabPlan .overview-side, #tabPlan .board-column { display: contents; }
       #tabPlan .cal-card { order: 0; grid-column: 1 / -1; }
-      #tabPlan .roster-card, #tabPlan #boxConf, #tabPlan .share-card,
-      #tabPlan .board-column > details.card:not(#boxConf):not(.share-card) { order: 1; grid-column: span 1; }
-      #tabPlan .vac-card { order: 2; grid-column: 1 / -1; }
+      #tabPlan .roster-card, #tabPlan #boxConf { order: 1; grid-column: span 1; }
+      #tabPlan .share-card { order: 2; grid-column: 1 / -1; }
       #tabPlan .clinic-card { order: 3; grid-column: 1 / -1; }
       #tabPlan .board-column > .card:not(#boxConf):not(.share-card) { order: 4; grid-column: 1 / -1; }
+      #tabPlan .board-column > details.card:not(#boxConf):not(.share-card) { order: 5; grid-column: 1 / -1; }
     }
     @media (min-width: 960px) {
       #tabPlan { grid-template-columns: repeat(6, minmax(0, 1fr)); align-items: start; }
       #tabPlan > .overview, #tabPlan > .board, #tabPlan .overview-side, #tabPlan .board-column { display: contents; }
       #tabPlan .cal-card { order: 0; grid-column: 1 / -1; grid-row: auto; }
-      #tabPlan .roster-card, #tabPlan #boxConf, #tabPlan .share-card { order: 1; grid-column: span 2; }
-      #tabPlan .vac-card { order: 2; grid-column: 1 / -1; }
+      #tabPlan .roster-card, #tabPlan #boxConf { order: 1; grid-column: span 3; }
+      #tabPlan .share-card { order: 2; grid-column: 1 / -1; }
       #tabPlan .clinic-card { order: 3; grid-column: 1 / -1; }
       #tabPlan .board-column > .card:not(#boxConf):not(.share-card) { order: 4; grid-column: 1 / -1; }
       #tabPlan .board-column > details.card:not(#boxConf):not(.share-card) { order: 5; grid-column: span 2; }
@@ -269,6 +269,14 @@
     .todo-item.low.late { background: linear-gradient(115deg, rgba(100,116,139,.28), rgba(226,232,240,.4) 62%, rgba(255,255,255,.5)); }
     .todo-item.late .ttl b { color: #991b1b; }
     .todo-fab { position: fixed; right: 16px; bottom: max(16px, env(safe-area-inset-bottom)); z-index: 35; width: 56px; height: 56px; border: 0; border-radius: 50%; background: var(--brand); color: #fff; font-size: 32px; line-height: 1; font-weight: 500; box-shadow: 0 8px 24px rgba(15,23,42,.22); }
+    @media (max-width: 640px) { #planFab { bottom: 84px; } }
+    .plan-kinds, .plan-form { display: grid; gap: 8px; }
+    .plan-kinds button { min-height: 44px; font-weight: 800; }
+    .plan-kind-red { background: #991b1b; color: #fff; border: 0; }
+    .cell.sch-extra { background: #fef2f2; border-color: #dc2626; }
+    .vac-tag.extra { color: #991b1b; border-color: #dc2626; background: #fff; }
+    .lrow.sch-extra { box-shadow: inset 4px 0 0 #dc2626; }
+    .lrow.sch-extra .ln.vacl { color: #991b1b; }
     #todoSheet { z-index: 45; }
     .todo-item .ttl b { display: block; }
     .todo-item .meta { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 3px; color: var(--muted); font-size: 12px; font-weight: 700; }
@@ -444,14 +452,14 @@
     /* Özet · kliniklerle paylaş: bölüm daha ince, kutular yana yayılır */
     .share-card { padding: 10px 6px 12px; }
     .share-card .card-h { margin: 0 8px 8px; padding-bottom: 6px; }
-    .sum-grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 480px), 1fr)); }
-    .sum { border-radius: 14px; border: 1px solid var(--line); overflow: hidden; background: #fff; }
+    .sum-grid { display: flex; flex-wrap: nowrap; gap: 8px; align-items: flex-start; overflow-x: auto; }
+    .sum { flex: 1 1 0; min-width: 220px; border-radius: 14px; border: 1px solid var(--line); overflow: hidden; background: #fff; }
     .sum header { display: flex; align-items: center; gap: 8px; padding: 12px 18px; color: #fff; flex-wrap: nowrap; }
     .sum header b { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .sum header span:last-child { flex: 0 0 auto; white-space: nowrap; font-size: 12px; }
-    .sum ul { margin: 0; padding: 8px 18px 6px; font-size: 13px; list-style: none; }
+    .sum ul { margin: 0; padding: 8px; font-size: 12px; list-style: none; display: flex; flex-wrap: wrap; gap: 6px; }
     .sum li.bad { color: var(--bad); font-weight: 700; } .sum li.warn { color: #b45309; }
-    .sum li { display: flex; align-items: flex-start; gap: 5px; flex-direction: column; margin: 0; padding: 8px 0; min-height: 40px; border-bottom: 1px solid var(--line); }
+    .sum li { display: flex; align-items: center; gap: 6px; flex-direction: row; margin: 0; padding: 4px 8px; min-height: 0; border: 1px solid var(--line); border-radius: 8px; }
     .sum li > span:first-child { min-width: 0; white-space: normal; overflow-wrap: anywhere; }
     .sum li .tv { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; max-width: 100%; white-space: nowrap; }
     .tm { display: inline-flex; align-items: center; gap: 3px; white-space: nowrap; }
@@ -599,32 +607,6 @@
         <div id="rosterSrc" class="small"></div>
       </section>
 
-      <section class="card vac-card" id="boxVac">
-        <div class="vac-head">
-          <span class="vac-emoji">🏖️</span>
-          <div>
-            <b id="vacJoke">Doktor Hanıım, bu ay bir seyehatiniz olacak mı?</b>
-            <div class="small muted" id="vacSub">Tatil günlerinde okul ve iş yok.</div>
-          </div>
-        </div>
-        <div class="row vac-form">
-          <label class="small">Başlangıç <input type="date" id="vacFrom" /></label>
-          <label class="small">Bitiş <input type="date" id="vacTo" /></label>
-          <input type="text" id="vacLabel" placeholder="Nereye? (ör. Kapadokya)" />
-          <button type="button" class="primary" id="vacAdd">Tatil ekle</button>
-        </div>
-        <div id="vacStatus" class="small muted"></div>
-        <div id="vacList" class="small"></div>
-        <div class="row vac-form" style="margin-top:10px;border-top:1px dashed #fde68a;padding-top:10px;">
-          <b class="small" style="flex:1 1 100%;margin:0;">🎒 Okul kapalı (iş devam edebilir)</b>
-          <label class="small">Başlangıç <input type="date" id="schFrom" /></label>
-          <label class="small">Bitiş <input type="date" id="schTo" /></label>
-          <button type="button" id="schAdd">Okul kapalı ekle</button>
-        </div>
-        <div id="schStatus" class="small muted"></div>
-        <div id="schList" class="small"></div>
-      </section>
-
       </div>
       <section class="card clinic-card">
         <div class="card-h">Klinik günleri</div>
@@ -731,6 +713,50 @@
         </div>
       </details>
       </div>
+      </div>
+      <button type="button" class="todo-fab" id="planFab" aria-label="Takvime ekle">+</button>
+      <div class="sheet-bg" id="planSheet" hidden>
+        <div class="sheet" role="dialog" aria-label="Takvime ekle">
+          <h3><span>Takvime ekle</span><button type="button" class="ghost" data-plan-close="1" aria-label="Kapat">✕</button></h3>
+          <div class="plan-kinds" id="planKinds">
+            <button type="button" data-plan-kind="vac">Tatil</button>
+            <button type="button" data-plan-kind="event">Etkinlik</button>
+            <button type="button" data-plan-kind="school" class="plan-kind-red">Okul tatili</button>
+          </div>
+          <div class="plan-form" id="planFormVac" hidden>
+            <label class="small">Başlangıç <input type="date" id="vacFrom" /></label>
+            <label class="small">Bitiş <input type="date" id="vacTo" /></label>
+            <input type="text" id="vacLabel" placeholder="Nereye?" />
+            <button type="button" class="primary" id="vacAdd">Tatil ekle</button>
+            <div id="vacStatus" class="small muted"></div>
+            <div id="vacList" class="small"></div>
+          </div>
+          <div class="plan-form" id="planFormEvent" hidden>
+            <label class="small">Tarih <input type="date" id="evtDate" /></label>
+            <label class="small">Başlangıç <input type="time" id="evtStart" /></label>
+            <label class="small">Bitiş <input type="time" id="evtEnd" /></label>
+            <input type="text" id="evtLabel" placeholder="Ne var?" />
+            <label class="small">Kim
+              <select id="evtWho">
+                <option value="all">Hepimiz</option>
+                <option value="child">Çocuk</option>
+                <option value="partner">Eş</option>
+                <option value="crew">Ekip</option>
+              </select>
+            </label>
+            <button type="button" class="primary" id="evtAdd">Etkinlik ekle</button>
+            <div id="evtStatus" class="small muted"></div>
+            <div id="evtList" class="small"></div>
+          </div>
+          <div class="plan-form" id="planFormSchool" hidden>
+            <p class="small muted" style="margin:0;">Kar veya yağmur tatili gibi ek günler. Resmî ara tatiller takvime kendiliğinden işlenir.</p>
+            <label class="small">Başlangıç <input type="date" id="schFrom" /></label>
+            <label class="small">Bitiş <input type="date" id="schTo" /></label>
+            <button type="button" class="plan-kind-red" id="schAdd">Okul tatili ekle</button>
+            <div id="schStatus" class="small muted"></div>
+            <div id="schList" class="small"></div>
+          </div>
+        </div>
       </div>
       </div>
 
@@ -1092,12 +1118,19 @@
       const vac = vacationOf(cfg, ymd);
       const holFull = !!(hol && !hol[1]), holHalf = !!(hol && hol[1]);
       const sc = cfg.school || {};
-      const closed = Array.isArray(sc.closedDates) && sc.closedDates.includes(ymd);
-      const schoolClosed = !vac && closed;
-      const schoolDay = !vac && !closed && (sc.weekdays || []).includes(wd) && !(holFull && sc.skipPublicHolidays !== false);
+      const extraList = Array.isArray(sc.extraClosed) ? sc.extraClosed : [];
+      const extra = extraList.includes(ymd);
+      const listed = Array.isArray(sc.closedDates) && sc.closedDates.includes(ymd);
+      const termStart = sc.termStart || '';
+      const termEnd = sc.termEnd || '';
+      const offTerm = (!!termStart && ymd < termStart) || (!!termEnd && ymd > termEnd);
+      const weekdaySchool = (sc.weekdays || []).includes(wd);
+      const schoolExtra = !vac && extra;
+      const schoolClosed = !vac && (listed || extra || (offTerm && weekdaySchool));
+      const schoolDay = !schoolClosed && weekdaySchool && !(holFull && sc.skipPublicHolidays !== false);
       const sStart = hm(sc.start);
       const sEnd = holHalf ? Math.min(hm(sc.end), hm(sc.halfDayEnd || '12:30')) : hm(sc.end);
-      return { ymd, wd, hol, vac, holFull, holHalf, schoolDay, schoolClosed, sStart, sEnd, schoolPlace: sc.place || 'school', base: dayIndex(ymd) * 1440 };
+      return { ymd, wd, hol, vac, holFull, holHalf, schoolDay, schoolClosed, schoolExtra, sStart, sEnd, schoolPlace: sc.place || 'school', base: dayIndex(ymd) * 1440 };
     }
     /** Eş `place`'te [start,end] çalışırsa crew'un karşılaması gereken aralıklar (götürme/alma yalnız crew veya eş). */
     function workNeeds(ctx, day, place, start, end, opts) {
@@ -1122,7 +1155,9 @@
       coverHomeCare(cfg, needs);
       let worst = 'ok';
       for (const n of needs) {
-        if (n.st === 'duty' || n.st === 'away') worst = 'bad';
+        if (n.help && !n.lastResort) worst = 'bad';
+        else if (n.help && n.lastResort && worst === 'ok') worst = 'risk';
+        else if (n.st === 'duty' || n.st === 'away') worst = 'bad';
         else if ((n.st === 'standby' || (n.st === 'home' && n.run)) && worst === 'ok') worst = 'risk';
       }
       return { needs, worst };
@@ -1143,18 +1178,27 @@
         if (n.st !== 'duty' && n.st !== 'away' && n.st !== 'standby') continue;
         n.help = true;
         n.helpName = help.name;
+        const mins = Number(n.e) - Number(n.s);
+        n.helpMins = Number.isFinite(mins) ? Math.max(0, mins) : 0;
+        n.lastResort = n.helpMins > 0 && n.helpMins <= 120;
         n.st = null;
       }
     }
     function needText(cfg, n) {
       const P = cfg.people || {};
       const C = P.crew || 'Crew', CH = P.child || 'Çocuk';
-      if (n.help) return CH + ' evde ' + fmt(n.s) + '–' + fmt(n.e) + ': ' + (n.helpName || 'Evde bakım') + ' bakar';
+      if (n.help) {
+        const span = fmt(n.s) + '–' + fmt(n.e);
+        const who = n.helpName || 'Evde bakım';
+        return n.lastResort
+          ? CH + ' evde ' + span + ': ' + who + ' kısa süre, son çare'
+          : CH + ' evde ' + span + ': ' + who + ' uzun süre bakar';
+      }
       const s = !n.st ? C + ' müsait' : n.st === 'standby' ? C + ' nöbet/rezerv (riskli)' : n.st === 'home' ? (n.run ? C + ' ev görevinde, okul yolu riskli' : C + ' ev görevinde, evde bakabilir') :
         n.st === 'away' ? C + ' yatıda' : C + ' görevde';
       return CH + ' ' + n.what + ' ' + fmt(n.s) + '–' + fmt(n.e) + ': ' + s;
     }
-    const needKind = (n) => (n.help || !n.st ? 'ok' : n.st === 'home' ? (n.run ? 'warn' : 'ok') : n.st === 'standby' ? 'warn' : 'bad');
+    const needKind = (n) => (n.help ? (n.lastResort ? 'warn' : 'bad') : !n.st ? 'ok' : n.st === 'home' ? (n.run ? 'warn' : 'ok') : n.st === 'standby' ? 'warn' : 'bad');
 
     // ---------- okul yolu + taksi ----------
     /** Okula bırakma / okuldan alma: ikisi müsaitse ailece, biri müsaitse o. Crew nöbet/rezervde müsait sayılır; ev görevinde yalnız eş yapamıyorsa (riskli). */
@@ -1254,7 +1298,10 @@
       const dutyDay = dayIvs.some((iv) => iv.kind === 'duty' || iv.kind === 'away');
       const runs = o.needs.filter((n) => n.run);
       const care = o.needs.filter((n) => !n.run);
-      if (o.worst === 'risk') { s = Math.min(s, 2); why.push(o.needs.some((n) => n.st === 'standby') ? C + ' nöbet/rezervde ama ona bağlı' : C + ' ev görevindeyken okul yolu'); }
+      const helped = (o.needs || []).filter((n) => n.help);
+      if (helped.some((n) => !n.lastResort)) { s = 1; why.push('evde bakım uzun sürüyor'); }
+      else if (helped.length) { s = Math.min(s, 2); why.push('evde bakım kısa, son çare'); }
+      else if (o.worst === 'risk') { s = Math.min(s, 2); why.push(o.needs.some((n) => n.st === 'standby') ? C + ' nöbet/rezervde ama ona bağlı' : C + ' ev görevindeyken okul yolu'); }
       if (runs.length) { s -= 1; why.push(C + ' ' + runs.map((n) => n.what.replace(' + evde', '')).join(' ve ') + ' yapar'); }
       if (care.some((n) => n.st === 'home')) { s -= 1; why.push(C + ' ev görevindeyken bakar'); }
       if (care.length && dutyDay && o.worst === 'ok') { s -= 1; why.push(C + ' aynı gün görevli (yorgun/yakın)'); }
@@ -1319,7 +1366,7 @@
           if (day.schoolDay) { const homeAt = day.sEnd + T(day.schoolPlace, 'home', day.sEnd); s = Math.max(s, up(homeAt + T('home', place, homeAt))); }
           if (e - s < minMin) return;
           const r = workNeeds(ctx, day, place, s, e);
-          if (r.worst === 'bad') { const n = r.needs.find((x) => x.st === 'duty' || x.st === 'away'); rejected.push(meta.short + ' ' + fmt(s) + '–' + fmt(e) + ': ' + (n ? needText(cfg, n) : 'uygun değil')); return; }
+          if (r.worst === 'bad') { const n = r.needs.find((x) => (x.help && !x.lastResort) || x.st === 'duty' || x.st === 'away'); rejected.push(meta.short + ' ' + fmt(s) + '–' + fmt(e) + ': ' + (n ? needText(cfg, n) : 'uygun değil')); return; }
           push('eve', s, e, r);
         }
       });
@@ -1386,7 +1433,7 @@
         if (!f.includesTravel) workRoad(f.place, s, e, meta.color);
         notes.push({ k: 'muted', t: (P.partner || 'Eş') + ' · ' + (f.label || '') + ' ' + fmt(s) + '–' + fmt(e) + ' (sabit)' });
         if (f.note) notes.push({ k: 'warn', t: String(f.note) });
-        for (const n of r.needs) notes.push({ k: needKind(n), t: needText(cfg, n) });
+        for (const n of r.needs) { notes.push({ k: needKind(n), t: needText(cfg, n) }); if (n.help) conflict = true; }
         if (r.worst === 'bad') conflict = true;
       });
       const { opts, rejected } = options(ctx, day, fixed.length);
@@ -1407,7 +1454,7 @@
         notes.push({ k: 'ok', t: '✓ ' + plan.label + ' ' + sel.start + '–' + sel.end + (edited ? ' (elle; varsayılan ' + fmt(def.s) + '–' + fmt(def.e) + ')' : '') });
         if (edited && s < def.s) notes.push({ k: 'warn', t: plan.label + ': varsayılan en erken başlangıç ' + fmt(def.s) + '; daha erken girildi' });
         if (e <= s) { notes.push({ k: 'bad', t: plan.label + ': bitiş başlangıçtan sonra olmalı' }); conflict = true; }
-        for (const n of r.needs) notes.push({ k: needKind(n), t: needText(cfg, n) });
+        for (const n of r.needs) { notes.push({ k: needKind(n), t: needText(cfg, n) }); if (n.help) conflict = true; }
         if (r.worst === 'bad') conflict = true;
         plans.push(plan);
       }
@@ -1606,6 +1653,7 @@
         if (ev.hol) cls.push('hol');
         if (ev.vac) cls.push('vac');
         if (ev.schoolClosed) cls.push('sch-off');
+        if (ev.schoolExtra) cls.push('sch-extra');
         const past = ev.inMonth && ev.ymd < today;
         if (ev.ymd === today) cls.push('today');
         if (past) cls.push('done');
@@ -1618,12 +1666,12 @@
         }
         const crew = ev.crewLabels.slice(0, 2).map((l) => '<div class="crew ' + l.k + '">' + esc(l.t) + '</div>').join('');
         const bad = past ? '' : ev.notes.filter((n) => n.k === 'bad').slice(0, 1).map((n) => '<div class="flag">⚠ ' + esc(n.t.split(':')[0]) + '</div>').join('');
-        const top = ev.vac ? '🏖️ ' + (ev.vac.label || 'Tatil') : ev.schoolClosed ? '🎒 Okul yok' : ev.hol ? ev.hol[0] : '';
+        const top = ev.vac ? '🏖️ ' + (ev.vac.label || 'Tatil') : ev.schoolExtra ? 'Okul tatili' : ev.schoolClosed ? '🎒 Okul yok' : ev.hol ? ev.hol[0] : '';
         const isNew = ev.inMonth && !past && st.newConf.has(ev.ymd);
         if (isNew) cls.push('newconf');
         const foot = ev.vac && ev.inMonth
           ? '<span class="vac-tag">okul yok · iş yok</span>'
-          : (ev.schoolClosed && ev.inMonth ? '<span class="vac-tag sch">okul yok</span><div class="work">' + work + sugDots(ev) + '</div>' : '<div class="work">' + work + sugDots(ev) + '</div>');
+          : (ev.schoolExtra && ev.inMonth ? '<span class="vac-tag extra">okul tatili</span><div class="work">' + work + sugDots(ev) + '</div>' : ev.schoolClosed && ev.inMonth ? '<span class="vac-tag sch">okul yok</span><div class="work">' + work + sugDots(ev) + '</div>' : '<div class="work">' + work + sugDots(ev) + '</div>');
         const care = ev.homeHelp ? careMark(ev.homeHelp, false) : '';
         return '<div class="' + cls.join(' ') + '" data-day="' + ev.ymd + '"' + (ev.inMonth && !past ? ' draggable="true" data-drag-day="' + ev.ymd + '"' : '') + ' role="button" tabindex="0">' +
           '<div class="d"><span class="d-l"><b>' + Number(ev.ymd.slice(8, 10)) + '</b>' + care + '</span>' + (isNew ? '<span class="newtag">YENİ ⚠</span>' : top ? '<small>' + esc(top) + '</small>' : '') + '</div>' +
@@ -1642,7 +1690,7 @@
       renderTodos();
       renderFrame(cfg, res.claims);
       renderTravel(cfg);
-      renderVacations(cfg, res);
+      renderVacations(cfg);
       if (st.openDay) openDay(st.openDay, res);
       const n = Object.keys(st.draft).filter((d) => d.slice(0, 7) === st.month).length;
       $('selStatus').innerHTML = n + ' gün seçili' + (st.draftDirty ? ' · <span class="dirty">fixlenmedi</span>' : '');
@@ -1664,6 +1712,7 @@
         if (ev.hol) cls.push('hol');
         if (ev.vac) cls.push('vac');
         if (ev.schoolClosed) cls.push('sch-off');
+        if (ev.schoolExtra) cls.push('sch-extra');
         const past = ev.ymd < today;
         if (ev.ymd === today) cls.push('today');
         if (past) cls.push('done');
@@ -1672,6 +1721,7 @@
         const bg = '';
         const lines = [];
         if (ev.vac) lines.push('<div class="ln vacl">🏖️ ' + esc(ev.vac.label || 'Tatil') + ' · okul yok · iş yok</div>');
+        else if (ev.schoolExtra) lines.push('<div class="ln vacl">Okul tatili</div>');
         else if (ev.schoolClosed) lines.push('<div class="ln vacl">🎒 Okul kapalı</div>');
         else if (ev.hol) lines.push('<div class="ln hol">' + esc(ev.hol[0]) + '</div>');
         for (const l of ev.crewLabels.slice(0, 2)) lines.push('<div class="ln ' + l.k + '">' + esc(l.t) + '</div>');
@@ -1787,7 +1837,8 @@
       const days = res.days.filter((d) => d.inMonth && d.conflict);
       if (!days.length) { $('conflicts').innerHTML = '<span class="muted">Çakışma yok.</span>'; return; }
       $('conflicts').innerHTML = days.map((d) => {
-        const why = d.notes.filter((n) => n.k === 'bad').map((n) => n.t).join(' · ') || 'Çakışma';
+        const badNotes = d.notes.filter((n) => n.k === 'bad');
+        const why = (badNotes.length ? badNotes : d.notes.filter((n) => n.k === 'warn')).map((n) => n.t).join(' · ') || 'Çakışma';
         return '<button type="button" class="conf-row" data-day="' + d.ymd + '"><b>' + Number(d.ymd.slice(8, 10)) + ' ' + DAY_SHORT[d.wd] + '</b><span>' + esc(why) + '</span></button>';
       }).join('');
     }
@@ -2021,25 +2072,35 @@
       }
       $('travelStatus').innerHTML = st.travelDirty ? '<span class="dirty">kaydedilmedi</span>' : '';
     }
-    function renderVacations(cfg, res) {
+    function renderVacations(cfg) {
       const list = cfg.vacations || [];
-      $('vacJoke').textContent = 'Doktor Hanıım, bu ay bir seyehatiniz olacak mı?';
-      const [y, m] = st.month.split('-').map(Number);
-      const mFrom = st.month + '-01', mTo = new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10);
-      const thisMonth = list.filter((v) => !vacationProblem(v.from, v.to) && v.from <= mTo && v.to >= mFrom);
-      const crew = esc(String(cfg.people?.crew || 'Crew'));
-      const flyDays = (v) => ((res && res.days) || []).filter((d) => d.inMonth && d.ymd >= v.from && d.ymd <= v.to && d.segs.crew.some((s) => s.kind === 'duty' || s.kind === 'away' || s.kind === 'travel')).length;
-      $('vacSub').innerHTML = thisMonth.length
-        ? 'Bu ay: ' + thisMonth.map((v) => { const n = flyDays(v); return '<b>' + esc(v.label || 'Tatil') + '</b> (' + esc(shortRange(v.from, v.to)) + (n ? ' · ' + crew + ' ' + n + ' gün uçuşta' : '') + ')'; }).join(', ') + ' · iyi tatiller! ✈️'
-        : 'Tatil günlerinde okul ve iş yok; ' + crew + ' uçabilir, uçuşları takvimde görünür.';
       const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Istanbul' });
-      $('vacList').innerHTML = list.length ? list.map((v, i) => {
-        const bad = vacationProblem(v.from, v.to);
-        const n = bad ? 0 : Math.round((Date.parse(v.to) - Date.parse(v.from)) / 86400000) + 1;
-        return '<div' + (bad ? ' class="vac-bad"' : v.to < today ? ' class="past"' : '') + '>🏖️ <b>' + esc(longDate(v.from)) + ' → ' + esc(longDate(v.to)) + '</b>' + (n ? ' · ' + n + ' gün' : '') + (v.label ? ' · ' + esc(v.label) : '') +
-          (bad ? ' <span class="dirty">⚠ ' + esc(bad) + ' — silip yeniden gir</span>' : '') + ' <button type="button" class="ghost small" data-delvac="' + i + '">sil</button></div>';
-      }).join('') : '<span class="muted">Tatil girilmedi.</span>';
+      const vacEl = $('vacList');
+      if (vacEl) {
+        vacEl.innerHTML = list.length ? list.map((v, i) => {
+          const bad = vacationProblem(v.from, v.to);
+          const n = bad ? 0 : Math.round((Date.parse(v.to) - Date.parse(v.from)) / 86400000) + 1;
+          return '<div' + (bad ? ' class="vac-bad"' : v.to < today ? ' class="past"' : '') + '>🏖️ <b>' + esc(longDate(v.from)) + ' → ' + esc(longDate(v.to)) + '</b>' + (n ? ' · ' + n + ' gün' : '') + (v.label ? ' · ' + esc(v.label) : '') +
+            (bad ? ' <span class="dirty">⚠ ' + esc(bad) + ' — silip yeniden gir</span>' : '') + ' <button type="button" class="ghost small" data-delvac="' + i + '">sil</button></div>';
+        }).join('') : '<span class="muted">Tatil girilmedi.</span>';
+      }
       renderSchoolClosed(cfg);
+      renderEvents(cfg);
+    }
+    function renderEvents(cfg) {
+      const el = $('evtList');
+      if (!el) return;
+      const list = (cfg.familyAppointments || []).filter((a) => a && a.date);
+      const seen = new Set();
+      const rows = [];
+      for (const a of list) {
+        const key = [a.date, a.start || '', a.end || '', a.label || ''].join('|');
+        if (seen.has(key)) continue;
+        seen.add(key);
+        const n = list.filter((x) => [x.date, x.start || '', x.end || '', x.label || ''].join('|') === key).length;
+        rows.push('<div>📍 <b>' + esc(longDate(a.date)) + '</b> · ' + esc(a.start || '') + (a.end ? '–' + esc(a.end) : '') + (a.label ? ' · ' + esc(a.label) : '') + (n >= 3 ? ' · hepimiz' : '') + ' <button type="button" class="ghost small" data-delevent="' + esc(key) + '">sil</button></div>');
+      }
+      el.innerHTML = rows.length ? rows.join('') : '<span class="muted">Etkinlik yok.</span>';
     }
     function schoolClosedRanges(dates) {
       const sorted = [...new Set((dates || []).filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d)))].sort();
@@ -2052,17 +2113,17 @@
       return ranges;
     }
     function renderSchoolClosed(cfg) {
-      const closed = ((cfg.school || {}).closedDates) || [];
-      const ranges = schoolClosedRanges(closed);
+      const extra = ((cfg.school || {}).extraClosed) || [];
+      const ranges = schoolClosedRanges(extra);
       const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Istanbul' });
       const el = $('schList');
       if (!el) return;
       el.innerHTML = ranges.length
         ? ranges.map((r, i) => {
           const n = Math.round((Date.parse(r.to) - Date.parse(r.from)) / 86400000) + 1;
-          return '<div' + (r.to < today ? ' class="past"' : '') + '>🎒 <b>' + esc(longDate(r.from)) + (r.to !== r.from ? ' → ' + esc(longDate(r.to)) : '') + '</b> · ' + n + ' gün <button type="button" class="ghost small" data-delsch="' + i + '">sil</button></div>';
+          return '<div' + (r.to < today ? ' class="past"' : '') + '><b style="color:#991b1b">' + esc(longDate(r.from)) + (r.to !== r.from ? ' → ' + esc(longDate(r.to)) : '') + '</b> · ' + n + ' gün <button type="button" class="ghost small" data-delsch="' + i + '">sil</button></div>';
         }).join('')
-        : '<span class="muted">Okul kapalı günü yok.</span>';
+        : '<span class="muted">Ek okul tatili yok.</span>';
       el._ranges = ranges;
     }
     function longDate(ymd) { const d = new Date(String(ymd) + 'T12:00:00Z'); return isNaN(d) ? String(ymd || '?') : d.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }); }
@@ -2283,6 +2344,31 @@
         school.closedDates = closed.sort();
         full.school = school;
         done.push(CONFIG_MIG_NOV26_SCHOOL);
+        changed = true;
+      }
+      if (!done.includes('school_meb_2026_2027')) {
+        const school = full.school && typeof full.school === 'object' && !Array.isArray(full.school)
+          ? { ...full.school }
+          : { closedDates: [] };
+        const span = (from, to) => {
+          const out = [];
+          const cur = new Date(from + 'T12:00:00Z');
+          const end = new Date(to + 'T12:00:00Z');
+          while (cur <= end) {
+            out.push(cur.toISOString().slice(0, 10));
+            cur.setUTCDate(cur.getUTCDate() + 1);
+          }
+          return out;
+        };
+        const closed = Array.isArray(school.closedDates) ? school.closedDates.slice() : [];
+        for (const ymd of [...span('2027-01-25', '2027-02-05'), ...span('2027-03-08', '2027-03-12')]) {
+          if (!closed.includes(ymd)) closed.push(ymd);
+        }
+        school.closedDates = closed.sort();
+        if (!school.termStart) school.termStart = '2026-09-14';
+        if (!school.termEnd) school.termEnd = '2027-06-25';
+        full.school = school;
+        done.push('school_meb_2026_2027');
         changed = true;
       }
       if (!done.includes(CONFIG_MIG_NOV26_HK)) {
@@ -3801,23 +3887,63 @@
       if (bad) { $('schStatus').innerHTML = '<span class="dirty">Tarihleri kontrol et: ' + esc(bad) + '</span>'; return; }
       const school = { ...(st.full.school || st.config.school || DEFAULT_CONFIG.school) };
       const closed = new Set(Array.isArray(school.closedDates) ? school.closedDates : []);
-      for (let d = from; d <= to; d = addDays(d, 1)) closed.add(d);
+      const extra = new Set(Array.isArray(school.extraClosed) ? school.extraClosed : []);
+      for (let d = from; d <= to; d = addDays(d, 1)) { closed.add(d); extra.add(d); }
       school.closedDates = [...closed].sort();
+      school.extraClosed = [...extra].sort();
       st.full.school = school;
       rebuildConfig();
-      if (await persist('schStatus', 'Okul kapalı eklendi ✓')) { $('schFrom').value = ''; $('schTo').value = ''; render(); }
+      if (await persist('schStatus', 'Okul tatili takvime işlendi ✓')) { $('schFrom').value = ''; $('schTo').value = ''; render(); }
     });
     $('schList').addEventListener('click', async (e) => {
       const b = e.target.closest('[data-delsch]');
       if (!b) return;
-      const ranges = $('schList')._ranges || schoolClosedRanges(((st.config.school || {}).closedDates) || []);
+      const ranges = $('schList')._ranges || schoolClosedRanges(((st.config.school || {}).extraClosed) || []);
       const r = ranges[Number(b.getAttribute('data-delsch'))];
       if (!r) return;
       const school = { ...(st.full.school || st.config.school || DEFAULT_CONFIG.school) };
-      school.closedDates = (Array.isArray(school.closedDates) ? school.closedDates : []).filter((d) => d < r.from || d > r.to);
+      const drop = (d) => d < r.from || d > r.to;
+      school.extraClosed = (Array.isArray(school.extraClosed) ? school.extraClosed : []).filter(drop);
+      school.closedDates = (Array.isArray(school.closedDates) ? school.closedDates : []).filter(drop);
       st.full.school = school;
       rebuildConfig();
       if (await persist('schStatus', 'Silindi')) render();
+    });
+    function showPlanKind(kind) {
+      $('planSheet').hidden = false;
+      $('planKinds').hidden = !!kind;
+      $('planFormVac').hidden = kind !== 'vac';
+      $('planFormEvent').hidden = kind !== 'event';
+      $('planFormSchool').hidden = kind !== 'school';
+    }
+    $('planFab').addEventListener('click', () => showPlanKind(''));
+    $('planSheet').addEventListener('click', (e) => {
+      const k = e.target.closest('[data-plan-kind]');
+      if (k) { showPlanKind(k.getAttribute('data-plan-kind')); return; }
+      if (e.target.id === 'planSheet' || e.target.closest('[data-plan-close]')) $('planSheet').hidden = true;
+    });
+    $('evtAdd').addEventListener('click', async () => {
+      const date = $('evtDate').value;
+      const start = $('evtStart').value;
+      const end = $('evtEnd').value;
+      const label = $('evtLabel').value.trim();
+      const who = $('evtWho').value;
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !start || !label) { $('evtStatus').innerHTML = '<span class="dirty">Tarih, saat ve ad gerekli.</span>'; return; }
+      const people = who === 'all' ? ['child', 'partner', 'crew'] : [who];
+      const list = Array.isArray(st.full.familyAppointments) ? st.full.familyAppointments.slice() : [];
+      const idBase = Date.now().toString(36);
+      for (const person of people) list.push({ id: idBase + '-' + person, person, date, start, end: end || '', label });
+      st.full.familyAppointments = list;
+      rebuildConfig();
+      if (await persist('evtStatus', 'Etkinlik takvime işlendi ✓')) { $('evtLabel').value = ''; render(); }
+    });
+    $('evtList').addEventListener('click', async (e) => {
+      const b = e.target.closest('[data-delevent]');
+      if (!b) return;
+      const key = b.getAttribute('data-delevent');
+      st.full.familyAppointments = (st.full.familyAppointments || []).filter((a) => [a.date, a.start || '', a.end || '', a.label || ''].join('|') !== key);
+      rebuildConfig();
+      if (await persist('evtStatus', 'Silindi')) render();
     });
     $('cfg').addEventListener('input', () => { st.cfgDirty = true; });
     const parseCfg = () => { try { const o = JSON.parse($('cfg').value); if (!o || typeof o !== 'object' || Array.isArray(o)) throw new Error('JSON nesnesi olmalı'); $('cfgStatus').textContent = ''; return settingsOf(o); } catch (err) { $('cfgStatus').textContent = 'JSON hatası: ' + err.message; return null; } };

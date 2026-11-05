@@ -13,6 +13,17 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+### 2026-11-05 — Aile: özet yatay, takvime ekle, okul tatili
+
+- **İstek:** Özet kutusu sayfayı uzatmasın; klinikler yan yana, özet yatay dursun. Tatil giriş kutusu kalksın. Takvimde kayan + ile tatil, etkinlik veya kırmızı okul tatili eklensin ve takvime işlensin. Okul kapalı günleri bakanlık takviminden gelsin. Evde bakım kısa sürerse son çare, uzun sürerse çakışma sayılsın.
+- **Dosyalar:** `support/aile/index.html`, `support/aile/sw.js` (`aile-shell-v36`), `scripts/test-aile-eso.mjs`, `scripts/test-aile-todos.mjs`.
+- **Düzen:** Özet tüm genişlikte; klinikler yan yana, günler kısa kutular. Tatil kartı yok. Takvimde + açılır: tatil, etkinlik, kırmızı okul tatili.
+- **Okul:** 2026-2027 ara tatil, yarıyıl ve ders yılı sınırları kayda işlenir. Kar veya yağmur tatili kırmızı görünür.
+- **Bakım:** Evde bakım 120 dakikaya kadar son çare uyarısıdır ve çakışma listesine girer. Daha uzun bakım çakışmadır; önerilerde en sona düşer.
+- **Koruma:** Kayıt, finans, not, bildirim ve resmî tatil listesi durur. Kişisel ad yazılmadı.
+- **Doğrulama:** `node scripts/test-aile-todos.mjs` ve `node scripts/test-aile-eso.mjs` OK. Geniş ekranda özet kısa ve klinikler yan yana. + okul tatili formunu kırmızı düğmeyle açtı.
+- **Canlı:** Yayın sonrası doğrulanacak.
+
 ### 2026-11-05 — Aile: plan kartlarını sıkıştır
 
 - **İstek:** Sayfada anlamsız boşluk ve uzun kaydırma kalksın. Kartlar yan yana ve alt alta dolsun.

@@ -80,11 +80,11 @@ const vfs = sat.partnerFixed.find((x) => Array.isArray(x.dates) && x.dates.inclu
 eq('vfs randevu', !!vfs && vfs.place === 'vfs' && vfs.label === 'Çekya vize' && vfs.short === 'VFS' && vfs.start === '13:20' && vfs.end === '15:40' && vfs.includesTravel === true && /14:00/.test(vfs.note) && sat.places.vfs && sat.places.vfs.label === 'VFS');
 eq('cumartesi tekrar yok', migrate(sat) === false);
 
-eq('tatil cümlesi', html.includes('Doktor Hanıım, bu ay bir seyehatiniz olacak mı?') && !html.includes('nereye gidiyoruz kankam'));
+eq('tatil cümlesi', html.includes('id="planFab"') && html.includes('id="vacAdd"') && !html.includes('id="boxVac"') && !html.includes('nereye gidiyoruz kankam'));
 eq('eso yok', !html.includes('id="esoDock"') && !html.includes('ESO_HI') && !html.includes('interpretAssist') && !html.includes('Buyrun Doktor') && !html.includes('Konuşarak söyle'));
 eq('İ ikonu üretilmiyor', !html.includes("icon: 'İ'") && !html.includes('short: \'İmza\''));
 eq('gelir ekle ve roster', html.includes('>Gelir ekle<') && html.includes('id="moneyMemo"') && html.includes('class="clinic-btn') && html.includes('id="btnRoster"') && html.includes('function moneyMonthTotals') && !html.includes('id="moneyClinic"') && !html.includes('Ciro girişleri') && !html.includes('Son 6 ay'));
-eq('önbellek v35', sw.includes("const CACHE = 'aile-shell-v35'") && sw.includes('/aile/work-cal.mjs') && !sw.includes('logo-dis-wide') && !html.includes('logo-dis-wide') && !html.includes("'<span>' + esc(c.label)") && html.includes('id="conflicts"') && html.includes('class="sug"') && html.includes('hours ticks') && html.includes("const bad = past ? ''") && html.includes('id="calYes"') && html.includes('family-planner-calendar') && html.includes('partner_off_acibadem_2026_10_11') && html.includes('id="schAdd"') && html.includes('school_closed_2026_11_16_20') && html.includes('vacation_hongkong_2026_11_18_25') && html.includes('visa_norway_2026_11_05_brief') && html.includes('family_appt_2026_11_08_alparslan') && html.includes('family_appt_2026_11_09_uk_visa') && html.includes("'hepimiz'") && html.includes('keyOf'));
+eq('önbellek v36', sw.includes("const CACHE = 'aile-shell-v36'") && sw.includes('/aile/work-cal.mjs') && !sw.includes('logo-dis-wide') && !html.includes('logo-dis-wide') && !html.includes("'<span>' + esc(c.label)") && html.includes('id="conflicts"') && html.includes('class="sug"') && html.includes('hours ticks') && html.includes("const bad = past ? ''") && html.includes('id="calYes"') && html.includes('family-planner-calendar') && html.includes('partner_off_acibadem_2026_10_11') && html.includes('id="schAdd"') && html.includes('school_closed_2026_11_16_20') && html.includes('vacation_hongkong_2026_11_18_25') && html.includes('visa_norway_2026_11_05_brief') && html.includes('family_appt_2026_11_08_alparslan') && html.includes('family_appt_2026_11_09_uk_visa') && html.includes("'hepimiz'") && html.includes('keyOf'));
 eq('geçmiş kilit', html.includes('Geçmiş gün değişmez') && html.includes('Gerçekleşti') && html.includes('partner_off_2026_10_10') && html.includes('vfs_cekya_2026_10_16'));
 eq('halı motifi', html.includes('function carpetSvg') && html.includes('home_help_carpet') && html.includes("fill=\"#c8102e\"") && !html.includes('function schoolRunHelp'));
 
@@ -186,7 +186,8 @@ const nov = {
   partnerFixed: [{ place: 'altunizade', label: 'Acıbadem Hastanesi', weekdays: [2], start: '09:00', end: '16:00' }],
 };
 eq('kasım yaması', migrate(nov) === true);
-eq('okul 16-20 kapalı', JSON.stringify(nov.school.closedDates) === JSON.stringify(['2026-11-16', '2026-11-17', '2026-11-18', '2026-11-19', '2026-11-20']));
+eq('okul 16-20 kapalı', ['2026-11-16', '2026-11-17', '2026-11-18', '2026-11-19', '2026-11-20'].every((d) => nov.school.closedDates.includes(d)));
+eq('meb ara tatil', nov.school.closedDates.includes('2027-01-25') && nov.school.closedDates.includes('2027-02-05') && nov.school.closedDates.includes('2027-03-08') && nov.school.closedDates.includes('2027-03-12') && nov.school.termStart === '2026-09-14' && nov.school.termEnd === '2027-06-25');
 const norway = (nov.familyAppointments || []).filter((a) => a.date === '2026-11-05');
 eq('vize görüşmesi üç kişi', norway.length === 3 && ['child', 'partner', 'crew'].every((p) => norway.some((a) => a.person === p && a.start === '10:15' && !a.end && a.label === 'vize görüşmesi' && !a.location)) && norway.find((a) => a.person === 'child').thenSchool === true && !norway.some((a) => a.person !== 'child' && a.thenSchool));
 const bday = (nov.familyAppointments || []).filter((a) => a.date === '2026-11-08');
@@ -218,6 +219,12 @@ eq('yatıda evde bakar', needs[0].help === true && needs[0].st == null && needs[
 eq('okul bırakma durur', needs[1].st === 'duty' && !needs[1].help);
 eq('müsait crew durur', needs[2].st == null && !needs[2].help);
 eq('nöbette evde bakar', needs[3].help === true && needs[3].st == null);
+const shortCare = [{ what: 'evde bakım', st: 'away', s: 600, e: 680 }];
+help.coverHomeCare(helpCfg, shortCare);
+eq('kısa bakım son çare', shortCare[0].help === true && shortCare[0].lastResort === true && shortCare[0].st == null);
+const longCare = [{ what: 'evde bakım', st: 'duty', s: 480, e: 900 }];
+help.coverHomeCare(helpCfg, longCare);
+eq('uzun bakım çakışır', longCare[0].help === true && longCare[0].lastResort === false);
 
 const partial = {
   configMigrations: ['partner_fixed_2026_10_06_imza', 'partner_place_acibadem_hastanesi', 'partner_off_2026_10_10', 'vfs_cekya_2026_10_16', 'partner_off_acibadem_2026_10_11', 'school_closed_2026_11_16_20', 'vacation_hongkong_2026_11_18_25', 'home_help_carpet'],
