@@ -13,6 +13,16 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+### 2026-11-05 — Aile: gelir ekleme ve yapılacaklar düzeni
+
+- **İstek:** Gelir ekle yazmıyordu. Yapılacaklar listesi ayrı kutu olsun, OK sağda, geciken kırmızı, önem sırası ve tarihe göre sıralama olsun. Yüksek önem süre dolmadan 24, 12, 6, 3 ve 1 saat önce; orta daha seyrek; düşük yalnız günlük bildirilsin.
+- **Dosyalar:** `support/aile/index.html`, `support/aile/sw.js` (`aile-shell-v29`), `supabase/functions/family-planner/notify.ts`, `scripts/test-aile-eso.mjs`, `scripts/test-aile-todos.mjs`.
+- **Gelir:** Tarih alanı boşsa seçili ayın günü kullanılır. Satır hemen listeye düşer. Kayıt bitmeden gelen eski yenileme satırı silmez. Hata kırmızı yazılır.
+- **Yapılacaklar:** Ekleme kutusu ve liste ayrı. Her işe yüksek, orta veya düşük önem. Sıra tarih ya da önem. Geciken satır kırmızı, OK sağda. Saat boşsa bildirim 18:00’e göre gider.
+- **Koruma:** Plan, fatura, geçmiş ay geliri ve akşam özeti durur.
+- **Doğrulama:** `node scripts/test-aile-todos.mjs` ve `node scripts/test-aile-eso.mjs` OK. Tarayıcıda boş tarihle 1.500 ₺ satırı düştü; geciken iş kırmızı, OK sağda, önem sıralaması yüksekten başladı.
+- **Canlı:** Yayın sonrası doğrulanacak.
+
 ### 2026-11-05 — Aile: geçmiş ay geliri ve yapılacaklar
 
 - **İstek:** Kasım gelince Ekim ödemesi de girilebilsin. Finansın yanına basit bir yapılacaklar sekmesi. Tarihi gelen işler bildirilsin. İş bitince canlıya alınsın.

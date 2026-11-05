@@ -224,17 +224,35 @@
     .debt-chip.late { background: #fee2e2; color: var(--bad); }
     .debt-chip.soon { background: #fef3c7; color: var(--warn); }
     .debt-chip.ok { background: #dcfce7; color: var(--ok); }
-    .todo-add { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-    .todo-add input[type="text"] { flex: 1 1 180px; min-width: 0; }
-    .todo-row { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--line); }
-    .todo-row .ttl { flex: 1; min-width: 0; }
-    .todo-row .ttl small { display: block; color: var(--muted); font-weight: 500; }
-    .todo-due { font-size: 11px; font-weight: 800; border-radius: 999px; padding: 2px 8px; white-space: nowrap; }
-    .todo-due.late { background: #fee2e2; color: var(--bad); }
-    .todo-due.today { background: #ffedd5; color: #c2410c; }
-    .todo-due.soon { background: #e0f2fe; color: #0369a1; }
-    .todo-row.done .ttl b { text-decoration: line-through; color: var(--muted); font-weight: 600; }
-    .todo-ok { background: var(--ok); color: #fff; border: 0; min-height: 34px; padding: 4px 10px; }
+    .money-err { color: var(--bad); font-weight: 800; }
+    .todo-board { display: grid; gap: 12px; align-items: start; }
+    @media (min-width: 860px) { .todo-board { grid-template-columns: minmax(260px, 340px) minmax(0, 1fr); } }
+    .todo-add { display: grid; gap: 8px; }
+    .todo-add input[type="text"] { width: 100%; }
+    .pri-pick, .todo-sort { display: flex; gap: 6px; }
+    .pri-pick button, .todo-sort button { flex: 1; min-height: 34px; padding: 4px 8px; font-weight: 700; }
+    .pri-pick button.on, .todo-sort button.on { color: #fff; border-color: transparent; }
+    .pri-pick [data-todo-pri="high"].on { background: #dc2626; }
+    .pri-pick [data-todo-pri="mid"].on { background: #d97706; }
+    .pri-pick [data-todo-pri="low"].on { background: #64748b; }
+    .todo-sort button.on { background: var(--brand); }
+    .todo-when { display: flex; gap: 8px; }
+    .todo-when label { flex: 1; }
+    .todo-when input { width: 100%; }
+    .todo-item { display: grid; grid-template-columns: 6px minmax(0, 1fr) auto; gap: 10px; align-items: center; margin-top: 8px; padding: 8px 8px 8px 0; border: 1px solid var(--line); border-radius: 12px; background: #fff; }
+    .todo-item .bar { align-self: stretch; border-radius: 12px 0 0 12px; }
+    .todo-item.high .bar { background: #dc2626; }
+    .todo-item.mid .bar { background: #d97706; }
+    .todo-item.low .bar { background: #94a3b8; }
+    .todo-item.late { background: #fef2f2; border-color: #fecaca; }
+    .todo-item.late .ttl b { color: #991b1b; }
+    .todo-item .ttl b { display: block; }
+    .todo-item .meta { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 3px; color: var(--muted); font-size: 12px; font-weight: 700; }
+    .todo-item.late .meta { color: var(--bad); }
+    .todo-item.done { opacity: .72; }
+    .todo-item.done .ttl b { text-decoration: line-through; color: var(--muted); font-weight: 600; }
+    .todo-side { display: flex; align-items: center; gap: 6px; }
+    .todo-ok { background: var(--ok); color: #fff; border: 0; min-height: 36px; min-width: 52px; padding: 4px 12px; font-weight: 800; }
     .sheet-bg.ciro-bg .sheet { border-top-color: var(--brand); }
     .ciro-lead { font-size: 17px; font-weight: 800; margin: 0 0 4px; }
     .who-btns { display: grid; gap: 8px; margin-top: 10px; }
@@ -2407,8 +2425,11 @@
     async function persist(statusId, okText) {
       const el = statusId ? $(statusId) : null;
       if (el) el.textContent = 'Kaydediliyor…';
+      st.dataGen = (st.dataGen || 0) + 1;
+      st.saveLock = (st.saveLock || 0) + 1;
       try { await api('save_config', { config: st.full, device_id: deviceId() }); st.selfSaveAt = Date.now(); if (el) el.textContent = okText || 'Kaydedildi'; return true; }
       catch (err) { if (el) el.textContent = err.net ? 'Çevrimdışı · kaydedilemedi, internet gelince tekrar dene' : String(err.message || err); return false; }
+      finally { st.saveLock -= 1; }
     }
 
     // Son veriler cihazda tutulur; çevrimdışı açılışta bunlar gösterilir. Çıkışta silinir.
@@ -2467,6 +2488,8 @@
     /** quiet: arka plan yenilemesi — yalnız sunucuda değişiklik varsa ve kullanıcı bir şey düzenlemiyorsa ekranı günceller. */
     async function load(opts) {
       const quiet = !!(opts && opts.quiet);
+      if (quiet && st.saveLock) return;
+      const seenGen = st.dataGen || 0;
       if (!st.month) st.month = defaultMonth();
       const month = st.month;
       if (!quiet) $('status').textContent = 'Yükleniyor…';
@@ -2485,7 +2508,7 @@
         if (!c) { if (!quiet) { $('status').textContent = 'Çevrimdışı · bu ay cihazda kayıtlı değil'; if (!st.data || st.data.month !== month) { $('grid').innerHTML = ''; $('list').innerHTML = '<div class="muted small" style="padding:10px;">Bu ay için kayıtlı veri yok. İnternet gelince otomatik yüklenir.</div>'; $('mLabel').textContent = monthName(month); } } return; }
         j = c.data;
       }
-      if (month !== st.month) return;
+      if (month !== st.month || st.saveLock || (st.dataGen || 0) !== seenGen) return;
       renderNet();
       const sig = sigOf(j);
       if (quiet) {
@@ -2633,7 +2656,7 @@
         const C = esc((st.config && st.config.people && st.config.people.crew) || 'Crew');
         body = '<p>' + (on ? '✅ Bu cihazda bildirimler <b>açık</b>.' : 'Bu cihazda bildirimler kapalı.') + '</p>' +
           '<ul class="push-list"><li>📅 Plan fixlenince / saat değişince (değişikliği yapan cihaza gelmez)</li><li>⏰ Akşam 20:00: yarın iş varsa hatırlatma</li><li>✈️ Roster (' + C + ') plan günlerinde değişirse, yeni PDF yüklenince</li><li>☔ Sabah: iş günü yağış bekleniyorsa</li><li>🏖️ Tatilden 1 hafta önce, tatil eklenince</li>' +
-          '<li>✅ Yapılacak: tarihi bugün veya geçmişse sabah 09:00, yarınki iş akşam 20:00 özetinde</li>' +
+          '<li>✅ Yapılacak: yüksek önem 24, 12, 6, 3 ve 1 saat önce; orta 24 ve 3 saat önce; düşük yalnız o günün sabahı</li>' +
           (finOn() ? '<li>💰 Ciro hatırlatması (yalnız ' + esc((st.config.people || {}).partner || 'Eş') + ' seçili cihaz)</li>' : '') +
           (debtCfg().sources.length ? '<li>💳 ' + esc(debtCfg().label) + ' vade günü hatırlatması (aynı cihaz)</li>' : '') + '</ul>' +
           (Notification.permission === 'denied' ? '<p class="dirty small">Bildirim izni reddedilmiş; telefon ayarlarından bu uygulamaya izin ver.</p>' : '') +
@@ -3040,19 +3063,21 @@
       const clinics = moneyClinics(cfg, st.full);
       const grand = receipts.reduce((a, r) => a + r.amount, 0);
       const status = st.moneyNote || '';
+      const moneyBad = !!st.moneyBad;
       st.moneyNote = '';
+      st.moneyBad = false;
       const picked = clinics.some((c) => c.key === st.moneyClinic) ? st.moneyClinic : (clinics[0] && clinics[0].key);
       const buttons = clinics.map((c) => {
         const on = c.key === picked;
         return '<button type="button" class="clinic-btn' + (on ? ' on' : '') + '" data-money-clinic="' + esc(c.key) + '" aria-pressed="' + (on ? 'true' : 'false') + '" aria-label="' + esc(c.label) + '"><img src="' + esc(c.logo) + '" alt="" /></button>';
       }).join('');
-      const form = '<form class="money-form" id="moneyForm">'
+      const form = '<div class="money-form" id="moneyForm">'
         + '<span class="fin-in"><input type="text" id="moneyAmt" inputmode="decimal" placeholder="Miktar" aria-label="Miktar (TL)" />TL</span>'
         + '<label class="small">Tarih <input type="date" id="moneyDay" min="' + esc(month + '-01') + '" max="' + esc(end) + '" value="' + esc(atNow ? now.ymd : end) + '" /></label>'
         + '<div class="clinic-btns" role="group" aria-label="Klinik">' + buttons + '</div>'
         + '<input type="text" id="moneyMemo" maxlength="120" placeholder="Not" aria-label="Not" />'
         + '<button type="button" class="primary" id="moneyAdd">Gelir ekle</button>'
-        + '<span id="moneyStatus" class="small muted">' + esc(status) + '</span></form>';
+        + '<span id="moneyStatus" class="small ' + (moneyBad ? 'money-err' : 'muted') + '">' + esc(status) + '</span></div>';
       const body = receipts.length
         ? receipts.map((r) => {
           const logo = clinicLogo(cfg, r.place);
@@ -3074,13 +3099,20 @@
       return ' · ciroya yazıldı';
     }
     async function addMoney() {
-      const msg = (t) => { const el = $('moneyStatus'); if (el) el.textContent = t; };
-      const ymd = $('moneyDay') ? $('moneyDay').value : '';
+      const msg = (t) => {
+        const el = $('moneyStatus');
+        if (!el) return;
+        el.textContent = t;
+        el.className = 'small money-err';
+      };
+      const month = moneyViewMonth();
+      const today = nowLocal().ymd;
+      let ymd = $('moneyDay') ? $('moneyDay').value : '';
+      if (!ymd) ymd = month === today.slice(0, 7) ? today : moneyMonthEnd(month);
       const chosen = document.querySelector('#moneyForm .clinic-btn.on');
       const place = chosen ? chosen.getAttribute('data-money-clinic') : '';
       const amount = parseTL($('moneyAmt') ? $('moneyAmt').value : '');
       const note = ($('moneyMemo') ? $('moneyMemo').value : '').trim().slice(0, 120);
-      const month = moneyViewMonth();
       if (!Number.isFinite(amount) || amount <= 0) { msg('Miktar yaz'); if ($('moneyAmt')) $('moneyAmt').focus(); return; }
       if (!/^\d{4}-\d{2}-\d{2}$/.test(ymd) || ymd.slice(0, 7) !== month) { msg('Tarih seçilen aydan olsun'); if ($('moneyDay')) $('moneyDay').focus(); return; }
       if (!place) { msg('Klinik seç'); return; }
@@ -3091,10 +3123,9 @@
       fin.receipts = receipts;
       st.full.finance = fin;
       rebuildConfig();
-      try { await syncReceiptCiro(place, ymd); } catch (_) { /* fiş durur */ }
-      if (!(await persist('moneyStatus', ''))) return;
-      st.moneyNote = '';
       render();
+      try { await syncReceiptCiro(place, ymd); } catch (_) { /* fiş durur */ }
+      if (!(await persist(null))) { st.moneyNote = 'Kaydedilemedi, tekrar dene'; st.moneyBad = true; render(); return; }
     }
     async function deleteMoney(id) {
       const receipts = moneyReceipts(st.full);
@@ -3107,79 +3138,103 @@
       if (!(await persist(null))) { const el = $('moneyStatus'); if (el) el.textContent = 'Silinemedi'; return; }
       render();
     }
+    const TODO_PRI = { high: 'Yüksek', mid: 'Orta', low: 'Düşük' };
     function todoRows() {
       const raw = Array.isArray(st.full && st.full.todos) ? st.full.todos : [];
       return raw.filter((t) => t && String(t.text || '').trim() && t.id).slice(0, 200).map((t) => ({
         id: String(t.id).slice(0, 40),
         text: String(t.text).trim().slice(0, 140),
         due: /^\d{4}-\d{2}-\d{2}$/.test(String(t.due || '')) ? String(t.due) : '',
+        dueTime: /^(\d{1,2}):(\d{2})$/.test(String(t.dueTime || '')) ? String(t.dueTime).padStart(5, '0') : '',
+        pri: t.pri === 'high' || t.pri === 'low' ? t.pri : 'mid',
         who: ['crew', 'partner', 'child'].includes(t.who) ? t.who : '',
         done: t.done ? String(t.done).slice(0, 10) : '',
       }));
     }
-    function todoChip(due, today) {
-      if (!due) return '';
-      const n = dayIndex(due) - dayIndex(today);
-      const label = n < 0 ? 'Gecikti' : n === 0 ? 'Bugün' : n === 1 ? 'Yarın' : dshort(due);
-      const cls = n < 0 ? 'late' : n === 0 ? 'today' : 'soon';
-      return '<span class="todo-due ' + cls + '">' + esc(label) + '</span>';
+    function todoLate(t, today) {
+      if (!t.due || t.done) return false;
+      if (t.due < today) return true;
+      if (t.due > today) return false;
+      const limit = t.dueTime ? hm(t.dueTime) : 18 * 60;
+      return nowLocal().min > limit;
+    }
+    function todoSort(rows, today) {
+      const pri = { high: 0, mid: 1, low: 2 };
+      const byDate = (a, b) => (a.due || '9999-99-99').localeCompare(b.due || '9999-99-99') || (a.dueTime || '18:00').localeCompare(b.dueTime || '18:00') || pri[a.pri] - pri[b.pri];
+      const mode = st.todoSort === 'pri' ? 'pri' : 'date';
+      return rows.slice().sort(mode === 'pri' ? ((a, b) => pri[a.pri] - pri[b.pri] || byDate(a, b)) : byDate);
     }
     function renderTodos() {
       const today = todayYmd(st.config || {});
       const rows = todoRows();
-      const open = rows.filter((t) => !t.done).sort((a, b) => (a.due || '9999').localeCompare(b.due || '9999') || a.text.localeCompare(b.text, 'tr'));
+      const open = todoSort(rows.filter((t) => !t.done), today);
       const done = rows.filter((t) => t.done).sort((a, b) => String(b.done).localeCompare(String(a.done)));
-      const late = open.filter((t) => t.due && t.due <= today).length;
+      const lateN = open.filter((t) => todoLate(t, today)).length;
       const tab = document.querySelector('[data-tab="todo"]');
-      if (tab) tab.innerHTML = '✅ To do' + (late ? '<span class="dot">' + late + '</span>' : '');
+      if (tab) tab.innerHTML = '✅ To do' + (lateN ? '<span class="dot">' + lateN + '</span>' : '');
       const el = $('tabTodo');
       if (!el || st.tab !== 'todo') return;
       if (el.contains(document.activeElement) && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'SELECT')) return;
+      if (!st.todoSort) { try { st.todoSort = localStorage.getItem('flyfam_family_todo_sort_v1') === 'pri' ? 'pri' : 'date'; } catch (_) { st.todoSort = 'date'; } }
+      if (!st.todoPri) st.todoPri = 'mid';
       const people = (st.config && st.config.people) || {};
       const whoOpt = [['', 'Herkes'], ['crew', people.crew || 'Crew'], ['partner', people.partner || 'Eş'], ['child', people.child || 'Çocuk']];
       const whoName = (w) => (whoOpt.find((x) => x[0] === w) || ['', ''])[1];
-      const line = (t, isDone) => '<div class="todo-row' + (isDone ? ' done' : '') + '" data-todo="' + esc(t.id) + '">' +
+      const whenText = (t) => {
+        if (!t.due) return 'Tarihsiz';
+        const n = dayIndex(t.due) - dayIndex(today);
+        const day = n < 0 || todoLate(t, today) ? 'Gecikti' : n === 0 ? 'Bugün' : n === 1 ? 'Yarın' : dshort(t.due);
+        return day + (t.dueTime ? ' · ' + t.dueTime : '');
+      };
+      const line = (t, isDone) => '<article class="todo-item ' + t.pri + (todoLate(t, today) ? ' late' : '') + (isDone ? ' done' : '') + '" data-todo="' + esc(t.id) + '">' +
+        '<span class="bar"></span><div class="ttl"><b>' + esc(t.text) + '</b><div class="meta"><span>' + esc(whenText(t)) + '</span><span>' + TODO_PRI[t.pri] + '</span>' +
+        (t.who ? '<span>' + esc(whoName(t.who)) + '</span>' : '') + '</div></div><div class="todo-side">' +
+        '<button type="button" class="ghost" data-todo-del="1" aria-label="Sil">✕</button>' +
         (isDone ? '<button type="button" class="ghost" data-todo-back="1">Geri al</button>' : '<button type="button" class="todo-ok" data-todo-ok="1">OK</button>') +
-        '<div class="ttl"><b>' + esc(t.text) + '</b>' + (t.who ? '<small>' + esc(whoName(t.who)) + '</small>' : '') + '</div>' +
-        todoChip(t.due, today) +
-        '<button type="button" class="ghost" data-todo-del="1" aria-label="Sil">✕</button></div>';
-      el.innerHTML = '<section class="card"><div class="card-h">Yapılacaklar <span class="small muted" style="margin-left:auto;font-weight:600;">' + open.length + ' açık</span></div>' +
-        '<form class="todo-add" id="todoForm">' +
+        '</div></article>';
+      const priBtn = (id, label) => '<button type="button" data-todo-pri="' + id + '"' + (st.todoPri === id ? ' class="on"' : '') + '>' + label + '</button>';
+      el.innerHTML = '<div class="todo-board"><section class="card"><div class="card-h">Yeni iş</div><div class="todo-add" id="todoForm">' +
         '<input type="text" id="todoText" maxlength="140" placeholder="Ne yapılacak?" aria-label="Ne yapılacak?" />' +
-        '<label class="small">Tarih <input type="date" id="todoDue" /></label>' +
-        '<button type="button" class="ghost" data-todo-chip="0">Bugün</button>' +
-        '<button type="button" class="ghost" data-todo-chip="1">Yarın</button>' +
+        '<div class="todo-when"><label class="small">Tarih <input type="date" id="todoDue" /></label><label class="small">Saat <input type="time" id="todoTime" value="18:00" /></label></div>' +
+        '<div class="pri-pick" role="group" aria-label="Önem">' + priBtn('high', 'Yüksek') + priBtn('mid', 'Orta') + priBtn('low', 'Düşük') + '</div>' +
         '<select id="todoWho" aria-label="Kim">' + whoOpt.map((x) => '<option value="' + esc(x[0]) + '">' + esc(x[1]) + '</option>').join('') + '</select>' +
         '<button type="button" class="primary" id="todoAdd">Ekle</button>' +
-        '<span id="todoStatus" class="small muted">' + esc(st.todoNote || '') + '</span></form>' +
-        '<p class="small muted" style="margin:8px 0 0;">Tarihi gelen iş sabah 09:00’da, yarınki iş akşam özetinde bildirilir. OK yapılanlara alır; ✕ siler.</p>' +
-        (open.length ? open.map((t) => line(t, false)).join('') : '<p class="small muted" style="margin:10px 0 0;">Açık iş yok.</p>') +
+        '<span id="todoStatus" class="small' + (st.todoBad ? ' money-err' : ' muted') + '">' + esc(st.todoNote || '') + '</span>' +
+        '<p class="small muted" style="margin:0;">Yüksek: 24, 12, 6, 3 ve 1 saat önce. Orta: 24 ve 3 saat önce. Düşük: yalnız o günün sabahı. Saat yoksa 18:00 sayılır.</p></div></section>' +
+        '<section class="card"><div class="card-h">Liste <span class="todo-sort" style="margin-left:auto;">' +
+        '<button type="button" data-todo-sort="date"' + (st.todoSort !== 'pri' ? ' class="on"' : '') + '>Tarih</button>' +
+        '<button type="button" data-todo-sort="pri"' + (st.todoSort === 'pri' ? ' class="on"' : '') + '>Önem</button></span></div>' +
+        (open.length ? open.map((t) => line(t, false)).join('') : '<p class="small muted" style="margin:8px 0 0;">Açık iş yok.</p>') +
         (done.length ? '<details style="margin-top:12px;"' + (st.todoShowDone ? ' open' : '') + '><summary class="small">Yapılanlar (' + done.length + ')</summary>' + done.slice(0, 40).map((t) => line(t, true)).join('') +
           '<button type="button" class="ghost small" data-todo-clear="1" style="margin-top:8px;">Yapılanları sil</button></details>' : '') +
-        '</section>';
+        '</section></div>';
       st.todoNote = '';
+      st.todoBad = false;
     }
-    async function writeTodos(next, note) {
+    async function writeTodos(next, note, bad) {
       if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
       st.full.todos = next.slice(0, 200);
       rebuildConfig();
-      st.todoNote = note || 'Kaydedildi';
-      if (!(await persist(null, st.todoNote))) { st.todoNote = ''; return false; }
       render();
+      if (!(await persist(null))) { st.todoNote = 'Kaydedilemedi, tekrar dene'; st.todoBad = true; render(); return false; }
+      if (note) { st.todoNote = note; st.todoBad = !!bad; render(); }
       return true;
     }
     async function addTodo() {
-      const msg = (t) => { const el = $('todoStatus'); if (el) el.textContent = t; };
       const text = ($('todoText') ? $('todoText').value : '').trim().slice(0, 140);
       const due = $('todoDue') ? $('todoDue').value : '';
+      const dueTime = $('todoTime') && /^(\d{1,2}):(\d{2})$/.test($('todoTime').value) ? $('todoTime').value : '';
       const who = $('todoWho') ? $('todoWho').value : '';
-      if (!text) { msg('Ne yapılacağını yaz'); if ($('todoText')) $('todoText').focus(); return; }
-      if (due && !/^\d{4}-\d{2}-\d{2}$/.test(due)) { msg('Tarih geçersiz'); return; }
-      const row = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), text, due, who: ['crew', 'partner', 'child'].includes(who) ? who : '', done: '' };
-      const btn = $('todoAdd');
-      if (btn) btn.disabled = true;
-      msg('Kaydediliyor…');
-      if (!(await writeTodos(todoRows().concat(row), 'Eklendi'))) { if (btn) btn.disabled = false; }
+      const pri = st.todoPri === 'high' || st.todoPri === 'low' ? st.todoPri : 'mid';
+      if (!text) {
+        const el = $('todoStatus');
+        if (el) { el.textContent = 'Ne yapılacağını yaz'; el.className = 'small money-err'; }
+        if ($('todoText')) $('todoText').focus();
+        return;
+      }
+      if (due && !/^\d{4}-\d{2}-\d{2}$/.test(due)) { const el = $('todoStatus'); if (el) { el.textContent = 'Tarih geçersiz'; el.className = 'small money-err'; } return; }
+      const row = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), text, due, dueTime, pri, who: ['crew', 'partner', 'child'].includes(who) ? who : '', done: '' };
+      await writeTodos(todoRows().concat(row), 'Eklendi');
     }
     function renderFinance(res) {
       const n = debtLate().length;
@@ -3368,8 +3423,19 @@
       onCiroClick(e, false);
     });
     $('tabTodo').addEventListener('click', (e) => {
-      const chip = e.target.closest('[data-todo-chip]');
-      if (chip && $('todoDue')) { $('todoDue').value = addDays(todayYmd(st.config || {}), Number(chip.getAttribute('data-todo-chip'))); return; }
+      const pri = e.target.closest('[data-todo-pri]');
+      if (pri) {
+        st.todoPri = pri.getAttribute('data-todo-pri');
+        document.querySelectorAll('[data-todo-pri]').forEach((b) => b.classList.toggle('on', b === pri));
+        return;
+      }
+      const sort = e.target.closest('[data-todo-sort]');
+      if (sort) {
+        st.todoSort = sort.getAttribute('data-todo-sort') === 'pri' ? 'pri' : 'date';
+        try { localStorage.setItem('flyfam_family_todo_sort_v1', st.todoSort); } catch (_) { /* yok say */ }
+        renderTodos();
+        return;
+      }
       if (e.target.closest('#todoAdd')) return void addTodo();
       const row = e.target.closest('[data-todo]');
       if (e.target.closest('[data-todo-clear]')) {
