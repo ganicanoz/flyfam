@@ -20,7 +20,7 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - **Görünüm:** Zemin sıcak kâğıt rengi, üstte küçük renk damgası, kartlar daha yumuşak. Not, çerçeveli bir düğme. Takvimde gün numarası büyük; öneri adı kutuda yazılmaz, yalnız işaret kalır. Telefonda randevu yazısı güne tıklanınca açılır.
 - **Koruma:** Plan, seçim, kayıt, finans, yapılacaklar ve bildirim aynı işi yapar. Kişisel fotoğraf eklenmedi.
 - **Doğrulama:** `node scripts/test-aile-todos.mjs` ve `node scripts/test-aile-eso.mjs` OK. Geniş ve dar ekranda takvim ve Not düğmesi görüldü.
-- **Canlı:** Yayın sonrası doğrulanacak.
+- **Canlı:** PR #99 merge `1011c2b`, destek deploy `42042447965`. Canlıda sıcak zemin, Not düğmesi, sade takvim ve `aile-shell-v32`.
 
 ### 2026-11-05 — Aile: yapılacak tarih sütunu ve not
 
