@@ -21,7 +21,7 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - **Yapılacaklar:** Ekleme kutusu ve liste ayrı. Her işe yüksek, orta veya düşük önem. Sıra tarih ya da önem. Geciken satır kırmızı, OK sağda. Saat boşsa bildirim 18:00’e göre gider.
 - **Koruma:** Plan, fatura, geçmiş ay geliri ve akşam özeti durur.
 - **Doğrulama:** `node scripts/test-aile-todos.mjs` ve `node scripts/test-aile-eso.mjs` OK. Tarayıcıda boş tarihle 1.500 ₺ satırı düştü; geciken iş kırmızı, OK sağda, önem sıralaması yüksekten başladı.
-- **Canlı:** Yayın sonrası doğrulanacak.
+- **Canlı:** PR #93 merge `8efd6ed`, destek deploy `42006122056`. Canlıda `aile-shell-v29`, ayrı yapılacaklar kutuları ve boş tarihte gelir satırı. `family-planner` bildirimi canlıda; finans ve borç eylemleri duruyor.
 
 ### 2026-11-05 — Aile: geçmiş ay geliri ve yapılacaklar
 
