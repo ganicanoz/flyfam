@@ -13,6 +13,15 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+### 2026-11-05 — Aile: plan kartlarını sıkıştır
+
+- **İstek:** Sayfada anlamsız boşluk ve uzun kaydırma kalksın. Kartlar yan yana ve alt alta dolsun.
+- **Dosyalar:** `support/aile/index.html`, `support/aile/sw.js` (`aile-shell-v35`), `scripts/test-aile-eso.mjs`, `scripts/test-aile-todos.mjs`.
+- **Düzen:** Takvim üstte, tüm genişlikte ve daha kısa gün kutularıyla. Altında roster, çakışma ve özet aynı satırda. Tatil ve klinik kendi satırını doldurur. Bilgi kutuları da yan yana durur. Telefonda kısa kartlar iki sütun.
+- **Koruma:** Takvim, roster yükleme, çakışma, seçim, kayıt, finans, not ve bildirim aynı işi yapar.
+- **Doğrulama:** `node scripts/test-aile-todos.mjs` ve `node scripts/test-aile-eso.mjs` OK. Geniş ekranda satırlar dolu, kartlar arasında yalnız kısa aralık var. Dar ekranda takvim ilk, kısa kartlar ikişerli.
+- **Canlı:** Yayın sonrası doğrulanacak.
+
 ### 2026-11-05 — Aile: takvim üstte, roster sade
 
 - **İstek:** Takvim sayfasında takvimin kendisi en önemli şey olsun ve yukarı gelsin. Roster kutusundaki gereksiz yazılar kalksın. Renkler kalsın, biraz daha elit dursun.
