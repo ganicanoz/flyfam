@@ -13,6 +13,16 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+### 2026-11-05 — Aile: takvim üstte, roster sade
+
+- **İstek:** Takvim sayfasında takvimin kendisi en önemli şey olsun ve yukarı gelsin. Roster kutusundaki gereksiz yazılar kalksın. Renkler kalsın, biraz daha elit dursun.
+- **Dosyalar:** `support/aile/index.html`, `support/aile/sw.js` (`aile-shell-v34`), `scripts/test-aile-eso.mjs`, `scripts/test-aile-todos.mjs`.
+- **Düzen:** Plan sekmesinde takvim ve yan kartlar, roster, tatil ve klinik kartlarının üstünde. Roster kutusunda başlık, Roster ve çakışma, PDF yükle ve yüklenmiş dosyayı kaldırma kalır.
+- **Renk:** Sıcak kâğıt zemin durur. Zemin yıkaması daha hafif. Düğmeler koyu yeşil mürekkep, yazı krem.
+- **Koruma:** PDF yükleme, kaldırma, çakışma, seçim, kayıt, finans, not ve bildirim aynı. Kişisel fotoğraf eklenmedi.
+- **Doğrulama:** `node scripts/test-aile-todos.mjs` ve `node scripts/test-aile-eso.mjs` OK. Geniş ekranda takvim üstte, roster kısa. Dar ekranda takvim ilk blok.
+- **Canlı:** Yayın sonrası doğrulanacak.
+
 ### 2026-11-05 — Aile: boşlukları sıkılaştır
 
 - **İstek:** Boyut ve sayfa düzeni elden geçsin. Sayfalardaki anlamsız boşluklar kalksın.
