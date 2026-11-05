@@ -159,6 +159,35 @@ export async function pushToOwner(
   return { sent, failed: statuses.length - sent, statuses };
 }
 
+function validTodos(cfg: Cfg): { id: string; text: string; due: string; done: boolean }[] {
+  if (!Array.isArray(cfg?.todos)) return [];
+  const out: { id: string; text: string; due: string; done: boolean }[] = [];
+  for (const t of cfg.todos) {
+    if (!t || typeof t !== 'object') continue;
+    const text = String(t.text || '').trim().slice(0, 140);
+    const id = String(t.id || '').slice(0, 40);
+    if (!text || !id) continue;
+    const due = /^\d{4}-\d{2}-\d{2}$/.test(String(t.due || '')) ? String(t.due) : '';
+    out.push({ id, text, due, done: !!t.done });
+  }
+  return out.slice(0, 200);
+}
+
+/** Açık ve tarihli işler: geciken, bugün, yarın. */
+export function todoDigest(cfg, today) {
+  const tomorrow = addDays(today, 1);
+  const overdue: string[] = [];
+  const dueToday: string[] = [];
+  const dueTomorrow: string[] = [];
+  for (const t of validTodos(cfg || {})) {
+    if (t.done || !t.due) continue;
+    if (t.due < today) overdue.push(t.text);
+    else if (t.due === today) dueToday.push(t.text);
+    else if (t.due === tomorrow) dueTomorrow.push(t.text);
+  }
+  return { overdue: overdue.slice(0, 6), dueToday: dueToday.slice(0, 6), dueTomorrow: dueTomorrow.slice(0, 6) };
+}
+
 /** Kayıt öncesi/sonrası config farkından bildirimler (geçmiş günler hariç). */
 export function changeNotices(oldCfg: Cfg | null, newCfg: Cfg, today: string): Notice[] {
   const out: Notice[] = [];
@@ -208,6 +237,20 @@ export function changeNotices(oldCfg: Cfg | null, newCfg: Cfg, today: string): N
   for (const v of validVacations(newCfg)) {
     if (oldVac.has(v.from + '|' + v.to) || v.to < today) continue;
     out.push({ title: '🏖️ Tatil eklendi' + (v.label ? ': ' + v.label : ''), body: dshort(v.from) + ' → ' + dshort(v.to) + ' · okul ve iş yok.', url: '/aile/?month=' + v.from.slice(0, 7), tag: 'vac' });
+  }
+  const prevTodo = new Map(validTodos(o).map((t) => [t.id, t]));
+  const urgent = validTodos(newCfg).filter((t) => {
+    if (t.done || !t.due || t.due > today) return false;
+    const prev = prevTodo.get(t.id);
+    return !prev || prev.done || prev.due !== t.due;
+  });
+  if (urgent.length) {
+    out.push({
+      title: urgent.length === 1 ? '✅ ' + urgent[0].text : '✅ ' + urgent.length + ' yapılacak',
+      body: urgent.slice(0, 4).map((t) => t.text + (t.due < today ? ' · gecikti' : ' · bugün')).join('\n'),
+      url: '/aile/?tab=todo',
+      tag: 'todo',
+    });
   }
   return out;
 }
@@ -323,12 +366,26 @@ export async function runOwnerCron(
     if (schoolDay && (sc.start || sc.end)) lines.push('Okul ' + (sc.start || '') + '–' + (sc.end || ''));
     for (const a of appts) lines.push(a);
     if (helpOn) lines.push(String(help.name || '').trim() ? 'Evde: ' + String(help.name).trim() : 'Evde bakım var');
+    for (const t of todoDigest(cfg, today).dueTomorrow) lines.push('Yapılacak: ' + t);
     await send('eve:' + tm, {
       title: 'Yarın · ' + dshort(tm),
       body: lines.length ? lines.join('\n') : 'Kayıtlı iş, görev veya randevu yok.',
       url: '/aile/?month=' + tm.slice(0, 7),
       tag: 'eve-' + tm,
     });
+  }
+
+  if (min >= 9 * 60 && min < 9 * 60 + 20) {
+    const digest = todoDigest(cfg, today);
+    const todoLines = [...digest.overdue.map((t) => 'Gecikti · ' + t), ...digest.dueToday.map((t) => 'Bugün · ' + t)];
+    if (todoLines.length) {
+      await send('todo:' + today, {
+        title: '✅ Yapılacaklar',
+        body: todoLines.slice(0, 4).join('\n') + (todoLines.length > 4 ? '\n+' + (todoLines.length - 4) : ''),
+        url: '/aile/?tab=todo',
+        tag: 'todo-' + today,
+      }, 12 * 3600);
+    }
   }
 
   if (min >= 6 * 60 + 30 && min < 9 * 60) {
