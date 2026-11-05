@@ -13,6 +13,16 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+### 2026-11-05 — Aile: geçmiş ay geliri ve yapılacaklar
+
+- **İstek:** Kasım gelince Ekim ödemesi de girilebilsin. Finansın yanına basit bir yapılacaklar sekmesi. Tarihi gelen işler bildirilsin. İş bitince canlıya alınsın.
+- **Dosyalar:** `support/aile/index.html`, `support/aile/sw.js` (`aile-shell-v28`), `supabase/functions/family-planner/notify.ts`, `scripts/test-aile-eso.mjs`, `scripts/test-aile-todos.mjs`.
+- **Gelir:** Kartta ay okları var. Bugün ve önceki 24 ay açılır; seçilen ayın gününe gelir yazılır. Kasım’da Ekim satırı girilebilir. Günlük ciro kaynağıysa o günün fiş toplamı eskisi gibi yazılır.
+- **Yapılacaklar:** Metin, isteğe bağlı tarih ve kişi. OK yapılanlara alır, geri alınır veya silinir. Geciken ve bugünkü işler sabah 09:00’da bir kez, yarınki işler akşam 20:00 özetinde gider. Bugün veya gecikmiş yeni iş, kaydı yapan cihaz dışında bildirilir.
+- **Koruma:** Plan, fatura, ciro sorusu ve akşam özeti durur. Gelir hâlâ bugünün ayında açılır; ileri aya geçilmez.
+- **Doğrulama:** `node scripts/test-aile-todos.mjs` ve `node scripts/test-aile-eso.mjs`.
+- **Canlı:** Yayın sonrası doğrulanacak.
+
 ### 2026-11-02 — Logbook üst düğmeleri tek satır
 
 - **İstek:** Üst sekmede gereksiz yükseklik var. Düğmeler yan yana dursun, defter sayfası yukarı çıksın.

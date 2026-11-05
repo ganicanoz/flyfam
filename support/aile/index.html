@@ -179,8 +179,9 @@
     .card { background: var(--panel); border-radius: var(--radius); border: 1px solid #d5dde8; padding: 14px; box-shadow: 0 1px 2px rgba(15,23,42,.05), 0 6px 18px rgba(15,23,42,.05); }
     .card-h { font-weight: 800; font-size: 15px; margin: -2px 0 10px; padding-bottom: 8px; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 8px; }
     .tabpane { display: grid; gap: 14px; }
-    .tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 5px; border-radius: 14px; background: #e2e8f0; }
-    .tabs button { border: 0; border-radius: 10px; padding: 9px 12px; font-weight: 800; font-size: 15px; background: transparent; color: #475569; }
+    .tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; padding: 5px; border-radius: 14px; background: #e2e8f0; }
+    .tabs button { border: 0; border-radius: 10px; padding: 9px 8px; font-weight: 800; font-size: 14px; background: transparent; color: #475569; }
+    @media (max-width: 420px) { .tabs button { font-size: 13px; padding: 8px 2px; } }
     .tabs button.on { background: #fff; color: var(--brand); box-shadow: 0 1px 4px rgba(15,23,42,.12); }
     .tabs button .dot { display: inline-block; min-width: 18px; padding: 0 5px; margin-left: 6px; border-radius: 999px; background: var(--bad); color: #fff; font-size: 11px; line-height: 18px; }
     body.embed .tabs { display: none; }
@@ -203,6 +204,9 @@
     .fin-in input { width: 120px; text-align: right; font-variant-numeric: tabular-nums; }
     .debt-form, .money-form { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
     .money-form { margin-bottom: 10px; }
+    .money-nav { margin-left: auto; display: inline-flex; align-items: center; gap: 2px; }
+    .money-nav b { font-size: 14px; text-transform: capitalize; min-width: 7.5em; text-align: center; }
+    .money-nav button { min-height: 32px; padding: 2px 10px; }
     .money-form #moneyMemo { flex: 1 1 140px; min-width: 0; }
     .clinic-btns { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; flex: 1 1 168px; }
     .clinic-btn { display: flex; align-items: center; justify-content: center; min-height: 40px; padding: 4px; border-radius: 10px; border: 2px solid var(--line); background: #fff; }
@@ -220,6 +224,17 @@
     .debt-chip.late { background: #fee2e2; color: var(--bad); }
     .debt-chip.soon { background: #fef3c7; color: var(--warn); }
     .debt-chip.ok { background: #dcfce7; color: var(--ok); }
+    .todo-add { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+    .todo-add input[type="text"] { flex: 1 1 180px; min-width: 0; }
+    .todo-row { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+    .todo-row .ttl { flex: 1; min-width: 0; }
+    .todo-row .ttl small { display: block; color: var(--muted); font-weight: 500; }
+    .todo-due { font-size: 11px; font-weight: 800; border-radius: 999px; padding: 2px 8px; white-space: nowrap; }
+    .todo-due.late { background: #fee2e2; color: var(--bad); }
+    .todo-due.today { background: #ffedd5; color: #c2410c; }
+    .todo-due.soon { background: #e0f2fe; color: #0369a1; }
+    .todo-row.done .ttl b { text-decoration: line-through; color: var(--muted); font-weight: 600; }
+    .todo-ok { background: var(--ok); color: #fff; border: 0; min-height: 34px; padding: 4px 10px; }
     .sheet-bg.ciro-bg .sheet { border-top-color: var(--brand); }
     .ciro-lead { font-size: 17px; font-weight: 800; margin: 0 0 4px; }
     .who-btns { display: grid; gap: 8px; margin-top: 10px; }
@@ -506,8 +521,10 @@
       <nav class="tabs" id="tabs" role="tablist">
         <button type="button" role="tab" data-tab="plan">📅 Plan</button>
         <button type="button" role="tab" data-tab="fin">💰 Finans</button>
+        <button type="button" role="tab" data-tab="todo">✅ To do</button>
       </nav>
       <div id="tabFin" class="tabpane" hidden></div>
+      <div id="tabTodo" class="tabpane" hidden></div>
       <div id="tabPlan" class="tabpane">
       <div class="overview">
       <div class="overview-side">
@@ -1564,6 +1581,7 @@
       renderSummary(res);
       renderRuns(res);
       renderFinance(res);
+      renderTodos();
       renderFrame(cfg, res.claims);
       renderTravel(cfg);
       renderVacations(cfg, res);
@@ -2615,6 +2633,7 @@
         const C = esc((st.config && st.config.people && st.config.people.crew) || 'Crew');
         body = '<p>' + (on ? '✅ Bu cihazda bildirimler <b>açık</b>.' : 'Bu cihazda bildirimler kapalı.') + '</p>' +
           '<ul class="push-list"><li>📅 Plan fixlenince / saat değişince (değişikliği yapan cihaza gelmez)</li><li>⏰ Akşam 20:00: yarın iş varsa hatırlatma</li><li>✈️ Roster (' + C + ') plan günlerinde değişirse, yeni PDF yüklenince</li><li>☔ Sabah: iş günü yağış bekleniyorsa</li><li>🏖️ Tatilden 1 hafta önce, tatil eklenince</li>' +
+          '<li>✅ Yapılacak: tarihi bugün veya geçmişse sabah 09:00, yarınki iş akşam 20:00 özetinde</li>' +
           (finOn() ? '<li>💰 Ciro hatırlatması (yalnız ' + esc((st.config.people || {}).partner || 'Eş') + ' seçili cihaz)</li>' : '') +
           (debtCfg().sources.length ? '<li>💳 ' + esc(debtCfg().label) + ' vade günü hatırlatması (aynı cihaz)</li>' : '') + '</ul>' +
           (Notification.permission === 'denied' ? '<p class="dirty small">Bildirim izni reddedilmiş; telefon ayarlarından bu uygulamaya izin ver.</p>' : '') +
@@ -2896,17 +2915,19 @@
       render();
     }
     function setTab(t) {
-      st.tab = t === 'fin' ? 'fin' : 'plan';
+      st.tab = t === 'fin' ? 'fin' : t === 'todo' ? 'todo' : 'plan';
       try { localStorage.setItem(TAB_KEY, st.tab); } catch (_) { /* yok say */ }
       applyTab();
-      if (st.lastRes) renderFinance(st.lastRes);
+      if (st.lastRes) { renderFinance(st.lastRes); renderTodos(); }
       window.scrollTo(0, 0);
     }
     function applyTab() {
       $('tabPlan').hidden = st.tab !== 'plan';
       $('tabFin').hidden = st.tab !== 'fin';
+      $('tabTodo').hidden = st.tab !== 'todo';
       document.querySelectorAll('[data-tab]').forEach((b) => b.classList.toggle('on', b.getAttribute('data-tab') === st.tab));
       document.body.classList.toggle('tab-fin', st.tab === 'fin');
+      document.body.classList.toggle('tab-todo', st.tab === 'todo');
     }
     function placeBlob(cfg, key, extra) {
       const p = (cfg && cfg.places && cfg.places[key]) || {};
@@ -2995,10 +3016,26 @@
       if (!y || !mo) return '';
       return new Date(Date.UTC(y, mo, 0)).toISOString().slice(0, 10);
     }
+    function shiftYm(month, delta) {
+      const [y, mo] = String(month || '').split('-').map(Number);
+      if (!y || !mo) return '';
+      return new Date(Date.UTC(y, mo - 1 + delta, 1)).toISOString().slice(0, 7);
+    }
+    /** Gelir ayı: bugün ve önceki 24 ay. Kasım’da Ekim ödemesi girilebilir. */
+    function moneyViewMonth() {
+      const now = nowLocal().ymd.slice(0, 7);
+      const floor = shiftYm(now, -24);
+      const m = st.moneyMonth;
+      if (!/^\d{4}-\d{2}$/.test(m || '') || m > now) return now;
+      if (floor && m < floor) return floor;
+      return m;
+    }
     function moneyCardHtml(cfg) {
       const now = nowLocal();
-      const month = now.ymd.slice(0, 7);
+      const month = moneyViewMonth();
       const end = moneyMonthEnd(month);
+      const atNow = month === now.ymd.slice(0, 7);
+      const atFloor = month === shiftYm(now.ymd.slice(0, 7), -24);
       const receipts = moneyReceipts(st.full).filter((r) => r.ymd.slice(0, 7) === month).sort((a, b) => a.ymd.localeCompare(b.ymd) || a.id.localeCompare(b.id));
       const clinics = moneyClinics(cfg, st.full);
       const grand = receipts.reduce((a, r) => a + r.amount, 0);
@@ -3011,7 +3048,7 @@
       }).join('');
       const form = '<form class="money-form" id="moneyForm">'
         + '<span class="fin-in"><input type="text" id="moneyAmt" inputmode="decimal" placeholder="Miktar" aria-label="Miktar (TL)" />TL</span>'
-        + '<label class="small">Tarih <input type="date" id="moneyDay" min="' + esc(month + '-01') + '" max="' + esc(end) + '" value="' + esc(now.ymd) + '" /></label>'
+        + '<label class="small">Tarih <input type="date" id="moneyDay" min="' + esc(month + '-01') + '" max="' + esc(end) + '" value="' + esc(atNow ? now.ymd : end) + '" /></label>'
         + '<div class="clinic-btns" role="group" aria-label="Klinik">' + buttons + '</div>'
         + '<input type="text" id="moneyMemo" maxlength="120" placeholder="Not" aria-label="Not" />'
         + '<button type="button" class="primary" id="moneyAdd">Gelir ekle</button>'
@@ -3023,7 +3060,7 @@
           return '<tr data-money="' + esc(r.id) + '"><td>' + esc(dshort(r.ymd)) + '</td><td>' + (logo ? '<img class="clinic-mini" src="' + esc(logo) + '" alt="" /> ' : '') + esc(hit ? hit.name : moneyPlaceName(cfg, r.place)) + '</td><td>' + esc(r.note) + '</td><td class="num">' + tl(r.amount) + '</td><td><button type="button" class="ghost" data-moneydel="' + esc(r.id) + '" title="Sil" aria-label="Sil">✕</button></td></tr>';
         }).join('')
         : '<tr><td colspan="5" class="muted">Gelir yok.</td></tr>';
-      return '<section class="card" id="moneyCard"><div class="card-h">Gelir · ' + esc(monthName(month)) + '</div>'
+      return '<section class="card" id="moneyCard"><div class="card-h">Gelir <span class="money-nav"><button type="button" data-money-month="-1"' + (atFloor ? ' disabled' : '') + ' aria-label="Önceki ay">‹</button><b>' + esc(monthName(month)) + '</b><button type="button" data-money-month="1"' + (atNow ? ' disabled' : '') + ' aria-label="Sonraki ay">›</button></span></div>'
         + form
         + '<div style="overflow-x:auto;"><table class="t fin"><thead><tr><th>Tarih</th><th>Klinik</th><th>Not</th><th class="num">Tutar</th><th></th></tr></thead><tbody>'
         + body + '</tbody><tfoot><tr><td colspan="3">Toplam</td><td class="num">' + tl(grand) + '</td><td></td></tr></tfoot></table></div>'
@@ -3043,9 +3080,9 @@
       const place = chosen ? chosen.getAttribute('data-money-clinic') : '';
       const amount = parseTL($('moneyAmt') ? $('moneyAmt').value : '');
       const note = ($('moneyMemo') ? $('moneyMemo').value : '').trim().slice(0, 120);
-      const month = nowLocal().ymd.slice(0, 7);
+      const month = moneyViewMonth();
       if (!Number.isFinite(amount) || amount <= 0) { msg('Miktar yaz'); if ($('moneyAmt')) $('moneyAmt').focus(); return; }
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(ymd) || ymd.slice(0, 7) !== month) { msg('Tarih bu aydan olsun'); if ($('moneyDay')) $('moneyDay').focus(); return; }
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(ymd) || ymd.slice(0, 7) !== month) { msg('Tarih seçilen aydan olsun'); if ($('moneyDay')) $('moneyDay').focus(); return; }
       if (!place) { msg('Klinik seç'); return; }
       if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
       const fin = st.full.finance && typeof st.full.finance === 'object' && !Array.isArray(st.full.finance) ? { ...st.full.finance } : {};
@@ -3070,6 +3107,80 @@
       if (!(await persist(null))) { const el = $('moneyStatus'); if (el) el.textContent = 'Silinemedi'; return; }
       render();
     }
+    function todoRows() {
+      const raw = Array.isArray(st.full && st.full.todos) ? st.full.todos : [];
+      return raw.filter((t) => t && String(t.text || '').trim() && t.id).slice(0, 200).map((t) => ({
+        id: String(t.id).slice(0, 40),
+        text: String(t.text).trim().slice(0, 140),
+        due: /^\d{4}-\d{2}-\d{2}$/.test(String(t.due || '')) ? String(t.due) : '',
+        who: ['crew', 'partner', 'child'].includes(t.who) ? t.who : '',
+        done: t.done ? String(t.done).slice(0, 10) : '',
+      }));
+    }
+    function todoChip(due, today) {
+      if (!due) return '';
+      const n = dayIndex(due) - dayIndex(today);
+      const label = n < 0 ? 'Gecikti' : n === 0 ? 'Bugün' : n === 1 ? 'Yarın' : dshort(due);
+      const cls = n < 0 ? 'late' : n === 0 ? 'today' : 'soon';
+      return '<span class="todo-due ' + cls + '">' + esc(label) + '</span>';
+    }
+    function renderTodos() {
+      const today = todayYmd(st.config || {});
+      const rows = todoRows();
+      const open = rows.filter((t) => !t.done).sort((a, b) => (a.due || '9999').localeCompare(b.due || '9999') || a.text.localeCompare(b.text, 'tr'));
+      const done = rows.filter((t) => t.done).sort((a, b) => String(b.done).localeCompare(String(a.done)));
+      const late = open.filter((t) => t.due && t.due <= today).length;
+      const tab = document.querySelector('[data-tab="todo"]');
+      if (tab) tab.innerHTML = '✅ To do' + (late ? '<span class="dot">' + late + '</span>' : '');
+      const el = $('tabTodo');
+      if (!el || st.tab !== 'todo') return;
+      if (el.contains(document.activeElement) && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'SELECT')) return;
+      const people = (st.config && st.config.people) || {};
+      const whoOpt = [['', 'Herkes'], ['crew', people.crew || 'Crew'], ['partner', people.partner || 'Eş'], ['child', people.child || 'Çocuk']];
+      const whoName = (w) => (whoOpt.find((x) => x[0] === w) || ['', ''])[1];
+      const line = (t, isDone) => '<div class="todo-row' + (isDone ? ' done' : '') + '" data-todo="' + esc(t.id) + '">' +
+        (isDone ? '<button type="button" class="ghost" data-todo-back="1">Geri al</button>' : '<button type="button" class="todo-ok" data-todo-ok="1">OK</button>') +
+        '<div class="ttl"><b>' + esc(t.text) + '</b>' + (t.who ? '<small>' + esc(whoName(t.who)) + '</small>' : '') + '</div>' +
+        todoChip(t.due, today) +
+        '<button type="button" class="ghost" data-todo-del="1" aria-label="Sil">✕</button></div>';
+      el.innerHTML = '<section class="card"><div class="card-h">Yapılacaklar <span class="small muted" style="margin-left:auto;font-weight:600;">' + open.length + ' açık</span></div>' +
+        '<form class="todo-add" id="todoForm">' +
+        '<input type="text" id="todoText" maxlength="140" placeholder="Ne yapılacak?" aria-label="Ne yapılacak?" />' +
+        '<label class="small">Tarih <input type="date" id="todoDue" /></label>' +
+        '<button type="button" class="ghost" data-todo-chip="0">Bugün</button>' +
+        '<button type="button" class="ghost" data-todo-chip="1">Yarın</button>' +
+        '<select id="todoWho" aria-label="Kim">' + whoOpt.map((x) => '<option value="' + esc(x[0]) + '">' + esc(x[1]) + '</option>').join('') + '</select>' +
+        '<button type="button" class="primary" id="todoAdd">Ekle</button>' +
+        '<span id="todoStatus" class="small muted">' + esc(st.todoNote || '') + '</span></form>' +
+        '<p class="small muted" style="margin:8px 0 0;">Tarihi gelen iş sabah 09:00’da, yarınki iş akşam özetinde bildirilir. OK yapılanlara alır; ✕ siler.</p>' +
+        (open.length ? open.map((t) => line(t, false)).join('') : '<p class="small muted" style="margin:10px 0 0;">Açık iş yok.</p>') +
+        (done.length ? '<details style="margin-top:12px;"' + (st.todoShowDone ? ' open' : '') + '><summary class="small">Yapılanlar (' + done.length + ')</summary>' + done.slice(0, 40).map((t) => line(t, true)).join('') +
+          '<button type="button" class="ghost small" data-todo-clear="1" style="margin-top:8px;">Yapılanları sil</button></details>' : '') +
+        '</section>';
+      st.todoNote = '';
+    }
+    async function writeTodos(next, note) {
+      if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+      st.full.todos = next.slice(0, 200);
+      rebuildConfig();
+      st.todoNote = note || 'Kaydedildi';
+      if (!(await persist(null, st.todoNote))) { st.todoNote = ''; return false; }
+      render();
+      return true;
+    }
+    async function addTodo() {
+      const msg = (t) => { const el = $('todoStatus'); if (el) el.textContent = t; };
+      const text = ($('todoText') ? $('todoText').value : '').trim().slice(0, 140);
+      const due = $('todoDue') ? $('todoDue').value : '';
+      const who = $('todoWho') ? $('todoWho').value : '';
+      if (!text) { msg('Ne yapılacağını yaz'); if ($('todoText')) $('todoText').focus(); return; }
+      if (due && !/^\d{4}-\d{2}-\d{2}$/.test(due)) { msg('Tarih geçersiz'); return; }
+      const row = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), text, due, who: ['crew', 'partner', 'child'].includes(who) ? who : '', done: '' };
+      const btn = $('todoAdd');
+      if (btn) btn.disabled = true;
+      msg('Kaydediliyor…');
+      if (!(await writeTodos(todoRows().concat(row), 'Eklendi'))) { if (btn) btn.disabled = false; }
+    }
     function renderFinance(res) {
       const n = debtLate().length;
       const tab = document.querySelector('[data-tab="fin"]');
@@ -3084,6 +3195,7 @@
     function openFromUrl(u) {
       if (/[?&]ciro=1/.test(u || '')) { st.ciroForce = true; checkCiro(true); }
       if (/[?&]tab=fin/.test(u || '')) setTab('fin');
+      if (/[?&]tab=todo/.test(u || '')) setTab('todo');
       const m = /[?&]month=(\d{4}-\d{2})/.exec(u || '');
       if (!m || m[1] === st.month || (st.draftDirty && !confirm('Kaydedilmemiş seçimler var. Ay değiştirilsin mi?'))) return;
       st.month = m[1]; st.draftDirty = false; st.activeGroup = null; closeDay(); load();
@@ -3231,6 +3343,13 @@
       onCiroClick(e, true);
     });
     $('tabFin').addEventListener('click', (e) => {
+      const monthBtn = e.target.closest('[data-money-month]');
+      if (monthBtn && !monthBtn.disabled) {
+        const nowM = nowLocal().ymd.slice(0, 7);
+        const next = shiftYm(moneyViewMonth(), Number(monthBtn.getAttribute('data-money-month')));
+        if (next && next <= nowM && next >= shiftYm(nowM, -24)) { st.moneyMonth = next; render(); }
+        return;
+      }
       if (e.target.closest('[data-personreset]')) return void askPerson(true);
       const clinicBtn = e.target.closest('[data-money-clinic]');
       if (clinicBtn) {
@@ -3247,6 +3366,30 @@
       if (md) return void deleteMoney(md.getAttribute('data-moneydel'));
       if (e.target.closest('[data-debtadd], [data-debt]')) return void onDebtClick(e);
       onCiroClick(e, false);
+    });
+    $('tabTodo').addEventListener('click', (e) => {
+      const chip = e.target.closest('[data-todo-chip]');
+      if (chip && $('todoDue')) { $('todoDue').value = addDays(todayYmd(st.config || {}), Number(chip.getAttribute('data-todo-chip'))); return; }
+      if (e.target.closest('#todoAdd')) return void addTodo();
+      const row = e.target.closest('[data-todo]');
+      if (e.target.closest('[data-todo-clear]')) {
+        if (!confirm('Yapılanlar silinsin mi?')) return;
+        st.todoShowDone = true;
+        return void writeTodos(todoRows().filter((t) => !t.done), 'Yapılanlar silindi');
+      }
+      const det = e.target.closest('details');
+      if (det && e.target.closest('summary')) st.todoShowDone = !det.open;
+      if (!row) return;
+      const id = row.getAttribute('data-todo');
+      if (e.target.closest('[data-todo-ok]')) return void writeTodos(todoRows().map((t) => t.id === id ? { ...t, done: todayYmd(st.config || {}) } : t), 'Yapıldı');
+      if (e.target.closest('[data-todo-back]')) return void writeTodos(todoRows().map((t) => t.id === id ? { ...t, done: '' } : t), 'Geri alındı');
+      if (e.target.closest('[data-todo-del]')) {
+        if (!confirm('Bu iş silinsin mi?')) return;
+        return void writeTodos(todoRows().filter((t) => t.id !== id), 'Silindi');
+      }
+    });
+    $('tabTodo').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && e.target.closest('#todoForm') && e.target.tagName === 'INPUT') { e.preventDefault(); addTodo(); }
     });
     $('tabFin').addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && e.target.closest('#moneyForm') && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT')) { e.preventDefault(); addMoney(); return; }
@@ -3463,7 +3606,11 @@
     if (new URLSearchParams(location.search).get('embed') === '1') { document.body.classList.add('embed'); $('logout').hidden = true; }
     { const um = /^(\d{4})-(\d{2})$/.exec(new URLSearchParams(location.search).get('month') || ''); if (um && Number(um[2]) >= 1 && Number(um[2]) <= 12) st.month = um[0]; }
     if (new URLSearchParams(location.search).get('ciro') === '1') st.ciroForce = true;
-    try { st.tab = location.hash === '#finans' || /[?&]tab=fin/.test(location.search) ? 'fin' : localStorage.getItem(TAB_KEY) === 'fin' && !document.body.classList.contains('embed') ? 'fin' : 'plan'; } catch (_) { st.tab = 'plan'; }
+    try {
+      const q = location.search;
+      const saved = localStorage.getItem(TAB_KEY);
+      st.tab = location.hash === '#finans' || /[?&]tab=fin/.test(q) ? 'fin' : location.hash === '#todo' || /[?&]tab=todo/.test(q) ? 'todo' : (saved === 'fin' || saved === 'todo') && !document.body.classList.contains('embed') ? saved : 'plan';
+    } catch (_) { st.tab = 'plan'; }
     applyTab();
     setInterval(loadWeather, 10 * 60 * 1000);
     const bgRefresh = () => { if (!document.hidden && !$('app').hidden && st.bearer) load({ quiet: true }); };
