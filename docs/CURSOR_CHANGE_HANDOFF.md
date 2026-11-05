@@ -13,6 +13,15 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+### 2026-11-05 — Aile: sıcak tema ve sakin takvim
+
+- **İstek:** Not bir düğme gibi görünsün. Sayfa daha sıcak ve karakterli olsun. Takvim hem telefonda hem bilgisayarda daha sakin ve kullanışlı olsun.
+- **Dosyalar:** `support/aile/index.html`, `support/aile/sw.js` (`aile-shell-v32`), `scripts/test-aile-eso.mjs`, `scripts/test-aile-todos.mjs`.
+- **Görünüm:** Zemin sıcak kâğıt rengi, üstte küçük renk damgası, kartlar daha yumuşak. Not, çerçeveli bir düğme. Takvimde gün numarası büyük; öneri adı kutuda yazılmaz, yalnız işaret kalır. Telefonda randevu yazısı güne tıklanınca açılır.
+- **Koruma:** Plan, seçim, kayıt, finans, yapılacaklar ve bildirim aynı işi yapar. Kişisel fotoğraf eklenmedi.
+- **Doğrulama:** `node scripts/test-aile-todos.mjs` ve `node scripts/test-aile-eso.mjs` OK. Geniş ve dar ekranda takvim ve Not düğmesi görüldü.
+- **Canlı:** Yayın sonrası doğrulanacak.
+
 ### 2026-11-05 — Aile: yapılacak tarih sütunu ve not
 
 - **İstek:** Tarih altta değil yanda, ayrı sütunda dursun. OK yerine Tamamlandı yazsın. Not basılınca alta açılsın, eklensin ve silinsin. Her değişiklik kendiliğinden kaydolsun.
