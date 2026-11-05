@@ -20,7 +20,7 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - **Liste:** Tarih ve saat sol sütunda. Tamamlandı sağda. Not satırın altında açılır; ekleme, silme ve metin değişikliği ayrıca bir kaydet düğmesi olmadan yazılır.
 - **Koruma:** Plan, fatura, gelir, önem zemini ve süre bildirimleri durur. Not metni bildirime yazılmaz.
 - **Doğrulama:** `node scripts/test-aile-todos.mjs` ve `node scripts/test-aile-eso.mjs` OK. Tarayıcıda tarih sol sütunda, Tamamlandı sağda. Not açıldı, yazı kendiliğinden güncellendi, silme notu kaldırdı.
-- **Canlı:** Yayın sonrası doğrulanacak.
+- **Canlı:** PR #97 merge `3959d8f`, destek deploy `42039909950`. Canlı sayfada tarih sütunu, Tamamlandı ve not. Önbellek `aile-shell-v31`.
 
 ### 2026-11-05 — Aile: yapılacak ekleme düğmesi ve yeni iş bildirimi
 
