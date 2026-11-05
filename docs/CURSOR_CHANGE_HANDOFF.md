@@ -21,7 +21,7 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - **Bildirim:** Her yeni açık iş, ekleyen cihaz dışında bildirilir. Süre hatırlatması durur: yüksek 24, 12, 6, 3 ve 1 saat; orta 24 ve 3 saat; düşük yalnız sabah.
 - **Koruma:** Plan, fatura, gelir ve akşam özeti durur.
 - **Doğrulama:** `node scripts/test-aile-todos.mjs` ve `node scripts/test-aile-eso.mjs` OK. Tarayıcıda artı kutuyu açtı; geciken yüksek iş kırmızı geçişli zeminde, şerit yok, OK sağda.
-- **Canlı:** Yayın sonrası doğrulanacak.
+- **Canlı:** PR #95 merge `cf7b719`, destek deploy `42007688496`. Canlıda `aile-shell-v30`, yüzen artı ve önem zemini. `family-planner` yeni iş bildirimini gönderiyor; finans ve borç eylemleri duruyor.
 
 ### 2026-11-05 — Aile: gelir ekleme ve yapılacaklar düzeni
 
