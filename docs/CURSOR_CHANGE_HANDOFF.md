@@ -20,7 +20,7 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - **Düzen:** Takvim üstte, tüm genişlikte ve daha kısa gün kutularıyla. Altında roster, çakışma ve özet aynı satırda. Tatil ve klinik kendi satırını doldurur. Bilgi kutuları da yan yana durur. Telefonda kısa kartlar iki sütun.
 - **Koruma:** Takvim, roster yükleme, çakışma, seçim, kayıt, finans, not ve bildirim aynı işi yapar.
 - **Doğrulama:** `node scripts/test-aile-todos.mjs` ve `node scripts/test-aile-eso.mjs` OK. Geniş ekranda satırlar dolu, kartlar arasında yalnız kısa aralık var. Dar ekranda takvim ilk, kısa kartlar ikişerli.
-- **Canlı:** Yayın sonrası doğrulanacak.
+- **Canlı:** PR #105 merge `3196ead`, destek deploy `42049969412`. Canlıda takvim üstte, kartlar aynı satırda, `aile-shell-v35`.
 
 ### 2026-11-05 — Aile: takvim üstte, roster sade
 
