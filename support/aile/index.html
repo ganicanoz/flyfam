@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="robots" content="noindex, nofollow" />
-  <meta name="theme-color" content="#c46b4a" />
+  <meta name="theme-color" content="#1c3f3a" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-title" content="Aile planı" />
@@ -15,19 +15,19 @@
   <title>Aile planı</title>
   <style>
     :root {
-      --bg: #f4efe6; --panel: #fffdf8; --soft: #f6f0e4; --line: #e7dccb; --text: #2c241c; --muted: #7c6f60;
-      --brand: #0f766e; --brand-2: #d97756; --bad: #dc2626; --warn: #d97706; --ok: #16803c;
+      --bg: #f6f3ee; --panel: #fffcf9; --soft: #f3efe8; --line: #e3dcd2; --text: #241f1a; --muted: #74685c;
+      --brand: #1f4f48; --brand-2: #8d735b; --bad: #dc2626; --warn: #d97706; --ok: #16803c;
       --s5: #16803c; --s4: #65a30d; --s3: #ca8a04; --s2: #ea580c; --s1: #dc2626;
       --duty: #1a5cf5; --away: #818cf8; --standby: #f59e0b; --school: #22a55b;
       --radius: 16px;
     }
     * { box-sizing: border-box; }
     html, body { margin: 0; color: var(--text); font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background: radial-gradient(520px 320px at 0% -10%, rgba(244, 176, 132, .55), transparent 70%), radial-gradient(460px 300px at 100% 0%, rgba(125, 184, 168, .4), transparent 68%), radial-gradient(640px 380px at 70% 120%, rgba(232, 196, 140, .35), transparent 70%), #f4efe6;
+      background: radial-gradient(520px 280px at 0% -12%, rgba(196, 168, 132, .22), transparent 70%), radial-gradient(480px 280px at 100% 0%, rgba(90, 122, 112, .16), transparent 68%), #f6f3ee;
       background-attachment: fixed; }
     button { font: inherit; cursor: pointer; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); color: var(--text); padding: 8px 12px; }
     button:disabled { opacity: .5; cursor: default; }
-    button.primary { background: linear-gradient(135deg, var(--brand), var(--brand-2)); color: #fff; border: 0; font-weight: 700; }
+    button.primary { background: #1c3f3a; color: #f6f1e8; border: 0; font-weight: 700; }
     button.ghost { background: transparent; }
     input, select, textarea { font: inherit; border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; background: #fff; color: var(--text); }
     [hidden] { display: none !important; }
@@ -52,9 +52,9 @@
 
     /* Üst çubuk */
     .top { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; gap: 10px; padding: 10px 14px; padding-top: max(10px, env(safe-area-inset-top));
-      background: rgba(255,253,248,.88); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(196,107,74,.22); }
+      background: rgba(255,252,249,.92); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(36,31,26,.08); }
     .top .title { font-weight: 800; font-size: 16px; display: flex; align-items: center; gap: 8px; }
-    .mark { width: 28px; height: 28px; border-radius: 9px; flex: none; background: linear-gradient(145deg, #f6c7a8, #7dbaa8); box-shadow: inset 0 0 0 2px rgba(255,255,255,.7); }
+    .mark { width: 28px; height: 28px; border-radius: 9px; flex: none; background: linear-gradient(145deg, #d9c4ae, #6e8f84); box-shadow: inset 0 0 0 2px rgba(255,255,255,.65); }
     .month { display: flex; align-items: center; gap: 4px; margin-left: auto; }
     .month button { padding: 4px 10px; font-size: 18px; line-height: 1; }
     .month strong { min-width: 104px; text-align: center; text-transform: capitalize; }
@@ -74,8 +74,8 @@
     #btnRoster { white-space: nowrap; font-weight: 700; }
     .rc-info .small { margin-top: 2px; }
     .rc-last b { color: var(--text); }
-    label.upload { cursor: pointer; border-radius: 10px; padding: 9px 14px; background: linear-gradient(135deg, var(--brand), var(--brand-2)); color: #fff; font-weight: 700; white-space: nowrap; }
-    #pdfStatus:empty, #rosterSrc:empty { display: none; }
+    label.upload { cursor: pointer; border-radius: 10px; padding: 9px 14px; background: #1c3f3a; color: #f6f1e8; font-weight: 700; white-space: nowrap; }
+    #rosterLast:empty, #pdfStatus:empty, #rosterSrc:empty { display: none; }
     #pdfStatus, #rosterSrc { margin-top: 6px; }
     .rc-list { padding-left: 18px; margin: 4px 0 0; }
     .vac-card { background: linear-gradient(120deg, #fff7ed 0%, #fffbeb 50%, #ecfeff 100%); border-color: #fde68a; }
@@ -173,7 +173,7 @@
       .board-column { grid-column: 2; }
     }
     .board > .card > .card-h { color: #164e63; }
-    .cal-card { border-top: 3px solid #0f766e; }
+    .cal-card { border-top: 3px solid #1f4f48; }
     .suitability-key { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 0 8px; font-size: 11px; color: var(--muted); }
     body.tab-todo main { padding-bottom: 84px; }
     .fit { display: inline-flex; align-items: center; gap: 4px; border: 1px solid; border-radius: 6px; padding: 2px 5px; font-size: 10px; font-weight: 700; line-height: 1.4; }
@@ -185,6 +185,7 @@
     .card { background: rgba(255,253,248,.94); border-radius: var(--radius); border: 1px solid #eadfce; padding: 12px; box-shadow: 0 8px 22px rgba(90,60,30,.05); }
     .card-h { font-weight: 800; font-size: 15px; margin: -2px 0 8px; padding-bottom: 6px; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 8px; }
     .tabpane { display: grid; gap: 10px; }
+    #tabPlan > .board { order: -1; }
     .tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; padding: 5px; border-radius: 16px; background: rgba(255,253,248,.72); border: 1px solid var(--line); }
     .tabs button { border: 0; border-radius: 12px; padding: 9px 8px; font-weight: 800; font-size: 14px; background: transparent; color: #6b5d4e; }
     @media (max-width: 420px) { .tabs button { font-size: 13px; padding: 8px 2px; } }
@@ -198,7 +199,7 @@
     .fin-tile span { display: block; font-size: 12px; color: var(--muted); font-weight: 600; }
     .fin-tile b { display: block; font-size: 22px; margin-top: 2px; font-variant-numeric: tabular-nums; }
     .fin-tile small { display: block; font-size: 11.5px; color: var(--muted); margin-top: 2px; }
-    .fin-tile.main { background: linear-gradient(135deg, #0f766e, #14b8a6); color: #fff; }
+    .fin-tile.main { background: #1c3f3a; color: #f6f1e8; }
     .fin-tile.main span, .fin-tile.main small { color: rgba(255,255,255,.85); }
     table.fin td.num, table.fin th.num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
     table.fin tfoot td { font-weight: 800; border-bottom: 0; }
@@ -217,7 +218,7 @@
     .clinic-btns { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; flex: 1 1 168px; }
     .clinic-btn { display: flex; align-items: center; justify-content: center; min-height: 40px; padding: 4px; border-radius: 10px; border: 2px solid var(--line); background: #fff; }
     .clinic-btn img { height: 26px; width: auto; max-width: 56px; object-fit: contain; }
-    .clinic-btn.on { border-color: #0f766e; background: #f0fdfa; box-shadow: inset 0 0 0 1px #0f766e; }
+    .clinic-btn.on { border-color: #1f4f48; background: #f0fdfa; box-shadow: inset 0 0 0 1px #1f4f48; }
     .clinic-mini { width: 16px; height: 16px; object-fit: contain; vertical-align: -3px; }
     .debt-form #debtLabel { flex: 1 1 180px; min-width: 0; }
     .fin-row.paid { opacity: .7; }
@@ -340,14 +341,14 @@
     .vac-tag.sch { color: #1d4ed8; border-color: #93c5fd; }
     .cell.sch-off { background: #f7f4ee; }
     .out.vac { opacity: .6; }
-    .cell.today { box-shadow: inset 0 0 0 2px #0f766e; }
-    .cell.today .d b { display: inline-grid; place-items: center; min-width: 24px; height: 24px; border-radius: 999px; background: #0f766e; color: #fff; }
+    .cell.today { box-shadow: inset 0 0 0 2px #1f4f48; }
+    .cell.today .d b { display: inline-grid; place-items: center; min-width: 24px; height: 24px; border-radius: 999px; background: #1f4f48; color: #fff; }
     .cell.done { background: #f3eee6; border-color: #e0d5c6; }
     .cell.done .d b { color: #8a7b6a; }
     .cell.done.today .d b { color: #fff; }
     .cell.bad { border: 3px solid #dc2626; box-shadow: inset 0 0 0 1px #dc2626; }
     .cell.done.bad { background: #f8fafc; }
-    .cell.picked { border-width: 2px; border-color: #0f766e; }
+    .cell.picked { border-width: 2px; border-color: #1f4f48; }
     .cell.done.picked { border-color: #94a3b8; }
     .cell.bad.picked, .cell.done.bad { border: 3px solid #dc2626; }
     .lrow.done { background: #f1f5f9; }
@@ -378,9 +379,9 @@
     .opt-mini { display: inline-flex; align-items: center; gap: 1px; font-size: 10px; }
     .opt-mini .ic { width: 16px; height: 16px; font-size: 9px; }
     .flag { font-size: 10.5px; color: var(--bad); font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .run { font-size: 10.5px; font-weight: 700; color: #0f766e; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .run { font-size: 10.5px; font-weight: 700; color: #1f4f48; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .run.bad, .lrow .ln.run.bad { color: var(--bad); }
-    .lrow .ln.run { color: #0f766e; font-weight: 600; }
+    .lrow .ln.run { color: #1f4f48; font-weight: 600; }
     .runbox { display: grid; gap: 6px; margin: 4px 0 12px; padding: 10px 12px; border-radius: 12px; background: #f0fdfa; border: 1px solid #99f6e4; font-size: 13px; }
     .runbox .bad { color: var(--bad); font-weight: 700; } .runbox .warn { color: #b45309; }
     .runbox .taxi { font-size: 12px; color: #854d0e; }
@@ -574,8 +575,8 @@
       <section class="card roster-card">
         <div class="rc-head">
           <div class="rc-info">
-            <b>📄 Roster PDF</b>
-            <div id="rosterLast" class="small muted">—</div>
+            <b>Roster</b>
+            <div id="rosterLast" class="small muted"></div>
           </div>
           <div class="rc-actions">
             <button type="button" id="btnRoster" title="FlyFam’den bu ayı yeniden alır ve çakışmaya bakar">Roster ve çakışma</button>
@@ -1656,7 +1657,7 @@
         if (ev.ymd === today) cls.push('today');
         if (past) cls.push('done');
         if (ev.conflict) cls.push('bad');
-        const strip = ev.conflict ? '#dc2626' : past ? '#94a3b8' : ev.plans.length ? '#0f766e' : ev.fixed.length ? ev.fixed[0].color : 'transparent';
+        const strip = ev.conflict ? '#dc2626' : past ? '#94a3b8' : ev.plans.length ? '#1f4f48' : ev.fixed.length ? ev.fixed[0].color : 'transparent';
         const bg = '';
         const lines = [];
         if (ev.vac) lines.push('<div class="ln vacl">🏖️ ' + esc(ev.vac.label || 'Tatil') + ' · okul yok · iş yok</div>');
@@ -1974,17 +1975,10 @@
       }
       $('frame').innerHTML = '<table class="t"><thead><tr><th>Yer</th><th>Adres</th><th>Evden (normal/yoğun)</th><th></th></tr></thead><tbody>' + rows + '</tbody></table><ul style="padding-left:18px;">' + rules.map((r) => '<li>' + r + '</li>').join('') + '</ul>';
       const list = Array.isArray(st.full.rosters) ? st.full.rosters : [];
-      const [y, m] = st.month.split('-').map(Number);
-      let covered = 0, total = 0;
-      for (let d = st.month + '-01'; d <= new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10); d = addDays(d, 1)) { total += 1; if (claims[d]) covered += 1; }
-      const appN = (st.data?.entries || []).length;
-      const head = 'Uygulamadaki roster birincil (' + appN + ' kayıt); ' + (covered ? 'uygulamada kaydı olmayan ' + covered + '/' + total + ' gün PDF\'ten.' : list.length ? 'bu ay PDF\'e gerek kalmadı.' : 'boş günler için PDF yüklenebilir.') + ' Aynı günde ikisi varsa uygulama geçerli.';
       const sorted = list.slice().sort((a, b) => String(b.importedAt || '').localeCompare(String(a.importedAt || '')));
       const last = sorted[0];
-      $('rosterLast').innerHTML = last
-        ? '<span class="rc-last">Son yükleme: <b>' + esc(fmtStamp(last.importedAt)) + '</b> · ' + esc(shortRange(last.from, last.to)) + ' · ' + (last.rows || []).length + ' satır</span>'
-        : 'Henüz PDF yüklenmedi · uygulamadaki roster kullanılıyor';
-      $('rosterSrc').innerHTML = '<div class="muted">' + esc(head) + '</div>' + (sorted.length ? '<ul class="rc-list">' + sorted.map((imp) => '<li>' + esc(imp.file || 'PDF') + ' · ' + esc(shortRange(imp.from, imp.to)) + ' · ' + (imp.rows || []).length + ' satır · <span class="muted">' + esc(fmtStamp(imp.importedAt)) + '</span> <button type="button" class="ghost small" data-delroster="' + esc(imp.id) + '">kaldır</button></li>').join('') + '</ul>' : '');
+      $('rosterLast').textContent = last ? shortRange(last.from, last.to) : '';
+      $('rosterSrc').innerHTML = sorted.length ? '<ul class="rc-list">' + sorted.map((imp) => '<li>' + esc(imp.file || 'PDF') + ' · ' + esc(shortRange(imp.from, imp.to)) + ' <button type="button" class="ghost small" data-delroster="' + esc(imp.id) + '">kaldır</button></li>').join('') + '</ul>' : '';
     }
     function fmtStamp(iso) {
       const d = iso ? new Date(iso) : null;
