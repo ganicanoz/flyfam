@@ -21,7 +21,7 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - **Renk:** Sıcak kâğıt zemin durur. Zemin yıkaması daha hafif. Düğmeler koyu yeşil mürekkep, yazı krem.
 - **Koruma:** PDF yükleme, kaldırma, çakışma, seçim, kayıt, finans, not ve bildirim aynı. Kişisel fotoğraf eklenmedi.
 - **Doğrulama:** `node scripts/test-aile-todos.mjs` ve `node scripts/test-aile-eso.mjs` OK. Geniş ekranda takvim üstte, roster kısa. Dar ekranda takvim ilk blok.
-- **Canlı:** Yayın sonrası doğrulanacak.
+- **Canlı:** PR #103 merge `d444037`, destek deploy `42046635193`. Canlıda takvim üstte, roster kısa, `aile-shell-v34`.
 
 ### 2026-11-05 — Aile: boşlukları sıkılaştır
 
