@@ -20,7 +20,7 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - **Düzen:** Takvim solda, çakışma, özet ve okul yolu sağda. Boş gün kutusu kısalır; gün içinde iş yoksa boş saat çizgisi çizilmez. Yapılacaklar kartının altındaki boş pay kalktı. Telefonda alt boşluk yalnız plan kaydı açıkken durur.
 - **Koruma:** Seçim, kayıt, finans, not ve bildirim aynı. Gün ayrıntısındaki üç saat satırı durur.
 - **Doğrulama:** `node scripts/test-aile-todos.mjs` ve `node scripts/test-aile-eso.mjs` OK. Geniş ekranda takvim ile yan kartlar aynı hizada. Dar ekranda kartlar takvimin altında, sayfa genişliği dolu.
-- **Canlı:** Yayın sonrası doğrulanacak.
+- **Canlı:** PR #101 merge `eb526cd`, destek deploy `42044412985`. Canlıda takvim solda, yan kartlar sağda, `aile-shell-v33`.
 
 ### 2026-11-05 — Aile: sıcak tema ve sakin takvim
 
