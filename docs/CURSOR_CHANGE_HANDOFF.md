@@ -21,7 +21,7 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - **Yapılacaklar:** Metin, isteğe bağlı tarih ve kişi. OK yapılanlara alır, geri alınır veya silinir. Geciken ve bugünkü işler sabah 09:00’da bir kez, yarınki işler akşam 20:00 özetinde gider. Bugün veya gecikmiş yeni iş, kaydı yapan cihaz dışında bildirilir.
 - **Koruma:** Plan, fatura, ciro sorusu ve akşam özeti durur. Gelir hâlâ bugünün ayında açılır; ileri aya geçilmez.
 - **Doğrulama:** `node scripts/test-aile-todos.mjs` ve `node scripts/test-aile-eso.mjs`.
-- **Canlı:** Yayın sonrası doğrulanacak.
+- **Canlı:** PR #91 merge `640d432`, destek deploy `42003686127`. Canlıda To do sekmesi, ay okları ve `aile-shell-v28`. `family-planner` bildirimi canlıda; finans ve borç eylemleri duruyor.
 
 ### 2026-11-02 — Logbook üst düğmeleri tek satır
 
