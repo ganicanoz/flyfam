@@ -22,7 +22,7 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - **Bakım:** Evde bakım 120 dakikaya kadar son çare uyarısıdır ve çakışma listesine girer. Daha uzun bakım çakışmadır; önerilerde en sona düşer.
 - **Koruma:** Kayıt, finans, not, bildirim ve resmî tatil listesi durur. Kişisel ad yazılmadı.
 - **Doğrulama:** `node scripts/test-aile-todos.mjs` ve `node scripts/test-aile-eso.mjs` OK. Geniş ekranda özet kısa ve klinikler yan yana. + okul tatili formunu kırmızı düğmeyle açtı.
-- **Canlı:** Yayın sonrası doğrulanacak.
+- **Canlı:** PR #107 merge `c85d97c`, destek deploy `42060233257`. Canlıda özet yatay, takvimde +, `aile-shell-v36`.
 
 ### 2026-11-05 — Aile: plan kartlarını sıkıştır
 
