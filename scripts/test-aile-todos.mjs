@@ -7,9 +7,10 @@ const notify = fs.readFileSync(new URL('../supabase/functions/family-planner/not
 let failed = 0;
 const eq = (name, ok) => { if (!ok) { failed += 1; console.error('FAIL', name); } };
 
-eq('önbellek', sw.includes("const CACHE = 'aile-shell-v30'"));
+eq('önbellek', sw.includes("const CACHE = 'aile-shell-v31'"));
 eq('yalnız liste ve artı', html.includes('class="todo-fab"') && html.includes('id="todoSheet"') && html.includes('>Liste') && !html.includes('class="todo-board"') && !html.includes('<span class="bar"></span>'));
-eq('önem ve sıralama', html.includes('data-todo-pri="high"') && html.includes('data-todo-sort="pri"') && html.includes('class="todo-ok"'));
+eq('önem ve sıralama', html.includes('data-todo-pri="high"') && html.includes('data-todo-sort="pri"') && html.includes('class="todo-ok"') && html.includes('>Tamamlandı</button>'));
+eq('tarih sütunu ve not', html.includes('todo-when-col') && html.includes('data-todo-notes="1"') && html.includes('data-todo-note-del') && html.includes('queueTodoNoteSave'));
 eq('önem zemini', html.includes('.todo-item.high { background: linear-gradient') && html.includes('.todo-item.late .ttl b'));
 eq('yeni iş bildirimi', notify.includes('!prevTodo.has(t.id)') && !notify.includes("t.pri !== 'high'"));
 eq('gelir formu', html.includes('id="moneyForm"') && !html.includes('<form class="money-form"') && html.includes('if (!ymd) ymd ='));

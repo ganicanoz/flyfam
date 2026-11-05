@@ -238,7 +238,11 @@
     .todo-when { display: flex; gap: 8px; }
     .todo-when label { flex: 1; }
     .todo-when input { width: 100%; }
-    .todo-item { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: center; margin-top: 8px; padding: 10px 12px; border: 1px solid transparent; border-radius: 14px; }
+    .todo-item { display: grid; grid-template-columns: 72px minmax(0, 1fr) auto; gap: 8px 10px; align-items: center; margin-top: 8px; padding: 10px 12px; border: 1px solid transparent; border-radius: 14px; }
+    .todo-when-col { text-align: center; line-height: 1.15; }
+    .todo-when-col b { display: block; font-size: 13px; }
+    .todo-when-col span { display: block; margin-top: 2px; font-size: 11px; font-weight: 700; color: var(--muted); }
+    .todo-item.late .todo-when-col, .todo-item.late .todo-when-col span { color: #991b1b; }
     .todo-item.high { background: linear-gradient(115deg, rgba(220,38,38,.20), rgba(251,113,133,.08) 58%, rgba(255,255,255,.62)); border-color: rgba(220,38,38,.16); }
     .todo-item.mid { background: linear-gradient(115deg, rgba(217,119,6,.20), rgba(251,191,36,.10) 58%, rgba(255,255,255,.62)); border-color: rgba(217,119,6,.16); }
     .todo-item.low { background: linear-gradient(115deg, rgba(100,116,139,.16), rgba(148,163,184,.08) 58%, rgba(255,255,255,.7)); border-color: rgba(100,116,139,.14); }
@@ -254,7 +258,11 @@
     .todo-item.done { opacity: .72; }
     .todo-item.done .ttl b { text-decoration: line-through; color: var(--muted); font-weight: 600; }
     .todo-side { display: flex; align-items: center; gap: 6px; }
-    .todo-ok { background: var(--ok); color: #fff; border: 0; min-height: 36px; min-width: 52px; padding: 4px 12px; font-weight: 800; }
+    .todo-ok { background: var(--ok); color: #fff; border: 0; min-height: 36px; padding: 4px 10px; font-weight: 800; white-space: nowrap; }
+    .todo-note-btn { min-height: 0; padding: 0; border: 0; background: transparent; color: var(--brand); font-size: 12px; font-weight: 800; }
+    .todo-notes { grid-column: 1 / -1; display: grid; gap: 6px; margin-top: 2px; padding-top: 8px; border-top: 1px solid rgba(15,23,42,.08); }
+    .todo-note, .todo-note-add { display: flex; gap: 6px; align-items: center; }
+    .todo-note input, .todo-note-add input { flex: 1; min-width: 0; }
     .sheet-bg.ciro-bg .sheet { border-top-color: var(--brand); }
     .ciro-lead { font-size: 17px; font-weight: 800; margin: 0 0 4px; }
     .who-btns { display: grid; gap: 8px; margin-top: 10px; }
@@ -484,6 +492,7 @@
       .chip { padding: 6px 10px; font-size: 13px; }
       .sum-grid { grid-template-columns: 1fr; }
       .sum li button.mini, .sum .tm input[type="time"] { min-height: 0; height: 28px; font-size: 14px; }
+      .todo-note-btn { min-height: 0; }
       .rows { grid-template-columns: 48px 1fr; }
     }
     @media (max-width: 640px) {
@@ -3151,6 +3160,11 @@
         pri: t.pri === 'high' || t.pri === 'low' ? t.pri : 'mid',
         who: ['crew', 'partner', 'child'].includes(t.who) ? t.who : '',
         done: t.done ? String(t.done).slice(0, 10) : '',
+        notes: (Array.isArray(t.notes) ? t.notes : []).map((n) => {
+          const text = String(n && n.text || '').trim().slice(0, 180);
+          const id = String(n && n.id || '').slice(0, 40);
+          return text && id ? { id, text } : null;
+        }).filter(Boolean).slice(0, 12),
       }));
     }
     function todoLate(t, today) {
@@ -3182,18 +3196,24 @@
       const people = (st.config && st.config.people) || {};
       const whoOpt = [['', 'Herkes'], ['crew', people.crew || 'Crew'], ['partner', people.partner || 'Eş'], ['child', people.child || 'Çocuk']];
       const whoName = (w) => (whoOpt.find((x) => x[0] === w) || ['', ''])[1];
-      const whenText = (t) => {
-        if (!t.due) return 'Tarihsiz';
+      const whenCol = (t) => {
+        if (!t.due) return '<div class="todo-when-col"><b>Tarihsiz</b></div>';
         const n = dayIndex(t.due) - dayIndex(today);
-        const day = n < 0 || todoLate(t, today) ? 'Gecikti' : n === 0 ? 'Bugün' : n === 1 ? 'Yarın' : dshort(t.due);
-        return day + (t.dueTime ? ' · ' + t.dueTime : '');
+        const rel = todoLate(t, today) ? 'Gecikti' : n === 0 ? 'Bugün' : n === 1 ? 'Yarın' : '';
+        return '<div class="todo-when-col"><b>' + esc(dshort(t.due)) + '</b>' + (rel ? '<span>' + rel + '</span>' : '') + (t.dueTime ? '<span>' + esc(t.dueTime) + '</span>' : '') + '</div>';
+      };
+      const noteBox = (t) => {
+        if (st.todoOpenNote !== t.id) return '';
+        const rows = t.notes.map((n) => '<div class="todo-note"><input type="text" maxlength="180" data-todo-note-edit="1" data-todo-note-id="' + esc(n.id) + '" value="' + esc(n.text) + '" aria-label="Not" /><button type="button" class="ghost" data-todo-note-del="' + esc(n.id) + '" aria-label="Notu sil">✕</button></div>').join('');
+        return '<div class="todo-notes">' + rows + '<div class="todo-note-add"><input type="text" maxlength="180" data-todo-note-input="1" placeholder="Not ekle" aria-label="Not ekle" /><button type="button" data-todo-note-add="1">Ekle</button></div></div>';
       };
       const line = (t, isDone) => '<article class="todo-item ' + t.pri + (todoLate(t, today) ? ' late' : '') + (isDone ? ' done' : '') + '" data-todo="' + esc(t.id) + '">' +
-        '<div class="ttl"><b>' + esc(t.text) + '</b><div class="meta"><span>' + esc(whenText(t)) + '</span><span>' + TODO_PRI[t.pri] + '</span>' +
-        (t.who ? '<span>' + esc(whoName(t.who)) + '</span>' : '') + '</div></div><div class="todo-side">' +
+        whenCol(t) + '<div class="ttl"><b>' + esc(t.text) + '</b><div class="meta"><span>' + TODO_PRI[t.pri] + '</span>' +
+        (t.who ? '<span>' + esc(whoName(t.who)) + '</span>' : '') +
+        '<button type="button" class="todo-note-btn" data-todo-notes="1">' + (t.notes.length ? 'Not · ' + t.notes.length : 'Not') + '</button></div></div><div class="todo-side">' +
         '<button type="button" class="ghost" data-todo-del="1" aria-label="Sil">✕</button>' +
-        (isDone ? '<button type="button" class="ghost" data-todo-back="1">Geri al</button>' : '<button type="button" class="todo-ok" data-todo-ok="1">OK</button>') +
-        '</div></article>';
+        (isDone ? '<button type="button" class="ghost" data-todo-back="1">Geri al</button>' : '<button type="button" class="todo-ok" data-todo-ok="1">Tamamlandı</button>') +
+        '</div>' + noteBox(t) + '</article>';
       const priBtn = (id, label) => '<button type="button" data-todo-pri="' + id + '"' + (st.todoPri === id ? ' class="on"' : '') + '>' + label + '</button>';
       el.innerHTML = '<section class="card todo-list"><div class="card-h">Liste <span class="todo-sort" style="margin-left:auto;">' +
         '<button type="button" data-todo-sort="date"' + (st.todoSort !== 'pri' ? ' class="on"' : '') + '>Tarih</button>' +
@@ -3214,14 +3234,74 @@
       st.todoNote = '';
       st.todoBad = false;
     }
+    function todoNotesFromDom(id) {
+      const row = document.querySelector('[data-todo="' + id + '"]');
+      if (!row) return null;
+      return [...row.querySelectorAll('[data-todo-note-edit]')].map((inp) => ({
+        id: String(inp.getAttribute('data-todo-note-id') || '').slice(0, 40),
+        text: inp.value.trim().slice(0, 180),
+      })).filter((n) => n.id && n.text).slice(0, 12);
+    }
+    function todoWithLiveNotes(rows) {
+      if (!st.todoOpenNote) return rows;
+      const row = document.querySelector('[data-todo="' + st.todoOpenNote + '"]');
+      if (!row || !row.querySelector('.todo-notes')) return rows;
+      const byId = new Map([...row.querySelectorAll('[data-todo-note-edit]')].map((inp) => [
+        String(inp.getAttribute('data-todo-note-id') || ''),
+        inp.value.trim().slice(0, 180),
+      ]));
+      return rows.map((t) => {
+        if (t.id !== st.todoOpenNote) return t;
+        const notes = t.notes.flatMap((n) => {
+          if (!byId.has(n.id)) return [n];
+          const text = byId.get(n.id);
+          return text ? [{ id: n.id, text }] : [];
+        }).slice(0, 12);
+        return { ...t, notes };
+      });
+    }
     async function writeTodos(next, note, bad) {
+      clearTimeout(st.todoNoteSave);
+      next = todoWithLiveNotes(next);
+      st.todoWriting = true;
       if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+      st.todoWriting = false;
       st.full.todos = next.slice(0, 200);
       rebuildConfig();
       render();
       if (!(await persist(null))) { st.todoNote = 'Kaydedilemedi, tekrar dene'; st.todoBad = true; render(); return false; }
       if (note) { st.todoNote = note; st.todoBad = !!bad; render(); }
       return true;
+    }
+    async function saveTodoNotes(id, notes) {
+      clearTimeout(st.todoNoteSave);
+      const next = todoRows().map((t) => t.id === id ? { ...t, notes: notes.slice(0, 12) } : t);
+      st.full.todos = next.slice(0, 200);
+      rebuildConfig();
+      if (!(await persist(null))) { st.todoNote = 'Kaydedilemedi, tekrar dene'; st.todoBad = true; render(); return false; }
+      return true;
+    }
+    function queueTodoNoteSave(id) {
+      clearTimeout(st.todoNoteSave);
+      st.todoNoteSave = setTimeout(() => {
+        const live = todoNotesFromDom(id);
+        if (live) saveTodoNotes(id, live);
+      }, 400);
+    }
+    async function addTodoNote(id) {
+      if (st.todoNoteBusy) return;
+      const row = document.querySelector('[data-todo="' + id + '"]');
+      const input = row && row.querySelector('[data-todo-note-input]');
+      const text = input ? input.value.trim().slice(0, 180) : '';
+      if (!text) return;
+      st.todoNoteBusy = true;
+      if (input) input.value = '';
+      const cur = todoRows().find((t) => t.id === id);
+      const notes = (todoNotesFromDom(id) || (cur ? cur.notes : [])).concat({ id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), text });
+      st.todoOpenNote = id;
+      try { await writeTodos(todoRows().map((t) => t.id === id ? { ...t, notes } : t)); } finally { st.todoNoteBusy = false; }
+      const again = document.querySelector('[data-todo="' + id + '"] [data-todo-note-input]');
+      if (again) again.focus();
     }
     async function addTodo() {
       const text = ($('todoText') ? $('todoText').value : '').trim().slice(0, 140);
@@ -3236,7 +3316,7 @@
         return;
       }
       if (due && !/^\d{4}-\d{2}-\d{2}$/.test(due)) { const el = $('todoStatus'); if (el) { el.textContent = 'Tarih geçersiz'; el.className = 'small money-err'; } return; }
-      const row = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), text, due, dueTime, pri, who: ['crew', 'partner', 'child'].includes(who) ? who : '', done: '' };
+      const row = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), text, due, dueTime, pri, who: ['crew', 'partner', 'child'].includes(who) ? who : '', done: '', notes: [] };
       st.todoOpen = false;
       await writeTodos(todoRows().concat(row), 'Eklendi');
     }
@@ -3462,6 +3542,29 @@
       if (det && e.target.closest('summary')) st.todoShowDone = !det.open;
       if (!row) return;
       const id = row.getAttribute('data-todo');
+      if (e.target.closest('[data-todo-notes]')) {
+        const live = todoNotesFromDom(id);
+        if (live) {
+          st.full.todos = todoRows().map((t) => t.id === id ? { ...t, notes: live } : t);
+          rebuildConfig();
+          persist(null);
+        }
+        st.todoOpenNote = st.todoOpenNote === id ? '' : id;
+        st.todoWriting = true;
+        if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+        st.todoWriting = false;
+        renderTodos();
+        return;
+      }
+      if (e.target.closest('[data-todo-note-add]')) return void addTodoNote(id);
+      const delNote = e.target.closest('[data-todo-note-del]');
+      if (delNote) {
+        const nid = delNote.getAttribute('data-todo-note-del');
+        const cur = todoRows().find((t) => t.id === id);
+        const notes = (cur ? cur.notes : []).filter((n) => n.id !== nid);
+        st.todoOpenNote = id;
+        return void writeTodos(todoRows().map((t) => t.id === id ? { ...t, notes } : t));
+      }
       if (e.target.closest('[data-todo-ok]')) return void writeTodos(todoRows().map((t) => t.id === id ? { ...t, done: todayYmd(st.config || {}) } : t), 'Yapıldı');
       if (e.target.closest('[data-todo-back]')) return void writeTodos(todoRows().map((t) => t.id === id ? { ...t, done: '' } : t), 'Geri alındı');
       if (e.target.closest('[data-todo-del]')) {
@@ -3471,6 +3574,31 @@
     });
     $('tabTodo').addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && e.target.closest('#todoForm') && e.target.tagName === 'INPUT') { e.preventDefault(); addTodo(); }
+      if (e.key === 'Enter' && e.target.matches('[data-todo-note-input]')) {
+        e.preventDefault();
+        const row = e.target.closest('[data-todo]');
+        if (row) addTodoNote(row.getAttribute('data-todo'));
+      }
+    });
+    $('tabTodo').addEventListener('input', (e) => {
+      if (!e.target.matches('[data-todo-note-edit]')) return;
+      const row = e.target.closest('[data-todo]');
+      if (row) queueTodoNoteSave(row.getAttribute('data-todo'));
+    });
+    $('tabTodo').addEventListener('focusout', (e) => {
+      if (st.todoNoteBusy || st.todoWriting) return;
+      const row = e.target.closest && e.target.closest('[data-todo]');
+      if (!row) return;
+      const id = row.getAttribute('data-todo');
+      if (e.target.matches('[data-todo-note-input]')) {
+        if (e.relatedTarget && e.relatedTarget.closest && e.relatedTarget.closest('[data-todo-note-add]')) return;
+        addTodoNote(id);
+        return;
+      }
+      if (e.target.matches('[data-todo-note-edit]')) {
+        const live = todoNotesFromDom(id);
+        if (live) saveTodoNotes(id, live);
+      }
     });
     $('tabFin').addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && e.target.closest('#moneyForm') && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT')) { e.preventDefault(); addMoney(); return; }
