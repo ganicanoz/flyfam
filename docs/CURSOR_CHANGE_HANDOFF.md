@@ -13,6 +13,15 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+### 2026-11-05 — Aile: boşlukları sıkılaştır
+
+- **İstek:** Boyut ve sayfa düzeni elden geçsin. Sayfalardaki anlamsız boşluklar kalksın.
+- **Dosyalar:** `support/aile/index.html`, `support/aile/sw.js` (`aile-shell-v33`), `scripts/test-aile-eso.mjs`, `scripts/test-aile-todos.mjs`.
+- **Düzen:** Takvim solda, çakışma, özet ve okul yolu sağda. Boş gün kutusu kısalır; gün içinde iş yoksa boş saat çizgisi çizilmez. Yapılacaklar kartının altındaki boş pay kalktı. Telefonda alt boşluk yalnız plan kaydı açıkken durur.
+- **Koruma:** Seçim, kayıt, finans, not ve bildirim aynı. Gün ayrıntısındaki üç saat satırı durur.
+- **Doğrulama:** `node scripts/test-aile-todos.mjs` ve `node scripts/test-aile-eso.mjs` OK. Geniş ekranda takvim ile yan kartlar aynı hizada. Dar ekranda kartlar takvimin altında, sayfa genişliği dolu.
+- **Canlı:** Yayın sonrası doğrulanacak.
+
 ### 2026-11-05 — Aile: sıcak tema ve sakin takvim
 
 - **İstek:** Not bir düğme gibi görünsün. Sayfa daha sıcak ve karakterli olsun. Takvim hem telefonda hem bilgisayarda daha sakin ve kullanışlı olsun.

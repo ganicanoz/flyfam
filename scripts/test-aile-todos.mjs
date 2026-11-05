@@ -7,7 +7,7 @@ const notify = fs.readFileSync(new URL('../supabase/functions/family-planner/not
 let failed = 0;
 const eq = (name, ok) => { if (!ok) { failed += 1; console.error('FAIL', name); } };
 
-eq('önbellek', sw.includes("const CACHE = 'aile-shell-v32'"));
+eq('önbellek', sw.includes("const CACHE = 'aile-shell-v33'"));
 eq('yalnız liste ve artı', html.includes('class="todo-fab"') && html.includes('id="todoSheet"') && html.includes('>Liste') && !html.includes('class="todo-board"') && !html.includes('<span class="bar"></span>'));
 eq('önem ve sıralama', html.includes('data-todo-pri="high"') && html.includes('data-todo-sort="pri"') && html.includes('class="todo-ok"') && html.includes('>Tamamlandı</button>'));
 eq('not düğmesi', html.includes('border-radius: 999px; border: 1px solid rgba(15,118,110,.4)'));

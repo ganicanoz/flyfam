@@ -91,7 +91,7 @@
     #vacList > div { padding: 4px 0; }
     #vacList .past { opacity: .5; }
     .vac-bad { color: var(--bad); }
-    main { max-width: 1280px; margin: 0 auto; padding: 12px; display: grid; gap: 14px; }
+    main { max-width: 1480px; margin: 0 auto; padding: 10px 16px 16px; display: grid; gap: 10px; }
     .overview { display:grid; grid-template-columns:minmax(0,1fr); gap:10px; align-items:start; }
     .overview-side { display:grid; gap:10px; min-width:0; align-content:start; }
     .overview-side > .card { min-width:0; padding:10px; }
@@ -155,9 +155,9 @@
       .cal-card .card-h { margin-bottom: 6px; padding-bottom: 4px; }
       .cal-card .suitability-key { margin: 0 0 6px; }
     }
-    .board { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; align-items: start; }
+    .board { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; align-items: start; }
     .board > * { min-width: 0; }
-    .board-column { display: grid; gap: 14px; min-width: 0; align-content: start; }
+    .board-column { display: grid; gap: 10px; min-width: 0; align-content: start; }
     .calendar-addon { position: relative; margin-left: auto; font-size: 12px; font-weight: 500; }
     .calendar-addon > summary { cursor: pointer; list-style: none; color: var(--brand); padding: 5px 8px; border: 1px solid var(--line); border-radius: 8px; white-space: nowrap; }
     .calendar-popover { position: absolute; z-index: 30; right: 0; top: calc(100% + 8px); width: min(320px, calc(100vw - 48px)); padding: 14px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 8px 24px rgba(15,23,42,.16); }
@@ -166,22 +166,25 @@
     .cal-head { flex-wrap: wrap; }
     @media (max-width: 959px) { .board-column { display: contents; } }
 
-    .board .cal-card { grid-column: 1 / -1; }
+    .board .cal-card { grid-column: 1; }
     @media (min-width: 960px) {
-      .board { grid-template-columns: minmax(0, .9fr) minmax(0, 1.15fr) minmax(0, 1.25fr); }
+      .board { grid-template-columns: minmax(0, 1fr) minmax(280px, 340px); }
+      .board .cal-card { grid-column: 1; grid-row: 1 / span 3; }
+      .board-column { grid-column: 2; }
     }
     .board > .card > .card-h { color: #164e63; }
     .cal-card { border-top: 3px solid #0f766e; }
-    .suitability-key { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 0 12px; font-size: 11px; color: var(--muted); }
+    .suitability-key { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 0 8px; font-size: 11px; color: var(--muted); }
+    body.tab-todo main { padding-bottom: 84px; }
     .fit { display: inline-flex; align-items: center; gap: 4px; border: 1px solid; border-radius: 6px; padding: 2px 5px; font-size: 10px; font-weight: 700; line-height: 1.4; }
     .fit.high { color: #166534; background: #f0fdf4; border-color: #bbf7d0; }
     .fit.mid { color: #854d0e; background: #fefce8; border-color: #fde68a; }
     .fit.low { color: #9a3412; background: #fff7ed; border-color: #fed7aa; }
     .fit-symbol { font-size: 12px; font-weight: 800; }
     .fit-clinic { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .card { background: rgba(255,253,248,.94); border-radius: var(--radius); border: 1px solid #eadfce; padding: 14px; box-shadow: 0 10px 28px rgba(90,60,30,.06); }
-    .card-h { font-weight: 800; font-size: 15px; margin: -2px 0 10px; padding-bottom: 8px; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 8px; }
-    .tabpane { display: grid; gap: 14px; }
+    .card { background: rgba(255,253,248,.94); border-radius: var(--radius); border: 1px solid #eadfce; padding: 12px; box-shadow: 0 8px 22px rgba(90,60,30,.05); }
+    .card-h { font-weight: 800; font-size: 15px; margin: -2px 0 8px; padding-bottom: 6px; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 8px; }
+    .tabpane { display: grid; gap: 10px; }
     .tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; padding: 5px; border-radius: 16px; background: rgba(255,253,248,.72); border: 1px solid var(--line); }
     .tabs button { border: 0; border-radius: 12px; padding: 9px 8px; font-weight: 800; font-size: 14px; background: transparent; color: #6b5d4e; }
     @media (max-width: 420px) { .tabs button { font-size: 13px; padding: 8px 2px; } }
@@ -228,7 +231,7 @@
     .debt-chip.soon { background: #fef3c7; color: var(--warn); }
     .debt-chip.ok { background: #dcfce7; color: var(--ok); }
     .money-err { color: var(--bad); font-weight: 800; }
-    .todo-list { position: relative; padding-bottom: 72px; }
+    .todo-list { position: relative; padding-bottom: 4px; }
     .todo-add { display: grid; gap: 8px; }
     .todo-add input[type="text"] { width: 100%; }
     .pri-pick, .todo-sort { display: flex; gap: 6px; }
@@ -325,7 +328,7 @@
     /* Takvim */
     .weekdays, .grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
     .weekdays span { text-align: center; font-size: 11px; font-weight: 800; color: #8a6a52; letter-spacing: .04em; }
-    .cell { position: relative; border: 1px solid #eadfce; border-radius: 14px; background: rgba(255,253,248,.96); min-height: 118px; padding: 6px; display: flex; flex-direction: column; gap: 3px; cursor: pointer; overflow: hidden; }
+    .cell { position: relative; border: 1px solid #eadfce; border-radius: 14px; background: rgba(255,253,248,.96); min-height: 64px; padding: 6px; display: flex; flex-direction: column; gap: 3px; cursor: pointer; overflow: hidden; }
     .cell:hover { border-color: #d97756; }
     .cell.out { opacity: .4; }
     .cell.we { background: #f8f1e4; }
@@ -482,7 +485,7 @@
     .pill { display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px 2px 2px; border-radius: 999px; font-size: 12px; font-weight: 700; }
     @media (min-width: 641px) and (max-width: 1024px) {
       main { padding: 10px; }
-      .cell { min-height: 108px; }
+      .cell { min-height: 60px; }
       .crew { font-size: 10px; }
       .crew + .crew { display: none; }
     }
@@ -490,7 +493,7 @@
       input, select, textarea { font-size: 16px; }
       button { min-height: 40px; }
       .month button { min-width: 44px; }
-      main { padding-bottom: 96px; }
+      main { padding-bottom: 12px; }
       #actionBar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; margin: 0 !important; padding: 8px 10px max(8px, env(safe-area-inset-bottom));
         background: rgba(255,255,255,.97); border-top: 1px solid var(--line); box-shadow: 0 -6px 20px rgba(15,23,42,.08); flex-wrap: wrap; }
       #actionBar button { flex: 1 1 auto; }
@@ -506,9 +509,11 @@
     @media (max-width: 640px) {
       .top { flex-wrap: wrap; }
       .month { order: 3; width: 100%; justify-content: center; margin-left: 0; }
-      main { padding: 8px; padding-bottom: 96px; }
+      main { padding: 8px; padding-bottom: 12px; }
+      body:not(.tab-fin):not(.tab-todo) main { padding-bottom: 96px; }
+      body.tab-todo main { padding-bottom: 84px; }
       .grid, .weekdays { gap: 3px; }
-      .cell { min-height: 76px; padding: 3px; border-radius: 9px; }
+      .cell { min-height: 52px; padding: 3px; border-radius: 9px; }
       .cell .crew, .cell .flag, .cell .run, .cell .d small, .cell .opt-mini .stars { display: none; }
       .cell .sug .fit { width: 16px; height: 16px; padding: 0; font-size: 10px; }
       .cell .appointment { display: none; }
@@ -1545,7 +1550,10 @@
           ((e - s) / span * 100).toFixed(2) + '%;' + (x.kind === 'travel' ? '--c:' : x.kind === 'care' ? '' : 'background-color:') + (x.kind === 'care' ? '' : color) + '"></span>';
       };
       const row = (a) => '<div class="tl-row">' + a.map(seg).join('') + '</div>';
-      if (!big) return '<div class="tl">' + row(ev.segs.crew) + row(ev.segs.child) + row(ev.segs.partner) + '</div>';
+      if (!big) {
+        const rows = [ev.segs.crew, ev.segs.child, ev.segs.partner].filter((a) => a && a.length).map(row).join('');
+        return rows ? '<div class="tl">' + rows + '</div>' : '';
+      }
       const P = cfg.people || {};
       const marks = [];
       for (let t = vs; t <= ve; t += 120) marks.push(t);
