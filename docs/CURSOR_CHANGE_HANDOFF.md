@@ -13,6 +13,15 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+### 2026-11-05 — Aile: yapılacak tarih sütunu ve not
+
+- **İstek:** Tarih altta değil yanda, ayrı sütunda dursun. OK yerine Tamamlandı yazsın. Not basılınca alta açılsın, eklensin ve silinsin. Her değişiklik kendiliğinden kaydolsun.
+- **Dosyalar:** `support/aile/index.html`, `support/aile/sw.js` (`aile-shell-v31`), `scripts/test-aile-eso.mjs`, `scripts/test-aile-todos.mjs`.
+- **Liste:** Tarih ve saat sol sütunda. Tamamlandı sağda. Not satırın altında açılır; ekleme, silme ve metin değişikliği ayrıca bir kaydet düğmesi olmadan yazılır.
+- **Koruma:** Plan, fatura, gelir, önem zemini ve süre bildirimleri durur. Not metni bildirime yazılmaz.
+- **Doğrulama:** `node scripts/test-aile-todos.mjs` ve `node scripts/test-aile-eso.mjs` OK. Tarayıcıda tarih sol sütunda, Tamamlandı sağda. Not açıldı, yazı kendiliğinden güncellendi, silme notu kaldırdı.
+- **Canlı:** Yayın sonrası doğrulanacak.
+
 ### 2026-11-05 — Aile: yapılacak ekleme düğmesi ve yeni iş bildirimi
 
 - **İstek:** Yeni iş eklenince bildirim gitsin. Renk şeridi kalksın, önem arka zeminde görünsün. Listede yalnız liste kalsın; ekleme yüzen artı düğmesiyle açılsın.
