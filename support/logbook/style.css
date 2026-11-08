@@ -71,41 +71,12 @@ html.do-print .scroll,html.do-print body,html.do-print main{overflow:visible!imp
 }
 .simulator-row td:nth-child(23),.simulator-row td:nth-child(24),.simulator-row td:nth-child(25){background:#d5e7f3;font-weight:700}
 #simError{color:#9b1d20}#simEditor p{font-size:13px}#simEditor .primary{margin-right:8px}
-/* Closed-page void rows: paper-style diagonal unused marks */
-.logbook tbody tr.void-start td{border-top:2px solid #10243a}
-.logbook tbody tr.voided td.void-cell{
-  background-color:var(--row-bg,#fff);
-  background-image:
-    linear-gradient(152deg,transparent 42%,#1b4f86 42%,#1b4f86 48%,transparent 48%),
-    linear-gradient(28deg,transparent 52%,#1b4f86 52%,#1b4f86 58%,transparent 58%);
-  background-size:100% 100%;
-  background-repeat:no-repeat;
-}
-.logbook tbody tr.voided td:nth-child(3),
-.logbook tbody tr.voided td:nth-child(4),
-.logbook tbody tr.voided td:nth-child(5),
-.logbook tbody tr.voided td:nth-child(6),
-.logbook tbody tr.voided td:nth-child(7),
-.logbook tbody tr.voided td:nth-child(8),
-.logbook tbody tr.voided td:nth-child(9),
-.logbook tbody tr.voided td:nth-child(10),
-.logbook tbody tr.voided td:nth-child(11),
-.logbook tbody tr.voided td:nth-child(12),
-.logbook tbody tr.voided td:nth-child(13){
-  background-image:linear-gradient(152deg,transparent 40%,#1b4f86 40%,#1b4f86 50%,transparent 50%);
-}
-.logbook tbody tr.voided td:nth-child(17),
-.logbook tbody tr.voided td:nth-child(18),
-.logbook tbody tr.voided td:nth-child(19),
-.logbook tbody tr.voided td:nth-child(20),
-.logbook tbody tr.voided td:nth-child(21){
-  background-image:linear-gradient(28deg,transparent 45%,#1b4f86 45%,#1b4f86 55%,transparent 55%);
-}
-.logbook tbody tr.voided td:nth-child(26){
-  background-image:
-    linear-gradient(152deg,transparent 35%,#1b4f86 35%,#1b4f86 45%,transparent 45%),
-    linear-gradient(28deg,transparent 55%,#1b4f86 55%,#1b4f86 65%,transparent 65%);
-}
+/* Closed-page void: one large paper-style "7" per column group, not per cell */
+.logbook tbody tr.void-start>td{border-top:2px solid #10243a}
+.logbook tbody tr.voided td.void-mark,
+.logbook tbody tr.voided td.void-gap{background:#fff;padding:0;height:auto;max-height:none;line-height:normal;overflow:visible;white-space:normal;position:relative;vertical-align:stretch}
+.logbook tbody tr.voided td.void-mark .void-7{position:absolute;inset:6px 8px;width:auto;height:auto;display:block;pointer-events:none}
+.logbook tbody tr.voided td.void-mark path{stroke:#1b4f86;stroke-width:3.2;vector-effect:non-scaling-stroke}
 @media print{
-  .logbook tbody tr.voided td.void-cell{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .logbook tbody tr.voided td.void-mark{-webkit-print-color-adjust:exact;print-color-adjust:exact}
 }
