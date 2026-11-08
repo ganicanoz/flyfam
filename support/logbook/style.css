@@ -71,3 +71,12 @@ html.do-print .scroll,html.do-print body,html.do-print main{overflow:visible!imp
 }
 .simulator-row td:nth-child(23),.simulator-row td:nth-child(24),.simulator-row td:nth-child(25){background:#d5e7f3;font-weight:700}
 #simError{color:#9b1d20}#simEditor p{font-size:13px}#simEditor .primary{margin-right:8px}
+/* Closed-page void: one large paper-style "7" per column group, not per cell */
+.logbook tbody tr.void-start>td{border-top:2px solid #10243a}
+.logbook tbody tr.voided td.void-mark,
+.logbook tbody tr.voided td.void-gap{background:#fff;padding:0;height:auto;max-height:none;line-height:normal;overflow:visible;white-space:normal;position:relative;vertical-align:stretch}
+.logbook tbody tr.voided td.void-mark .void-7{position:absolute;inset:6px 8px;width:auto;height:auto;display:block;pointer-events:none}
+.logbook tbody tr.voided td.void-mark path{stroke:#1b4f86;stroke-width:3.2;vector-effect:non-scaling-stroke}
+@media print{
+  .logbook tbody tr.voided td.void-mark{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
