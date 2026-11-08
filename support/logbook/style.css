@@ -71,12 +71,23 @@ html.do-print .scroll,html.do-print body,html.do-print main{overflow:visible!imp
 }
 .simulator-row td:nth-child(23),.simulator-row td:nth-child(24),.simulator-row td:nth-child(25){background:#d5e7f3;font-weight:700}
 #simError{color:#9b1d20}#simEditor p{font-size:13px}#simEditor .primary{margin-right:8px}
-/* Closed-page void: one large paper-style "7" per column group, not per cell */
-.logbook tbody tr.void-start>td{border-top:2px solid #10243a}
-.logbook tbody tr.voided td.void-mark,
-.logbook tbody tr.voided td.void-gap{background:#fff;padding:0;height:auto;max-height:none;line-height:normal;overflow:visible;white-space:normal;position:relative;vertical-align:stretch}
-.logbook tbody tr.voided td.void-mark .void-7{position:absolute;inset:6px 8px;width:auto;height:auto;display:block;pointer-events:none}
-.logbook tbody tr.voided td.void-mark path{stroke:#1b4f86;stroke-width:3.2;vector-effect:non-scaling-stroke}
+/* Closed-page void: blank white band, no cell grid, no 7 marks */
+.logbook tbody tr.voided,
+.logbook tbody tr.voided:nth-child(odd),
+.logbook tbody tr.voided:nth-child(even),
+.logbook tbody tr.voided:hover{--row-bg:#fff;background:#fff}
+.logbook tbody tr.voided td.void-blank{
+  background:#fff;
+  border-color:#fff;
+  border-left:1px solid #444;
+  border-right:1px solid #444;
+  height:28px;
+  max-height:28px;
+  padding:0;
+  line-height:28px;
+}
+.logbook tbody tr.void-start td.void-blank{border-top:2px solid #10243a}
+.logbook tbody tr.voided:last-child td.void-blank{border-bottom:1px solid #444}
 @media print{
-  .logbook tbody tr.voided td.void-mark{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .logbook tbody tr.voided td.void-blank{background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 }
