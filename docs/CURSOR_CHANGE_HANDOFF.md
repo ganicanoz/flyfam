@@ -13,6 +13,14 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+### 2026-11-08 — Logbook: sayfa ve defter kapatma
+
+- **İstek:** Sayfa kapatınca kalan satırlar kullanılmasın, çapraz işaret konulsun, toplamlar sonraki sayfaya aktarılsın. Defter kapatınca aynı iş yeni deftere geçişte yapılsın.
+- **Dosyalar:** `support/logbook/app.js` (`pageCloses`, `bookCloses`, `closePage`, `closeBook`, `bookSegments`), `index.html` (`v1.5.4`, Sayfa/Defter kapat, defter gezinme), `style.css` (void satır işaretleri), `sw.js` (`gani-logbook-v1.5.4`), `scripts/test-gani-logbook-sync.mjs`.
+- **Davranış:** Son sayfada Sayfa kapat, son kayıttan sonra sayfayı void satırlarla doldurur; yeni uçuşlar sonraki sayfada. Defter kapat, sayfayı kapatır ve TOTAL anlık görüntüsünü yeni defterin opening toplamına yazar. Kapalı defterler Defter −/+ ile gezilir. Yedek/geri yükleme `pageCloses` ve `bookCloses` taşır.
+- **Koruma:** 16 satır, HEL–SAW rezervi, PAPER_CARRY, PF, senkron, Kaydet ve yazdır aynı. `gani-logbook` fonksiyonu deploy edilmedi. Kişisel adres yazılmadı.
+- **Doğrulama:** `node scripts/test-gani-logbook-sync.mjs` OK. `node --check support/logbook/app.js` OK. `git diff --check` temiz.
+
 ### 2026-11-05 — Aile: özet yatay, takvime ekle, okul tatili
 
 - **İstek:** Özet kutusu sayfayı uzatmasın; klinikler yan yana, özet yatay dursun. Tatil giriş kutusu kalksın. Takvimde kayan + ile tatil, etkinlik veya kırmızı okul tatili eklensin ve takvime işlensin. Okul kapalı günleri bakanlık takviminden gelsin. Evde bakım kısa sürerse son çare, uzun sürerse çakışma sayılsın.

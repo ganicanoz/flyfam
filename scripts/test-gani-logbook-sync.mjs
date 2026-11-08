@@ -27,7 +27,7 @@ context.state.records.push({ kind: 'simulator', date: '2026-12-20' });
 if (q('latestFlightDate()', context) !== '2026-11-02') throw new Error('simülatör tarihi Gmail taramasını ileri aldı');
 const sw = fs.readFileSync(path.join(dir, 'sw.js'), 'utf8');
 const gmail = fs.readFileSync(path.join(dir, 'gmail.js'), 'utf8');
-if (!sw.includes("const CACHE='gani-logbook-v1.5.3'")) throw new Error('önbellek sürümü artmadı');
+if (!sw.includes("const CACHE='gani-logbook-v1.5.4'")) throw new Error('önbellek sürümü artmadı');
 if (!sw.includes('return cached')) throw new Error('uçakta son ekran açılmıyor');
 if (sw.includes('.navigate(')) throw new Error('yükleme bitmiyor');
 if (q("resumeChoice({remoteCount:0,localCount:3,same:false,joined:false,dirty:false})", context) !== 'save') throw new Error('boş bulut yazılmadı');
@@ -35,7 +35,9 @@ if (q("resumeChoice({remoteCount:20,localCount:2,same:false,joined:false,dirty:f
 if (q("resumeChoice({remoteCount:20,localCount:22,same:false,joined:true,dirty:true,syncIso:'2026-10-31T18:00:00Z',remoteSavedIso:'2026-10-31T12:00:00Z'})", context) !== 'save') throw new Error('bu cihazdaki yeni iş yazılmadı');
 if (q("resumeChoice({remoteCount:20,localCount:20,same:true,joined:true,dirty:false})", context) !== 'same') throw new Error('aynı kayıt yeniden yazıldı');
 const page = fs.readFileSync(path.join(dir, 'index.html'), 'utf8');
-if (!page.includes('src="logo.png"') || !page.includes('apple-touch-icon.png') || !page.includes('id="version">v1.5.3') || !page.includes('>Kaydet<') || !page.includes('id="addSim"')) throw new Error('logo, sürüm, Kaydet veya simülatör');
+if (!page.includes('src="logo.png"') || !page.includes('apple-touch-icon.png') || !page.includes('id="version">v1.5.4') || !page.includes('>Kaydet<') || !page.includes('id="addSim"')) throw new Error('logo, sürüm, Kaydet veya simülatör');
+if (!page.includes('id="closePage"') || !page.includes('id="closeBook"')) throw new Error('sayfa/defter kapat düğmesi yok');
+if (!page.includes('id="prevBook"') || !page.includes('id="nextBook"')) throw new Error('defter gezinme yok');
 const pfAt=page.indexOf('class="pfhead">PF</th>'),dateAt=page.indexOf('>1<br>DATE</th>');
 if(pfAt<0||dateAt<0||pfAt>dateAt) throw new Error('PF sütunu solda değil');
 if(page.includes('Açılış son sayfadadır')) throw new Error('gereksiz açıklama duruyor');
@@ -56,8 +58,9 @@ const cfg=fs.readFileSync(path.join(dir,'gmail-config.js'),'utf8');
 if(!/account:\s*'[^']+'/.test(cfg)) throw new Error('varsayılan hesap yok');
 if (!app.includes("reg:'TC-NBN'") || !app.includes("reg:'TC-RBP'")) throw new Error('11 Ekim uçuşları yok');
 if (app.includes('[1,2,3].map')) throw new Error('üç boş açılış satırı duruyor');
-const slotStart = app.indexOf('function initialBookPage');
+const slotStart = app.indexOf('const PAGE_ROWS');
 const slotEnd = app.indexOf('const sums');
+if (slotStart < 0 || slotEnd < slotStart) throw new Error('sayfa slotları yok');
 vm.runInContext(app.slice(slotStart, slotEnd), context);
 context.state.records = [
   { openingSlot: 1, date: '2026-10-11', off: '2026-10-11T02:56:00Z', from: 'SAW', to: 'AYT' },
@@ -70,6 +73,28 @@ if (JSON.stringify(order) !== JSON.stringify(['SAW-AYT', 'AYT-SAW', 'SAW-HEL', '
 if (q('initialBookPage(1)', context) !== 0) throw new Error('tek sayfa kaydı');
 if (q('initialBookPage(4)', context) !== 3) throw new Error('açılış son sayfa değil');
 if (!app.includes('followLast')) throw new Error('açılış ilk sayfada kalıyor');
+context.state.records = [
+  { id: 'a', date: '2026-10-12', off: '2026-10-12T08:00:00Z', from: 'SAW', to: 'HEL' },
+  { id: 'b', date: '2026-10-13', off: '2026-10-13T09:00:00Z', from: 'SAW', to: 'ADB' },
+  { id: 'c', date: '2026-10-14', off: '2026-10-14T10:00:00Z', from: 'SAW', to: 'ESB' },
+];
+context.state.pageCloses = [{ afterId: 'b', closedAt: '2026-11-08T00:00:00Z' }];
+context.state.bookCloses = [];
+const closed = q("pageSlots(state.records).map(r=>r&&r.voided?'void':r&&r.reserved?'bos':r.id)", context);
+if (closed.filter(x => x === 'void').length !== 13) throw new Error('sayfa kapatma boş satır doldurmadı: ' + JSON.stringify(closed));
+if (closed.indexOf('c') < closed.lastIndexOf('void')) throw new Error('yeni uçuş kapalı sayfada kaldı');
+if (closed.length !== 17) throw new Error('kapalı sayfa sonrası yeni satır yok: ' + closed.length);
+context.state.pageCloses = [];
+context.state.bookCloses = [{ afterId: 'b', closedAt: '2026-11-08T00:00:00Z', openingForNext: { block: 100, totalTime: 120, day: 1, landNight: 0, night: 0, ifr: 100, pic: 50, copilot: 50, se: 0, me: 0, fstd: 0 } }];
+context.state.openingTotals = { block: 10, totalTime: 20, day: 0, landNight: 0, night: 0, ifr: 10, pic: 5, copilot: 5, se: 0, me: 0, fstd: 0 };
+const segs = q('bookSegments(pageSlots(state.records))', context);
+if (segs.length !== 2) throw new Error('defter kapatma iki defter açmadı');
+if (segs[0].open !== false || segs[1].open !== true) throw new Error('açık defter bayrağı yanlış');
+if (segs[1].openingTotals.block !== 100 || segs[1].openingTotals.totalTime !== 120) throw new Error('yeni defter devri yanlış');
+if (segs[0].end - segs[0].start !== 16) throw new Error('kapalı defter sayfası tamamlanmadı');
+if (q("lastClosable([{id:'x'},{voided:true},null]).id", context) !== 'x') throw new Error('son kapatılabilir satır');
+if (!app.includes('function closePage') || !app.includes('function closeBook')) throw new Error('kapatma işlevi yok');
+if (!app.includes('class="voided') || !fs.readFileSync(path.join(dir, 'style.css'), 'utf8').includes('void-cell')) throw new Error('boş satır işareti yok');
 const carryStart = app.indexOf('const PAPER_CARRY');
 const carryEnd = app.indexOf('if(storageOK&&state.paperCarry');
 if (carryStart < 0 || carryEnd < carryStart) throw new Error('devir toplamı yok');
