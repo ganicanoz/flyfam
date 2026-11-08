@@ -20,6 +20,7 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - **Davranış:** Kapalı boş satırlar tek sütun birleşik beyaz bant; hücre çizgisi ve 7 işareti yok. Sayfa/defter kapatma ve toplam aktarımı aynı.
 - **Koruma:** `pageCloses` / `bookCloses`, 16 satır, senkron, Kaydet aynı. Kişisel adres yazılmadı.
 - **Doğrulama:** `node scripts/test-gani-logbook-sync.mjs` OK. `node --check support/logbook/app.js` OK. `git diff --check` temiz.
+- **Canlı:** PR #110 merge `a1009a6`, support deploy `42465634353`. https://app.flyfamapp.com/logbook/ `v1.5.6`, `void-blank`, 7 işareti yok, önbellek `gani-logbook-v1.5.6` (2026-11-08).
 
 ### 2026-11-08 — Logbook: sayfa ve defter kapatma
 
