@@ -13,6 +13,14 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+### 2026-11-08 — Logbook: kapatma alanı bembeyaz
+
+- **İstek:** Sayfa kapatınca 7 işaretleri olmasın; kalan kutular kalksın, alan bembeyaz olsun. Basınca bu format gelsin.
+- **Dosyalar:** `support/logbook/app.js` (`voidBlockRows` → `void-blank`), `style.css`, `index.html` (`v1.5.6`), `sw.js` (`gani-logbook-v1.5.6`), `scripts/test-gani-logbook-sync.mjs`.
+- **Davranış:** Kapalı boş satırlar tek sütun birleşik beyaz bant; hücre çizgisi ve 7 işareti yok. Sayfa/defter kapatma ve toplam aktarımı aynı.
+- **Koruma:** `pageCloses` / `bookCloses`, 16 satır, senkron, Kaydet aynı. Kişisel adres yazılmadı.
+- **Doğrulama:** `node scripts/test-gani-logbook-sync.mjs` OK. `node --check support/logbook/app.js` OK. `git diff --check` temiz.
+
 ### 2026-11-08 — Logbook: sayfa ve defter kapatma
 
 - **İstek:** Sayfa kapatınca kalan satırlar kullanılmasın, çapraz işaret konulsun, toplamlar sonraki sayfaya aktarılsın. Defter kapatınca aynı iş yeni deftere geçişte yapılsın. İşaret hücre hücre değil, kâğıt defterdeki gibi tek büyük “7” olsun.
