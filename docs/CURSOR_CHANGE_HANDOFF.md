@@ -20,6 +20,7 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - **Davranış:** Son sayfada Sayfa kapat, son kayıttan sonra sayfayı void satırlarla doldurur; sütun gruplarında tek büyük “7” çizilir. Yeni uçuşlar sonraki sayfada. Defter kapat, sayfayı kapatır ve TOTAL anlık görüntüsünü yeni defterin opening toplamına yazar. Kapalı defterler Defter −/+ ile gezilir. Yedek/geri yükleme `pageCloses` ve `bookCloses` taşır.
 - **Koruma:** 16 satır, HEL–SAW rezervi, PAPER_CARRY, PF, senkron, Kaydet ve yazdır aynı. `gani-logbook` fonksiyonu deploy edilmedi. Kişisel adres yazılmadı.
 - **Doğrulama:** `node scripts/test-gani-logbook-sync.mjs` OK. `node --check support/logbook/app.js` OK. `git diff --check` temiz.
+- **Canlı:** PR #109 merge `38f975d`, support deploy `42465053190`. https://app.flyfamapp.com/logbook/ `v1.5.5`, `Sayfa kapat` / `Defter kapat`, `voidBlockRows` / `void-7`, önbellek `gani-logbook-v1.5.5` (2026-11-08).
 
 ### 2026-11-05 — Aile: özet yatay, takvime ekle, okul tatili
 
