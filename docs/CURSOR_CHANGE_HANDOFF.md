@@ -13,6 +13,16 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+### 2026-11-09 — Offline/uçak: süresi dolmuş JWT → SignIn yerine disk oturumu
+
+- **Belirti:** Uçak/uçak modunda uygulama açılınca login/welcome; son kayıtlı program/profil gelmiyor.
+- **Kök neden:** Access token süresi dolunca (veya refresh margin) `getSession()` ağda yenilemeye çalışıyor; offline fail → `{ session: null }` → `App.tsx` SignIn. AsyncStorage’daki `refresh_token` + `sessionProfileCache` duruyor ama UI kullanmıyordu.
+- **Dosyalar:** `mobile/lib/persistedAuthSessionParse.ts`, `mobile/lib/persistedAuthSession.ts`, `mobile/contexts/SessionContext.tsx`, `mobile/scripts/test-persisted-auth-session.ts`.
+- **Davranış:** Açılışta önce disk oturumu + profil cache; `getSession` başarısızsa diskte kal. Kasıtlı olmayan `SIGNED_OUT` ve diskte hâlâ oturum varsa UI temizlenmez. Bilinçli `signOut` `intentionalSignOutRef` ile işaretlenir.
+- **Doğrulama:** `npx tsx mobile/scripts/test-persisted-auth-session.ts` PASS; `tsc --noEmit` OK.
+- **Koruma:** Gerçek çıkış / diğer cihaz kick hâlâ local session’ı temizler. Build 57 binary’sine dahil.
+
+
 ### 2026-11-08 — Logbook: kapatma alanı bembeyaz
 
 - **İstek:** Sayfa kapatınca 7 işaretleri olmasın; kalan kutular kalksın, alan bembeyaz olsun. Basınca bu format gelsin.
