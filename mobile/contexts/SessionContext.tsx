@@ -23,6 +23,7 @@ import {
   registerActiveDevice,
   resetActiveDeviceCache,
 } from '@/lib/activeDevice';
+import { readPersistedAuthSession } from '@/lib/persistedAuthSession';
 
 export type Profile = {
   id: string;
@@ -202,32 +203,60 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     return installPushUrlOpenHandler();
   }, []);
 
+  const intentionalSignOutRef = useRef(false);
+
   useEffect(() => {
     let cancelled = false;
 
     (async () => {
       try {
+        // Fast path: show last disk session + profile before getSession() may block on
+        // an offline token refresh (expired JWT → null session → SignIn).
+        const persisted = await readPersistedAuthSession();
+        if (cancelled) return;
+        if (persisted?.user?.id) {
+          setSession(persisted);
+          await applyCachedProfile(persisted.user.id);
+          if (cancelled) return;
+          setIsLoading(false);
+        }
+
         const { data: { session: s }, error } = await supabase.auth.getSession();
         if (cancelled) return;
 
-        if (error) {
-          // Transient storage/network glitch: do not signOut (that clears JWT and forces login).
-          // If AsyncStorage still has a session, getSession usually succeeds offline.
-          setIsLoading(false);
-          return;
-        }
-
-        setSession(s);
         if (s?.user?.id) {
-          // Hydrate disk profile first so MainTabs can open offline.
+          setSession(s);
           await applyCachedProfile(s.user.id);
           if (cancelled) return;
           setIsLoading(false);
           void fetchProfile(s.user.id);
-        } else {
-          setIsLoading(false);
+          return;
         }
+
+        if (error || !s) {
+          // Refresh failed offline: keep disk session if still present.
+          const again = persisted ?? (await readPersistedAuthSession());
+          if (cancelled) return;
+          if (again?.user?.id) {
+            setSession(again);
+            await applyCachedProfile(again.user.id);
+            if (!cancelled) setIsLoading(false);
+            return;
+          }
+        }
+
+        if (!cancelled) setIsLoading(false);
       } catch {
+        if (cancelled) return;
+        try {
+          const again = await readPersistedAuthSession();
+          if (again?.user?.id) {
+            setSession(again);
+            await applyCachedProfile(again.user.id);
+          }
+        } catch {
+          /* ignore */
+        }
         if (!cancelled) setIsLoading(false);
       }
     })();
@@ -246,14 +275,27 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
           await fetchProfile(nextSession.user!.id);
         })();
       } else if (event === 'SIGNED_OUT') {
-        setSession(null);
-        setProfile(null);
-        setCrewProfile(null);
-        setProfileFromCache(false);
-        setIsLoading(false);
-        void clearSessionProfileCache();
-        void clearConsentOkCache();
-        void cancelStandbyDecisionReminders();
+        void (async () => {
+          // Spurious SIGNED_OUT after offline refresh failure: storage may still hold session.
+          if (!intentionalSignOutRef.current) {
+            const stillThere = await readPersistedAuthSession();
+            if (stillThere?.user?.id) {
+              setSession(stillThere);
+              await applyCachedProfile(stillThere.user.id);
+              setIsLoading(false);
+              return;
+            }
+          }
+          intentionalSignOutRef.current = false;
+          setSession(null);
+          setProfile(null);
+          setCrewProfile(null);
+          setProfileFromCache(false);
+          setIsLoading(false);
+          void clearSessionProfileCache();
+          void clearConsentOkCache();
+          void cancelStandbyDecisionReminders();
+        })();
       } else {
         // e.g. failed token refresh offline — keep existing session/profile.
         setIsLoading(false);
@@ -312,8 +354,13 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     const uid = session?.user?.id ?? profile?.id ?? null;
+    intentionalSignOutRef.current = true;
     resetActiveDeviceCache();
-    await supabase.auth.signOut();
+    try {
+      await supabase.auth.signOut();
+    } catch {
+      // Local clear below still runs; flag stays true so SIGNED_OUT is not treated as offline glitch.
+    }
     setSession(null);
     setProfile(null);
     setCrewProfile(null);
