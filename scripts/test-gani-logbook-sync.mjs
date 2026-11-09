@@ -27,7 +27,7 @@ context.state.records.push({ kind: 'simulator', date: '2026-12-20' });
 if (q('latestFlightDate()', context) !== '2026-11-02') throw new Error('simülatör tarihi Gmail taramasını ileri aldı');
 const sw = fs.readFileSync(path.join(dir, 'sw.js'), 'utf8');
 const gmail = fs.readFileSync(path.join(dir, 'gmail.js'), 'utf8');
-if (!sw.includes("const CACHE='gani-logbook-v1.5.6'")) throw new Error('önbellek sürümü artmadı');
+if (!sw.includes("const CACHE='gani-logbook-v1.5.7'")) throw new Error('önbellek sürümü artmadı');
 if (!sw.includes('return cached')) throw new Error('uçakta son ekran açılmıyor');
 if (sw.includes('.navigate(')) throw new Error('yükleme bitmiyor');
 if (q("resumeChoice({remoteCount:0,localCount:3,same:false,joined:false,dirty:false})", context) !== 'save') throw new Error('boş bulut yazılmadı');
@@ -35,7 +35,8 @@ if (q("resumeChoice({remoteCount:20,localCount:2,same:false,joined:false,dirty:f
 if (q("resumeChoice({remoteCount:20,localCount:22,same:false,joined:true,dirty:true,syncIso:'2026-10-31T18:00:00Z',remoteSavedIso:'2026-10-31T12:00:00Z'})", context) !== 'save') throw new Error('bu cihazdaki yeni iş yazılmadı');
 if (q("resumeChoice({remoteCount:20,localCount:20,same:true,joined:true,dirty:false})", context) !== 'same') throw new Error('aynı kayıt yeniden yazıldı');
 const page = fs.readFileSync(path.join(dir, 'index.html'), 'utf8');
-if (!page.includes('src="logo.png"') || !page.includes('apple-touch-icon.png') || !page.includes('id="version">v1.5.6') || !page.includes('>Kaydet<') || !page.includes('id="addSim"')) throw new Error('logo, sürüm, Kaydet veya simülatör');
+if (!page.includes('src="logo.png"') || !page.includes('apple-touch-icon.png') || !page.includes('id="version">v1.5.7') || !page.includes('>Kaydet<') || !page.includes('id="addSim"')) throw new Error('logo, sürüm, Kaydet veya simülatör');
+if (!app.includes('const r=current[i],num=i+1;') || app.includes('bookPage*PAGE_ROWS+i+1')) throw new Error('sayfa uçuş sırası 1–16 başlamıyor');
 if (!page.includes('id="closePage"') || !page.includes('id="closeBook"')) throw new Error('sayfa/defter kapat düğmesi yok');
 if (!page.includes('id="prevBook"') || !page.includes('id="nextBook"')) throw new Error('defter gezinme yok');
 const pfAt=page.indexOf('class="pfhead">PF</th>'),dateAt=page.indexOf('>1<br>DATE</th>');

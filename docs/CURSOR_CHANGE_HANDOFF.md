@@ -1971,3 +1971,9 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - **Doğrulama:** `node scripts/test-aile-eso.mjs` all ok; `git diff --check` OK. Canlı SQL sonrası 6 satır (8+9 Kasım) doğrulandı.
 - **Korunacak:** Tek kişiye özel randevu kutuları ayrı kalır; yalnız crew+child+partner üçlüsü birleşir.
 
+## 2026-11-09 — Logbook: her sayfada uçuş sırası 1–16
+
+- **Dosyalar:** `support/logbook/app.js` (satır numarası `bookPage*16+i+1` → `i+1`), `index.html`/`sw.js` v1.5.7, `scripts/test-gani-logbook-sync.mjs`.
+- **Davranış:** Her sayfada 16 satır 1’den 16’ya numaralanır; defter boyunca artan sıra kalkar. Sayfa/defter kapatma ve toplam satırları aynı.
+- **Doğrulama:** `node scripts/test-gani-logbook-sync.mjs` OK; `git diff --check` OK.
+
