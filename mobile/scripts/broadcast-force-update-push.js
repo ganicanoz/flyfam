@@ -24,7 +24,7 @@ const SUPABASE_URL = (process.env.EXPO_PUBLIC_SUPABASE_URL || '').replace(/\/$/,
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 const TITLE = 'FlyFam — Yeni sürüm';
 const BODY =
-  'Yeni özellikler için güncel sürümü kullanın; eski sürüm yakında kapanacak. iOS: TestFlight/App Store. Android: Play closed testing — listede değilseniz support@flyfamapp.com adresine yazın.';
+  'Yeni özellikler için güncel sürümü kullanın; eski sürüm yakında kapanacak. iOS: TestFlight/App Store. Android: Play closed testing — listede değilseniz flyfamapp@gmail.com adresine yazın.';
 
 async function main() {
   if (!SUPABASE_URL || !SERVICE_KEY) {

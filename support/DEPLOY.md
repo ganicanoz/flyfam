@@ -1,42 +1,22 @@
-# Destek sayfasını canlıya alma
+# Destek / yasal site – canlıya alma
 
-Tek dosya: `index.html`. Aşağıdaki yollardan birini kullan.
+GitHub Pages kaynağı: `support/` klasörü. Workflow: `.github/workflows/deploy-support.yml`.
 
----
+Markalı canlı kök: `https://app.flyfamapp.com/`
 
-## 1) Netlify Drop (en kolay – Git yok)
+| Yol | İçerik |
+| --- | --- |
+| `/` | Marketing yönlendirme → `https://flyfam.base44.app/` |
+| `/support/` | Destek / SSS / iletişim (`flyfamapp@gmail.com`) |
+| `/privacy-policy.html` | Gizlilik |
+| `/terms-of-use.html` | Kullanım koşulları |
+| `/auth-callback.html` | Auth deep-link köprüsü |
+| `/admin/` | Yayında değil (bilinçli 404 benzeri sayfa) |
 
-1. [app.netlify.com/drop](https://app.netlify.com/drop) sayfasını aç.
-2. `support` klasörünü **sürükle bırak** (veya içindeki `index.html`’i zip’leyip zip’i bırak).
-3. Netlify anında bir URL verir (örn. `https://rastgele-isim.netlify.app`).  
-   Hesap açmak zorunlu değil; kalıcı link için giriş yapıp site adını değiştirebilirsin.
+App Store:
+- Marketing URL: `https://app.flyfamapp.com/` (kök → Base44 marketing)
+- Support URL: `https://app.flyfamapp.com/support/`
 
----
+Ops konsolu yalnız yerel/özel: `docs/ADMIN_STATUS_DASHBOARD.html` — `app.flyfamapp.com` altında yayınlanmaz.
 
-## 2) GitHub Pages (repo zaten GitHub’daysa)
-
-1. Repo → **Settings** → **Pages** → **Source**: **GitHub Actions**.
-2. `support/` ve workflow’u push et. Push sonrası sayfa otomatik yayına girer.  
-   Markalı canlı URL: `https://app.flyfamapp.com/`
-
----
-
-## 3) Vercel
-
-1. [vercel.com](https://vercel.com) → **Add New** → **Project** → Repo’yu seç.
-2. **Root Directory**: `support` yap.
-3. **Deploy** tıkla.
-
----
-
-E-posta adresini değiştirmek için `index.html` içinde `support@flyfamapp.com` metnini düzenle.
-
----
-
-## Admin panel
-
-Admin arayüzü **`docs/ADMIN_STATUS_DASHBOARD.html`** dosyasıdır. Destek sitesi workflow'u bu dosyayı yayın paketine kopyalar.
-
-`https://app.flyfamapp.com/admin/`
-
-`support/CNAME` dosyası GitHub Pages özel alan adını `app.flyfamapp.com` olarak sabitler. Cloudflare'da `app` CNAME kaydı GitHub Pages hedefine yönlendirilmelidir.
+`support/CNAME` GitHub Pages özel alanını `app.flyfamapp.com` olarak sabitler.
