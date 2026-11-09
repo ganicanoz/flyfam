@@ -9,13 +9,13 @@
     :root{--bg:#f4f7fb;--card:#fff;--ink:#13213a;--muted:#667085;--line:#dce4ef;--blue:#2257d6;--green:#087a55;--red:#bd2c3c;--amber:#a15c00;--soft:#edf3ff;--shadow:0 12px 30px rgba(28,45,80,.08)}
     *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
     button,input,textarea,select{font:inherit}.wrap{max-width:1240px;margin:auto;padding:28px}.hero{padding:26px;border-radius:24px;background:linear-gradient(135deg,#11234b,#2257d6 62%,#37a4e8);color:#fff;box-shadow:var(--shadow)}
-    .hero-top,.toolbar,.row,.task-head,.stats{display:flex;align-items:center;gap:12px}.hero-top{justify-content:space-between}.eyebrow{text-transform:uppercase;letter-spacing:.12em;font-size:11px;font-weight:800;opacity:.72}h1{font-size:34px;line-height:1.1;margin:7px 0 9px}.hero p{max-width:780px;margin:0;opacity:.86}.save{white-space:nowrap;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.25);padding:9px 12px;border-radius:999px}
+    .hero-top,.toolbar,.row,.stats{display:flex;align-items:center;gap:12px}.hero-top{justify-content:space-between}.eyebrow{text-transform:uppercase;letter-spacing:.12em;font-size:11px;font-weight:800;opacity:.72}h1{font-size:34px;line-height:1.1;margin:7px 0 9px}.hero p{max-width:780px;margin:0;opacity:.86}.save{white-space:nowrap;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.25);padding:9px 12px;border-radius:999px}
     .stats{margin-top:20px;display:grid;grid-template-columns:repeat(4,1fr)}.stat{background:rgba(255,255,255,.11);border:1px solid rgba(255,255,255,.18);padding:14px;border-radius:16px}.stat b{display:block;font-size:24px}.stat span{font-size:12px;opacity:.78}.progress{height:8px;background:rgba(255,255,255,.18);border-radius:99px;overflow:hidden;margin-top:18px}.progress i{display:block;height:100%;background:#72f0b8;width:0;transition:.25s}
-    .warning{margin:18px 0;background:#fff8e8;border:1px solid #f1cf86;border-left:5px solid #d78a00;border-radius:14px;padding:16px}.warning b{color:#7c4700}.warning p{margin:5px 0}.release-summary{margin:18px 0}.release-summary h2{margin:0 0 10px}.release-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.release-card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px}.release-card h3{margin:0 0 9px;font-size:16px}.release-card ul{margin:0;padding-left:19px}.release-card li{margin:6px 0}.release-card.done{border-top:5px solid var(--green)}.release-card.open{border-top:5px solid var(--amber)}.release-card.decision{border-top:5px solid var(--red)}.release-gate{margin-top:12px;padding:13px 15px;border-radius:13px;background:var(--soft);font-weight:750}.audit{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:18px 0}.audit-card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px}.audit-card b{display:block;font-size:22px}.audit-card span{color:var(--muted);font-size:12px}.audit-card.danger{border-color:#e9a5ae}.audit-card.danger b{color:var(--red)}.toolbar{position:sticky;top:0;z-index:4;margin:18px 0;padding:12px;background:rgba(244,247,251,.92);backdrop-filter:blur(12px);border:1px solid var(--line);border-radius:16px}.toolbar input{min-width:220px;flex:1;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:10px;padding:10px 12px}.toolbar button,.toolbar select,.export{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:10px;padding:10px 12px;cursor:pointer}.toolbar button:hover{border-color:var(--blue)}
-    .phase{margin:18px 0}.phase-title{display:flex;justify-content:space-between;align-items:end;margin-bottom:9px}.phase-title h2{margin:0;font-size:20px}.phase-title span{color:var(--muted);font-size:12px}.task{background:var(--card);border:1px solid var(--line);border-radius:15px;padding:15px;margin:9px 0;box-shadow:0 3px 12px rgba(28,45,80,.035)}.task.done{border-color:#9bd8c2;background:#f5fffb}.task.blocked{border-left:5px solid var(--red)}.task-head{align-items:flex-start}.task input[type=checkbox]{width:21px;height:21px;accent-color:var(--green);margin-top:2px}.task-main{flex:1}.task-title{font-weight:800;font-size:15px}.task-no{display:inline-flex;align-items:center;justify-content:center;min-width:42px;margin-right:8px;padding:2px 7px;border-radius:7px;background:var(--soft);color:var(--blue);font-size:12px;font-weight:900}.task-desc{color:var(--muted);margin-top:3px}.tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}.tag{border-radius:999px;padding:3px 8px;font-size:11px;font-weight:800;background:var(--soft);color:var(--blue)}.tag.critical{background:#ffe9ec;color:var(--red)}.tag.ok{background:#dcf8ec;color:var(--green)}.tag.manual{background:#fff1d8;color:var(--amber)}.status{min-width:78px;text-align:center;border-radius:999px;padding:5px 9px;font-size:11px;font-weight:900;background:#fff0f2;color:var(--red)}.task.done .status{background:#dcf8ec;color:var(--green)}.note{width:100%;resize:vertical;min-height:42px;margin-top:11px;border:1px solid var(--line);border-radius:9px;padding:8px 10px;background:transparent;color:var(--ink)}
-    .refs{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px;margin-top:22px}.refs h2{margin-top:0}.refs a{color:var(--blue);font-weight:700}.refs li{margin:7px 0}.footer{text-align:center;color:var(--muted);padding:25px}.hidden{display:none!important}
-    @media(max-width:760px){.wrap{padding:12px}.hero{padding:20px}.hero-top{align-items:flex-start;flex-direction:column}.stats,.audit{grid-template-columns:1fr 1fr}.release-grid{grid-template-columns:1fr}.toolbar{flex-wrap:wrap}.toolbar input{min-width:100%}.status{display:none}h1{font-size:28px}}
-    @media(prefers-color-scheme:dark){:root{--bg:#0d1422;--card:#151f31;--ink:#edf3ff;--muted:#a9b5c7;--line:#293750;--soft:#1c315d;--shadow:none}.warning{background:#2c2515;border-color:#5e4b20}.warning b{color:#ffd276}.task.done{background:#12291f;border-color:#28684e}.toolbar{background:rgba(13,20,34,.92)}}
+    .explanations{margin-top:30px;border-top:2px solid var(--line);padding-top:20px}.explanations>h2{margin:0 0 6px}.explanations>.intro{color:var(--muted);margin:0 0 12px}.info-item{border-bottom:1px solid var(--line)}.info-item>summary{list-style:none;cursor:pointer;padding:14px 4px;font-size:15px;font-weight:850;display:flex;align-items:center;gap:10px}.info-item>summary::-webkit-details-marker{display:none}.info-item>summary::after{content:'›';margin-left:auto;color:var(--muted);font-size:22px;transition:.15s}.info-item[open]>summary::after{transform:rotate(90deg)}.info-body{padding:0 4px 16px 26px;color:var(--muted)}.info-body p{margin:6px 0}.info-body ul{margin:2px 0;padding-left:20px}.info-body li{margin:6px 0}.tone-green>summary{color:var(--green)}.tone-amber>summary{color:var(--amber)}.tone-red>summary{color:var(--red)}.release-gate{margin:12px 0;padding:12px 14px;border-left:4px solid var(--blue);background:var(--soft);font-weight:750}.audit{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.audit-card{border-left:3px solid var(--line);padding:7px 10px}.audit-card b{display:block;font-size:20px}.audit-card span{color:var(--muted);font-size:12px}.audit-card.danger{border-color:var(--red)}.audit-card.danger b{color:var(--red)}.toolbar{position:sticky;top:0;z-index:4;margin:18px 0;padding:12px;background:rgba(244,247,251,.92);backdrop-filter:blur(12px);border:1px solid var(--line);border-radius:16px}.toolbar input{min-width:220px;flex:1;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:10px;padding:10px 12px}.toolbar button,.toolbar select,.export{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:10px;padding:10px 12px;cursor:pointer}.toolbar button:hover{border-color:var(--blue)}
+    .phase{margin:24px 0}.phase-title{display:flex;justify-content:space-between;align-items:end;margin-bottom:4px}.phase-title h2{margin:0;font-size:20px}.phase-title span{color:var(--muted);font-size:12px}.task-list{list-style:none;margin:0;padding:0;border-top:1px solid var(--line)}.task-item{border-bottom:1px solid var(--line)}.task{margin:0}.task-summary{list-style:none;cursor:pointer;display:grid;grid-template-columns:26px 50px minmax(0,1fr) auto 22px;align-items:center;gap:8px;padding:12px 4px}.task-summary::-webkit-details-marker{display:none}.task-summary::after{content:'›';color:var(--muted);font-size:22px;text-align:center;transition:.15s}.task[open] .task-summary::after{transform:rotate(90deg)}.task input[type=checkbox]{width:20px;height:20px;accent-color:var(--green);margin:0}.task-title{font-weight:800;font-size:15px}.task-no{color:var(--blue);font-size:12px;font-weight:900}.task.done .task-title{text-decoration:line-through;text-decoration-color:#78bda4;color:var(--muted)}.task.blocked .task-summary{border-left:4px solid var(--red);padding-left:8px}.task-details{padding:0 34px 15px 88px}.task-desc{color:var(--muted);margin-top:2px}.tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}.tag{border-radius:999px;padding:3px 8px;font-size:11px;font-weight:800;background:var(--soft);color:var(--blue)}.tag.critical{background:#ffe9ec;color:var(--red)}.tag.ok{background:#dcf8ec;color:var(--green)}.tag.manual{background:#fff1d8;color:var(--amber)}.status{min-width:58px;text-align:center;border-radius:999px;padding:4px 8px;font-size:10px;font-weight:900;background:#fff0f2;color:var(--red)}.task.done .status{background:#dcf8ec;color:var(--green)}.note{width:100%;resize:vertical;min-height:42px;margin-top:11px;border:1px solid var(--line);border-radius:9px;padding:8px 10px;background:transparent;color:var(--ink)}
+    .refs a{color:var(--blue);font-weight:700}.footer{text-align:center;color:var(--muted);padding:25px}.hidden{display:none!important}
+    @media(max-width:760px){.wrap{padding:12px}.hero{padding:20px}.hero-top{align-items:flex-start;flex-direction:column}.stats,.audit{grid-template-columns:1fr 1fr}.toolbar{flex-wrap:wrap}.toolbar input{min-width:100%}.task-summary{grid-template-columns:24px 42px minmax(0,1fr) 20px}.task-summary .status{display:none}.task-details{padding-left:74px;padding-right:20px}h1{font-size:28px}}
+    @media(prefers-color-scheme:dark){:root{--bg:#0d1422;--card:#151f31;--ink:#edf3ff;--muted:#a9b5c7;--line:#293750;--soft:#1c315d;--shadow:none}.toolbar{background:rgba(13,20,34,.92)}}
   </style>
 </head>
 <body>
@@ -24,54 +24,6 @@
       <div class="hero-top"><div><div class="eyebrow">Release control center</div><h1>Route to Live</h1><p>FlyFam'ın güvenli, yasal ve kesintisiz biçimde mağazalara çıkması için yaşayan kontrol listesi. Bir işi doğruladıktan sonra kutusunu işaretleyin; durum bu cihazda otomatik saklanır.</p></div><div class="save" id="savedAt">Henüz kaydedilmedi</div></div>
       <div class="stats"><div class="stat"><b id="doneCount">0</b><span>OK</span></div><div class="stat"><b id="openCount">0</b><span>Açık</span></div><div class="stat"><b id="criticalCount">0</b><span>Kritik açık</span></div><div class="stat"><b id="percent">0%</b><span>Hazırlık</span></div></div>
       <div class="progress"><i id="progressBar"></i></div>
-    </section>
-
-    <section class="release-summary" aria-label="iOS yayın durumu özeti">
-      <h2>iOS yayın durumu · 5 Kasım 2026</h2>
-      <div class="release-grid">
-        <article class="release-card done"><h3>✓ Tamamlananlar</h3><ul>
-          <li>Yayın sahibi: Mertcan Öz; yeni App Store kaydı ve Apple tanımlayıcıları hazır.</li>
-          <li>Bundle ID, App Group, bildirim ve paylaşım uzantıları eşleştirildi.</li>
-          <li>14 abonelik ürünü, TR/EN metadata, fiyat ve inceleme görselleri hazır.</li>
-          <li>RevenueCat yeni uygulaması, anahtarlar, <em>premium</em> yetkisi ve Apple sunucu bildirimleri bağlı.</li>
-          <li>App Privacy, mağaza metinleri, hukuki bağlantılar, demo hesap ve üç iPhone Dynamic Island görseli hazır.</li>
-          <li>Build 56 EAS store build’i tamamlandı ve App Store Connect/TestFlight’a yüklendi.</li>
-          <li>Yayın biçimi “Manually release”; Apple onayı uygulamayı otomatik yayımlamayacak.</li>
-          <li>3 Kasım: auth handoff + AASA + store original_tx advisory lock + Edge PII log güvenliği production’a alındı.</li>
-          <li>5 Kasım: <code>app.flyfamapp.com</code> Cloudflare proxy’ye alındı; AASA HTTP 200 ve <code>Content-Type: application/json</code> olarak canlı doğrulandı.</li>
-        </ul></article>
-        <article class="release-card open"><h3>→ Build almadan yapılacaklar</h3><ul>
-          <li>✅ Mertcan Öz hesabı, yeni FlyFam kaydı ve mağaza kimliği doğrulandı; yayın sonrası halka açık ürün sayfasındaki satıcı etiketi ayrıca kontrol edilecek.</li>
-          <li>✅ TR/EN metadata, hukuki URL’ler, üç iPhone görseli, App Review Notes ve demo hesap alanları 5 Kasım’da yeniden doğrulandı.</li>
-          <li>✅ 14 abonelik ürünü Ready to Submit/Ready for Review; grup + 14 ürün toplam 15 öğe olarak inceleme taslağında. Uygulama sürümü Build 57 gelene kadar bilinçli olarak eklenmedi; review’a gönderilmedi.</li>
-          <li>Paid Apps Agreement, Mertcan banka hesabı ve vergi formlarını tamamlayıp “Active” durumunu doğrulamak.</li>
-          <li>Build 57 kapsamını dondurmak; release güvenlik testleri, secret/PII taraması ve temiz diff kontrolünü tekrar çalıştırmak.</li>
-          <li>✅ 6 Kasım: Destek, gizlilik, kullanım koşulları, hesap silme, callback ve AASA canlı URL’leri son kez kontrol edildi; tümü HTTPS 200, HTTP→HTTPS 301. AASA <code>application/json</code> ve doğru uygulama kimliğiyle canlı.</li>
-        </ul></article>
-        <article class="release-card decision"><h3>! Build 57 sonrasında</h3><ul>
-          <li>iPhone-only build 57’yi işleyip App Store sürüm taslağına bağlamak.</li>
-          <li>Associated Domains / Universal Link’i gerçek iPhone’da e-posta doğrulama, recovery ve invite akışlarıyla test etmek.</li>
-          <li>TestFlight gerçek cihaz QA: giriş, PDF, bildirim, paylaşım, crew/family ve hesap silme.</li>
-          <li>Sandbox satın alma, paket yükseltme ve geri yüklemeyi Mertcan uygulamasıyla doğrulamak.</li>
-          <li>Gerçek cihaz QA sonrasında yayın adayı binary’yi kesinleştirmek ve kanıt kaydını tamamlamak.</li>
-          <li>QA geçtikten sonra “Submit for Review” için ayrı son kullanıcı onayı.</li>
-          <li>Apple onayından sonra gerçek canlı yayın tarihi için ayrı karar.</li>
-        </ul></article>
-      </div>
-      <div class="release-gate">Şu anki kapı: build öncesi App Store/finans/URL preflight → build 57 (iPhone-only) → Associated Domains ve TestFlight cihaz QA. Backend güvenlik deploy’u ile AASA header düzeltmesi tamam; App Store submit ayrı onay ister.</div>
-    </section>
-
-    <section class="warning">
-      <b>Kararlaştırılan iOS sahiplik modeli</b>
-      <p>FlyFam, transfer yapılmadan Mertcan Öz’ün bireysel Apple Developer hesabındaki yeni uygulama kaydından ilk kez yayımlanacak. App Store’daki geliştirici/satıcı kimliği Mertcan’ın hesabına bağlı olacak.</p>
-      <p><strong>Finans kapısı:</strong> Ücretli uygulamalar sözleşmesi, vergi bilgileri ve banka hesabı Mertcan’ın yasal bilgileriyle tutarlı biçimde tamamlanıp Apple’da Active görünmeden abonelikli yayın gönderilmeyecek. Android çalışması Faz 2’dir.</p>
-    </section>
-
-    <section class="audit" aria-label="Son güvenlik denetimi">
-      <div class="audit-card"><b>0</b><span>Aktif kaynak ve kamusal dokümanda bilinen şahsi ad/e-posta/yol izi</span></div>
-      <div class="audit-card"><b>0</b><span>Build ignore dosyasında eksik gizli ortam dosyası engeli</span></div>
-      <div class="audit-card danger"><b>2</b><span>Gerçek ortam dosyası yerel çalışma ağacında mevcut</span></div>
-      <div class="audit-card"><b>0</b><span>Git veya origin/main içinde izlenen özel anahtar dosyası; 3 yerel Firebase anahtarı ignore + 600 izinli</span></div>
     </section>
 
     <div class="toolbar">
@@ -83,17 +35,78 @@
 
     <main id="board"></main>
 
-    <section class="refs">
-      <h2>Resmî referanslar</h2>
-      <ul>
-        <li><a href="https://developer.apple.com/help/app-store-connect/transfer-an-app/overview-of-app-transfer" target="_blank" rel="noreferrer">Apple — App transfer overview</a></li>
-        <li><a href="https://developer.apple.com/help/app-store-connect/transfer-an-app/app-transfer-criteria" target="_blank" rel="noreferrer">Apple — App transfer criteria</a></li>
-        <li><a href="https://developer.apple.com/help/app-store-connect/reference/reporting/banking-information" target="_blank" rel="noreferrer">Apple — Banking information</a></li>
-        <li><a href="https://developer.apple.com/help/app-store-connect/manage-tax-information/provide-tax-information" target="_blank" rel="noreferrer">Apple — Tax information</a></li>
-        <li><a href="https://gib.gov.tr/mevzuat/kanun/433/ozelge/21327" target="_blank" rel="noreferrer">GİB — Mobil uygulama gelirleri ve GVK mükerrer 20/B</a></li>
-      </ul>
+    <section class="explanations" aria-label="Durum özeti ve açıklamalar">
+      <h2>Durum özeti ve açıklamalar</h2>
+      <p class="intro">Aşağıdaki bölümler yalnız gerektiğinde açılır. Günlük çalışma listesi yukarıdadır.</p>
+
+      <details class="info-item tone-green">
+        <summary>✓ Tamamlanan ana işler</summary>
+        <div class="info-body"><ul>
+          <li>Yayın sahibi Mertcan Öz; yeni App Store kaydı ve Apple tanımlayıcıları hazır.</li>
+          <li>Bundle ID, App Group, bildirim ve paylaşım uzantıları eşleştirildi.</li>
+          <li>14 abonelik ürünü Ready to Submit/Ready for Review; grup + 14 ürün inceleme taslağında.</li>
+          <li>RevenueCat uygulaması, anahtarlar, <em>premium</em> yetkisi ve Apple sunucu bildirimleri bağlı.</li>
+          <li>TR/EN metadata, App Privacy, hukuki URL’ler, demo hesap ve üç iPhone Dynamic Island görseli doğrulandı.</li>
+          <li>Build 56 yüklendi; final aday build 57 iPhone-only olacak.</li>
+          <li>Auth handoff, AASA, satın alma tekrar-kullanım koruması ve Edge PII log güvenliği production’da.</li>
+          <li>Canlı destek/hukuk/callback URL’leri HTTPS 200; AASA <code>application/json</code> ve doğru uygulama kimliğiyle doğrulandı.</li>
+        </ul></div>
+      </details>
+
+      <details class="info-item tone-amber">
+        <summary>→ Build 57 öncesi iş planı</summary>
+        <div class="info-body"><ol>
+          <li>Apple’ın üyelik adresi güncellemesini onaylamasını bekle; onay gelmeden W‑8BEN’i gönderme.</li>
+          <li>Adres yeni haliyle göründüğünde W‑8BEN daimi adresini doğrula, sertifikasyonları tamamla ve formu gönder.</li>
+          <li>Banka hesabının Processing durumundan çıkmasını ve Paid Apps Agreement’ın Active olmasını doğrula.</li>
+          <li>TR/EN metadata, hukuki URL’ler, görseller, App Review Notes, demo hesap ve 14 aboneliği son kez kontrol et.</li>
+          <li>Build 57 kapsamını dondur; release güvenlik testleri, secret/PII taraması ve temiz diff kontrolünü çalıştır.</li>
+        </ol></div>
+      </details>
+
+      <details class="info-item tone-red">
+        <summary>! Build 57 sonrasındaki yayın kapıları</summary>
+        <div class="info-body"><ol>
+          <li>iPhone-only build 57’yi App Store sürüm taslağına bağla.</li>
+          <li>Gerçek iPhone’da Universal Link, e-posta doğrulama, recovery ve invite akışlarını test et.</li>
+          <li>TestFlight QA: giriş, PDF, bildirim, paylaşım, crew/family ve hesap silme.</li>
+          <li>Sandbox satın alma, paket yükseltme ve restore akışlarını doğrula.</li>
+          <li>QA kanıtlarını kaydet; “Submit for Review” için ayrı kullanıcı onayı al.</li>
+          <li>Apple onayından sonra canlı yayın zamanı için ayrıca karar ver.</li>
+        </ol></div>
+      </details>
+
+      <details class="info-item">
+        <summary>Kararlaştırılan iOS sahiplik modeli</summary>
+        <div class="info-body">
+          <p>FlyFam, transfer yapılmadan Mertcan Öz’ün bireysel Apple Developer hesabındaki yeni uygulama kaydından ilk kez yayımlanacak. App Store’daki geliştirici/satıcı kimliği Mertcan’ın hesabına bağlı olacak.</p>
+          <p><strong>Finans kapısı:</strong> Ücretli uygulamalar sözleşmesi, vergi bilgileri ve banka hesabı Mertcan’ın yasal bilgileriyle tutarlı biçimde tamamlanıp Apple’da Active görünmeden abonelikli yayın gönderilmeyecek. Android çalışması Faz 2’dir.</p>
+        </div>
+      </details>
+
+      <details class="info-item">
+        <summary>Son güvenlik denetimi özeti</summary>
+        <div class="info-body audit">
+          <div class="audit-card"><b>0</b><span>Aktif kaynak ve kamusal dokümanda bilinen şahsi ad/e-posta/yol izi</span></div>
+          <div class="audit-card"><b>0</b><span>Build ignore dosyasında eksik gizli ortam dosyası engeli</span></div>
+          <div class="audit-card danger"><b>2</b><span>Gerçek ortam dosyası yerel çalışma ağacında mevcut</span></div>
+          <div class="audit-card"><b>0</b><span>Git veya origin/main içinde izlenen özel anahtar dosyası</span></div>
+        </div>
+      </details>
+
+      <details class="info-item refs">
+        <summary>Resmî referanslar</summary>
+        <div class="info-body"><ul>
+          <li><a href="https://developer.apple.com/help/app-store-connect/transfer-an-app/overview-of-app-transfer" target="_blank" rel="noreferrer">Apple — App transfer overview</a></li>
+          <li><a href="https://developer.apple.com/help/app-store-connect/transfer-an-app/app-transfer-criteria" target="_blank" rel="noreferrer">Apple — App transfer criteria</a></li>
+          <li><a href="https://developer.apple.com/help/app-store-connect/reference/reporting/banking-information" target="_blank" rel="noreferrer">Apple — Banking information</a></li>
+          <li><a href="https://developer.apple.com/help/app-store-connect/manage-tax-information/provide-tax-information" target="_blank" rel="noreferrer">Apple — Tax information</a></li>
+          <li><a href="https://gib.gov.tr/mevzuat/kanun/433/ozelge/21327" target="_blank" rel="noreferrer">GİB — Mobil uygulama gelirleri ve GVK mükerrer 20/B</a></li>
+        </ul></div>
+      </details>
+      <div class="release-gate">Şu anki kapı: Apple adres onayı + W‑8BEN + banka/Paid Apps Active → build 57 (iPhone-only) → Associated Domains ve TestFlight cihaz QA. App Store submit ayrı onay ister.</div>
     </section>
-    <div class="footer">Son durum eşitlemesi: 5 Kasım 2026 · Varsayılan görünüm yalnız açık maddelerdir · Android maddeleri kapsam dışıdır ve sayaçlara dahil edilmez · Bu sayfa sır saklamaz; API anahtarı veya parola not alanlarına yazılmamalıdır.</div>
+    <div class="footer">Son durum eşitlemesi: 9 Kasım 2026 · Varsayılan görünüm yalnız açık maddelerdir · Ayrıntılar kapalı başlar · Android maddeleri kapsam dışıdır ve sayaçlara dahil edilmez · Bu sayfa sır saklamaz; API anahtarı veya parola not alanlarına yazılmamalıdır.</div>
   </div>
   <script>
     const phases = [
@@ -101,8 +114,11 @@
         ['ownership-scenario-research','Sahiplik ve doğrudan gelir senaryosu araştırıldı','Önerilen yapı: fikrî mülkiyet bir kişide kalırken münhasır ticari lisans marka adlı limited şirkete verilir; mağaza sözleşmeleri, vergi ve banka aynı şirkette tutulur.','done,legal'],
         ['apple-support-question','Apple Finance destek talebi gönderildi','Case-ID 22263788 (Team ID AV5LPM7328). Apple 16 Eylül 2026 tarihinde yalnızca talebin alındığını bildirdi; esas yanıt gelmedi. Kullanıcının net hedefi gelir, banka, vergi ve sahipliği değiştirmeden yalnız App Store’daki görünen geliştirici/satıcı adını ekip üyesi Arda Beyazıt veya başka bir ekip üyesi yapmak.','done,legal'],
         ['identity-model','Yayıncı kimliği kararı','OK — iOS ilk yayını Mertcan Öz bireysel Apple Developer hesabından yapılacak. Yeni uygulama kaydı Mertcan hesabında açıldı; transfer yerine doğrudan ilk yayın modeli seçildi. Android Faz 2 olarak ertelendi.','done,critical,legal'],
-        ['apple-written','Apple yazılı yanıtı','Case-ID 22263788 aynı konu satırıyla takip edilmeli. Apple’a finansal sahipliğin değişmeyeceği, yalnız bireysel hesapta mağazada görünen developer/seller adının ekip üyesi adıyla değiştirilip değiştirilemeyeceği açıkça sorulmalı. Apple belgelerine göre bireysel hesapta developer adı yasal adla aynıdır; ekip üyesi eklemek görünür satıcı adını değiştirmez. 5 Ekim 2026 kontrol: 16 Eylül alındı bildiriminden sonra Apple’dan esas yanıt yok; 26 Eylül’de gönderilen takip e-postası da yanıtsız (19 gün). 6 Ekim 2026: talebin Finance’te “Banking setup” kategorisinde açıldığı görüldü; aynı konu satırıyla ikinci takip gönderildi (bireysel hesapta satıcı adı teyidi, kuruluşa geçiş şartları, Developer Program Support’a yönlendirme talebi). Üyelik ekibine ayrıca developer.apple.com/contact formundan (Membership and Account) talep açılmalı.','critical,legal'],
-        ['tax-advice','Türkiye mali müşavir teyidi','GVK mükerrer 20/B uygunluğu, gelir sahibi, özel banka hesabı ve %15 tevkifat süreci doğrulanmalı.','critical,legal'],
+        ['apple-written','Eski görünürlük senaryosu kapatıldı','OK — Eski Apple Finance talebi artık yayın engeli değil. İlk yayın Mertcan Öz hesabından yapılacağı için seller/developer görünürlüğü Mertcan hesabının yasal kimliğiyle ilerliyor.','done,legal'],
+        ['membership-address','Apple Developer üyelik adresi güncellemesi','BEKLİYOR — 9 Kasım 2026 tarihinde Mertcan hesabının üyelik adresi için Apple’a güncelleme talebi gönderildi. Apple inceleme/onay e-postası bekleniyor. Tamamlanma kanıtı: Developer Membership ayrıntıları ile W‑8BEN daimi adres alanının aynı güncel adresi göstermesi.','doing,critical,legal'],
+        ['w8ben-tax','W‑8BEN vergi formunu tamamla','HAZIR / BEKLİYOR — Formun taslak alanları hazırlandı fakat eski daimi adres göründüğü için sertifikasyon yapılmadı ve form gönderilmedi. Üyelik adresi onaylandıktan sonra adresi doğrula, beyan kutularını gerçek duruma göre tamamla, gönder ve Tax Info durumunun Active olduğunu kontrol et. Kimlik/vergi numarası bu dokümana yazılmayacak.','doing,critical,legal'],
+        ['apple-bank-active','Banka hesabı ve Paid Apps durumunu doğrula','DEVAM EDİYOR — Mertcan banka hesabı eklendi; Apple bankacılık güncellemesini işliyor. Tamamlanma kanıtı: banka hesabında Processing uyarısının kalkması ve Paid Apps Agreement’ın Active görünmesi.','doing,critical,legal'],
+        ['tax-advice','Türkiye mali süreç teyidi','DEVAM EDİYOR — Türkiye’de vergi dairesi/banka süreci takip ediliyor. Apple W‑8BEN ve banka hesabındaki bilgiler Mertcan’ın yasal bilgileriyle tutarlı olmalı; gerekirse mali müşavir teyidi alınmalı.','doing,critical,legal'],
         ['transfer-decision','Hesap taşıma stratejisi','OK — Uygulama henüz yayında olmadığı için eski taslak transfer edilmiyor. Mertcan hesabında yeni App Store kaydı ve yeni Apple tanımlayıcılarıyla doğrudan ilk yayın hazırlanıyor.','done,legal']
       ]},
       {title:'1 · Güvenlik ve gizli bilgiler', subtitle:'Build ve repoda sır bırakma', tasks:[
@@ -145,7 +161,7 @@
         ['ios-entitlements','RevenueCat/App Store ürün eşlemesi','HAZIR — Eski com.flyfam.app uygulamasında satın alma, yükseltme, restore ve Supabase doğrulama zinciri gerçek cihazda başarıyla test edildi. 30 Ekim 2026: Mertcan yayını için RevenueCat proje 0c6ae613 içinde FlyFam (Mertcan App Store) / com.flyfamapp.mobile kaydı app3e2038d56c oluşturuldu. Mertcan IAP key BWYJ322LAR ile App Store Connect API key 5P58T33PZH yüklendi ve ikisi de Valid credentials olarak doğrulandı. Yeni appl_ public SDK anahtarı EAS preview + production ortamlarında Sensitive olarak ve git dışında kalan yerel mobile/.env dosyasında güncellendi. App Store’daki 14 abonelik ürünü yeni RevenueCat app’e aktarıldı ve tamamı mevcut premium / FlyFam Premium entitlement’a bağlandı; toplam 30 ürün doğrulandı. Apple Server Notification URL’si Mertcan App Store Connect uygulamasına uygulandı ve RevenueCat “configured correctly” sonucunu verdi. Mobil kod ürünleri getProducts ile doğrudan çağırdığı için gereksiz offering oluşturulmadı. Kalan doğrulama: build 56 ile gerçek cihaz sandbox satın alma/yükseltme/restore testi.','doing,critical,iap'],
         ['iap-review-attach','İlk abonelikleri sürüme bağla','HAZIR — 5 Kasım 2026: abonelik grubu + 14 ürün App Review taslağında toplam 15 öğe olarak doğrulandı. İnceleme taslağı READY_FOR_REVIEW; uygulama sürümü 1.3.0 bilinçli olarak henüz eklenmedi. Kalan tek bağlama adımı: supportsTablet false / TARGETED_DEVICE_FAMILY 1 içeren build 57 işlendikten sonra uygulama sürümünü aynı taslağa eklemek. Review gönderimi yapılmadı.','doing,critical,review'],
         ['ios-legal-flow','Satın alma ekranı yasal bilgileri','OK — Abonelik ekranında paket başlığı, aylık/yıllık süre, mağaza fiyatı, otomatik yenileme ve iptal açıklaması görünür. Gizlilik/KVKK ile Kullanım Koşulları bağlantıları uygulama içinde çalışıyor; markalı web hedefleri HTTP 200 verdi. App Store Privacy Policy URL’si app.flyfamapp.com alanına taşındı; sürüm açıklamasındaki kişisel GitHub bağlantıları temizlendi ve Apple Standard EULA bağlantısı ayrıca eklendi. Support/Marketing URL’leri markalı alana, telif alanı 2026 FlyFam değerine çevrildi ve kaydedildi.','done,critical,review'],
-        ['apple-contracts','Apple sözleşme/vergi/banka durumu','BEKLİYOR — 29 Ekim 2026 canlı kontrolünde Mertcan hesabındaki Free Apps Agreement Active, Paid Apps Agreement ise New. Türkiye vergi dairesi süreci ve banka hesabı sonuçlanana kadar finans adımları kullanıcı kararıyla beklemede. Sonrasında sıra: Mertcan yasal kişi bilgilerini doğrula/güncelle → Paid Apps Agreement imzala → banka ve vergi formlarını tamamla → tümünü Active olarak doğrula. Eski hesap ayarları yeni Account Holder hesabına taşınmaz.','critical,legal']
+        ['apple-contracts','Apple finans kapısının tamamını kapat','BEKLİYOR — Free Apps Agreement Active. 9 Kasım planı: Apple üyelik adresi onayı → W‑8BEN daimi adres doğrulaması ve gönderimi → banka hesabının Processing durumundan çıkması → Paid Apps Agreement Active doğrulaması. Bu dört kanıt tamamlanmadan abonelikli sürüm review’a gönderilmeyecek.','doing,critical,legal']
       ]},
       {title:'6 · Android ödeme ve Play Store', subtitle:'KAPSAM DIŞI — İlk hedef yalnız iOS yayını; sayaçlara dahil değil, iOS canlıya çıktıktan sonra ele alınacak', tasks:[
         ['android-billing','Google Play Billing’i uygula','ERTELENDİ — Mevcut incelemede Android satın alma akışı uygulanmamış ve iOS-only mesajı gösteriyor. iOS yayını tamamlandıktan sonra uygulanacak.','manual,iap,excluded'],
@@ -169,7 +185,7 @@
         ['privacy-labels','App Privacy (Privacy Nutrition) doğruluğu','OK — Mertcan hesabında TR/EN gizlilik politikası URL’leri kaydedildi. Gerçek uygulama/veritabanı davranışına göre 10 veri türü yayımlandı: Name, Email Address, Photos or Videos, Other User Content, User ID, Device ID, Purchase History, Product Interaction, Crash Data ve Other Diagnostic Data. Telefon numarası kullanıcıdan alınmadığı için 29 Ekim 2026 düzeltmesinde kaldırıldı. Video toplanmıyor; Apple fotoğraf ve videoyu tek başlıkta sunduğundan, kullanıcının isteğe bağlı profil fotoğrafı için Photos or Videos başlığı korunuyor. Tümü kullanıcıyla bağlantılı ve tracking yok; Product Interaction Analytics + App Functionality, diğerleri App Functionality. Ürün sayfası özeti Data Linked to You olarak doğrulandı ve düzeltme Mertcan Öz hesabından Publish edildi.','done,critical,privacy']
       ]},
       {title:'9 · Build, beta ve submission', subtitle:'Geri dönüşü olan kontrollü yayın', tasks:[
-        ['prebuild-57','Build 57 öncesi mağaza ve canlı URL preflight','DEVAM EDİYOR — 5 Kasım 2026 itibarıyla seller/account kimliği, TR/EN metadata, App Review Notes, demo hesap, üç iPhone görseli, 14 abonelik ürünü ve support/privacy/terms/account-delete/auth-callback/AASA canlı URL’leri doğrulandı. Kalan: Paid Apps Agreement/banka/vergi Active durumu ile Build 57 öncesi release güvenlik testleri, secret/PII taraması ve temiz diff kontrolü. App Store submit yapılmayacak.','doing,critical,review,security'],
+        ['prebuild-57','Build 57 öncesi mağaza ve canlı URL preflight','DEVAM EDİYOR — Seller/account kimliği, TR/EN metadata, App Review Notes, demo hesap, üç iPhone görseli, 14 abonelik ürünü ve support/privacy/terms/account-delete/auth-callback/AASA canlı URL’leri doğrulandı. Kalan: 0.5–0.7 ve 5.x finans kapıları ile Build 57 öncesi release güvenlik testleri, secret/PII taraması ve temiz diff kontrolü. App Store submit yapılmayacak.','doing,critical,review,security'],
         ['release-number','Yeni benzersiz build numarasını seç','DEVAM EDİYOR — Bir sonraki iPhone-only mağaza adayı 1.3.0 (57) olacak. Build 56 Mertcan hesabında Ready to Submit durumunda fakat iPad hedefini içerdiği için yayın adayı olarak kullanılmayacak. Build 57 alınmadan önce app.config.js, ana uygulama, NotificationService ve ShareExtension build numaralarının 57; supportsTablet/TARGETED_DEVICE_FAMILY değerlerinin yalnız iPhone olduğunu doğrula. Android Faz 2’dir.','doing,critical,build'],
         ['eas-builds','Temiz iOS store build','OK — Mertcan Team ID ZF66PC5AN7 / com.flyfamapp.mobile için EAS production build 46123d14-499d-4ee4-a965-065f781ff720 FINISHED. EAS submit 47610900-42bb-45c5-afca-98612248c0fb FINISHED. App Store Connect canlı kontrolünde build 56, Team (Expo) grubuna bağlı ve Ready to Submit; App Store Review’a gönderilmedi.','done,critical,build'],
         ['beta-test','TestFlight testi','DEVAM EDİYOR — Build 56 App Store Connect’te Ready to Submit ve Team (Expo) grubuna bağlı. Henüz 56 kurulumu görünmüyor. Eski Apple hesabındaki build 51/52 kanıtları yeni Mertcan uygulamasının yerini tutmaz. Gerçek cihazda giriş/deep link, PDF import, bildirim ve paylaşım uzantıları, Ekip Odası, crew/family akışı ile RevenueCat satın alma/yükseltme/restore yeniden test edilmeli.','doing,critical,test'],
@@ -198,8 +214,8 @@
     const activeTasks=ts=>ts.filter(t=>!isExcluded(t));
     const esc=s=>String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     function save(){localStorage.setItem(checklistStorageId,JSON.stringify(state));document.getElementById('savedAt').textContent='Kaydedildi · '+new Date().toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'});updateStats()}
-    function render(){const q=document.getElementById('search').value.toLocaleLowerCase('tr');const f=document.getElementById('filter').value;const board=document.getElementById('board');board.innerHTML=phases.map((p,pi)=>{let rows=p.tasks.map((t,ti)=>{const [id,title,desc,tagsCsv]=t;const taskNo=pi+'.'+(ti+1);const done=!!state.checks[id];const tags=tagsCsv.split(',');const critical=tags.includes('critical');const text=(taskNo+' '+title+' '+desc+' '+tagsCsv).toLocaleLowerCase('tr');if(q&&!text.includes(q))return'';if(f==='excluded'){if(!isExcluded(t))return''}else if(isExcluded(t)||f==='open'&&done||f==='done'&&!done||f==='critical'&&(!critical||done))return'';return `<article class="task ${done?'done':''} ${critical&&!done?'blocked':''}" data-id="${id}"><div class="task-head"><input type="checkbox" ${done?'checked':''} aria-label="${esc(taskNo+' '+title)} tamamlandı"/><div class="task-main"><div class="task-title"><span class="task-no">${esc(taskNo)}</span>${esc(title)}</div><div class="task-desc">${esc(desc)}</div><div class="tags">${tags.filter(x=>x!=='done').map(x=>`<span class="tag ${x==='critical'?'critical':x==='manual'||x==='excluded'?'manual':''}">${esc(x==='excluded'?'kapsam dışı':x)}</span>`).join('')}${done?'<span class="tag ok">doğrulandı</span>':''}</div><textarea class="note" placeholder="Kanıt / not (anahtar veya parola yazmayın)">${esc(state.notes[id]||'')}</textarea></div><span class="status">${done?'OK':isExcluded(t)?'DIŞI':'AÇIK'}</span></div></article>`}).join('');if(!rows)return'';const active=activeTasks(p.tasks);const doneN=active.filter(t=>state.checks[t[0]]).length;return `<section class="phase"><div class="phase-title"><div><h2>${esc(p.title)}</h2><span>${esc(p.subtitle)}</span></div><span>${active.length?doneN+'/'+active.length+' OK':'kapsam dışı'}</span></div>${rows}</section>`}).join('');bind();updateStats()}
-    function bind(){document.querySelectorAll('.task').forEach(el=>{const id=el.dataset.id;el.querySelector('input').addEventListener('change',e=>{state.checks[id]=e.target.checked;save();render()});el.querySelector('.note').addEventListener('input',e=>{state.notes[id]=e.target.value;save()})})}
+    function render(){const q=document.getElementById('search').value.toLocaleLowerCase('tr');const f=document.getElementById('filter').value;const board=document.getElementById('board');board.innerHTML=phases.map((p,pi)=>{let rows=p.tasks.map((t,ti)=>{const [id,title,desc,tagsCsv]=t;const taskNo=pi+'.'+(ti+1);const done=!!state.checks[id];const tags=tagsCsv.split(',');const critical=tags.includes('critical');const text=(taskNo+' '+title+' '+desc+' '+tagsCsv).toLocaleLowerCase('tr');if(q&&!text.includes(q))return'';if(f==='excluded'){if(!isExcluded(t))return''}else if(isExcluded(t)||f==='open'&&done||f==='done'&&!done||f==='critical'&&(!critical||done))return'';return `<li class="task-item"><details class="task ${done?'done':''} ${critical&&!done?'blocked':''}" data-id="${id}"><summary class="task-summary"><input type="checkbox" ${done?'checked':''} aria-label="${esc(taskNo+' '+title)} tamamlandı"/><span class="task-no">${esc(taskNo)}</span><span class="task-title">${esc(title)}</span><span class="status">${done?'OK':isExcluded(t)?'DIŞI':'AÇIK'}</span></summary><div class="task-details"><div class="task-desc">${esc(desc)}</div><div class="tags">${tags.filter(x=>x!=='done').map(x=>`<span class="tag ${x==='critical'?'critical':x==='manual'||x==='excluded'?'manual':''}">${esc(x==='excluded'?'kapsam dışı':x)}</span>`).join('')}${done?'<span class="tag ok">doğrulandı</span>':''}</div><textarea class="note" placeholder="Kanıt / not (anahtar veya parola yazmayın)">${esc(state.notes[id]||'')}</textarea></div></details></li>`}).join('');if(!rows)return'';const active=activeTasks(p.tasks);const doneN=active.filter(t=>state.checks[t[0]]).length;return `<section class="phase"><div class="phase-title"><div><h2>${esc(p.title)}</h2><span>${esc(p.subtitle)}</span></div><span>${active.length?doneN+'/'+active.length+' OK':'kapsam dışı'}</span></div><ol class="task-list">${rows}</ol></section>`}).join('');bind();updateStats()}
+    function bind(){document.querySelectorAll('.task').forEach(el=>{const id=el.dataset.id;const checkbox=el.querySelector('input');checkbox.addEventListener('click',e=>e.stopPropagation());checkbox.addEventListener('change',e=>{state.checks[id]=e.target.checked;save();render()});el.querySelector('.note').addEventListener('input',e=>{state.notes[id]=e.target.value;save()})})}
     function updateStats(){const all=activeTasks(phases.flatMap(p=>p.tasks));const done=all.filter(t=>state.checks[t[0]]).length;const crit=all.filter(t=>t[3].includes('critical')&&!state.checks[t[0]]).length;const pct=Math.round(done/all.length*100);doneCount.textContent=done;openCount.textContent=all.length-done;criticalCount.textContent=crit;percent.textContent=pct+'%';progressBar.style.width=pct+'%'}
     search.addEventListener('input',render);filter.addEventListener('change',render);
     exportBtn.addEventListener('click',()=>{const blob=new Blob([JSON.stringify({exportedAt:new Date().toISOString(),state},null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='flyfam-route-to-live-status.json';a.click();URL.revokeObjectURL(a.href)});
