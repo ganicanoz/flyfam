@@ -27,6 +27,10 @@ async function handleAuthDeepLink(url: string | null): Promise<void> {
     if (isRecoveryAuthUrl(url)) requestPasswordRecoveryScreen();
     const result = await reconcileAuthLinkResult(await applySupabaseSessionFromUrl(url));
     if (result.applied && result.recovery) requestPasswordRecoveryScreen();
+    if (result.applied) {
+      const { registerActiveDevice } = await import('../lib/activeDevice');
+      void registerActiveDevice();
+    }
     handledUrls.set(url, Date.now());
     showAuthLinkResultAlert(result);
   } catch {

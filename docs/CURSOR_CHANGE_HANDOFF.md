@@ -1983,3 +1983,9 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - **Kaynak:** temiz `origin/main` worktree `/tmp/flyfam-b57` (`release/ios-1.3.0-57`); kirli yerel `main` kullanılmadı.
 - **Değişiklik:** `buildNumber`/`CURRENT_PROJECT_VERSION`/`versionCode` → **57**; `supportsTablet: false`; `TARGETED_DEVICE_FAMILY = 1` (app + NSE ensure script); `associatedDomains` + entitlements `applinks:app.flyfamapp.com`; auth e-posta/şifre `inputAccessoryViewID` kaldırıldı (rakam→harf sıçraması).
 - **Koruma:** App Store Review gönderimi bu adımda yok; `eas submit` yalnız binary yükleme. Android Faz 2 (versionCode hizalandı, build yok).
+
+## 2026-11-09 — iOS build 57 binary (tek cihaz + Uçağım nerede)
+
+- **Kaynak:** temiz `origin/main` worktree + tek cihaz / Uçağım nerede / reg prompt (backend zaten production’da).
+- **Binary:** 1.3.0 (57), iPhone-only, Associated Domains `applinks:app.flyfamapp.com`.
+- **Koruma:** Bu commit store build + ASC submit için; Review submit ayrı değilse EAS submit = binary yükleme.

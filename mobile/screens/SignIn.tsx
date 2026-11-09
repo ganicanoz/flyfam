@@ -107,6 +107,9 @@ export default function SignIn() {
       Alert.alert(t('common.error'), error.message);
       return;
     }
+
+    const { registerActiveDevice } = await import('../lib/activeDevice');
+    void registerActiveDevice();
   };
 
   return (

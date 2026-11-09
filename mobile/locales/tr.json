@@ -282,8 +282,6 @@
     "calendarCollapse": "Ayı kapatın",
     "calendarPrevMonth": "Önceki ay",
     "calendarNextMonth": "Sonraki ay",
-    "calendarPrevMonth": "Önceki ay",
-    "calendarNextMonth": "Sonraki ay",
     "crewFilterAll": "Tümü",
     "crewFilterLabel": "Program",
     "dayHasFlights": "Uçuş var",
@@ -481,7 +479,14 @@
     "selectFlightBtn": "Uçuşu Seç",
     "depMeta": "Kalkış",
     "arrMeta": "Varış",
-    "durationMeta": "Süre"
+    "durationMeta": "Süre",
+    "whereIsMyPlane": "Uçağım nerede",
+    "whereIsMyPlaneA11y": "Uçağımı FlightRadar24 üzerinde göster",
+    "whereIsMyPlaneRegTitle": "Uçak reg kodu",
+    "whereIsMyPlaneRegHint": "Bu uçuşu yapacak uçağın reg kodunu bir kez girin. Sistem farklı bir reg yazana kadar saklanır.",
+    "whereIsMyPlaneRegPlaceholder": "Örn. TC-RBA",
+    "whereIsMyPlaneRegSave": "Kaydet ve aç",
+    "whereIsMyPlaneRegInvalid": "Geçerli bir reg kodu girin (örn. TC-RBA)."
   },
   "addFlight": {
     "title": "Uçuş Ekle",
@@ -970,5 +975,9 @@
     "lastUpdatedDaysAgo": "{{count}} gün önce güncellendi",
     "lastUpdatedUpdating": "Güncelleniyor…",
     "lastUpdatedFailed": "Güncellenemedi · Tekrar dene"
+  },
+  "auth": {
+    "otherDeviceTitle": "Başka cihazda oturum",
+    "otherDeviceMessage": "Bu hesap başka bir telefonda açık. Güvenlik için bu cihazdan çıkış yapıldı. Devam etmek için burada yeniden giriş yapın (diğer cihaz oturumu kapanır)."
   }
 }

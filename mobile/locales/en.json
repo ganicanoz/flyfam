@@ -274,8 +274,6 @@
     "calendarCollapse": "Collapse month",
     "calendarPrevMonth": "Previous month",
     "calendarNextMonth": "Next month",
-    "calendarPrevMonth": "Previous month",
-    "calendarNextMonth": "Next month",
     "crewFilterAll": "All",
     "crewFilterLabel": "Schedule",
     "dayHasFlights": "Has flights",
@@ -481,7 +479,14 @@
     "selectFlightBtn": "Select Flight",
     "depMeta": "Departure",
     "arrMeta": "Arrival",
-    "durationMeta": "Duration"
+    "durationMeta": "Duration",
+    "whereIsMyPlane": "Where is my plane",
+    "whereIsMyPlaneA11y": "Show my aircraft on FlightRadar24",
+    "whereIsMyPlaneRegTitle": "Aircraft registration",
+    "whereIsMyPlaneRegHint": "Enter the reg code of the aircraft for this flight once. It is kept until the system assigns a different reg.",
+    "whereIsMyPlaneRegPlaceholder": "e.g. TC-RBA",
+    "whereIsMyPlaneRegSave": "Save and open",
+    "whereIsMyPlaneRegInvalid": "Enter a valid registration (e.g. TC-RBA)."
   },
   "addFlight": {
     "title": "Add Flight",
@@ -970,5 +975,9 @@
     "lastUpdatedDaysAgo": "Updated {{count}}d ago",
     "lastUpdatedUpdating": "Updating…",
     "lastUpdatedFailed": "Couldn't update · Try again"
+  },
+  "auth": {
+    "otherDeviceTitle": "Signed in elsewhere",
+    "otherDeviceMessage": "This account is active on another phone. For security you were signed out here. Sign in again on this device to continue (the other session will end)."
   }
 }

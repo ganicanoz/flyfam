@@ -17,6 +17,12 @@ import {
 import { clearRosterLocalCacheForUser } from '@/lib/rosterLocalCache';
 import { clearRosterAccessCacheForUser } from '@/lib/rosterAccessCache';
 import { cancelStandbyDecisionReminders } from '@/lib/standbyDecisionReminders';
+import {
+  assertActiveDevice,
+  kickForOtherDevice,
+  registerActiveDevice,
+  resetActiveDeviceCache,
+} from '@/lib/activeDevice';
 
 export type Profile = {
   id: string;
@@ -306,6 +312,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     const uid = session?.user?.id ?? profile?.id ?? null;
+    resetActiveDeviceCache();
     await supabase.auth.signOut();
     setSession(null);
     setProfile(null);
@@ -320,6 +327,36 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       void clearRosterAccessCacheForUser(uid);
     }
   };
+
+  const signOutRef = useRef(signOut);
+  signOutRef.current = signOut;
+
+  // Single-device: register this install once session is ready; assert on interval + foreground.
+  useEffect(() => {
+    if (!session?.user?.id) return;
+    let cancelled = false;
+    const runAssert = async () => {
+      const result = await assertActiveDevice();
+      if (cancelled) return;
+      if (!result.ok && result.code === 'other_device_active') {
+        await kickForOtherDevice(() => signOutRef.current());
+      }
+    };
+    void registerActiveDevice().then(() => {
+      if (!cancelled) void runAssert();
+    });
+    const interval = setInterval(() => {
+      void runAssert();
+    }, 3 * 60 * 1000);
+    const sub = AppState.addEventListener('change', (next: AppStateStatus) => {
+      if (next === 'active') void runAssert();
+    });
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+      sub.remove();
+    };
+  }, [session?.user?.id]);
 
   return (
     <SessionContext.Provider
