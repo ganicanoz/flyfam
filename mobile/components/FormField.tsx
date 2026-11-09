@@ -90,6 +90,8 @@ export const FormField = forwardRef<TextInput, Props>(function FormField(
           placeholderTextColor={colors.textMuted}
           keyboardType={keyboardType}
           autoCapitalize={autoCapitalize}
+          autoCorrect={false}
+          spellCheck={false}
           secureTextEntry={secure}
           editable={editable}
           autoComplete={autoComplete}
@@ -97,7 +99,12 @@ export const FormField = forwardRef<TextInput, Props>(function FormField(
           returnKeyType={returnKeyType}
           blurOnSubmit={blurOnSubmit}
           onSubmitEditing={onSubmitEditing}
-          inputAccessoryViewID={inputAccessoryViewID}
+          // Avoid on email/password: iOS rebuilds the keyboard and snaps back to letters after digits.
+          inputAccessoryViewID={
+            secureTextEntry || keyboardType === 'email-address'
+              ? undefined
+              : inputAccessoryViewID
+          }
           enablesReturnKeyAutomatically={enablesReturnKeyAutomatically}
           onFocus={(e) => {
             setFocused(true);

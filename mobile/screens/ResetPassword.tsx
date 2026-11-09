@@ -17,10 +17,6 @@ import { spacing } from '../theme/tokens';
 import { ScreenPageHeader } from '../components/ScreenPageHeader';
 import { FormField } from '../components/FormField';
 import { PrimaryButton } from '../components/PrimaryButton';
-import {
-  FormKeyboardAccessory,
-  FORM_KEYBOARD_ACCESSORY_ID,
-} from '../components/FormKeyboardAccessory';
 import { scrollInputIntoView } from '../components/KeyboardSafeScroll';
 
 export default function ResetPassword() {
@@ -99,6 +95,7 @@ export default function ResetPassword() {
             value={password}
             onChangeText={setPassword}
             placeholder={t('resetPassword.password')}
+            keyboardType="default"
             secureTextEntry
             autoComplete="new-password"
             textContentType="newPassword"
@@ -106,7 +103,6 @@ export default function ResetPassword() {
             returnKeyType="next"
             blurOnSubmit={false}
             enablesReturnKeyAutomatically
-            inputAccessoryViewID={FORM_KEYBOARD_ACCESSORY_ID}
             onFocus={focusScroll}
             onSubmitEditing={() => confirmRef.current?.focus()}
           />
@@ -117,13 +113,13 @@ export default function ResetPassword() {
             value={confirmPassword}
             onChangeText={setConfirmPassword}
             placeholder={t('resetPassword.confirmPassword')}
+            keyboardType="default"
             secureTextEntry
             autoComplete="new-password"
             textContentType="newPassword"
             editable={!loading}
             returnKeyType="go"
             enablesReturnKeyAutomatically
-            inputAccessoryViewID={FORM_KEYBOARD_ACCESSORY_ID}
             onFocus={focusScroll}
             onSubmitEditing={() => {
               if (canSubmit) void handleSave();
@@ -140,7 +136,6 @@ export default function ResetPassword() {
         </ScrollView>
       </KeyboardAvoidingView>
 
-      <FormKeyboardAccessory />
     </View>
   );
 }

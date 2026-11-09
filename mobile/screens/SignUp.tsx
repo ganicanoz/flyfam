@@ -26,10 +26,6 @@ import { SegmentControl } from '../components/SegmentControl';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { BottomActionBar } from '../components/BottomActionBar';
 import { LegalTextView, type LegalDocumentKind } from '../components/LegalTextView';
-import {
-  FormKeyboardAccessory,
-  FORM_KEYBOARD_ACCESSORY_ID,
-} from '../components/FormKeyboardAccessory';
 import { scrollInputIntoView } from '../components/KeyboardSafeScroll';
 
 function passwordStrength(pw: string): 0 | 1 | 2 | 3 {
@@ -246,7 +242,6 @@ export default function SignUp() {
             returnKeyType="next"
             blurOnSubmit={false}
             enablesReturnKeyAutomatically
-            inputAccessoryViewID={FORM_KEYBOARD_ACCESSORY_ID}
             onFocus={focusScroll}
             onSubmitEditing={() => emailRef.current?.focus()}
           />
@@ -263,7 +258,6 @@ export default function SignUp() {
             returnKeyType="next"
             blurOnSubmit={false}
             enablesReturnKeyAutomatically
-            inputAccessoryViewID={FORM_KEYBOARD_ACCESSORY_ID}
             onSubmitEditing={() => passwordRef.current?.focus()}
           />
           <FormField
@@ -272,13 +266,13 @@ export default function SignUp() {
             value={password}
             onChangeText={setPassword}
             placeholder={t('signUp.passwordPlaceholder')}
+            keyboardType="default"
             secureTextEntry
             textContentType="newPassword"
             editable={!loading}
             returnKeyType="next"
             blurOnSubmit={false}
             enablesReturnKeyAutomatically
-            inputAccessoryViewID={FORM_KEYBOARD_ACCESSORY_ID}
             onFocus={focusScroll}
             onSubmitEditing={() => confirmRef.current?.focus()}
             footer={
@@ -306,12 +300,12 @@ export default function SignUp() {
             value={confirmPassword}
             onChangeText={setConfirmPassword}
             placeholder={t('signUp.confirmPasswordLabel')}
+            keyboardType="default"
             secureTextEntry
             textContentType="newPassword"
             editable={!loading}
             returnKeyType="done"
             enablesReturnKeyAutomatically
-            inputAccessoryViewID={FORM_KEYBOARD_ACCESSORY_ID}
             onFocus={focusScroll}
             onSubmitEditing={() => {
               if (formValid && !loading) void handleSignUp();
@@ -356,7 +350,6 @@ export default function SignUp() {
         </BottomActionBar>
       </View>
 
-      <FormKeyboardAccessory />
 
       <Modal
         visible={legalSheet != null}

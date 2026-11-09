@@ -42,11 +42,13 @@ export default {
       backgroundColor: SPLASH_BACKGROUND,
     },
     ios: {
-      supportsTablet: true,
+      supportsTablet: false,
       bundleIdentifier: 'com.flyfamapp.mobile',
       /** Her App Store / TestFlight yüklemesinde bir öncekinden büyük olmalı (CFBundleVersion). */
-      buildNumber: '56',
+      buildNumber: '57',
       jsEngine: 'hermes',
+      /** Auth HTTPS bridge — Apple Developer Associated Domains + AASA gerekir. */
+      associatedDomains: ['applinks:app.flyfamapp.com'],
       infoPlist: {
         /** expo-share-extension ana uygulama + uzantı için App Group */
         AppGroup: 'group.com.flyfamapp.mobile',
@@ -65,7 +67,7 @@ export default {
       },
     },
     android: {
-      versionCode: 56,
+      versionCode: 57,
       jsEngine: 'hermes',
       /** Play + adaptive foreground: iOS App Store ikonu ile aynı 1024 kaynak. */
       icon: APP_ICON_1024,
