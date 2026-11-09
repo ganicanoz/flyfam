@@ -21,6 +21,7 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - **Davranış:** Açılışta önce disk oturumu + profil cache; `getSession` başarısızsa diskte kal. Kasıtlı olmayan `SIGNED_OUT` ve diskte hâlâ oturum varsa UI temizlenmez. Bilinçli `signOut` `intentionalSignOutRef` ile işaretlenir.
 - **Doğrulama:** `npx tsx mobile/scripts/test-persisted-auth-session.ts` PASS; `tsc --noEmit` OK.
 - **Koruma:** Gerçek çıkış / diğer cihaz kick hâlâ local session’ı temizler. Build 57 binary’sine dahil.
+- **EAS (kuyruk):** build `ee24b4e1-3915-4450-9ec3-89fae352f987` + auto-submit `3972c081-3473-47ad-970e-fdea464c134f` (1.3.0 / 57); önceki Associated Domains denemesi `987b2cb5…` iptal.
 
 
 ### 2026-11-08 — Logbook: kapatma alanı bembeyaz
