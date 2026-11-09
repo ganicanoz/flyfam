@@ -49,6 +49,15 @@ import {
 } from '../lib/dateUtils';
 import { regionCodeForIanaTimeZone } from '../lib/flightDisplayTime';
 import { fetchFlightByNumber, fr24UrlForAircraftRegistration, getFr24DeepLink } from '../lib/flightApi';
+import {
+  clearAircraftRegOverride,
+  loadAircraftRegOverrides,
+  pickAircraftRegistration,
+  saveAircraftRegOverride,
+  type AircraftRegOverrideMap,
+} from '../lib/aircraftRegOverride';
+import { resolveWhereIsMyPlaneUrl, shouldShowWhereIsMyPlane } from '../lib/whereIsMyPlane';
+import { AircraftRegPromptModal } from '../components/AircraftRegPromptModal';
 import { pollFlightForRoster } from '../lib/flightStatusPoll';
 import { notifyFamilyTodayFlights } from '../lib/notifyFamily';
 import { setRosterLastSharedAt } from '../lib/rosterShareMeta';
@@ -1388,6 +1397,13 @@ export default function Roster({
   const [delayById, setDelayById] = useState<Record<string, { dep?: number; arr?: number }>>({});
   /** Poll sonrası kuyruk — DB refetch beklemeden listede gösterim. */
   const [aircraftRegById, setAircraftRegById] = useState<Record<string, string>>({});
+  /** Crew-entered reg until system assigns a different one. */
+  const [aircraftRegOverrideById, setAircraftRegOverrideById] = useState<AircraftRegOverrideMap>({});
+  const [regPromptFlight, setRegPromptFlight] = useState<{
+    id: string;
+    flightNumber: string;
+    flightDate: string;
+  } | null>(null);
   const airborneSeenRef = useRef<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
   const [updatingTimes, setUpdatingTimes] = useState(false);
@@ -1448,6 +1464,34 @@ export default function Roster({
       return next ?? prev;
     });
   }, [flights]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void loadAircraftRegOverrides().then((map) => {
+      if (!cancelled) setAircraftRegOverrideById(map);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // System/API reg wins: drop stale crew override when assignment appears or changes.
+  useEffect(() => {
+    for (const f of flights) {
+      const system = formatAircraftRegistration(f.aircraft_registration) || aircraftRegById[f.id] || null;
+      const override = aircraftRegOverrideById[f.id];
+      if (system && override && system !== override) {
+        void clearAircraftRegOverride(f.id).then(() => {
+          setAircraftRegOverrideById((prev) => {
+            if (!(f.id in prev)) return prev;
+            const next = { ...prev };
+            delete next[f.id];
+            return next;
+          });
+        });
+      }
+    }
+  }, [flights, aircraftRegById, aircraftRegOverrideById]);
 
   const lastAutoRefreshMsRef = useRef<number>(0);
   const lastDashRefreshMsRef = useRef<number>(0);
@@ -4241,6 +4285,27 @@ export default function Roster({
     if (url) Linking.openURL(url).catch(() => {});
   };
 
+  const saveAndOpenWhereIsMyPlaneReg = async (registration: string) => {
+    const prompt = regPromptFlight;
+    if (!prompt) return;
+    const saved = await saveAircraftRegOverride(prompt.id, registration);
+    if (!saved) {
+      Alert.alert(t('common.error'), t('roster.whereIsMyPlaneRegInvalid'));
+      return;
+    }
+    setAircraftRegOverrideById((prev) => ({ ...prev, [prompt.id]: saved }));
+    setAircraftRegById((prev) => ({ ...prev, [prompt.id]: saved }));
+    void supabase
+      .from('flights')
+      .update({ aircraft_registration: saved })
+      .eq('id', prompt.id)
+      .then(({ error }) => {
+        if (error) console.warn('[Roster] aircraft_registration save', error.message);
+      });
+    setRegPromptFlight(null);
+    openFlightradar24ByRegistration(saved);
+  };
+
   const shareMonthSummary = useMemo(() => {
     const ym = selectedDate.slice(0, 7);
     let flights = 0;
@@ -6776,6 +6841,22 @@ export default function Roster({
             const withinTwoHoursToDep =
               msToDep != null && msToDep <= 2 * 60 * 60 * 1000 && msToDep > -6 * 60 * 60 * 1000;
             const showLiveTrack = !isNonFlightBlock && (isEnRoute || !!withinTwoHoursToDep);
+            const displayLanded = displayStatus === 'landed' || landedFromRow(item);
+            const showWhereIsMyPlane = shouldShowWhereIsMyPlane({
+              isCrew,
+              isFlightRow: !isNonFlightBlock,
+              scheduledDepMs: depMs,
+              nowMs,
+              isLanded: displayLanded,
+              liveTrackActive: showLiveTrack,
+            });
+            const planeRegForTrack = pickAircraftRegistration({
+              systemReg:
+                formatAircraftRegistration(item.aircraft_registration) ||
+                aircraftRegById[item.id] ||
+                null,
+              overrideReg: aircraftRegOverrideById[item.id] || null,
+            });
             const dayYmd = listGroupDate(item);
             const isPast =
               dayYmd < rosterTodayYmd ||
@@ -6866,6 +6947,7 @@ export default function Roster({
               progressRemainLabel,
               progressNearingArrival,
               showLiveTrack,
+              showWhereIsMyPlane,
               footerHint: null,
               showAssignAction: isStandbyBlock && isCrew,
               /** Ev görevi: nöbet rozeti yerine «Görev». */
@@ -6882,11 +6964,8 @@ export default function Roster({
                 !!blockCode &&
                 !isOccupationCodeDefined(blockCode, crewProfile?.airline_icao) &&
                 occupationSuggestTick >= 0,
-              aircraftReg: isEnRoute
-                ? aircraftRegById[item.id] ||
-                  formatAircraftRegistration(item.aircraft_registration) ||
-                  null
-                : null,
+              aircraftReg:
+                isEnRoute || showWhereIsMyPlane ? planeRegForTrack : null,
               aircraftType: null,
               isPast,
             };
@@ -6900,6 +6979,24 @@ export default function Roster({
                 onLiveTrack={
                   showLiveTrack
                     ? () => openFlightradar24(item.flight_number, item.flight_date, fr24IdByFlightId[item.id])
+                    : undefined
+                }
+                onWhereIsMyPlane={
+                  showWhereIsMyPlane
+                    ? () => {
+                        const resolved = resolveWhereIsMyPlaneUrl({
+                          aircraftRegistration: planeRegForTrack,
+                        });
+                        if (resolved) {
+                          openFlightradar24ByRegistration(planeRegForTrack!);
+                          return;
+                        }
+                        setRegPromptFlight({
+                          id: item.id,
+                          flightNumber: item.flight_number,
+                          flightDate: item.flight_date,
+                        });
+                      }
                     : undefined
                 }
                 onFooterAction={
@@ -7149,6 +7246,18 @@ export default function Roster({
         onConfirm={(toDelete) => {
           setClearConfirmVisible(false);
           executeClearWithUndo(toDelete as Flight[]);
+        }}
+      />
+      <AircraftRegPromptModal
+        visible={!!regPromptFlight}
+        flightLabel={
+          regPromptFlight
+            ? `${regPromptFlight.flightNumber} · ${regPromptFlight.flightDate}`
+            : null
+        }
+        onCancel={() => setRegPromptFlight(null)}
+        onSubmit={(reg) => {
+          void saveAndOpenWhereIsMyPlaneReg(reg);
         }}
       />
       <SuggestOccupationModal

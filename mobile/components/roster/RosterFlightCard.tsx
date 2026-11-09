@@ -72,6 +72,8 @@ export type RosterFlightCardModel = {
   progressRemainLabel?: string | null;
   progressNearingArrival?: boolean;
   showLiveTrack?: boolean;
+  /** Crew: 12h-to-dep “Where is my plane” CTA above times. */
+  showWhereIsMyPlane?: boolean;
   footerHint?: string | null;
   showAssignAction?: boolean;
   /** COTD vb. — standby chrome, rozet «Görev». */
@@ -91,6 +93,7 @@ type Props = {
   onPress: () => void;
   onLongPress?: () => void;
   onLiveTrack?: () => void;
+  onWhereIsMyPlane?: () => void;
   onFooterAction?: () => void;
   /** Nöbet kartında «Uçuşa dönüştür» yanında «Boş gün yap» (CFR, rezerv). */
   onOffDayAction?: () => void;
@@ -104,6 +107,7 @@ export function RosterFlightCard({
   onPress,
   onLongPress,
   onLiveTrack,
+  onWhereIsMyPlane,
   onFooterAction,
   onOffDayAction,
   onSuggestOccupation,
@@ -580,6 +584,23 @@ export function RosterFlightCard({
           )}
         </View>
 
+        {model.showWhereIsMyPlane && onWhereIsMyPlane ? (
+          <Pressable
+            onPress={onWhereIsMyPlane}
+            style={[
+              styles.wherePlaneBtn,
+              { backgroundColor: colors.primaryLight, borderColor: colors.primary },
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel={t('roster.whereIsMyPlaneA11y')}
+          >
+            <Ionicons name="airplane" size={16} color={colors.primary} />
+            <Text style={[styles.wherePlaneText, { color: colors.primary }]}>
+              {t('roster.whereIsMyPlane')}
+            </Text>
+          </Pressable>
+        ) : null}
+
         <View style={[styles.routeRow, !inFlight && { marginBottom: 0 }]}>
           <View style={styles.timeCol}>
             <View style={styles.timeInline}>
@@ -845,6 +866,22 @@ const styles = StyleSheet.create({
   flightNo: { fontWeight: '800', flexShrink: 0 },
   statusBadge: { flexShrink: 1 },
   chevron: { flexShrink: 0 },
+  wherePlaneBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 6,
+    marginTop: 8,
+    marginBottom: 2,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: radius.button,
+    borderWidth: StyleSheet.hairlineWidth * 2,
+  },
+  wherePlaneText: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
   livePill: {
     flexDirection: 'row',
     alignItems: 'center',
