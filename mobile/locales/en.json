@@ -29,7 +29,7 @@
   },
   "forceUpdate": {
     "title": "Update required",
-    "body": "Please use the latest FlyFam version for new features. Older versions will be discontinued soon. iOS: update via TestFlight or the App Store. Android: update via Play Store closed testing; if you are not on the tester list, email support@flyfamapp.com to request an invite.",
+    "body": "Please use the latest FlyFam version for new features. Older versions will be discontinued soon. iOS: update via TestFlight or the App Store. Android: update via Play Store closed testing; if you are not on the tester list, email flyfamapp@gmail.com to request an invite.",
     "openStoreIos": "Open App Store / TestFlight",
     "openStoreAndroid": "Open Play Store",
     "requestInvite": "Request closed testing invite (email)"

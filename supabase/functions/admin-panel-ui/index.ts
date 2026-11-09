@@ -1,16 +1,8 @@
 /**
- * Redirect helper for Ops Console.
- * Primary host: branded GitHub Pages path (text/html). Supabase cannot serve
- * GET text/html on *.supabase.co without a custom domain.
+ * Ops console is no longer hosted on the public app.flyfamapp.com site.
+ * Operators open docs/ADMIN_STATUS_DASHBOARD.html locally (or a private host).
  */
-const PRIMARY =
-  'https://app.flyfamapp.com/admin/';
-
 Deno.serve((req) => {
-  const url = new URL(req.url);
-  const dest = new URL(PRIMARY);
-  // Preserve cache-bust / ui query params for operators.
-  for (const [k, v] of url.searchParams) dest.searchParams.set(k, v);
   if (req.method === 'OPTIONS') {
     return new Response(null, {
       status: 204,
@@ -21,12 +13,19 @@ Deno.serve((req) => {
       },
     });
   }
-  return new Response(null, {
-    status: 302,
-    headers: {
-      Location: dest.toString(),
-      'Access-Control-Allow-Origin': '*',
-      'Cache-Control': 'no-store',
+  return new Response(
+    JSON.stringify({
+      ok: false,
+      code: 'admin_ui_not_public',
+      message: 'Ops console is not published on the public support host.',
+    }),
+    {
+      status: 410,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+        'Cache-Control': 'no-store',
+      },
     },
-  });
+  );
 });

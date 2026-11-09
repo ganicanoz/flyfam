@@ -13,6 +13,15 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+### 2026-11-09 — Destek e-posta / public site / marketing redirect / EN screenshot notu
+
+- **Destek e-posta:** Kamusal yüzeyler + force-update metinleri `flyfamapp@gmail.com` (eski `support@flyfamapp.com` kaldırıldı). Production `app_release_policy.default.android_invite_email` güncellendi. Migration `20261109140000_restore_gmail_support_email.sql`.
+- **Public site:** `app.flyfamapp.com/` → `https://flyfam.base44.app/` yönlendirme. Destek SSS: `/support/` (`flyfamapp@gmail.com`). `/admin/` ops paneli yayından çıkarıldı (placeholder). Workflow artık `docs/ADMIN_STATUS_DASHBOARD.html` kopyalamıyor. `admin-panel-ui` 410 JSON.
+- **App Store metadata (doküman):** Marketing URL `https://app.flyfamapp.com/`; Support URL `https://app.flyfamapp.com/support/`.
+- **EN screenshot:** Repo’da `marketing-v4/iphone-6.3-en` İngilizce UI. Opera’da TR: ASC Türkçe locale + tarayıcı dili/ülke TR ise Türkçe sayfa/görseller gelir. EN görseller İngilizce localization slotuna ayrı yüklenmeli.
+- **Koruma:** Auth callback / privacy / terms / aile yolları aynı. Ops konsol yalnız `docs/ADMIN_STATUS_DASHBOARD.html` yerel.
+
+
 ### 2026-11-09 — Offline/uçak: süresi dolmuş JWT → SignIn yerine disk oturumu
 
 - **Belirti:** Uçak/uçak modunda uygulama açılınca login/welcome; son kayıtlı program/profil gelmiyor.

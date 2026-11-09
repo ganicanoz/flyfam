@@ -1,4 +1,4 @@
-# FlyFam destek sayfası – push olunca otomatik GitHub Pages’e deploy
+# FlyFam destek / yasal / auth köprüsü – push olunca otomatik GitHub Pages’e deploy
 # deploy-pages@v4: job’da mutlaka environment: github-pages olmalı (aksi halde 400 Missing environment).
 name: Deploy support site
 
@@ -7,12 +7,6 @@ on:
     branches: [main, master]
     paths:
       - 'support/**'
-      - 'docs/ADMIN_STATUS_DASHBOARD.html'
-      - 'docs/BASE44_ADMIN_LIVE.html'
-      - 'docs/BASE44_ADMIN_EMBED.html'
-      - 'docs/ROUTE_TO_LIVE.html'
-      - 'docs/admin/**'
-      - 'docs/obens-watches/**'
       - '.github/workflows/deploy-support.yml'
   workflow_dispatch:
 
@@ -36,67 +30,24 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Destek sayfasındaki admin linki …/ADMIN_STATUS_DASHBOARD.html bekliyor; dosya docs/’ta.
-      # Mobil için kısa yol: /admin/ (Chrome adres çubuğunda kolay).
-      - name: Copy admin dashboard for GitHub Pages
+      - name: Verify public site roots
         run: |
-          for f in ADMIN_STATUS_DASHBOARD.html BASE44_ADMIN_LIVE.html BASE44_ADMIN_EMBED.html ROUTE_TO_LIVE.html; do
-            if [ -f "docs/$f" ]; then
-              cp -f "docs/$f" support/
-            fi
-          done
-          mkdir -p support/admin
-          cp -f docs/ADMIN_STATUS_DASHBOARD.html support/admin/index.html
-        shell: bash
-
-      # Uzak repoda docs/admin varsa support/admin altına ek asset kopyala (yoksa atla).
-      - name: Optional · admin preview assets into support/
-        run: |
-          if [ -d docs/admin ]; then
-            mkdir -p support/admin/mobile-assets
-            # splash-preview yalnız docs/admin kökündeyse; dashboard zaten support/admin/index.html
-            if [ -f docs/admin/splash-preview.html ]; then
-              cp -f docs/admin/splash-preview.html support/admin/splash-preview.html
-            fi
-            shopt -s nullglob || true
-            for f in docs/admin/mobile-assets/*; do
-              [ -f "$f" ] && cp -f "$f" support/admin/mobile-assets/ || true
-            done
-          fi
-        shell: bash
-
-      - name: Stamp deploy SHA in admin link (cache bust for CDN)
-        run: |
-          CB="${GITHUB_SHA:0:8}"
-          sed -i "s/__DEPLOY_SHA__/${CB}/g" support/index.html
-          if grep -q '__DEPLOY_SHA__' support/index.html; then
-            echo "Admin link placeholder not replaced"
+          test -f support/index.html
+          test -f support/support/index.html
+          test -f support/admin/index.html
+          test -f support/privacy-policy.html
+          test -f support/terms-of-use.html
+          test -f support/auth-callback.html
+          # Public host must not ship the ops dashboard.
+          if grep -qi 'FlyFam Ops' support/admin/index.html; then
+            echo 'support/admin/index.html must not contain the ops dashboard'
             exit 1
           fi
-        shell: bash
-
-      # Yerelde klasör adı "support"; yayında dosyalar site kökünde. /flyfam/support gibi URL'ler 404 olmasın.
-      - name: Mirror index at /support/ (bookmarks and /support path)
-        run: |
-          mkdir -p support/support
-          cp -f support/index.html support/support/index.html
-        shell: bash
-
-      - name: Verify site root (index.html)
-        run: test -f support/index.html && test -f support/support/index.html && ls -la support/ support/support/
-
-      - name: Verify admin HTML in artifact
-        run: |
-          test -f support/ADMIN_STATUS_DASHBOARD.html
-          test -f support/BASE44_ADMIN_LIVE.html
-          test "$(wc -c < support/ADMIN_STATUS_DASHBOARD.html)" -ge 8000
-
-      - name: Copy Oben's Watches archive
-        run: |
-          mkdir -p support/obens-watches
-          cp -R docs/obens-watches/. support/obens-watches/
-          test -s support/obens-watches/index.html
-        shell: bash
+          if grep -qi 'Admin paneli' support/index.html support/support/index.html; then
+            echo 'Public support pages must not link the admin panel'
+            exit 1
+          fi
+          ls -la support/ support/support/ support/admin/
 
       - name: Setup Pages
         uses: actions/configure-pages@v4

@@ -29,7 +29,7 @@ export function ForceUpdateModal({ visible, policy }: Props) {
   const iosUrl = policy?.ios_store_url || 'https://apps.apple.com/app/id6827960794';
   const androidUrl =
     policy?.android_store_url || 'https://play.google.com/store/apps/details?id=com.flyfam.app';
-  const inviteEmail = policy?.android_invite_email || 'support@flyfamapp.com';
+  const inviteEmail = policy?.android_invite_email || 'flyfamapp@gmail.com';
 
   const openStore = () => {
     const url = Platform.OS === 'ios' ? iosUrl : androidUrl;

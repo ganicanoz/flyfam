@@ -4407,7 +4407,7 @@ export default function Roster({
         return;
       }
       if (!isRosterPdfImportSupportedForCrewAirline(crewProfile.airline_icao)) {
-        const mailto = 'mailto:support@flyfamapp.com?subject=FlyFam%20PDF%20Roster%20Talebi';
+        const mailto = 'mailto:flyfamapp@gmail.com?subject=FlyFam%20PDF%20Roster%20Talebi';
         const title = t('addFlight.importFlightsAirlineImportNotSupportedTitle');
         const message = t('addFlight.importFlightsAirlineImportNotSupportedMessage');
         alertWithCopy(title, message, {
