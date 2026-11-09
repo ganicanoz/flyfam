@@ -1977,3 +1977,9 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - **Davranış:** Her sayfada 16 satır 1’den 16’ya numaralanır; defter boyunca artan sıra kalkar. Sayfa/defter kapatma ve toplam satırları aynı.
 - **Doğrulama:** `node scripts/test-gani-logbook-sync.mjs` OK; `git diff --check` OK.
 
+## 2026-11-09 — iOS store build 57 (iPhone-only) hazırlığı
+
+- **İstek:** Binary 57 production build + ASC submit.
+- **Kaynak:** temiz `origin/main` worktree `/tmp/flyfam-b57` (`release/ios-1.3.0-57`); kirli yerel `main` kullanılmadı.
+- **Değişiklik:** `buildNumber`/`CURRENT_PROJECT_VERSION`/`versionCode` → **57**; `supportsTablet: false`; `TARGETED_DEVICE_FAMILY = 1` (app + NSE ensure script); `associatedDomains` + entitlements `applinks:app.flyfamapp.com`; auth e-posta/şifre `inputAccessoryViewID` kaldırıldı (rakam→harf sıçraması).
+- **Koruma:** App Store Review gönderimi bu adımda yok; `eas submit` yalnız binary yükleme. Android Faz 2 (versionCode hizalandı, build yok).

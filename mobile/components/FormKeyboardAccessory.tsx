@@ -8,6 +8,10 @@ export const FORM_KEYBOARD_ACCESSORY_ID = 'flyfam.form.keyboardAccessory';
 /**
  * iOS keyboard toolbar with a clear Done action so users can dismiss
  * and see the form again. No-op on Android (system back / outside tap).
+ *
+ * Do not attach to email/password (or secureTextEntry) fields: combining
+ * InputAccessoryView with those inputs rebuilds the keyboard on iOS and
+ * snaps the number pane back to letters after each digit.
  */
 export function FormKeyboardAccessory() {
   const { t } = useTranslation();

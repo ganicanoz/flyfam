@@ -24,10 +24,6 @@ import { ScreenPageHeader } from '../components/ScreenPageHeader';
 import { FormField } from '../components/FormField';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { splashIconAsset } from '../constants/splashBrand';
-import {
-  FormKeyboardAccessory,
-  FORM_KEYBOARD_ACCESSORY_ID,
-} from '../components/FormKeyboardAccessory';
 
 /**
  * Giriş formu üstte; e-posta yazarken iOS öneri çubuğu yüksekliği değişir.
@@ -143,7 +139,6 @@ export default function SignIn() {
           returnKeyType="next"
           blurOnSubmit={false}
           enablesReturnKeyAutomatically
-          inputAccessoryViewID={FORM_KEYBOARD_ACCESSORY_ID}
           onSubmitEditing={() => passwordRef.current?.focus()}
         />
 
@@ -153,13 +148,13 @@ export default function SignIn() {
           value={password}
           onChangeText={setPassword}
           placeholder={t('signIn.password')}
+          keyboardType="default"
           secureTextEntry
           autoComplete="password"
           textContentType="password"
           editable={!loading}
           returnKeyType="go"
           enablesReturnKeyAutomatically
-          inputAccessoryViewID={FORM_KEYBOARD_ACCESSORY_ID}
           onSubmitEditing={() => {
             if (canSubmit) void handleSignIn();
           }}
@@ -211,7 +206,6 @@ export default function SignIn() {
         </Text>
       </ScrollView>
 
-      <FormKeyboardAccessory />
     </View>
   );
 }

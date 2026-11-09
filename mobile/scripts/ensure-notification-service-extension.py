@@ -302,7 +302,7 @@ def main() -> int:
 			isa = XCBuildConfiguration;
 			buildSettings = {{
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 55;
+				CURRENT_PROJECT_VERSION = 57;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = FlyFamNotificationService/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
@@ -316,7 +316,7 @@ def main() -> int:
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			}};
 			name = Debug;
 		}};
@@ -325,7 +325,7 @@ def main() -> int:
 			isa = XCBuildConfiguration;
 			buildSettings = {{
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 55;
+				CURRENT_PROJECT_VERSION = 57;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = FlyFamNotificationService/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
@@ -339,7 +339,7 @@ def main() -> int:
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			}};
 			name = Release;
 		}};
