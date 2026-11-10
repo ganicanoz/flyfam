@@ -1,8 +1,49 @@
 # FlyFam · App Store Metadata · iOS 1.3.0
 
-> App Store Connect'e uygulanmadan önce son kez ekranda kontrol edilmelidir. Metinlerde kişisel ad, kişisel e-posta veya kişisel URL bulunmaz.
+> Review on screen in App Store Connect before saving. Do not include personal names, personal email addresses, or personal URLs in store copy.
 
-## Türkçe
+## English (en-US) — primary listing
+
+### Promotional Text
+
+Share your roster with family — stay aligned on departures, arrivals, and schedule changes.
+
+### Description
+
+FlyFam helps airline crew organise their roster and share selected flights securely with invited family members.
+
+Crew users can view sectors and duties on one screen, import supported airline roster PDFs, and amend flight details when required. In Crew Room, connected colleagues can share availability and off-day overlap. Family users only see the schedule shared through approved connections.
+
+Key features:
+
+• Flight sectors, reserve, standby, simulator duty, and days off
+• Roster PDF import for supported airlines
+• Departure, arrival, cancellation, and diversion status alerts
+• Controlled roster sharing with family members
+• Crew Room connections and shared off-day views
+• Route, scheduled times, and essential flight status
+• Restore Purchases and App Store subscription management
+• Turkish and English interfaces
+
+Privacy:
+
+Your roster is shared only with connections you approve. FlyFam does not broadcast your device’s live location to family. Live flight status comes from third-party aviation data providers and may vary with provider availability.
+
+FlyFam is not an airline, ATS unit, or official ops system. For operational decisions, always use your airline and authorised sources.
+
+Privacy Policy: https://app.flyfamapp.com/privacy-policy.html
+
+Terms of Use: https://app.flyfamapp.com/terms-of-use.html
+
+Apple Standard EULA: https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
+
+### Keywords
+
+roster,crew,pilot,cabin crew,flight,departure,arrival,standby,reserve,schedule
+
+## Turkish localization (ASC `tr`)
+
+Keep this block for the Turkish storefront. Do not paste it into the English locale.
 
 ### Promotional Text
 
@@ -41,46 +82,7 @@ Apple Standard EULA: https://www.apple.com/legal/internet-services/itunes/dev/st
 
 uçuş,roster,pilot,kabin ekibi,aile,uçuş takip,program,havacılık,nöbet,rezerv
 
-## English
-
-### Promotional Text
-
-Share your roster and help your family stay informed about departures, arrivals and schedule changes.
-
-### Description
-
-FlyFam helps airline crew members organize their schedules and share them securely with selected family members.
-
-Crew users can view flights and duties in one place, import supported airline roster PDFs, and edit flight details when needed. In Crew Room, connected crew members can share availability information. Family users can access only the schedules shared through approved connections.
-
-Key features:
-
-• Flights, reserve, standby, simulator duties and off days
-• Roster PDF import for supported airlines
-• Departure, arrival, cancellation and diversion notifications
-• Controlled schedule sharing with family members
-• Crew connections and shared off-day views in Crew Room
-• Route, time and essential flight status information
-• Purchase restoration and subscription management through the App Store
-• Turkish and English interfaces
-
-Privacy approach:
-
-Your roster is shared only with connections you approve. FlyFam does not broadcast your device's live location to family members. Live flight information comes from third-party aviation data providers and may vary with provider availability.
-
-FlyFam is not an airline, air traffic service or official operational system. Always rely on your airline and authorized sources for operational decisions.
-
-Privacy Policy: https://app.flyfamapp.com/privacy-policy.html
-
-Terms of Use: https://app.flyfamapp.com/terms-of-use.html
-
-Apple Standard EULA: https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
-
-### Keywords
-
-flight,roster,crew,pilot,cabin crew,family,flight tracker,schedule,aviation,standby
-
-## Ortak alanlar
+## Shared fields
 
 - Support URL: https://app.flyfamapp.com/support/
 - Marketing URL: https://app.flyfamapp.com/
@@ -89,12 +91,12 @@ flight,roster,crew,pilot,cabin crew,family,flight tracker,schedule,aviation,stan
 - Apple Standard EULA: https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
 - Copyright: 2026 FlyFam
 
-## Uygulama kontrolü
+## Pre-save checklist
 
-- [ ] Türkçe Promotional Text girildi.
-- [ ] Türkçe Description girildi.
-- [ ] Türkçe Keywords girildi.
-- [ ] English localization eklendi ve üç alan girildi.
-- [ ] Support, Marketing ve Privacy URL'leri açılıyor.
-- [ ] Apple Standard EULA bağlantısı Description içinde görünüyor.
-- [ ] Metinlerde kişisel ad/e-posta/URL bulunmuyor.
+- [ ] English Promotional Text saved in en-US
+- [ ] English Description saved in en-US
+- [ ] English Keywords saved in en-US
+- [ ] Turkish localization filled for `tr` (separate fields)
+- [ ] Support, Marketing, and Privacy URLs open correctly
+- [ ] Apple Standard EULA link appears in Description
+- [ ] No personal name, personal email, or personal URL in copy
