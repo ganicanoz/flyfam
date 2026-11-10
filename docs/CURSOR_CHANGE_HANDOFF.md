@@ -13,6 +13,15 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+### 2026-11-10 — RTC Faz 2 quiz public host (app.flyfamapp.com)
+
+- **İstek:** Offline RTC Faz 2 quiz paketini FlyFam domain altında yayınla; tarayıcıda çalıştır + ZIP indir.
+- **Yol:** `support/rtc-faz2/` → `https://app.flyfamapp.com/rtc-faz2/` (kapak), `/rtc-faz2/quiz/` (quiz), `/rtc-faz2/RTC_Faz2_Quiz_iPad.zip` (indir).
+- **İçerik:** Yalnız kullanılan `media/refs` + `media/phase23` görselleri; boş Word highlight şeritleri yok. Ana destek menüsüne link eklenmedi (`noindex`).
+- **Koruma:** Auth/privacy/terms/admin/aile yolları aynı. Ops dashboard yayına alınmadı.
+- **Doğrulama:** Deploy support site sonrası kapak/quiz/ZIP HTTP 200.
+
+
 ### 2026-11-10 — App Store metadata + Support page: aviation English
 
 - **Doküman:** `docs/APP_STORE_METADATA_IOS_1.3.0.md` İngilizce birincil; en-US metin havacılık İngilizcesi (roster, departure/arrival, reserve, standby, diversion, sector, Crew Room). TR locale ASC için ayrı blokta korundu.
