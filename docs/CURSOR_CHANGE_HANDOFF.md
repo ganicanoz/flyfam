@@ -13,6 +13,14 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+### 2026-11-10 — RTC Faz 2 quiz PIN kapısı
+
+- **İstek:** `app.flyfamapp.com/rtc-faz2` için şifre; yalnız rakam klavye.
+- **PIN:** `7722` (client-side `sessionStorage`; kapak + quiz). Sayısal pad + `inputmode=numeric`.
+- **Dosya:** `support/rtc-faz2/pin.js`, `pin.css`; quiz/ZIP güncellendi.
+- **Doğrulama:** Deploy sonrası kapak/quiz PIN ister; doğru PIN içerik açılır.
+
+
 ### 2026-11-10 — RTC Faz 2 quiz public host (app.flyfamapp.com)
 
 - **İstek:** Offline RTC Faz 2 quiz paketini FlyFam domain altında yayınla; tarayıcıda çalıştır + ZIP indir.
