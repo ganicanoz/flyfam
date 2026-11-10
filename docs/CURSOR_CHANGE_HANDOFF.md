@@ -13,6 +13,13 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+### 2026-11-10 — App Store metadata + Support page: aviation English
+
+- **Doküman:** `docs/APP_STORE_METADATA_IOS_1.3.0.md` İngilizce birincil; en-US metin havacılık İngilizcesi (roster, departure/arrival, reserve, standby, diversion, sector, Crew Room). TR locale ASC için ayrı blokta korundu.
+- **Support URL sayfası:** `support/support/index.html` İngilizce FAQ (aviation-friendly wording).
+- **Koruma:** ASC’ye otomatik yazılmadı; kullanıcı onayıyla en-US alanlara yapıştırılmalı. Review submit yok.
+
+
 ### 2026-11-10 — Codex: Cursor sonrası site ve App Store dil kontrolü
 
 - Cursor'ın #115 yayını doğrulandı: kök marketing yönlendirmesi; /support/ Gmail iletişimi; /admin/ yalnız placeholder. Kamusal ops paneli geri eklenmeyecek.
