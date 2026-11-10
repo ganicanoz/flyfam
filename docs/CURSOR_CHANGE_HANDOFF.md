@@ -13,6 +13,14 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+### 2026-11-10 — Codex: Cursor sonrası site ve App Store dil kontrolü
+
+- Cursor'ın #115 yayını doğrulandı: kök marketing yönlendirmesi; /support/ Gmail iletişimi; /admin/ yalnız placeholder. Kamusal ops paneli geri eklenmeyecek.
+- Kök yönlendirmesi kullanıcının verdiği kesin hedefe düzeltildi: https://flyfam.base44.app/Landing.
+- App Store API ile TR ve en-US Marketing URL = https://app.flyfamapp.com/ ve Support URL = https://app.flyfamapp.com/support/ kaydedilip tekrar okundu.
+- EN görseller zaten yüklenmiş: en-US APP_IPHONE_61 setinde crew_room, flight_details, flight_schedule (1206×2622) üçü COMPLETE. TR APP_IPHONE_67 ve APP_IPHONE_55 setleri korunuyor. Görseller yeniden üretilmedi/değiştirilmedi.
+- App Store review gönderimi ve build başlatılmadı.
+
 ### 2026-11-09 — Destek e-posta / public site / marketing redirect / EN screenshot notu
 
 - **Destek e-posta:** Kamusal yüzeyler + force-update metinleri `flyfamapp@gmail.com` (eski `support@flyfamapp.com` kaldırıldı). Production `app_release_policy.default.android_invite_email` güncellendi. Migration `20261109140000_restore_gmail_support_email.sql`.

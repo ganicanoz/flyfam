@@ -6,7 +6,7 @@ Markalı canlı kök: `https://app.flyfamapp.com/`
 
 | Yol | İçerik |
 | --- | --- |
-| `/` | Marketing yönlendirme → `https://flyfam.base44.app/` |
+| `/` | Marketing yönlendirme → `https://flyfam.base44.app/Landing` |
 | `/support/` | Destek / SSS / iletişim (`flyfamapp@gmail.com`) |
 | `/privacy-policy.html` | Gizlilik |
 | `/terms-of-use.html` | Kullanım koşulları |
