@@ -12,6 +12,7 @@ Markalı canlı kök: `https://app.flyfamapp.com/`
 | `/terms-of-use.html` | Kullanım koşulları |
 | `/auth-callback.html` | Auth deep-link köprüsü |
 | `/admin/` | Yayında değil (bilinçli 404 benzeri sayfa) |
+| `/rtc-faz2/` | RTC Faz 2 quiz (çalış + ZIP indir); ana menüde link yok |
 
 App Store:
 - Marketing URL: `https://app.flyfamapp.com/` (kök → Base44 marketing)
