@@ -9,6 +9,7 @@ import {
   Animated,
   useWindowDimensions,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useTranslation } from 'react-i18next';
 import { colors, type ThemeMode } from '../../theme/colors';
@@ -571,58 +572,86 @@ export function RosterFlightCard({
               compact={badgeCompact}
               style={styles.statusBadge}
             />
-            {model.showWhereIsMyPlane && onWhereIsMyPlane ? (
+          </View>
+          {model.showWhereIsMyPlane && onWhereIsMyPlane ? (
+            <View style={styles.wherePlaneCluster}>
               <Pressable
                 onPress={onWhereIsMyPlane}
                 onLongPress={onWhereIsMyPlaneEdit}
                 delayLongPress={380}
-                style={[
-                  styles.wherePlaneChip,
-                  {
-                    backgroundColor:
-                      themeMode === 'dark' ? 'rgba(14,165,233,0.20)' : '#E0F2FE',
-                    borderColor: themeMode === 'dark' ? '#38BDF8' : '#0284C7',
-                  },
-                ]}
+                style={styles.wherePlaneChip}
                 accessibilityRole="button"
                 accessibilityLabel={t('roster.whereIsMyPlaneA11y')}
                 accessibilityHint={
                   onWhereIsMyPlaneEdit ? t('roster.whereIsMyPlaneEditA11y') : undefined
                 }
               >
-                <Ionicons
-                  name="locate"
-                  size={13}
-                  color={themeMode === 'dark' ? '#7DD3FC' : '#0369A1'}
+                <LinearGradient
+                  colors={
+                    themeMode === 'dark'
+                      ? ['#1B3A2F', '#243B55', '#1E293B']
+                      : ['#C8E0B0', '#E5E2DA', '#B9D4C8']
+                  }
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={StyleSheet.absoluteFillObject}
                 />
+                {/* Soft blur wash — map-tile feel without a photo asset */}
+                <View
+                  pointerEvents="none"
+                  style={[
+                    styles.wherePlaneWash,
+                    {
+                      backgroundColor:
+                        themeMode === 'dark' ? 'rgba(15,23,42,0.42)' : 'rgba(255,255,255,0.38)',
+                    },
+                  ]}
+                />
+                <View
+                  pointerEvents="none"
+                  style={[
+                    styles.wherePlanePlaneBadge,
+                    {
+                      backgroundColor:
+                        themeMode === 'dark' ? 'rgba(255,255,255,0.16)' : 'rgba(15,23,42,0.78)',
+                    },
+                  ]}
+                >
+                  <Ionicons name="airplane" size={12} color="#FFFFFF" />
+                </View>
                 <Text
                   style={[
                     styles.wherePlaneChipText,
-                    { color: themeMode === 'dark' ? '#7DD3FC' : '#0369A1' },
+                    { color: themeMode === 'dark' ? '#F8FAFC' : '#0F172A' },
                   ]}
                   numberOfLines={1}
                 >
                   {t('roster.whereIsMyPlane')}
                 </Text>
-                {onWhereIsMyPlaneEdit ? (
-                  <Pressable
-                    onPress={onWhereIsMyPlaneEdit}
-                    hitSlop={8}
-                    accessibilityRole="button"
-                    accessibilityLabel={t('roster.whereIsMyPlaneChangeRegA11y')}
-                    style={styles.wherePlaneEditHit}
-                  >
-                    <Ionicons
-                      name="pencil"
-                      size={12}
-                      color={themeMode === 'dark' ? '#7DD3FC' : '#0369A1'}
-                    />
-                  </Pressable>
-                ) : null}
               </Pressable>
-            ) : null}
-          </View>
-          {model.showLiveTrack && onLiveTrack ? (
+              {onWhereIsMyPlaneEdit ? (
+                <Pressable
+                  onPress={onWhereIsMyPlaneEdit}
+                  hitSlop={10}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('roster.whereIsMyPlaneChangeRegA11y')}
+                  style={[
+                    styles.wherePlanePencil,
+                    {
+                      backgroundColor: themeMode === 'dark' ? '#0F172A' : '#FFFFFF',
+                      borderColor: themeMode === 'dark' ? '#64748B' : '#CBD5E1',
+                    },
+                  ]}
+                >
+                  <Ionicons
+                    name="pencil"
+                    size={13}
+                    color={themeMode === 'dark' ? '#E2E8F0' : '#334155'}
+                  />
+                </Pressable>
+              ) : null}
+            </View>
+          ) : model.showLiveTrack && onLiveTrack ? (
             <Pressable
               onPress={onLiveTrack}
               hitSlop={6}
@@ -895,33 +924,59 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
     flexWrap: 'nowrap',
     minWidth: 0,
   },
   flightNo: { fontWeight: '800', flexShrink: 0 },
-  statusBadge: { flexShrink: 1, maxWidth: '34%' },
+  statusBadge: { flexShrink: 1 },
   chevron: { flexShrink: 0 },
-  /** Inline with flight number — same row height as livePill, no extra card rows. */
+  /** Right of flight code row — map-tile chip + always-visible reg pencil. */
+  wherePlaneCluster: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flexShrink: 1,
+    maxWidth: '58%',
+  },
   wherePlaneChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 6,
     paddingVertical: 5,
-    paddingHorizontal: 8,
+    paddingLeft: 6,
+    paddingRight: 10,
     borderRadius: 999,
+    overflow: 'hidden',
     borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(100,116,139,0.35)',
     flexShrink: 1,
-    maxWidth: '100%',
+    minWidth: 0,
+  },
+  wherePlaneWash: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  wherePlanePlaneBadge: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
   },
   wherePlaneChipText: {
     fontSize: 11,
     fontWeight: '800',
     flexShrink: 1,
   },
-  wherePlaneEditHit: {
-    paddingLeft: 2,
-    paddingVertical: 1,
+  wherePlanePencil: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: StyleSheet.hairlineWidth,
+    flexShrink: 0,
   },
   livePill: {
     flexDirection: 'row',

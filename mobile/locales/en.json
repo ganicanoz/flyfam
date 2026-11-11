@@ -482,7 +482,7 @@
     "durationMeta": "Duration",
     "whereIsMyPlane": "Where is my plane",
     "whereIsMyPlaneA11y": "Show my aircraft on FlightRadar24",
-    "whereIsMyPlaneEditA11y": "Tap the pencil or long-press to change the registration",
+    "whereIsMyPlaneEditA11y": "Tap the pencil button to change the registration",
     "whereIsMyPlaneChangeReg": "Change",
     "whereIsMyPlaneChangeRegA11y": "Change aircraft registration",
     "whereIsMyPlaneRegTitle": "Aircraft registration",
