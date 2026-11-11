@@ -20,6 +20,7 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - **Dosyalar:** `RosterFlightCard`, `AircraftRegPromptModal`, `aircraftRegOverride`, `Roster.tsx`, TR/EN locale, `test-where-is-plane.ts`.
 - **Yayın:** JS-only → production OTA (build 58 gerekmez). `runtimeVersion` 1.3.0.
 - **Doğrulama:** `npx tsx mobile/scripts/test-where-is-plane.ts` PASS; `tsc --noEmit` OK.
+- **OTA:** group `a707d35f-c341-4f3d-9531-1832a2d42cac` — iOS `01a1cae9-0027-7c85-b52c-822bd01d9435`, Android `01a1cae9-0027-7ee3-bbdd-dfc04ac75723` (origin/main `036494b`, runtime `1.3.0`).
 
 
 ### 2026-11-11 — RTC Faz 2: phase23 reparse + filtre/UX
