@@ -1480,7 +1480,7 @@ export default function Roster({
     };
   }, []);
 
-  // System/API reg wins: drop stale crew override when assignment appears, changes, or clears after a swap.
+  // Drop manual reg only when the assigned aircraft changes (system A→B) or clears after a swap.
   useEffect(() => {
     for (const f of flights) {
       const system =
@@ -7036,8 +7036,8 @@ export default function Roster({
                           id: item.id,
                           flightNumber: item.flight_number,
                           flightDate: item.flight_date,
-                          initialRegistration:
-                            overrideAircraftReg || planeRegForTrack || null,
+                          // Prefill current effective reg so crew can correct API/manual values.
+                          initialRegistration: planeRegForTrack || overrideAircraftReg || null,
                         });
                       }
                     : undefined

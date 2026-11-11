@@ -91,8 +91,12 @@ assert(
   'override used when system empty',
 );
 assert(
-  pickAircraftRegistration({ systemReg: 'TC-AAA', overrideReg: 'TC-RBA' }) === 'TC-AAA',
-  'system reg wins over override',
+  pickAircraftRegistration({ systemReg: 'TC-AAA', overrideReg: 'TC-RBA' }) === 'TC-RBA',
+  'crew override wins over system for FR24',
+);
+assert(
+  pickAircraftRegistration({ systemReg: 'TC-AAA', overrideReg: null }) === 'TC-AAA',
+  'system used when no override',
 );
 
 assert(
@@ -100,12 +104,12 @@ assert(
   'override-only is editable',
 );
 assert(
-  canEditAircraftRegOverride({ systemReg: 'TC-AAA', overrideReg: null }) === false,
-  'API-only is not editable',
+  canEditAircraftRegOverride({ systemReg: 'TC-AAA', overrideReg: null }) === true,
+  'API-only remains editable so crew can correct',
 );
 assert(
   canEditAircraftRegOverride({ systemReg: 'TC-AAA', overrideReg: 'TC-RBA' }) === true,
-  'override still editable until cleared by API mismatch handler',
+  'override with system still editable',
 );
 
 assert(
@@ -113,8 +117,16 @@ assert(
     previousSystemReg: null,
     systemReg: 'TC-AAA',
     overrideReg: 'TC-RBA',
+  }) === false,
+  'first API arrival must not wipe crew correction',
+);
+assert(
+  shouldClearAircraftRegOverride({
+    previousSystemReg: 'TC-AAA',
+    systemReg: 'TC-BBB',
+    overrideReg: 'TC-RBA',
   }) === true,
-  'API arrival different from override → clear',
+  'aircraft swap (system A→B) → clear override',
 );
 assert(
   shouldClearAircraftRegOverride({
@@ -129,8 +141,8 @@ assert(
     previousSystemReg: 'TC-AAA',
     systemReg: 'TC-AAA',
     overrideReg: 'TC-RBA',
-  }) === true,
-  'system still differs from override → clear',
+  }) === false,
+  'same system + different override → keep crew correction',
 );
 assert(
   shouldClearAircraftRegOverride({

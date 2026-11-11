@@ -571,6 +571,56 @@ export function RosterFlightCard({
               compact={badgeCompact}
               style={styles.statusBadge}
             />
+            {model.showWhereIsMyPlane && onWhereIsMyPlane ? (
+              <Pressable
+                onPress={onWhereIsMyPlane}
+                onLongPress={onWhereIsMyPlaneEdit}
+                delayLongPress={380}
+                style={[
+                  styles.wherePlaneChip,
+                  {
+                    backgroundColor:
+                      themeMode === 'dark' ? 'rgba(14,165,233,0.20)' : '#E0F2FE',
+                    borderColor: themeMode === 'dark' ? '#38BDF8' : '#0284C7',
+                  },
+                ]}
+                accessibilityRole="button"
+                accessibilityLabel={t('roster.whereIsMyPlaneA11y')}
+                accessibilityHint={
+                  onWhereIsMyPlaneEdit ? t('roster.whereIsMyPlaneEditA11y') : undefined
+                }
+              >
+                <Ionicons
+                  name="locate"
+                  size={13}
+                  color={themeMode === 'dark' ? '#7DD3FC' : '#0369A1'}
+                />
+                <Text
+                  style={[
+                    styles.wherePlaneChipText,
+                    { color: themeMode === 'dark' ? '#7DD3FC' : '#0369A1' },
+                  ]}
+                  numberOfLines={1}
+                >
+                  {t('roster.whereIsMyPlane')}
+                </Text>
+                {onWhereIsMyPlaneEdit ? (
+                  <Pressable
+                    onPress={onWhereIsMyPlaneEdit}
+                    hitSlop={8}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('roster.whereIsMyPlaneChangeRegA11y')}
+                    style={styles.wherePlaneEditHit}
+                  >
+                    <Ionicons
+                      name="pencil"
+                      size={12}
+                      color={themeMode === 'dark' ? '#7DD3FC' : '#0369A1'}
+                    />
+                  </Pressable>
+                ) : null}
+              </Pressable>
+            ) : null}
           </View>
           {model.showLiveTrack && onLiveTrack ? (
             <Pressable
@@ -586,62 +636,6 @@ export function RosterFlightCard({
             <Ionicons name="chevron-forward" size={18} color={ink.muted} style={styles.chevron} />
           )}
         </View>
-
-        {model.showWhereIsMyPlane && onWhereIsMyPlane ? (
-          <View style={styles.wherePlaneWrap}>
-            <Pressable
-              onPress={onWhereIsMyPlane}
-              onLongPress={onWhereIsMyPlaneEdit}
-              delayLongPress={380}
-              style={[
-                styles.wherePlaneBtn,
-                {
-                  backgroundColor:
-                    themeMode === 'dark' ? 'rgba(14,165,233,0.20)' : '#E0F2FE',
-                  borderColor: themeMode === 'dark' ? '#38BDF8' : '#0284C7',
-                },
-              ]}
-              accessibilityRole="button"
-              accessibilityLabel={t('roster.whereIsMyPlaneA11y')}
-              accessibilityHint={
-                onWhereIsMyPlaneEdit ? t('roster.whereIsMyPlaneEditA11y') : undefined
-              }
-            >
-              <Ionicons
-                name="locate"
-                size={17}
-                color={themeMode === 'dark' ? '#7DD3FC' : '#0369A1'}
-              />
-              <Text
-                style={[
-                  styles.wherePlaneText,
-                  { color: themeMode === 'dark' ? '#7DD3FC' : '#0369A1' },
-                ]}
-              >
-                {t('roster.whereIsMyPlane')}
-              </Text>
-            </Pressable>
-            {model.aircraftReg && onWhereIsMyPlaneEdit ? (
-              <Pressable
-                onPress={onWhereIsMyPlaneEdit}
-                hitSlop={8}
-                accessibilityRole="button"
-                accessibilityLabel={t('roster.whereIsMyPlaneChangeRegA11y')}
-              >
-                <Text
-                  style={[
-                    styles.wherePlaneRegHint,
-                    { color: themeMode === 'dark' ? '#94A3B8' : '#64748B' },
-                  ]}
-                >
-                  {t('roster.aircraftRegShort', { reg: model.aircraftReg })}
-                  {' · '}
-                  {t('roster.whereIsMyPlaneChangeReg')}
-                </Text>
-              </Pressable>
-            ) : null}
-          </View>
-        ) : null}
 
         <View style={[styles.routeRow, !inFlight && { marginBottom: 0 }]}>
           <View style={styles.timeCol}>
@@ -901,40 +895,33 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    flexWrap: 'wrap',
+    gap: 6,
+    flexWrap: 'nowrap',
     minWidth: 0,
   },
   flightNo: { fontWeight: '800', flexShrink: 0 },
-  statusBadge: { flexShrink: 1 },
+  statusBadge: { flexShrink: 1, maxWidth: '34%' },
   chevron: { flexShrink: 0 },
-  wherePlaneWrap: {
-    alignItems: 'center',
-    alignSelf: 'center',
-    marginTop: 10,
-    marginBottom: 4,
-    gap: 4,
-    maxWidth: '100%',
-  },
-  wherePlaneBtn: {
+  /** Inline with flight number — same row height as livePill, no extra card rows. */
+  wherePlaneChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 7,
-    paddingHorizontal: 16,
-    paddingVertical: 9,
+    gap: 4,
+    paddingVertical: 5,
+    paddingHorizontal: 8,
     borderRadius: 999,
-    borderWidth: StyleSheet.hairlineWidth * 2,
-    minWidth: 168,
+    borderWidth: StyleSheet.hairlineWidth,
+    flexShrink: 1,
+    maxWidth: '100%',
   },
-  wherePlaneText: {
-    fontSize: 13,
-    fontWeight: '800',
-  },
-  wherePlaneRegHint: {
+  wherePlaneChipText: {
     fontSize: 11,
-    fontWeight: '600',
-    textAlign: 'center',
+    fontWeight: '800',
+    flexShrink: 1,
+  },
+  wherePlaneEditHit: {
+    paddingLeft: 2,
+    paddingVertical: 1,
   },
   livePill: {
     flexDirection: 'row',
