@@ -17,22 +17,31 @@ import { normalizeAircraftRegistrationInput } from '../lib/aircraftRegOverride';
 type Props = {
   visible: boolean;
   flightLabel?: string | null;
+  /** Prefill when editing an existing manual reg. */
+  initialRegistration?: string | null;
   onCancel: () => void;
   onSubmit: (registration: string) => void;
 };
 
-/** One-shot aircraft registration entry for “Where is my plane”. */
-export function AircraftRegPromptModal({ visible, flightLabel, onCancel, onSubmit }: Props) {
+/** Aircraft registration entry / edit for “Where is my plane”. */
+export function AircraftRegPromptModal({
+  visible,
+  flightLabel,
+  initialRegistration,
+  onCancel,
+  onSubmit,
+}: Props) {
   const { t } = useTranslation();
   const [value, setValue] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const isEdit = !!(initialRegistration && String(initialRegistration).trim());
 
   useEffect(() => {
     if (visible) {
-      setValue('');
+      setValue(String(initialRegistration ?? '').trim().toUpperCase());
       setError(null);
     }
-  }, [visible]);
+  }, [visible, initialRegistration]);
 
   const submit = () => {
     const reg = normalizeAircraftRegistrationInput(value);
@@ -56,7 +65,7 @@ export function AircraftRegPromptModal({ visible, flightLabel, onCancel, onSubmi
             <Text style={[styles.sub, { color: colors.textMuted }]}>{flightLabel}</Text>
           ) : null}
           <Text style={[styles.hint, { color: colors.textSecondary }]}>
-            {t('roster.whereIsMyPlaneRegHint')}
+            {isEdit ? t('roster.whereIsMyPlaneRegHintEdit') : t('roster.whereIsMyPlaneRegHint')}
           </Text>
           <TextInput
             value={value}

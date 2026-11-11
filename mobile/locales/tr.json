@@ -482,8 +482,12 @@
     "durationMeta": "Süre",
     "whereIsMyPlane": "Uçağım nerede",
     "whereIsMyPlaneA11y": "Uçağımı FlightRadar24 üzerinde göster",
+    "whereIsMyPlaneEditA11y": "Reg kodunu değiştirmek için uzun bas",
+    "whereIsMyPlaneChangeReg": "Değiştir",
+    "whereIsMyPlaneChangeRegA11y": "Uçak reg kodunu değiştir",
     "whereIsMyPlaneRegTitle": "Uçak reg kodu",
-    "whereIsMyPlaneRegHint": "Bu uçuşu yapacak uçağın reg kodunu bir kez girin. Sistem farklı bir reg yazana kadar saklanır.",
+    "whereIsMyPlaneRegHint": "Bu uçuşun uçak reg kodunu girin. Sistem (API) reg gelince otomatik o kullanılır.",
+    "whereIsMyPlaneRegHintEdit": "Manuel reg’i güncelleyin. Sistem (API) farklı bir reg yazarsa o geçerli olur.",
     "whereIsMyPlaneRegPlaceholder": "Örn. TC-RBA",
     "whereIsMyPlaneRegSave": "Kaydet ve aç",
     "whereIsMyPlaneRegInvalid": "Geçerli bir reg kodu girin (örn. TC-RBA)."

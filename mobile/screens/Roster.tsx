@@ -50,10 +50,12 @@ import {
 import { regionCodeForIanaTimeZone } from '../lib/flightDisplayTime';
 import { fetchFlightByNumber, fr24UrlForAircraftRegistration, getFr24DeepLink } from '../lib/flightApi';
 import {
+  canEditAircraftRegOverride,
   clearAircraftRegOverride,
   loadAircraftRegOverrides,
   pickAircraftRegistration,
   saveAircraftRegOverride,
+  shouldClearAircraftRegOverride,
   type AircraftRegOverrideMap,
 } from '../lib/aircraftRegOverride';
 import { resolveWhereIsMyPlaneUrl, shouldShowWhereIsMyPlane } from '../lib/whereIsMyPlane';
@@ -1403,7 +1405,10 @@ export default function Roster({
     id: string;
     flightNumber: string;
     flightDate: string;
+    initialRegistration?: string | null;
   } | null>(null);
+  /** Last non-empty system/API reg per flight — used to detect swap → empty. */
+  const lastSeenSystemRegRef = useRef<Record<string, string>>({});
   const airborneSeenRef = useRef<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
   const [updatingTimes, setUpdatingTimes] = useState(false);
@@ -1475,12 +1480,20 @@ export default function Roster({
     };
   }, []);
 
-  // System/API reg wins: drop stale crew override when assignment appears or changes.
+  // System/API reg wins: drop stale crew override when assignment appears, changes, or clears after a swap.
   useEffect(() => {
     for (const f of flights) {
-      const system = formatAircraftRegistration(f.aircraft_registration) || aircraftRegById[f.id] || null;
-      const override = aircraftRegOverrideById[f.id];
-      if (system && override && system !== override) {
+      const system =
+        formatAircraftRegistration(f.aircraft_registration) || aircraftRegById[f.id] || null;
+      const previousSystem = lastSeenSystemRegRef.current[f.id] || null;
+      const override = aircraftRegOverrideById[f.id] || null;
+      if (
+        shouldClearAircraftRegOverride({
+          previousSystemReg: previousSystem,
+          systemReg: system,
+          overrideReg: override,
+        })
+      ) {
         void clearAircraftRegOverride(f.id).then(() => {
           setAircraftRegOverrideById((prev) => {
             if (!(f.id in prev)) return prev;
@@ -1489,6 +1502,11 @@ export default function Roster({
             return next;
           });
         });
+      }
+      if (system) {
+        lastSeenSystemRegRef.current[f.id] = system;
+      } else if (previousSystem) {
+        delete lastSeenSystemRegRef.current[f.id];
       }
     }
   }, [flights, aircraftRegById, aircraftRegOverrideById]);
@@ -6850,12 +6868,23 @@ export default function Roster({
               isLanded: displayLanded,
               liveTrackActive: showLiveTrack,
             });
+            const dbAircraftReg = formatAircraftRegistration(item.aircraft_registration);
+            const polledAircraftReg = aircraftRegById[item.id] || null;
+            const overrideAircraftReg = aircraftRegOverrideById[item.id] || null;
+            /** Polled/API reg that is not merely echoing the manual override we just saved. */
+            const authoritativeSystemReg =
+              dbAircraftReg ||
+              (polledAircraftReg && polledAircraftReg !== overrideAircraftReg
+                ? polledAircraftReg
+                : null) ||
+              (polledAircraftReg && !overrideAircraftReg ? polledAircraftReg : null);
             const planeRegForTrack = pickAircraftRegistration({
-              systemReg:
-                formatAircraftRegistration(item.aircraft_registration) ||
-                aircraftRegById[item.id] ||
-                null,
-              overrideReg: aircraftRegOverrideById[item.id] || null,
+              systemReg: authoritativeSystemReg || polledAircraftReg,
+              overrideReg: overrideAircraftReg,
+            });
+            const canEditWherePlaneReg = canEditAircraftRegOverride({
+              systemReg: authoritativeSystemReg,
+              overrideReg: overrideAircraftReg,
             });
             const dayYmd = listGroupDate(item);
             const isPast =
@@ -6995,6 +7024,20 @@ export default function Roster({
                           id: item.id,
                           flightNumber: item.flight_number,
                           flightDate: item.flight_date,
+                          initialRegistration: overrideAircraftReg || null,
+                        });
+                      }
+                    : undefined
+                }
+                onWhereIsMyPlaneEdit={
+                  showWhereIsMyPlane && canEditWherePlaneReg
+                    ? () => {
+                        setRegPromptFlight({
+                          id: item.id,
+                          flightNumber: item.flight_number,
+                          flightDate: item.flight_date,
+                          initialRegistration:
+                            overrideAircraftReg || planeRegForTrack || null,
                         });
                       }
                     : undefined
@@ -7255,6 +7298,7 @@ export default function Roster({
             ? `${regPromptFlight.flightNumber} · ${regPromptFlight.flightDate}`
             : null
         }
+        initialRegistration={regPromptFlight?.initialRegistration ?? null}
         onCancel={() => setRegPromptFlight(null)}
         onSubmit={(reg) => {
           void saveAndOpenWhereIsMyPlaneReg(reg);
