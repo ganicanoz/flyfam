@@ -19,6 +19,8 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - **Reg:** API reg varken de düzenlenebilir. Manuel override FR24 için öncelikli. Override yalnız uçak değişince (sistem A→B) veya sistem reg boşalınca temizlenir.
 - **Dosyalar:** `RosterFlightCard.tsx`, `aircraftRegOverride.ts`, `Roster.tsx`, TR/EN locale, `test-where-is-plane.ts`.
 - **Neden değiştiremiyordu:** `canEdit` API-only’de false idi + API farklı reg gelince override siliniyordu.
+- **OTA (OK):** group `979efc87-1272-41d2-b355-67eaa6f660ea` — iOS `01a1cb45-9d1a-7a56-8993-13d12270cdfb` (origin/main `374efe0`).
+
 
 
 ### 2026-11-11 — OTA kurtarma: emergency skip kaldır + sync kapısı geri
