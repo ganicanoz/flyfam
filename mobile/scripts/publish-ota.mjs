@@ -4,22 +4,25 @@
  * without a new native build.
  *
  * FlyFam uses a fixed string runtimeVersion (app.config.js → "1.3.0").
- * Do NOT switch to policy: "fingerprint" — that forces a new build whenever
- * native inputs drift and is why earlier OTAs silently failed to apply.
+ * Do NOT switch to policy: "fingerprint".
+ *
+ * Consistency rule (required):
+ *   OTA is published only from a clean tree at origin/main.
+ *   The next store build must be cut from a commit that already contains
+ *   that OTA source (enforced by verify-ota-build-sync.mjs).
  *
  * Usage (from mobile/):
  *   node scripts/publish-ota.mjs "fix: short message"
  *   npm run ota:production -- "fix: short message"
  */
 import { spawnSync } from 'node:child_process';
-import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const mobileRoot = resolve(__dirname, '..');
-const require = createRequire(import.meta.url);
+const repoRoot = resolve(mobileRoot, '..');
 
 const message = (process.argv.slice(2).join(' ') || '').trim();
 if (!message) {
@@ -28,7 +31,6 @@ if (!message) {
 }
 
 function loadRuntimeVersion() {
-  // app.config.js is ESM export default — evaluate via dynamic import after path.
   const raw = readFileSync(resolve(mobileRoot, 'app.config.js'), 'utf8');
   const m = raw.match(/runtimeVersion:\s*'([^']+)'/) || raw.match(/runtimeVersion:\s*"([^"]+)"/);
   if (!m) {
@@ -44,14 +46,15 @@ function loadRuntimeVersion() {
 
 function run(cmd, args, opts = {}) {
   const r = spawnSync(cmd, args, {
-    cwd: mobileRoot,
+    cwd: opts.cwd || mobileRoot,
     encoding: 'utf8',
-    stdio: ['ignore', 'pipe', 'pipe'],
-    ...opts,
+    stdio: opts.stdio || ['ignore', 'pipe', 'pipe'],
   });
   if (r.status !== 0) {
-    console.error(r.stdout || '');
-    console.error(r.stderr || '');
+    if (opts.stdio !== 'inherit') {
+      console.error(r.stdout || '');
+      console.error(r.stderr || '');
+    }
     throw new Error(`${cmd} ${args.join(' ')} failed (${r.status})`);
   }
   return (r.stdout || '') + (r.stderr || '');
@@ -60,25 +63,18 @@ function run(cmd, args, opts = {}) {
 const runtimeVersion = loadRuntimeVersion();
 console.log(`runtimeVersion: ${runtimeVersion} (fixed string — good)`);
 
-// Guard: publishing from a wildly divergent local main has crashed devices before
-// (2026-10-27). Prefer a worktree checked out at the latest production build commit.
-try {
-  const st = run('git', ['status', '-sb']);
-  const behind = /behind\s+(\d+)/i.exec(st);
-  if (behind && Number(behind[1]) >= 20) {
-    console.error(
-      `\nREFUSING: local branch is behind remote by ${behind[1]} commits.\n` +
-        `Publishing from this tree previously shipped a crashing OTA.\n` +
-        `Use a worktree at the latest production build commit (eas build:list), ` +
-        `copy only the JS fix files, then publish from there.\n`,
-    );
-    process.exit(2);
-  }
-} catch (e) {
-  console.warn('git status check skipped:', e.message || e);
-}
+// Hard gate: clean mobile/ + HEAD === origin/main (no dirty worktree OTA).
+console.log('\n[ota] Verifying publish tree is origin/main (clean)…');
+run('node', [resolve(__dirname, 'verify-ota-build-sync.mjs'), '--require-clean-main'], {
+  stdio: 'inherit',
+  cwd: mobileRoot,
+});
 
-// Informational: latest production iOS build fingerprint vs local (does not block publish).
+const headSha = run('git', ['rev-parse', 'HEAD'], { cwd: repoRoot }).trim();
+const publishMessage = `${message} [git:${headSha.slice(0, 10)}]`;
+console.log(`Publishing from ${headSha.slice(0, 10)} — next store build must include this commit.`);
+
+// Informational: latest production iOS build runtime
 try {
   const listOut = run('npx', [
     'eas-cli',
@@ -96,18 +92,13 @@ try {
   const builds = jsonStart >= 0 ? JSON.parse(listOut.slice(jsonStart)) : [];
   const latest = builds[0];
   if (latest) {
-    const fp =
-      typeof latest.fingerprint === 'object' && latest.fingerprint
-        ? latest.fingerprint.hash || latest.fingerprint.id
-        : latest.fingerprint;
     console.log(
       `latest iOS build: #${latest.appBuildVersion || latest.buildNumber || '?'} ` +
-        `runtime=${latest.runtimeVersion} fingerprint=${fp || 'n/a'}`,
+        `runtime=${latest.runtimeVersion}`,
     );
     if (latest.runtimeVersion && latest.runtimeVersion !== runtimeVersion) {
       console.warn(
-        `WARNING: latest build runtimeVersion (${latest.runtimeVersion}) != app.config (${runtimeVersion}). ` +
-          `This OTA will NOT reach that binary until runtimeVersion matches.`,
+        `WARNING: latest build runtimeVersion (${latest.runtimeVersion}) != app.config (${runtimeVersion}).`,
       );
     }
   }
@@ -116,7 +107,7 @@ try {
 }
 
 console.log('Publishing EAS Update to branch/channel production…');
-const publishOut = run(
+run(
   'npx',
   [
     'eas-cli',
@@ -124,13 +115,12 @@ const publishOut = run(
     '--branch',
     'production',
     '--message',
-    message,
+    publishMessage,
     '--non-interactive',
   ],
   { stdio: 'inherit' },
 );
 
-// Verify iOS manifest serves *some* update for this runtime (best-effort).
 try {
   const curl = spawnSync(
     'curl',
@@ -164,6 +154,6 @@ try {
 }
 
 console.log('\nDone. Devices on runtime', runtimeVersion, 'pick this up on next cold start.');
-console.log('App JS also calls applyOtaUpdateIfAvailable (fetch + reload) — no second store build needed for JS fixes.');
-void publishOut;
-void require;
+console.log(
+  `Next store build MUST be from ${headSha.slice(0, 10)} or a descendant (npm run verify:ota-sync).`,
+);

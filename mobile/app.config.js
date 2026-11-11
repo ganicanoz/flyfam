@@ -1,9 +1,30 @@
+import { spawnSync } from 'node:child_process';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
 /** Uygulama ikonu: iOS ve Android aynı 1024 kaynak (adaptive ön plan dahil). */
 const APP_ICON_1024 = './assets/icon-final-iOS-Default-1024x1024@1x.png';
 /** Native splash: app gray + icon + wordmark (~26% genişlik). sync-native-splash.py */
 const SPLASH_LOGO_IMAGE = './assets/splash-logo-expo-native.png';
 /** Matches in-app `colors.background` light — no sky-blue flash into roster. */
 const SPLASH_BACKGROUND = '#F0F1F5';
+
+/** Production EAS build: refuse if latest production OTA is missing from this commit. */
+if (process.env.APP_ENV === 'production' && process.env.FLYFAM_SKIP_OTA_SYNC !== '1') {
+  const here = dirname(fileURLToPath(import.meta.url));
+  const r = spawnSync(process.execPath, [resolve(here, 'scripts/verify-ota-build-sync.mjs')], {
+    cwd: here,
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  if (r.status !== 0) {
+    const detail = `${r.stdout || ''}${r.stderr || ''}`.trim();
+    throw new Error(
+      `OTA↔store build sync refused (APP_ENV=production).\n${detail || `exit ${r.status}`}\n` +
+        `Fix: merge latest production OTA into this branch, or set FLYFAM_SKIP_OTA_SYNC=1 only for emergencies.`,
+    );
+  }
+}
 
 export default {
   expo: {
