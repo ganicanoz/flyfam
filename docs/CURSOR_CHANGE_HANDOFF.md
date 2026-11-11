@@ -13,6 +13,14 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+### 2026-11-11 — Where-is-plane: aynı satır + reg her zaman düzenlenebilir
+
+- **UI:** «Uçağım nerede» artık ekstra satır değil; uçuş kodu (PC…) ile aynı `topRow` içinde kompakt chip (kalem = reg düzenle). Kart yüksekliği artmaz.
+- **Reg:** API reg varken de düzenlenebilir. Manuel override FR24 için öncelikli. Override yalnız uçak değişince (sistem A→B) veya sistem reg boşalınca temizlenir.
+- **Dosyalar:** `RosterFlightCard.tsx`, `aircraftRegOverride.ts`, `Roster.tsx`, TR/EN locale, `test-where-is-plane.ts`.
+- **Neden değiştiremiyordu:** `canEdit` API-only’de false idi + API farklı reg gelince override siliniyordu.
+
+
 ### 2026-11-11 — OTA kurtarma: emergency skip kaldır + sync kapısı geri
 
 - **Basit özet:** Sunucu OTA’yı gönderiyordu; cihaz “acil moda” düşünce uygulama yeni OTA’yı indirmeyi bırakıyordu. Artık acil modda da indirir. Ayrıca OTA yalnız temiz `origin/main`’den, sonraki store build OTA commit’ini içermeli (verify script).

@@ -56,34 +56,31 @@ export async function clearAircraftRegOverride(flightId: string): Promise<void> 
   await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(map));
 }
 
-/** Prefer system/API reg; else keep crew-entered override until it changes. */
+/**
+ * Prefer crew override for Where-is-my-plane / FR24.
+ * System/API reg is the fallback when the crew has not set a manual value.
+ */
 export function pickAircraftRegistration(opts: {
   systemReg?: string | null;
   overrideReg?: string | null;
 }): string | null {
-  const system = normalizeReg(String(opts.systemReg ?? ''));
-  if (system) return system;
   const override = normalizeReg(String(opts.overrideReg ?? ''));
-  return override;
+  if (override) return override;
+  return normalizeReg(String(opts.systemReg ?? ''));
 }
 
-/**
- * Manual override is editable until a system/API reg is present without an override.
- * Once API assigns a reg and clears override, crew cannot overwrite it from the modal.
- */
-export function canEditAircraftRegOverride(opts: {
+/** Crew can always open the reg modal while Where-is-my-plane is shown. */
+export function canEditAircraftRegOverride(_opts?: {
   systemReg?: string | null;
   overrideReg?: string | null;
 }): boolean {
-  const system = normalizeReg(String(opts.systemReg ?? ''));
-  const override = normalizeReg(String(opts.overrideReg ?? ''));
-  if (!system) return true;
-  return !!override;
+  return true;
 }
 
 /**
- * When system/API reg appears or changes, drop a conflicting/stale manual override.
- * If system had a value and becomes empty (swap pending), also drop override so crew re-enters.
+ * Drop manual override only when the assigned aircraft itself changes
+ * (system reg A→B) or clears after a swap (A→empty). First API arrival
+ * must not wipe a crew correction.
  */
 export function shouldClearAircraftRegOverride(opts: {
   previousSystemReg?: string | null;
@@ -94,7 +91,7 @@ export function shouldClearAircraftRegOverride(opts: {
   const system = normalizeReg(String(opts.systemReg ?? ''));
   const override = normalizeReg(String(opts.overrideReg ?? ''));
   if (!override) return false;
-  if (system && system !== override) return true;
+  if (prev && system && prev !== system) return true;
   if (prev && !system) return true;
   return false;
 }
