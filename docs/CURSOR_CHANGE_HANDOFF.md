@@ -13,6 +13,14 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+### 2026-11-11 — RTC Faz 2: phase23 reparse + filtre/UX
+
+- **phase 2-3 docx:** satır satır yeniden tarandı (inline tab/boşluk + oral Q→altı cevap); sticky header bug’ı (`Flash lights`) düzeltildi.
+- **Filtre:** sorulara `bucket=mcq|open` yazıldı; MCQ/Açık filtre artık çalışır.
+- **UX:** `Kontrol et` / doğru-yanlış kaldırıldı. MCQ doğru şık seçilince yeşil + cevap açılır. Açık sorularda `Cevabı gör`.
+- **Yayın:** `support/rtc-faz2/` + ZIP güncellendi.
+
+
 ### 2026-11-10 — RTC Faz 2 quiz PIN kapısı
 
 - **İstek:** `app.flyfamapp.com/rtc-faz2` için şifre; yalnız rakam klavye.
