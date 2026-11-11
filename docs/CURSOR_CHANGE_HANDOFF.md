@@ -16,9 +16,10 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 ### 2026-11-11 — OTA kurtarma: emergency skip kaldır + sync kapısı geri
 
 - **Basit özet:** Sunucu OTA’yı gönderiyordu; cihaz “acil moda” düşünce uygulama yeni OTA’yı indirmeyi bırakıyordu. Artık acil modda da indirir. Ayrıca OTA yalnız temiz `origin/main`’den, sonraki store build OTA commit’ini içermeli (verify script).
-- **Dosyalar:** `mobile/lib/applyOtaUpdate.ts`, `mobile/scripts/verify-ota-build-sync.mjs`, `mobile/scripts/publish-ota.mjs`, `mobile/package.json`, `mobile/app.config.js` (`APP_ENV=production` kapısı).
+- **Dosyalar:** `mobile/lib/applyOtaUpdate.ts`, `mobile/scripts/verify-ota-build-sync.mjs`, `mobile/scripts/publish-ota.mjs`, `mobile/package.json`, `mobile/app.config.js` (`APP_ENV=production` kapısı; CommonJS — ESM `import` Expo config’i kırıyordu).
 - **Kullanım:** `cd mobile && npm run ota:production -- "mesaj"` (temiz main). Store: `eas build --profile production` otomatik sync kontrolü.
 - **Koruma:** `FLYFAM_SKIP_OTA_SYNC=1` yalnız acil bypass. Fingerprint runtime policy yok (`1.3.0` string).
+- **PR:** #126 merge `f258f0c`; app.config CJS düzeltmesi follow-up.
 
 
 ### 2026-11-11 — RTC Faz 2 PIN cache-bust (6236)
