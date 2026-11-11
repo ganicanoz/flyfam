@@ -302,7 +302,7 @@ def main() -> int:
 			isa = XCBuildConfiguration;
 			buildSettings = {{
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 58;
+				CURRENT_PROJECT_VERSION = 59;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = FlyFamNotificationService/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
@@ -325,7 +325,7 @@ def main() -> int:
 			isa = XCBuildConfiguration;
 			buildSettings = {{
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 58;
+				CURRENT_PROJECT_VERSION = 59;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = FlyFamNotificationService/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.1;

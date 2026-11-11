@@ -13,6 +13,15 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+### 2026-11-11 — Where-plane maps chip + binary 59
+
+- **UI:** «Uçağım nerede» uçuş kodu satırının sağına taşındı; Google Maps benzeri soft/bulanık harita gradyanı + uçak ikonu. Reg her zaman kalem düğmesiyle düzenlenir.
+- **Sürüm:** marketing `1.3.0`, iOS `buildNumber`/`CURRENT_PROJECT_VERSION` **59**, Android `versionCode` **59**.
+- **Dosyalar:** `RosterFlightCard.tsx`, locales, `app.config.js`, `project.pbxproj`, `android/app/build.gradle`, NSE ensure script.
+- **Yayın:** iOS production EAS build + ASC auto-submit (App Review submit yok).
+- **Koruma:** runtimeVersion `1.3.0` string; OTA sync gate açık.
+
+
 ### 2026-11-11 — Where-is-plane: aynı satır + reg her zaman düzenlenebilir
 
 - **UI:** «Uçağım nerede» artık ekstra satır değil; uçuş kodu (PC…) ile aynı `topRow` içinde kompakt chip (kalem = reg düzenle). Kart yüksekliği artmaz.
