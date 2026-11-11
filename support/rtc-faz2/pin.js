@@ -1,7 +1,7 @@
 /* RTC Faz 2 — shared numeric PIN gate (client-side). */
 (function (global) {
   var PIN = '6236';
-  var KEY = 'rtc_faz2_unlocked_v2';
+  var KEY = 'rtc_faz2_unlocked_v3';
   var LEN = 4;
 
   function unlocked() {
