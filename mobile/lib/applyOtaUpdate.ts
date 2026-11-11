@@ -3,13 +3,17 @@
  *
  * Never reload synchronously during first React mount — that hard-crashed
  * TestFlight when a bad bundle was applied mid-boot. Reload only after a
- * short idle delay; skip emergency launches and throttle repeats.
+ * short idle delay; throttle repeats.
+ *
+ * Emergency launch: still fetch. Skipping fetch left devices stuck on the
+ * embedded binary after a bad OTA crash (no JS recovery until reinstall).
  */
 import { AppState, InteractionManager, Platform } from 'react-native';
 import * as Updates from 'expo-updates';
 
 const MIN_INTERVAL_MS = 60_000;
 const DEFAULT_RELOAD_DELAY_MS = 2_000;
+const EMERGENCY_RELOAD_DELAY_MS = 4_000;
 let lastAttemptMs = 0;
 let reloadScheduled = false;
 let inFlight: Promise<ApplyOtaResult> | null = null;
@@ -21,6 +25,14 @@ export type ApplyOtaResult =
   | { status: 'reloading' }
   | { status: 'error'; message: string };
 
+function isEmergencyLaunchSafe(): boolean {
+  try {
+    return Updates.isEmergencyLaunch === true;
+  } catch {
+    return false;
+  }
+}
+
 export function otaDiagnostics(): Record<string, unknown> {
   try {
     return {
@@ -28,7 +40,8 @@ export function otaDiagnostics(): Record<string, unknown> {
       ota_channel: Updates.channel ?? null,
       ota_runtime: Updates.runtimeVersion ?? null,
       ota_is_embedded: Updates.isEmbeddedLaunch === true,
-      ota_is_emergency: Updates.isEmergencyLaunch === true,
+      ota_is_emergency: isEmergencyLaunchSafe(),
+      ota_emergency_reason: Updates.emergencyLaunchReason ?? null,
       ota_created_at: Updates.createdAt ? Updates.createdAt.toISOString() : null,
     };
   } catch {
@@ -40,11 +53,6 @@ function shouldSkipClient(): string | null {
   if (Platform.OS === 'web') return 'web';
   if (typeof __DEV__ !== 'undefined' && __DEV__) return 'dev';
   if (!Updates.isEnabled) return 'updates_disabled';
-  try {
-    if (Updates.isEmergencyLaunch) return 'emergency';
-  } catch {
-    /* ignore */
-  }
   return null;
 }
 
@@ -83,10 +91,15 @@ export async function applyOtaUpdateIfAvailable(opts?: {
 
   lastAttemptMs = now;
   const wantReload = opts?.reload !== false;
-  const delayMs = opts?.reloadDelayMs ?? DEFAULT_RELOAD_DELAY_MS;
+  const emergency = isEmergencyLaunchSafe();
+  const delayMs =
+    opts?.reloadDelayMs ?? (emergency ? EMERGENCY_RELOAD_DELAY_MS : DEFAULT_RELOAD_DELAY_MS);
 
   inFlight = (async (): Promise<ApplyOtaResult> => {
     try {
+      if (emergency) {
+        console.warn('[ota] emergency launch — still checking for a newer update', otaDiagnostics());
+      }
       const check = await Updates.checkForUpdateAsync();
       if (!check.isAvailable) return { status: 'up_to_date' };
       const fetched = await Updates.fetchUpdateAsync();

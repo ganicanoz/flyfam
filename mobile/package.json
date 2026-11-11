@@ -21,13 +21,13 @@
     "clean": "rm -rf node_modules/.cache .expo /tmp/metro-* /tmp/haste-* 2>/dev/null; echo 'Cache cleared. Run: npm run ios:sim'",
     "build:ios": "npx eas-cli@latest build --profile preview --platform ios --non-interactive",
     "build:ios:sim": "npx eas-cli@latest build --profile development --platform ios --non-interactive",
-    "build:ios:store": "npx eas-cli@latest build --profile production --platform ios --non-interactive",
+    "build:ios:store": "npm run verify:ota-sync && npx eas-cli@latest build --profile production --platform ios --non-interactive",
     "build:ios:store:submit": "npx eas-cli@latest build --profile production --platform ios --non-interactive && npx eas-cli@latest submit --platform ios --latest --profile production --non-interactive",
-    "build:store:all": "npm run verify:android:icon && npx eas-cli@latest build --profile production --platform all --non-interactive",
+    "build:store:all": "npm run verify:android:icon && npm run verify:ota-sync && npx eas-cli@latest build --profile production --platform all --non-interactive",
     "submit:store:all": "npx eas-cli@latest submit --platform ios --latest --profile production --non-interactive && npx eas-cli@latest submit --platform android --latest --profile production --non-interactive",
     "build:android": "npx eas-cli@latest build --profile preview --platform android --non-interactive",
     "verify:android:icon": "python3 scripts/verify-android-launcher-icon.py",
-    "build:android:store": "npm run verify:android:icon && npx eas-cli@latest build --profile production --platform android --non-interactive",
+    "build:android:store": "npm run verify:android:icon && npm run verify:ota-sync && npx eas-cli@latest build --profile production --platform android --non-interactive",
     "build:android:store:submit": "npx eas-cli@latest build --profile production --platform android --non-interactive && npx eas-cli@latest submit --platform android --latest --profile production --non-interactive",
     "check:android:local": "npx expo prebuild --platform android --clean && cd android && ./gradlew :app:assembleRelease",
     "submit:ios": "npx eas-cli@latest submit --platform ios --latest --profile production --non-interactive",
@@ -39,7 +39,9 @@
     "roster:status": "tsx scripts/roster-status-trace.ts",
     "roster:batch": "tsx scripts/roster-batch-table.ts",
     "postinstall": "patch-package",
-    "ota:production": "node scripts/publish-ota.mjs"
+    "verify:ota-sync": "node scripts/verify-ota-build-sync.mjs",
+    "ota:production": "node scripts/publish-ota.mjs",
+    "eas-build-pre-install": "node scripts/verify-ota-build-sync.mjs"
   },
   "dependencies": {
     "@bottom-tabs/react-navigation": "^1.4.0",
