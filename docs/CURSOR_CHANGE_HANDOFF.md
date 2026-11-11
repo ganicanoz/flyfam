@@ -13,6 +13,16 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+### 2026-11-11 — iOS binary 58 (where-plane UX gömülü) + OTA teşhis
+
+- **İstek:** OTA cihazda görünmedi; temiz store binary 58.
+- **OTA teşhis (sunucu OK):** production channel → group `a707d35f…` (where-plane UX); runtime `1.3.0`; build 57 channel `production`, `EXUpdatesEnabled`, LaunchWaitMs 8000. Manifest iOS@1.3.0 güncel update’i sunuyor.
+- **Muhtemel cihaz nedeni:** önceki bozuk OTA sonrası **emergency/embedded**’e düşüş (handoff 2026-10-30 ile aynı desen) veya OTA indirmesine rağmen reload/kill yok. Sunucu/kanal hatası değil.
+- **Çözüm:** build **58** — `origin/main` @ where-plane UX (`036494b`+) gömülü; OTA’ya bağımlı değil.
+- **Sürüm:** marketing `1.3.0`, iOS `buildNumber`/`CURRENT_PROJECT_VERSION` **58**, Android `versionCode` **58**.
+- **Koruma:** App Review submit yok (yalnız EAS build + ASC auto-submit / TestFlight).
+
+
 ### 2026-11-11 — Uçağım nerede: reg düzenle + buton UX (OTA)
 
 - **Davranış:** API/sistem reg gelince manuel override ezilir (önceki gibi). Uçak swap’inde sistem reg değişince/boşalınca override temizlenir → yeniden girilebilir. API yokken uzun basış / «Değiştir» ile modal.
