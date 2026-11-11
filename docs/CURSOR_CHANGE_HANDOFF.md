@@ -21,6 +21,7 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - **Çözüm:** build **58** — `origin/main` @ where-plane UX (`036494b`+) gömülü; OTA’ya bağımlı değil.
 - **Sürüm:** marketing `1.3.0`, iOS `buildNumber`/`CURRENT_PROJECT_VERSION` **58**, Android `versionCode` **58**.
 - **Koruma:** App Review submit yok (yalnız EAS build + ASC auto-submit / TestFlight).
+- **EAS (kuyruk):** build `7f682d13-1e59-4cfe-9d98-4f0a5ce8fddc` + auto-submit `06926945-5e22-46f0-b29b-3a082b825904` (1.3.0 / 58, commit `87d189a`).
 
 
 ### 2026-11-11 — Uçağım nerede: reg düzenle + buton UX (OTA)
