@@ -94,6 +94,8 @@ type Props = {
   onLongPress?: () => void;
   onLiveTrack?: () => void;
   onWhereIsMyPlane?: () => void;
+  /** Long-press / “change reg” when manual override is still editable. */
+  onWhereIsMyPlaneEdit?: () => void;
   onFooterAction?: () => void;
   /** Nöbet kartında «Uçuşa dönüştür» yanında «Boş gün yap» (CFR, rezerv). */
   onOffDayAction?: () => void;
@@ -108,6 +110,7 @@ export function RosterFlightCard({
   onLongPress,
   onLiveTrack,
   onWhereIsMyPlane,
+  onWhereIsMyPlaneEdit,
   onFooterAction,
   onOffDayAction,
   onSuggestOccupation,
@@ -585,20 +588,59 @@ export function RosterFlightCard({
         </View>
 
         {model.showWhereIsMyPlane && onWhereIsMyPlane ? (
-          <Pressable
-            onPress={onWhereIsMyPlane}
-            style={[
-              styles.wherePlaneBtn,
-              { backgroundColor: colors.primaryLight, borderColor: colors.primary },
-            ]}
-            accessibilityRole="button"
-            accessibilityLabel={t('roster.whereIsMyPlaneA11y')}
-          >
-            <Ionicons name="airplane" size={16} color={colors.primary} />
-            <Text style={[styles.wherePlaneText, { color: colors.primary }]}>
-              {t('roster.whereIsMyPlane')}
-            </Text>
-          </Pressable>
+          <View style={styles.wherePlaneWrap}>
+            <Pressable
+              onPress={onWhereIsMyPlane}
+              onLongPress={onWhereIsMyPlaneEdit}
+              delayLongPress={380}
+              style={[
+                styles.wherePlaneBtn,
+                {
+                  backgroundColor:
+                    themeMode === 'dark' ? 'rgba(14,165,233,0.20)' : '#E0F2FE',
+                  borderColor: themeMode === 'dark' ? '#38BDF8' : '#0284C7',
+                },
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel={t('roster.whereIsMyPlaneA11y')}
+              accessibilityHint={
+                onWhereIsMyPlaneEdit ? t('roster.whereIsMyPlaneEditA11y') : undefined
+              }
+            >
+              <Ionicons
+                name="locate"
+                size={17}
+                color={themeMode === 'dark' ? '#7DD3FC' : '#0369A1'}
+              />
+              <Text
+                style={[
+                  styles.wherePlaneText,
+                  { color: themeMode === 'dark' ? '#7DD3FC' : '#0369A1' },
+                ]}
+              >
+                {t('roster.whereIsMyPlane')}
+              </Text>
+            </Pressable>
+            {model.aircraftReg && onWhereIsMyPlaneEdit ? (
+              <Pressable
+                onPress={onWhereIsMyPlaneEdit}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel={t('roster.whereIsMyPlaneChangeRegA11y')}
+              >
+                <Text
+                  style={[
+                    styles.wherePlaneRegHint,
+                    { color: themeMode === 'dark' ? '#94A3B8' : '#64748B' },
+                  ]}
+                >
+                  {t('roster.aircraftRegShort', { reg: model.aircraftReg })}
+                  {' · '}
+                  {t('roster.whereIsMyPlaneChangeReg')}
+                </Text>
+              </Pressable>
+            ) : null}
+          </View>
         ) : null}
 
         <View style={[styles.routeRow, !inFlight && { marginBottom: 0 }]}>
@@ -866,21 +908,33 @@ const styles = StyleSheet.create({
   flightNo: { fontWeight: '800', flexShrink: 0 },
   statusBadge: { flexShrink: 1 },
   chevron: { flexShrink: 0 },
+  wherePlaneWrap: {
+    alignItems: 'center',
+    alignSelf: 'center',
+    marginTop: 10,
+    marginBottom: 4,
+    gap: 4,
+    maxWidth: '100%',
+  },
   wherePlaneBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    alignSelf: 'flex-start',
-    gap: 6,
-    marginTop: 8,
-    marginBottom: 2,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-    borderRadius: radius.button,
+    justifyContent: 'center',
+    gap: 7,
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    borderRadius: 999,
     borderWidth: StyleSheet.hairlineWidth * 2,
+    minWidth: 168,
   },
   wherePlaneText: {
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: '800',
+  },
+  wherePlaneRegHint: {
+    fontSize: 11,
+    fontWeight: '600',
+    textAlign: 'center',
   },
   livePill: {
     flexDirection: 'row',

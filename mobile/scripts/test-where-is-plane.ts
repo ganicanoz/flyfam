@@ -2,7 +2,11 @@
  * Unit checks for Where-is-my-plane URL + visibility + reg override pick.
  * Run: npx tsx mobile/scripts/test-where-is-plane.ts
  */
-import { pickAircraftRegistration } from '../lib/aircraftRegOverride';
+import {
+  canEditAircraftRegOverride,
+  pickAircraftRegistration,
+  shouldClearAircraftRegOverride,
+} from '../lib/aircraftRegOverride';
 import {
   resolveWhereIsMyPlaneUrl,
   shouldShowWhereIsMyPlane,
@@ -89,6 +93,52 @@ assert(
 assert(
   pickAircraftRegistration({ systemReg: 'TC-AAA', overrideReg: 'TC-RBA' }) === 'TC-AAA',
   'system reg wins over override',
+);
+
+assert(
+  canEditAircraftRegOverride({ systemReg: null, overrideReg: 'TC-RBA' }) === true,
+  'override-only is editable',
+);
+assert(
+  canEditAircraftRegOverride({ systemReg: 'TC-AAA', overrideReg: null }) === false,
+  'API-only is not editable',
+);
+assert(
+  canEditAircraftRegOverride({ systemReg: 'TC-AAA', overrideReg: 'TC-RBA' }) === true,
+  'override still editable until cleared by API mismatch handler',
+);
+
+assert(
+  shouldClearAircraftRegOverride({
+    previousSystemReg: null,
+    systemReg: 'TC-AAA',
+    overrideReg: 'TC-RBA',
+  }) === true,
+  'API arrival different from override → clear',
+);
+assert(
+  shouldClearAircraftRegOverride({
+    previousSystemReg: 'TC-AAA',
+    systemReg: null,
+    overrideReg: 'TC-RBA',
+  }) === true,
+  'system cleared after swap → clear override for re-entry',
+);
+assert(
+  shouldClearAircraftRegOverride({
+    previousSystemReg: 'TC-AAA',
+    systemReg: 'TC-AAA',
+    overrideReg: 'TC-RBA',
+  }) === true,
+  'system still differs from override → clear',
+);
+assert(
+  shouldClearAircraftRegOverride({
+    previousSystemReg: null,
+    systemReg: null,
+    overrideReg: 'TC-RBA',
+  }) === false,
+  'no system yet → keep override',
 );
 
 console.log('test-where-is-plane: ALL PASS');

@@ -482,8 +482,12 @@
     "durationMeta": "Duration",
     "whereIsMyPlane": "Where is my plane",
     "whereIsMyPlaneA11y": "Show my aircraft on FlightRadar24",
+    "whereIsMyPlaneEditA11y": "Long-press to change the registration",
+    "whereIsMyPlaneChangeReg": "Change",
+    "whereIsMyPlaneChangeRegA11y": "Change aircraft registration",
     "whereIsMyPlaneRegTitle": "Aircraft registration",
-    "whereIsMyPlaneRegHint": "Enter the reg code of the aircraft for this flight once. It is kept until the system assigns a different reg.",
+    "whereIsMyPlaneRegHint": "Enter the aircraft registration for this flight. When the system (API) assigns a reg, that value is used.",
+    "whereIsMyPlaneRegHintEdit": "Update the manual registration. If the system (API) assigns a different reg, that value wins.",
     "whereIsMyPlaneRegPlaceholder": "e.g. TC-RBA",
     "whereIsMyPlaneRegSave": "Save and open",
     "whereIsMyPlaneRegInvalid": "Enter a valid registration (e.g. TC-RBA)."

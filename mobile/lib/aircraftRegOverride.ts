@@ -66,3 +66,35 @@ export function pickAircraftRegistration(opts: {
   const override = normalizeReg(String(opts.overrideReg ?? ''));
   return override;
 }
+
+/**
+ * Manual override is editable until a system/API reg is present without an override.
+ * Once API assigns a reg and clears override, crew cannot overwrite it from the modal.
+ */
+export function canEditAircraftRegOverride(opts: {
+  systemReg?: string | null;
+  overrideReg?: string | null;
+}): boolean {
+  const system = normalizeReg(String(opts.systemReg ?? ''));
+  const override = normalizeReg(String(opts.overrideReg ?? ''));
+  if (!system) return true;
+  return !!override;
+}
+
+/**
+ * When system/API reg appears or changes, drop a conflicting/stale manual override.
+ * If system had a value and becomes empty (swap pending), also drop override so crew re-enters.
+ */
+export function shouldClearAircraftRegOverride(opts: {
+  previousSystemReg?: string | null;
+  systemReg?: string | null;
+  overrideReg?: string | null;
+}): boolean {
+  const prev = normalizeReg(String(opts.previousSystemReg ?? ''));
+  const system = normalizeReg(String(opts.systemReg ?? ''));
+  const override = normalizeReg(String(opts.overrideReg ?? ''));
+  if (!override) return false;
+  if (system && system !== override) return true;
+  if (prev && !system) return true;
+  return false;
+}

@@ -13,6 +13,15 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+### 2026-11-11 — Uçağım nerede: reg düzenle + buton UX (OTA)
+
+- **Davranış:** API/sistem reg gelince manuel override ezilir (önceki gibi). Uçak swap’inde sistem reg değişince/boşalınca override temizlenir → yeniden girilebilir. API yokken uzun basış / «Değiştir» ile modal.
+- **UI:** Buton kart ortasında, sky/cyan chip, `locate` ikonu.
+- **Dosyalar:** `RosterFlightCard`, `AircraftRegPromptModal`, `aircraftRegOverride`, `Roster.tsx`, TR/EN locale, `test-where-is-plane.ts`.
+- **Yayın:** JS-only → production OTA (build 58 gerekmez). `runtimeVersion` 1.3.0.
+- **Doğrulama:** `npx tsx mobile/scripts/test-where-is-plane.ts` PASS; `tsc --noEmit` OK.
+
+
 ### 2026-11-11 — RTC Faz 2: phase23 reparse + filtre/UX
 
 - **phase 2-3 docx:** satır satır yeniden tarandı (inline tab/boşluk + oral Q→altı cevap); sticky header bug’ı (`Flash lights`) düzeltildi.
