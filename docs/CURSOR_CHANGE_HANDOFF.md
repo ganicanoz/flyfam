@@ -13,6 +13,11 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+### 2026-11-11 — RTC Faz 2 PIN cache-bust (6236)
+
+- Sunucuda PIN zaten `6236` idi; HTML `pin.js?v=6236b` ile cache kırıldı. Unlock key `v3`.
+
+
 ### 2026-11-11 — RTC Faz 2 PIN 6236
 
 - `/rtc-faz2/` ve `/rtc-faz2/quiz/` PIN `6236` olarak güncellendi (eski session key invalidate).
