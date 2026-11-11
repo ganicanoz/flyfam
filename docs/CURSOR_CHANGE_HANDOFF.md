@@ -13,6 +13,11 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+### 2026-11-11 — RTC Faz 2 PIN 6236
+
+- `/rtc-faz2/` ve `/rtc-faz2/quiz/` PIN `6236` olarak güncellendi (eski session key invalidate).
+
+
 ### 2026-11-11 — iOS binary 58 (where-plane UX gömülü) + OTA teşhis
 
 - **İstek:** OTA cihazda görünmedi; temiz store binary 58.
