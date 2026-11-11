@@ -19,7 +19,9 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - **Dosyalar:** `mobile/lib/applyOtaUpdate.ts`, `mobile/scripts/verify-ota-build-sync.mjs`, `mobile/scripts/publish-ota.mjs`, `mobile/package.json`, `mobile/app.config.js` (`APP_ENV=production` kapısı; CommonJS — ESM `import` Expo config’i kırıyordu).
 - **Kullanım:** `cd mobile && npm run ota:production -- "mesaj"` (temiz main). Store: `eas build --profile production` otomatik sync kontrolü.
 - **Koruma:** `FLYFAM_SKIP_OTA_SYNC=1` yalnız acil bypass. Fingerprint runtime policy yok (`1.3.0` string).
-- **PR:** #126 merge `f258f0c`; app.config CJS düzeltmesi follow-up.
+- **PR:** #126 + #127 (`222a2ea`).
+- **OTA (OK):** group `cfe38dae-47da-4168-95ad-895f71de5131` — iOS `01a1cb33-70ab-78d6-8a95-bb17ea860b86`, Android `01a1cb33-70ab-72d6-9ec9-855cf0e7811d` (origin/main `222a2ea`, runtime `1.3.0`).
+- **Sonraki store build:** `222a2ea` veya descendant (verify:ota-sync).
 
 
 ### 2026-11-11 — RTC Faz 2 PIN cache-bust (6236)
