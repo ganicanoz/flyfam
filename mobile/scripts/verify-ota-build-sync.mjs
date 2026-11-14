@@ -8,10 +8,10 @@
  *   git commit (ancestor or equal) so that JS is already embedded in the binary.
  *
  * Invoked by:
- * - npm run verify:ota-sync / ota:production / build:*:store
- * - app.config.js when eas.json production sets APP_ENV=production
- *   (any `eas build --profile production`, npm gerekmez)
- * - package.json eas-build-pre-install on the EAS worker
+ * - npm run verify:ota-sync / ota:production / build:*:store  (LOCAL — authoritative)
+ * - app.config.js when eas.json production sets APP_ENV=production (LOCAL eval)
+ * - package.json eas-build-pre-install on the EAS worker → MUST no-op when
+ *   EAS_BUILD=true (never call eas update:list here; build 59 hung ~82m)
  *
  * Usage (from mobile/):
  *   node scripts/verify-ota-build-sync.mjs
