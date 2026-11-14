@@ -13,6 +13,12 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+### 2026-11-14 — iOS binary 59 retry (worker drop)
+
+- İlk build `69ccf301…` **errored** (EAS worker connection lost); submit `dc8c04d3…` canceled.
+- Retry: build `7a5aa04f-4190-4fd5-8bc4-01fc90b5a430` + auto-submit `d79361a3-da42-48ee-a75a-2aa273e35fd8` (1.3.0/59, `a0aef97`).
+
+
 ### 2026-11-11 — Where-plane maps chip + binary 59
 
 - **UI:** «Uçağım nerede» uçuş kodu satırının sağına taşındı; Google Maps benzeri soft/bulanık harita gradyanı + uçak ikonu. Reg her zaman kalem düğmesiyle düzenlenir.
