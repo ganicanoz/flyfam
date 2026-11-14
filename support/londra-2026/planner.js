@@ -427,6 +427,54 @@ window.addEventListener('beforeunload',e=>{if(dirty()){e.preventDefault();e.retu
 // Extend backups to carry the saved itinerary as well as the existing visa progress.
 $('export').textContent='↓ Kaydedilen tüm verileri yedekle';$('export').onclick=()=>{if(dirty())toast('Yedek kaydedilen planı içerir; önce Planı kaydet ile taslağı saklayın.');download(JSON.stringify({version:2,state,plan:saved},null,2),'londra-2026-tam-yedek.json','application/json')};
 $('import').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{if(f.size>2000000)throw Error();const data=JSON.parse(await f.text());if(![1,2].includes(data.version)||!data.state||typeof data.state!=='object')throw Error();const old=data.state;if(typeof old.notes!=='string'||!Array.isArray(old.favorites)||!['checks','na','appointments','stages'].every(k=>old[k]&&typeof old[k]==='object'&&!Array.isArray(old[k])))throw Error();const incoming=data.version===2?cleanPlan(data.plan):null;if(!confirm('Yedek bu cihazdaki '+(incoming?'plan ve ':'')+'vize işaretlemelerinin yerine geçecek. Yüklensin mi?'))return;state={checks:{},na:{},appointments:{},stages:{},favorites:old.favorites.filter(x=>byId(x)),notes:old.notes.slice(0,20000)};for(const p of people){for(const [task]of [...common,...(p[4]?children:adults)]){const k=p[0]+':'+task;state.checks[k]=old.checks[k]===true;state.na[k]=old.na[k]===true}if(typeof old.appointments[p[0]]==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(old.appointments[p[0]]))state.appointments[p[0]]=old.appointments[p[0]];if([...$('stage').options].some(o=>o.value===old.stages[p[0]]))state.stages[p[0]]=old.stages[p[0]]}save();if(incoming){draft=incoming;persist()}renderPerson();$('notes').value=state.notes;renderCurrent();toast('Yedek yüklendi.')}catch(err){toast('Yedek okunamadı; geçerli Londra yedeğini seçin.')}finally{e.target.value=''}};
+
+// Google credentials remain in memory; the backend checks the owner and rejects stale saves.
+let cloudToken='',cloudBase=null,cloudReady=false,cloudBusy=false;
+const cloudStatus=document.createElement('p');cloudStatus.className='muted';cloudStatus.setAttribute('role','status');cloudStatus.textContent='Diğer cihazlarda aynı planı görmek için Google hesabını bağla.';
+const cloudBox=document.createElement('div'),cloudConnect=document.createElement('button'),cloudOpen=document.createElement('button');
+cloudConnect.textContent='Google hesabını bağla';cloudOpen.textContent='Online planı aç';cloudOpen.hidden=true;
+cloudBox.append(cloudConnect,cloudOpen,cloudStatus);savebar.before(cloudBox);
+function googleLoader(){
+ if(window.google?.accounts?.id)return Promise.resolve();
+ return new Promise((resolve,reject)=>{const script=document.createElement('script');script.src='https://accounts.google.com/gsi/client';script.onload=resolve;script.onerror=reject;document.head.append(script)});
+}
+async function cloudRequest(action,data={}){
+ const res=await fetch('https://slmgmcpluanezvkgkozw.supabase.co/functions/v1/londra-plan',{method:'POST',headers:{Authorization:'Bearer '+cloudToken,'Content-Type':'application/json'},body:JSON.stringify({action,...data})});
+ const payload=await res.json();
+ if(res.status===401){cloudToken='';cloudReady=false;cloudConnect.hidden=false}
+ if(!res.ok)throw Error(payload.error||'Online işlem tamamlanamadı.');
+ return payload;
+}
+const planFingerprint=p=>JSON.stringify({...p,savedAt:null});
+async function openCloud(){
+ if(cloudBusy)return;
+ cloudBusy=true;cloudReady=false;
+ try{
+  const remote=await cloudRequest('load');
+  if(remote.state){
+   const plan=cleanPlan(remote.state), different=planFingerprint(draft)!==planFingerprint(plan);
+   if(different&&(dirty()||saved.savedAt)&&!confirm('Bu cihazda farklı bir plan var. Online planı açalım mı? Cihazdaki plan kurtarma kopyası olarak saklanacak.')){cloudStatus.textContent='Cihazdaki plan korundu. Online planı açmadan buluta yazılmaz.';return}
+   if(different&&(dirty()||saved.savedAt))localStorage.setItem(storageKey+'-recovery',JSON.stringify(draft));
+   localStorage.setItem(storageKey,JSON.stringify(plan));saved=plan;draft=clone(plan);renderCurrent();
+  }
+  cloudBase=remote.id;cloudReady=true;cloudOpen.hidden=false;
+  cloudStatus.textContent=remote.id?'Online plan açıldı. Planı kaydet değişiklikleri hesabına yazar.':'Henüz online plan yok. İlk kaydı oluşturmak için Planı kaydet’e bas.';
+ }catch(e){cloudStatus.textContent=e.message}finally{cloudBusy=false}
+}
+cloudOpen.onclick=openCloud;
+cloudConnect.onclick=async()=>{try{
+ await googleLoader();cloudBox.querySelector('.google-choice')?.remove();const mount=document.createElement('div');mount.className='google-choice';cloudBox.prepend(mount);
+ google.accounts.id.initialize({client_id:'533157115553-brrnphrkf5clvqh5e7a68s30ccjqfib6.apps.googleusercontent.com',callback:r=>{cloudToken=r.credential;cloudConnect.hidden=true;mount.remove();cloudOpen.hidden=false;openCloud()}});
+ google.accounts.id.renderButton(mount,{theme:'outline',size:'large'});
+ }catch(e){cloudStatus.textContent='Google girişi yüklenemedi. Tekrar dene.'}};
+$('savePlan').onclick=async()=>{
+ if(cloudBusy)return;
+ if(!cloudToken||!cloudReady){persist();cloudStatus.textContent=cloudToken?'Online planı açmadan buluta yazılmaz.':'Bu cihazda kaydedildi. Online kayıt için Google hesabını bağla.';return}
+ const snapshot=clone(draft);snapshot.savedAt=new Date().toISOString();cloudBusy=true;
+ try{const result=await cloudRequest('save',{base:cloudBase,state:snapshot});cloudBase=result.id;saved=snapshot;draft.savedAt=snapshot.savedAt;localStorage.setItem(storageKey,JSON.stringify(saved));updateSave();cloudStatus.textContent='✓ Online kaydedildi. Başka cihazda aynı Google hesabını bağlayarak açabilirsin.';toast('Online kaydedildi.')}
+ catch(e){persist();cloudStatus.textContent=e.message+' Değişikliklerin bu cihazda saklanmaya çalışıldı.'}
+ finally{cloudBusy=false}
+};
 const printButton=document.createElement('button');printButton.textContent='🖨 Kaydedilen günlük planı yazdır';printButton.onclick=()=>{if(dirty()){toast('Önce planı kaydedin; yazdırma kaydedilen plan içindir.');return}showTab('plan',false);window.print()};$('info').querySelector('.controls').prepend(printButton);
 $('print').textContent='🖨 Bu sekmeyi yazdır';$('print').onclick=()=>window.print();
 window.addEventListener('beforeprint',()=>{const p=$(activeTab==='plan'?'planner':activeTab);p?.classList.add('printing')});window.addEventListener('afterprint',()=>document.querySelectorAll('.printing').forEach(p=>p.classList.remove('printing')));
