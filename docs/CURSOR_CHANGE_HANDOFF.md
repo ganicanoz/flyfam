@@ -13,6 +13,12 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+### 2026-11-14 — iOS binary 59 3. deneme
+
+- 2. deneme `7a5aa04f…` yine **SERVER_ERROR** (worker drop); submit canceled.
+- 3. deneme: build `db4390dd-4e6d-46fe-b4ad-2389264aff47` + submit `ab4f505f-4e8c-4585-a4bf-c8bf7819a1ee` (1.3.0/59).
+
+
 ### 2026-11-14 — iOS binary 59 retry (worker drop)
 
 - İlk build `69ccf301…` **errored** (EAS worker connection lost); submit `dc8c04d3…` canceled.
