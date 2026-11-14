@@ -176,14 +176,30 @@ const slotTimes={'Kahvaltı':'09:00','Öğle':'12:30','Akşam':'18:00','Çay mol
 const catalog=[...activities.map(a=>({...a,kind:'activity',duration:durations[a.id]||90})),...foods.map(a=>({...a,kind:'food'}))];
 const byId=id=>catalog.find(a=>a.id===id);
 const storageKey='flyfam-london-2026-planner-v2';
-const blank=()=>({version:2,days:Object.fromEntries([...days,'24'].map(d=>[d,[]])),flights:[],hotels:[],savedAt:null});
+const budgetFields=[
+ ['arrival','19 Aralık · Havalimanı → otel','Ulaşım'],
+ ['city','Londra içi metro ve otobüs','Ulaşım'],
+ ['bedford','22 Aralık · Otel → Bedford','Ulaşım'],
+ ['departure','23 Aralık · Bedford → havalimanı','Ulaşım'],
+ ['baileys','The Bailey’s Hotel · 19–22 Aralık','Konaklama'],
+ ['host','Bedford · arkadaşta konaklama','Konaklama'],
+ ['flights','Gidiş ve dönüş uçak biletleri','Uçuş'],
+ ['extra','Diğer harcamalar · aile toplamı','Diğer']
+];
+function budgetAmount(value){
+ if(typeof value!=='string'&&typeof value!=='number')return null;
+ if(String(value).trim()==='')return null;
+ const n=Number(value);return Number.isFinite(n)&&n>=0?Math.round(n*100):null;
+}
+const blank=()=>({version:2,days:Object.fromEntries([...days,'24'].map(d=>[d,[]])),flights:[],hotels:[],budget:{},savedAt:null});
 const clone=o=>JSON.parse(JSON.stringify(o));
 let saved=blank(),storageOK=true;
 function cleanPlan(raw){
  if(!raw||raw.version!==2||!raw.days||typeof raw.days!=='object')throw Error('Geçersiz plan');
  const out=blank(),ids=new Set();
- for(const d of [...days,...(Array.isArray(raw.days['24'])?['24']:[])]){if(!Array.isArray(raw.days[d]))throw Error('Geçersiz gün');out.days[d]=raw.days[d].slice(0,35).map(x=>{if(!x||typeof x!=='object')throw Error();const uid=typeof x.uid==='string'&&!ids.has(x.uid)?x.uid:crypto.randomUUID();ids.add(uid);return {uid,item:typeof x.item==='string'&&byId(x.item)?x.item:'custom',title:String(x.title||'Özel durak').slice(0,150),place:String(x.place||'').slice(0,250),time:/^\d{2}:\d{2}$/.test(x.time)?x.time:'',duration:Math.max(0,Math.min(1440,Number(x.duration)||0)),group:['all','gani','serkan'].includes(x.group)?x.group:'all',status:statuses[x.status]?x.status:'todo',note:String(x.note||'').slice(0,1500),cost:x.cost===''?'':String(Math.max(0,Math.min(1000000,Number(x.cost)||0))),mode:modes[x.mode]?x.mode:'transit',travel:Math.max(0,Math.min(1440,Number(x.travel)||0)),transferStatus:['todo','ready'].includes(x.transferStatus)?x.transferStatus:'todo'}})}
+ for(const d of [...days,...(Array.isArray(raw.days['24'])?['24']:[])]){if(!Array.isArray(raw.days[d]))throw Error('Geçersiz gün');out.days[d]=raw.days[d].slice(0,35).map(x=>{if(!x||typeof x!=='object')throw Error();const uid=typeof x.uid==='string'&&!ids.has(x.uid)?x.uid:crypto.randomUUID();ids.add(uid);return {uid,item:typeof x.item==='string'&&byId(x.item)?x.item:'custom',title:String(x.title||'Özel durak').slice(0,150),place:String(x.place||'').slice(0,250),time:/^\d{2}:\d{2}$/.test(x.time)?x.time:'',duration:Math.max(0,Math.min(1440,Number(x.duration)||0)),group:['all','gani','serkan'].includes(x.group)?x.group:'all',status:statuses[x.status]?x.status:'todo',note:String(x.note||'').slice(0,1500),cost:budgetAmount(x.cost)===null?'':String(budgetAmount(x.cost)/100),mode:modes[x.mode]?x.mode:'transit',travel:Math.max(0,Math.min(1440,Number(x.travel)||0)),transferStatus:['todo','ready'].includes(x.transferStatus)?x.transferStatus:'todo'}})}
  for(const kind of ['flights','hotels']){out[kind]=(Array.isArray(raw[kind])?raw[kind]:[]).slice(0,12).map(x=>Object.fromEntries(Object.entries(x||{}).filter(([k])=>['uid','family','direction','number','from','to','date','depart','arrive','terminal','name','address','checkin','checkout','status'].includes(k)).map(([k,v])=>[k,String(v).slice(0,300)])))}
+ if(raw.budget&&typeof raw.budget==='object')for(const [key] of budgetFields){const v=budgetAmount(raw.budget[key]);if(v!==null)out.budget[key]=String(v/100)}
  out.savedAt=typeof raw.savedAt==='string'?raw.savedAt:null;return out;
 }
 try{const p=JSON.parse(localStorage.getItem(storageKey)||'null');if(p)saved=cleanPlan(p)}catch(e){storageOK=false}
@@ -313,12 +329,44 @@ function renderTransit(){
  '<li><strong>Stansted: £57.45 tren ara toplamı</strong> (£19.40 + £13.80 + £24.25). Bedford → Londra dönüş treni, Oben’in otel → Bedford bileti ve metro ayrıca.</li>'+
  '<li><strong>Üç günlük Zone 1–2 tavanı: £53.40.</strong> Bu tavanı ekleyince bütçe senaryosu Gatwick <strong>£121.60</strong>, Stansted <strong>£110.85</strong>; yukarıdaki eksik tren biletleri ve üç gün/zone dışındaki ulaşım dahil değil. Stansted’in daha ucuz olduğu sonucu çıkmaz.</li></ul><p class="muted">Bunlar kesin seyahat toplamı değil. Advance fiyatları ve aktarmalar seçilen seferde kontrol edilmeli; Bedford’da ev–istasyon ulaşımı da hesapta yok.</p>'+link(rail,'Tarih ve saatle kesin tren ücretini sorgula')+'</div>';
 }
-function renderCurrent(){if(activeTab==='plan')renderPlan();if(activeTab==='map')renderMap();if(activeTab==='trip')renderTrip();if(activeTab==='transit')renderTransit();if(activeTab==='bookings')renderBookings();if(activeTab==='catalog'||activeTab==='food')renderCatalog(activeTab==='food');updateSave()}
-const tabdefs=[['plan','📅 Planım'],['catalog','🎡 Aktiviteler'],['food','🍽️ Yemekler'],['map','📍 Harita'],['trip','✈️ Uçuş & Otel'],['transit','🚆 Ulaşım'],['bookings','🎟️ Bilet & rezervasyon'],['vize','🛂 Vize'],['info','💡 Öneriler & notlar']];
+function budgetRows(){
+ return [...allStops().map(({d,s})=>({title:stopTitle(s),detail:d+' Aralık',category:itemFor(s).kind==='food'?'Yemek':'Aktiviteler',stop:s,value:s.cost})),
+ ...budgetFields.map(([key,title,category])=>({key,title,category,value:draft.budget[key]??''}))];
+}
+function updateBudgetTotals(){
+ const rows=budgetRows(),format=n=>new Intl.NumberFormat('tr-TR',{style:'currency',currency:'GBP'}).format(n/100);
+ let total=0,missing=0;
+ for(const category of ['Aktiviteler','Yemek','Ulaşım','Konaklama','Uçuş','Diğer']){
+  const amounts=rows.filter(r=>r.category===category).map(r=>budgetAmount(r.value));
+  const count=amounts.filter(v=>v===null).length,sum=amounts.reduce((n,v)=>n+(v??0),0);
+  total+=sum;missing+=count;
+  $('budget-'+category).textContent=(amounts.length===count?'—':format(sum))+(count?' · '+count+' eksik':'');
+ }
+ $('budget-grand').textContent=rows.length===missing?'Henüz tutar girilmedi':format(total);
+ $('budget-missing').textContent=missing?missing+' kalemin fiyatı eksik. Gösterilen tutar ara toplamdır.':'Tüm kalemlere tutar girildi.';
+}
+function renderBudget(){
+ const rows=budgetRows();
+ const row=(r,i)=>'<label class="field" style="margin-bottom:12px"><strong>'+esc(r.title)+'</strong>'+(r.detail?'<small>'+esc(r.detail)+'</small>':'')+'<input type="number" inputmode="decimal" min="0" step="0.01" placeholder="Aile toplamı (£)" value="'+esc(r.value)+'" data-budget-row="'+i+'"></label>';
+ $('budget').innerHTML='<h2>💷 Seyahat bütçesi</h2><p>Her satıra üç kişi için toplam GBP tutarını girin. Ücretsizse 0 yazın; bilinmiyorsa boş bırakın.</p><p><button data-goto="transit">Ulaşım fiyatlarına bak</button></p><div class="cols">'+
+ ['Aktiviteler','Yemek','Ulaşım','Konaklama','Uçuş','Diğer'].map(c=>{
+  const list=rows.map((r,i)=>r.category===c?row(r,i):'').join('');
+  return '<article class="card"><h3>'+c+'</h3>'+(list||'<p class="muted">Henüz plana eklenmedi.</p>')+'<strong id="budget-'+c+'"></strong></article>';
+ }).join('')+'</div><div class="banner" style="margin-top:18px"><h3>Aile toplamı</h3><strong id="budget-grand" style="font-size:1.6em"></strong><p id="budget-missing" aria-live="polite"></p><small>Seçtiğiniz havalimanı ve ulaşım türünün ücretini bir kez girin. Değişiklikler Planı kaydet ile saklanır.</small></div>';
+ $('budget').oninput=e=>{
+  const input=e.target,i=input.dataset.budgetRow;if(i===undefined)return;
+  const r=rows[Number(i)],n=budgetAmount(input.value),v=n===null?'':String(n/100);
+  if(r.stop)r.stop.cost=v;else draft.budget[r.key]=v;
+  updateBudgetTotals();updateSave();
+ };
+ updateBudgetTotals();
+}
+function renderCurrent(){if(activeTab==='plan')renderPlan();if(activeTab==='map')renderMap();if(activeTab==='trip')renderTrip();if(activeTab==='transit')renderTransit();if(activeTab==='budget')renderBudget();if(activeTab==='bookings')renderBookings();if(activeTab==='catalog'||activeTab==='food')renderCatalog(activeTab==='food');updateSave()}
+const tabdefs=[['plan','📅 Planım'],['catalog','🎡 Aktiviteler'],['food','🍽️ Yemekler'],['map','📍 Harita'],['trip','✈️ Uçuş & Otel'],['transit','🚆 Ulaşım'],['budget','💷 Bütçe'],['bookings','🎟️ Bilet & rezervasyon'],['vize','🛂 Vize'],['info','💡 Öneriler & notlar']];
 function showTab(id,focus=true){if(!tabdefs.some(t=>t[0]===id))id='plan';activeTab=id;document.querySelectorAll('.tab-panel').forEach(p=>{const on=p.id===(id==='plan'?'planner':id);p.classList.toggle('active',on);p.hidden=!on});document.querySelectorAll('[data-tab]').forEach(b=>{b.setAttribute('aria-selected',b.dataset.tab===id);b.tabIndex=b.dataset.tab===id?0:-1});renderCurrent();history.replaceState(null,'','#'+id);if(focus){document.querySelector('[data-tab="'+id+'"]').scrollIntoView({block:'nearest',inline:'nearest'});window.scrollTo({top:document.querySelector('.nav').offsetTop,behavior:'smooth'})}}
 const main=document.querySelector('main');
 // Keep legacy visa state and controls intact; move supporting material into its own tab.
-const info=document.createElement('section');info.id='info';info.className='tab-panel';for(const id of ['hazirlik','program','lojistik','kaynak']){const s=$(id);if(id==='hazirlik'){s.querySelector('h2').textContent='Aileler & kayıtlar';s.querySelector('.banner').hidden=true}info.append(s)}main.append(info);$('vize').classList.add('tab-panel');$('kesfet').classList.add('hidden-legacy');for(const id of ['planner','catalog','food','map','trip','transit','bookings']){const s=document.createElement('section');s.id=id;s.className='tab-panel';s.setAttribute('role','tabpanel');s.setAttribute('aria-labelledby','tab-'+(id==='planner'?'plan':id));main.prepend(s)}$('vize').setAttribute('role','tabpanel');$('vize').setAttribute('aria-labelledby','tab-vize');info.setAttribute('role','tabpanel');info.setAttribute('aria-labelledby','tab-info');
+const info=document.createElement('section');info.id='info';info.className='tab-panel';for(const id of ['hazirlik','program','lojistik','kaynak']){const s=$(id);if(id==='hazirlik'){s.querySelector('h2').textContent='Aileler & kayıtlar';s.querySelector('.banner').hidden=true}info.append(s)}main.append(info);$('vize').classList.add('tab-panel');$('kesfet').classList.add('hidden-legacy');for(const id of ['planner','catalog','food','map','trip','transit','budget','bookings']){const s=document.createElement('section');s.id=id;s.className='tab-panel';s.setAttribute('role','tabpanel');s.setAttribute('aria-labelledby','tab-'+(id==='planner'?'plan':id));main.prepend(s)}$('vize').setAttribute('role','tabpanel');$('vize').setAttribute('aria-labelledby','tab-vize');info.setAttribute('role','tabpanel');info.setAttribute('aria-labelledby','tab-info');
 document.querySelector('.nav').innerHTML='<div class="wrap" role="tablist" aria-label="Seyahat bölümleri">'+tabdefs.map(([id,title])=>'<button role="tab" id="tab-'+id+'" data-tab="'+id+'" aria-controls="'+(id==='plan'?'planner':id)+'" aria-selected="false">'+title+'</button>').join('')+'</div>';
 const savebar=document.createElement('div');savebar.id='savebar';savebar.className='savebar noprint';savebar.innerHTML='<div><strong><span class="status-dot"></span><span id="saveHeading"></span></strong><small id="saveDetail"></small></div><button id="savePlan" class="primary">Planı kaydet</button>';main.append(savebar);const toastEl=document.createElement('div');toastEl.id='toast';toastEl.role='status';toastEl.hidden=true;document.body.append(toastEl);
 const cover=photos.winter||photos.somerset;if(cover){const img=document.createElement('img');img.className='planner-hero-photo';img.src=cover.path;img.alt='';document.querySelector('header').prepend(img)}document.querySelector('.intro').innerHTML='Gani, Mine ve Oben ile Londra.<br>Aktiviteleri ve lezzetleri seçin; gün gün kendi seyahatinizi oluşturun.';
