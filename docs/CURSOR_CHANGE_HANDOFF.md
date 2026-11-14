@@ -20,6 +20,9 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - **Dosyalar:** `RosterFlightCard.tsx`, locales, `app.config.js`, `project.pbxproj`, `android/app/build.gradle`, NSE ensure script.
 - **Yayın:** iOS production EAS build + ASC auto-submit (App Review submit yok).
 - **Koruma:** runtimeVersion `1.3.0` string; OTA sync gate açık.
+- **EAS (kuyruk, OK start):** build `69ccf301-a480-42d5-bdfa-3b890e201806` + auto-submit `dc8c04d3-4307-4355-b8b0-4a7aba7a019c` (1.3.0 / 59, commit `4ed770b`).
+- **Not:** Yerel `eas build` öncesi `npm run verify:ota-sync` OK; upload sırasında `FLYFAM_SKIP_OTA_SYNC=1` (app.config içindeki nested `eas update:list` takılması). Worker/pre-install + HEAD OTA ancestor kontrolü ayrıca geçti.
+
 
 
 ### 2026-11-11 — Where-is-plane: aynı satır + reg her zaman düzenlenebilir
