@@ -210,14 +210,20 @@ function assertCommitContainsOta(ota, commitSha) {
   );
 }
 
+/**
+ * EAS Build workers must never call `eas update:list` / deep git fetch here.
+ * That nested CLI hung for ~82 minutes and the worker died with SERVER_ERROR
+ * (build 59 ×3). Pre-upload local gate (app.config / npm run verify:ota-sync)
+ * is the authoritative check.
+ */
+if (isEasWorker) {
+  console.log(
+    '[ota-sync] EAS worker — skip all OTA sync checks (pre-upload local gate is authoritative).',
+  );
+  process.exit(0);
+}
+
 if (!hasGitRepo()) {
-  if (isEasWorker) {
-    // CLI upload tarball has no .git. Local app.config evaluation already enforced the gate.
-    console.log(
-      '[ota-sync] EAS worker without .git — ancestor check skipped (pre-upload local gate is authoritative).',
-    );
-    process.exit(0);
-  }
   console.error('\nREFUSING: no git repository — cannot verify OTA↔build sync.\n');
   process.exit(2);
 }
@@ -226,7 +232,7 @@ fetchOriginMain();
 
 if (requireCleanMain) {
   assertCleanMainAligned();
-} else if (!isEasWorker) {
+} else {
   try {
     const behind = Number(run('git', ['rev-list', '--count', 'HEAD..origin/main']) || '0');
     if (behind > 0) {
@@ -239,8 +245,6 @@ if (requireCleanMain) {
   } catch (e) {
     console.warn('[ota-sync] behind-check skipped:', e.message || e);
   }
-} else {
-  console.log('[ota-sync] EAS worker — skip behind-origin/main check');
 }
 
 let ota;

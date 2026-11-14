@@ -13,6 +13,14 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+### 2026-11-14 — Build 59 hang: EAS worker OTA sync skip
+
+- **Kök neden:** `eas-build-pre-install` → `verify-ota-build-sync.mjs` worker’da `npx eas-cli update:list` çağırıyordu; ~82 dk sonra `SERVER_ERROR` (worker drop). Build 58’de bu script yoktu (~5 dk OK).
+- **Fix:** `EAS_BUILD=true` iken script hemen exit 0 (yerel pre-upload gate yeterli).
+- **Dosya:** `mobile/scripts/verify-ota-build-sync.mjs`.
+- **Not:** 59 denemeleri `69ccf301` / `7a5aa04f` / `db4390dd` errored; `869a1825` cancel.
+
+
 ### 2026-11-14 — iOS binary 59 3. deneme
 
 - 2. deneme `7a5aa04f…` yine **SERVER_ERROR** (worker drop); submit canceled.
