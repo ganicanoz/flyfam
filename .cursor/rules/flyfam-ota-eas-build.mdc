@@ -1,0 +1,41 @@
+---
+description: OTA yayın + EAS production build kuralları (worker hang önleme)
+globs: mobile/scripts/verify-ota-build-sync.mjs,mobile/scripts/publish-ota.mjs,mobile/app.config.js,mobile/package.json,mobile/eas.json,mobile/lib/applyOtaUpdate.ts
+alwaysApply: false
+---
+
+# FlyFam OTA ↔ EAS Build
+
+## Yetkili kapı (nerede çalışır)
+
+| Yer | Ne yapılır |
+|---|---|
+| **Yerel (upload öncesi)** | `npm run verify:ota-sync` ve/veya `APP_ENV=production` → `app.config.js` → `verify-ota-build-sync.mjs` |
+| **EAS worker** | `EAS_BUILD=true` iken sync script **hemen exit 0**. Ağır kontrol yok. |
+
+Yerel kapı geçmeden production build başlatma. Worker’a güvenme.
+
+## Asla yapma (build 59 regressiyonu)
+
+- `eas-build-pre-install` / worker hook içinde `npx eas-cli update:list`, `update:view`, nested `eas build`, veya uzun `git fetch` ile OTA ancestor kontrolü.
+- Worker’da takılan ağ çağrısı: tipik semptom **~80–85 dk sonra `SERVER_ERROR` / worker connection lost**. Xcode hatası sanma.
+- `app.config.js` içinde ESM `import` / `import.meta` (Expo config kırılır → CommonJS `require` + `module.exports`).
+- Production OTA’yı kirli worktree veya `origin/main` dışı commit’ten yayınlama.
+
+## Doğru akış
+
+1. Temiz `origin/main` (veya onu içeren commit).
+2. JS-only değişiklik → `cd mobile && npm run ota:production -- "mesaj"`.
+3. Store binary → yerelde `npm run verify:ota-sync` (veya production profile’ın app.config kapısı) → `eas build --profile production`.
+4. Yerel `eas` CLI `app.config` kapısında kilitlenirse: önce `verify:ota-sync` elle geçir, upload için yalnız `FLYFAM_SKIP_OTA_SYNC=1` (acil); worker skip zaten zorunlu.
+
+## Teşhis kısayolu
+
+- Build **~5 dk** (eski 57/58) = sağlıklı.
+- Build **~82 dk + SERVER_ERROR** + log’da `eas-build-pre-install` / `ota-sync` = worker’da OTA sync regressiyonu; `EAS_BUILD` early-exit’i kontrol et.
+- Arşiv ~290 MB uyarısı tek başına fail nedeni değil; asıl fail pattern yukarıdaki hang.
+
+## Korunan sabitler
+
+- `runtimeVersion`: sabit string `1.3.0` (fingerprint policy yok).
+- `FLYFAM_SKIP_OTA_SYNC=1` yalnız bilinçli acil bypass; varsayılan değil.

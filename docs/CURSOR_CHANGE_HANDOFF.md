@@ -13,6 +13,13 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+### 2026-11-14 — iOS binary 59 OK + OTA/EAS öğretileri kurallaştı
+
+- **Build 59 (OK):** `49cc2312-97fb-4408-8a56-0aa385a9e6d3` finished ~5 dk; submit `722eb3b6-54ed-4bff-ae52-6b059cd7f9aa` finished. Commit `6928811` (worker OTA-sync skip).
+- **Öğreti → pratik:** `.cursor/rules/flyfam-ota-eas-build.mdc` (OTA/EAS); `flyfam-change-handoff.mdc` OTA maddesi worker no-op ile güncellendi. Worker’da `eas update:list` yasak.
+- **Koruma:** Yerel `verify:ota-sync` yetkili kapı; `EAS_BUILD=true` early exit zorunlu kalsın.
+
+
 ### 2026-11-14 — Build 59 hang: EAS worker OTA sync skip
 
 - **Kök neden:** `eas-build-pre-install` → `verify-ota-build-sync.mjs` worker’da `npx eas-cli update:list` çağırıyordu; ~82 dk sonra `SERVER_ERROR` (worker drop). Build 58’de bu script yoktu (~5 dk OK).
