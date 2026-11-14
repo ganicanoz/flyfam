@@ -267,15 +267,51 @@ function download(content,name,type){const url=URL.createObjectURL(new Blob([con
 function renderTransit(){
  const fare='https://tfl.gov.uk/fares/find-fares/tube-and-rail-fares/single-fare-finder';
  const rail='https://www.nationalrail.co.uk/journey-planner/';
- const tube='<p>Metro ücreti ayrıca hesaplanır; o günün TfL harcama tavanına dahildir. '+link(fare,'TfL tek biniş ücreti')+'</p>';
- $('transit').innerHTML=`<h2>🚆 Ulaşım ve ücretler</h2><p>2 yetişkin + Oben. Sterlin tutarları tek yön; tren başlangıç fiyatları 19–23 Aralık için kesin teklif değildir.</p>
- <div class="card"><h3>💳 Üç gün için: kişi başına ayrı temassız kart</h3><p>Zone 1–2 günlük tavanı <strong>£8.90 / yetişkin</strong>: üç gün en fazla £26.70 kişi başı, <strong>£53.40 iki yetişkin</strong>. 7 günlük Travelcard £44.70 kişi başı (£89.40 iki kişi). Yalnızca otobüs/tram: £1.85 Hopper, günlük tavan £5.55 kişi başı. Zone 1–3 günlük tavan £10.50 (Tottenham Hale gibi Zone 3 durakları).</p><p>Gani ve Mine ayrı kart/cihaz kullansın; her biri giriş ve çıkışta aynı kartı veya cihazı okutsun. Otobüste yalnızca binerken okutun. Oben yetişkinle TfL metro, otobüs ve tramvayda ücretsiz. Havalimanı ve Bedford trenlerini bu bütçeye dahil etmeyin.</p><div class="links">${link('https://content.tfl.gov.uk/adult-fares.pdf','TfL 2026 fiyatları')}${link('https://tfl.gov.uk/how-to-pay/visitors-to-london','TfL ziyaretçi ve çocuk kuralları')}${link('https://tfl.gov.uk/how-to-pay/check-travel-costs/bus-and-tram-fares','Otobüs fiyatları')}</div></div>
- <div class="cols" style="margin-top:16px"><article class="card"><h3>19 Aralık · Gatwick → Bailey’s</h3><p>Southern → Victoria → District → Gloucester Road. Southern için saat dışı PAYG referansı £10.70/yetişkin; iki yetişkin yaklaşık £21.40 + metro. Gatwick Express referansı £24/yetişkin (£48 + metro); farklı hizmet ve tarife. Oben henüz 4, yetişkinle trende ücretsiz.</p><div class="links">${link(fare,'Gatwick–Victoria ücretini doğrula')}</div></article>
- <article class="card"><h3>19 Aralık · Stansted → Bailey’s</h3><p>Stansted Express → Tottenham Hale → Victoria hattı → Green Park → Piccadilly hattı → Gloucester Road. Advance £9.70’ten/yetişkin (£19.40’tan + metro). Oben henüz 4, Stansted Express ücretsiz.</p><div class="links">${link('https://www.stanstedexpress.com/tickets-fares/ticket-types/advance-tickets','Stansted Express Advance')}</div></article>
- <article class="card"><h3>22 Aralık · Bailey’s → Bedford</h3><p>Gloucester Road → Piccadilly hattı → King’s Cross St Pancras; St Pancras’tan Bedford’a direkt EMR veya Thameslink. Yayımlanan Advance örneği £6.90’dan/yetişkin; iki yetişkin £13.80’den + Oben’in 5–15 yaş bileti + yetişkin metrosu. Ucuz bilet seçilen sefere bağlı.</p><div class="links">${link('https://www.eastmidlandsrailway.co.uk/train-times/london-st-pancras-international-to-bedford','EMR biletleri')}${link(directions(baileys.address,'Bedford Railway Station'),'Toplu taşıma rotası')}</div></article>
- <article class="card"><h3>23 Aralık · Bedford → Gatwick</h3><p>Direkt Thameslink. Yayımlanan başlangıç örneği £16.50/yetişkin; iki yetişkin £33’ten + Oben’in 5–15 yaş bileti. North Terminal için servis payı bırakın.</p><div class="links">${link('https://www.thameslinkrailway.com/journey/bedford-to-gatwick-airport','Thameslink biletleri')}</div></article>
- <article class="card"><h3>23 Aralık · Bedford → Stansted</h3><p>Bedford → St Pancras → Victoria hattı ile Tottenham Hale → Stansted Express. Son tren £9.70’ten/yetişkin; aynı £9.70 tarife bulunursa çocuk yarı ücretle £4.85, üç kişi £24.25. Bedford–St Pancras biletleri ve metro ayrıca; tüm güzergâhı National Rail üzerinden de fiyatlayın.</p><div class="links">${link('https://www.stanstedexpress.com/tickets-fares/child-fares','Stansted çocuk ücretleri')}</div></article></div>
- ${tube}<p class="muted">Oben 21 Aralık’ta 5 oluyor. 22 ve 23 Aralık trenlerini 2 yetişkin + 1 çocuk olarak fiyatlayın; Bedford’daki ev–istasyon ulaşımı ve havalimanında uçuş öncesi süre ayrıca planlanmalı.</p><div class="links">${link(rail,'Tarih ve saatle tren fiyatı sorgula')}${link('https://www.thetrainline.com/train-times/bedford-to-gatwick-airport','Bedford–Gatwick fiyat örneği')}${link('https://www.thetrainline.com/train-times/london-st-pancras-international-to-bedford','St Pancras–Bedford fiyat örneği')}</div>`+airportOptions();
+ const card=(title,lines)=>'<article class="card"><h3>'+title+'</h3><ul style="padding-left:20px">'+lines.map(l=>'<li style="margin-bottom:8px">'+l+'</li>').join('')+'</ul></article>';
+ $('transit').innerHTML='<h2>🚆 Ulaşım</h2><p>2 yetişkin + Oben · Tutarlar tek yön. <strong>Trenle dönüşte ilk tercih: Gatwick.</strong></p>'+
+ card('💳 Londra içi · 3 gün',[
+ '<strong>Ayrı temassız kart veya telefon kullanın.</strong> Gani ve Mine aynı kartı paylaşmasın; her kişi giriş ve çıkışta aynı cihazı kullansın.',
+ 'Zone 1–2: <strong>£8.90 / yetişkin / gün</strong>. Üç gün için aile tavanı <strong>£53.40</strong>; iki haftalık değil, iki adet 7 günlük Travelcard toplam £89.40.',
+ 'Sadece otobüs: £1.85 Hopper; yetişkin başına günlük tavan £5.55. Zone 3’e çıkılan günün tavanı £10.50.',
+ 'Oben yetişkinle TfL’de ücretsiz. 21 Aralık’ta 5 oluyor; 22 ve 23 Aralık şehir dışı trenleri için çocuk bileti bakın.',
+ link('https://content.tfl.gov.uk/adult-fares.pdf','TfL 2026 ücretleri')+' · '+link('https://tfl.gov.uk/how-to-pay/visitors-to-london','Çocuk ve temassız ödeme kuralları')
+ ].map(l=>l.replace('iki haftalık değil, iki adet','iki adet')))+
+ '<div class="cols" style="margin-top:16px">'+
+ card('19 Aralık · Gatwick → Otel',[
+ 'Southern → Victoria → District → Gloucester Road. North Terminal’dan önce terminal servisi.',
+ '<strong>£21.40</strong> iki yetişkin · Southern off-peak referansı + metro. Gatwick Express alternatifi: £48 + metro. Oben ücretsiz.',
+ link(fare,'Tren ve metro ücretini kontrol et')
+ ])+
+ card('19 Aralık · Stansted → Otel',[
+ 'Stansted Express → Tottenham Hale → Victoria hattı → Green Park → Piccadilly hattı → Gloucester Road.',
+ '<strong>£19.40’tan</strong> iki yetişkin · Advance + metro. Oben ücretsiz.',
+ link('https://www.stanstedexpress.com/tickets-fares/ticket-types/advance-tickets','Advance biletleri')
+ ])+
+ card('22 Aralık · Otel → Bedford',[
+ 'Gloucester Road → King’s Cross St Pancras → direkt EMR veya Thameslink → Bedford.',
+ '<strong>£13.80’den</strong> iki yetişkin · Advance örneği + Oben’in tren bileti + metro.',
+ link('https://www.thetrainline.com/train-times/london-st-pancras-international-to-bedford','Tren fiyatı örneği')
+ ])+
+ card('23 Aralık · Bedford → Gatwick',[
+ 'Bedford → direkt Thameslink → Gatwick. North Terminal için servis payı bırakın.',
+ '<strong>£33’ten</strong> iki yetişkin + Oben’in tren bileti.',
+ link('https://www.thetrainline.com/train-times/bedford-to-gatwick-airport','Tren fiyatı örneği')
+ ])+
+ card('23 Aralık · Bedford → Stansted',[
+ 'Bedford → St Pancras → Victoria hattı → Tottenham Hale → Stansted Express.',
+ 'Yalnız Stansted Express: <strong>£24.25’ten</strong> aile (2 × £9.70 + £4.85 çocuk, aynı Advance tarifesi bulunursa). Bedford treni ve metro ayrıca.',
+ link(rail,'Tüm güzergâhı fiyatla')
+ ])+
+ card('🚗 Uber ve taksi · alternatif',[
+ 'Varış: UberX araç başı Londra geneli ortalama <strong>Gatwick £84 · Stansted £74</strong> (otele özel teklif değil).',
+ 'Dönüş: Bedford için doğrulanmış Uber teklifi yok. Yerel taksi referansı <strong>Gatwick £135 · Stansted £76</strong>.',
+ 'Uber varış + yerel taksi dönüş: <strong>Gatwick £219 · Stansted £150</strong>. Otel → Bedford ve şehir içi hariç.',
+ link('https://www.uber.com/global/en/price-estimate/','Uber fiyatı sorgula')+' · '+link('https://citycarsbedford.co.uk/airport-transfers-bedford/','Bedford taksi fiyatları')
+ ])+'</div>'+
+ '<div class="banner" style="margin-top:18px"><h3>Aile toplamları · toplu taşıma</h3><ul>'+
+ '<li><strong>Gatwick: £68.20 tren ara toplamı</strong> (£21.40 + £13.80 + £33). Oben’in dönüş ve Bedford biletleri ile şehir içi ulaşım ayrıca.</li>'+
+ '<li><strong>Stansted: £57.45 tren ara toplamı</strong> (£19.40 + £13.80 + £24.25). Bedford → Londra dönüş treni, Oben’in otel → Bedford bileti ve metro ayrıca.</li>'+
+ '<li><strong>Üç günlük Zone 1–2 tavanı: £53.40.</strong> Bu tavanı ekleyince bütçe senaryosu Gatwick <strong>£121.60</strong>, Stansted <strong>£110.85</strong>; yukarıdaki eksik tren biletleri ve üç gün/zone dışındaki ulaşım dahil değil. Stansted’in daha ucuz olduğu sonucu çıkmaz.</li></ul><p class="muted">Bunlar kesin seyahat toplamı değil. Advance fiyatları ve aktarmalar seçilen seferde kontrol edilmeli; Bedford’da ev–istasyon ulaşımı da hesapta yok.</p>'+link(rail,'Tarih ve saatle kesin tren ücretini sorgula')+'</div>';
 }
 function renderCurrent(){if(activeTab==='plan')renderPlan();if(activeTab==='map')renderMap();if(activeTab==='trip')renderTrip();if(activeTab==='transit')renderTransit();if(activeTab==='bookings')renderBookings();if(activeTab==='catalog'||activeTab==='food')renderCatalog(activeTab==='food');updateSave()}
 const tabdefs=[['plan','📅 Planım'],['catalog','🎡 Aktiviteler'],['food','🍽️ Yemekler'],['map','📍 Harita'],['trip','✈️ Uçuş & Otel'],['transit','🚆 Ulaşım'],['bookings','🎟️ Bilet & rezervasyon'],['vize','🛂 Vize'],['info','💡 Öneriler & notlar']];
