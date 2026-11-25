@@ -40,6 +40,8 @@ export function isTrainingOccupationCode(code: string | null | undefined): boole
   if (isHomeDutyOccupationCode(u)) return false;
   if (u.includes('TRAINING')) return true;
   if (u.includes('YERDR')) return true;
+  // Pegasus sınıf / yer dersi blokları (CBT–sınıf günü); boş gün değil.
+  if (u === 'FLYCO' || u.startsWith('FLYCO')) return true;
   return (
     u === 'REC' ||
     u === 'TRT' ||
@@ -94,6 +96,7 @@ const ROSTER_OCCUPATION_TR: Record<string, string> = {
   VAV: 'Yıllık İzin',
   DH: 'Deadhead',
   YERDR: 'Yer Dersi',
+  FLYCO: 'Yer Dersi',
   IPT: 'Simulator',
   /** IndiGo roster */
   OFG: 'Altın Boş Gün',
@@ -138,6 +141,7 @@ const ROSTER_OCCUPATION_EN: Record<string, string> = {
   VAV: 'Annual Leave',
   DH: 'Deadhead',
   YERDR: 'Ground Training',
+  FLYCO: 'Ground Training',
   IPT: 'Simulator',
   OFG: 'Golden Day Off',
   SBYP: 'Home Standby',
@@ -354,6 +358,7 @@ const CREW_PLANNING_ABBR_TR: Record<string, string> = {
   WAH: 'İş kazası',
   WTA: 'Mahkeme/Tanıklık',
   YERDR: 'Yer Dersi',
+  FLYCO: 'Yer Dersi',
 };
 
 export function rosterOccupationLabelTr(code: string | null | undefined): string | null {
@@ -375,7 +380,7 @@ export function rosterOccupationLabelTr(code: string | null | undefined): string
   if (u === 'BDF') return CREW_PLANNING_ABBR_TR.BDF ?? 'Doğum Günü İzni';
   if (u === 'UPV') return 'Ücretsiz İzin';
   if (u === 'VAV' || u === 'VAC' || u === 'AVAC' || u === 'III') return 'Yıllık İzin';
-  if (u.includes('YERDR')) return 'Yer Dersi';
+  if (u.includes('YERDR') || u === 'FLYCO' || u.startsWith('FLYCO')) return 'Yer Dersi';
   if (u === 'SNV') return CREW_PLANNING_ABBR_TR.SNV ?? 'Sınav';
   if (/^RTC\d*$/.test(u)) return CREW_PLANNING_ABBR_TR[u] ?? 'Route To Commander';
   if (ROSTER_OCCUPATION_TR[u]) return ROSTER_OCCUPATION_TR[u]!;
@@ -400,7 +405,7 @@ export function rosterOccupationLabelEn(code: string | null | undefined): string
   if (u === 'BDF') return CREW_PLANNING_ABBR_EN.BDF ?? 'Birthday Off';
   if (u === 'UPV') return 'Unpaid Leave';
   if (u === 'VAV' || u === 'VAC' || u === 'AVAC' || u === 'III') return 'Annual Leave';
-  if (u.includes('YERDR')) return 'Ground Training';
+  if (u.includes('YERDR') || u === 'FLYCO' || u.startsWith('FLYCO')) return 'Ground Training';
   if (u === 'SNV') return CREW_PLANNING_ABBR_EN.SNV ?? 'Exam';
   if (/^RTC\d*$/.test(u)) return CREW_PLANNING_ABBR_EN[u] ?? 'Route To Commander';
   if (ROSTER_OCCUPATION_EN[u]) return ROSTER_OCCUPATION_EN[u]!;

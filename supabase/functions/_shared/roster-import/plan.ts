@@ -13,6 +13,7 @@ import {
   restEndOperatingYmd,
   isSimulatorOccupationCode,
   isStandbyOccupationCode,
+  isTrainingOccupationCode,
   localDateTimeInTimezoneToUtcIso,
   ROSTER_FALLBACK_TIMEZONE,
 } from '../pdfRosterImport.ts';
@@ -509,6 +510,10 @@ function timeToMinutesLoose(hhmm: string | null | undefined): number | null {
 /** Saatlik görevler — çok günlü genişletmede ara günler 00:00–23:59 üretilmez (PDF başlangıç/bitiş korunur). */
 function isTimedDutyOffCode(code: string): boolean {
   const u = normalizeCode(code);
+  // FLYCO / REC-YERDR: dinlenme bitişi ertesi sabah olsa da o günü sahte off/görev günü yapma.
+  if (isTrainingOccupationCode(u) || u.includes('YERDR') || u === 'FLYCO' || u.startsWith('FLYCO')) {
+    return true;
+  }
   return u === 'MEET' || /^RSV\d*$/.test(u) || u === 'TOF' || u === 'SDM' || u === 'SEM';
 }
 

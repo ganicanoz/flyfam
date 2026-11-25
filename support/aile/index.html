@@ -803,6 +803,8 @@
     };
     const OFF_CODES = new Set(['MSF', 'FSF', 'FOF', 'FREE', 'OFF', 'OFFB', 'DOFF', 'RQST', 'RSF', 'ROF', 'RUF', 'SOF', 'SOS', 'LSF', 'OFG',
       'IBB', 'IBE', 'IBX', 'IOZ', 'IBC', 'IBY', 'IBI', 'III', 'VAC', 'AVAC', 'VAV', 'UPV']);
+    /** Yer dersi / sınıf — boş gün değil (Pegasus FLYCO, YERDR…). */
+    const isGroundTraining = (u) => u === 'FLYCO' || u.startsWith('FLYCO') || u.includes('YERDR');
     const COLORS = { duty: '#1a5cf5', away: '#818cf8', standby: '#f59e0b', home: '#06b6d4', school: '#22a55b', fixed: '#7c3aed' };
     const PALETTE = ['#0284c7', '#0d9488', '#db2777', '#65a30d'];
     const DAY_NAMES = ['', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi', 'Pazar'];
@@ -1025,6 +1027,12 @@
             continue;
           }
           let s = toAbs(r.fd, r.ds), e = toAbs(r.ed, r.et);
+          if (isGroundTraining(code)) {
+            if (s == null || e == null || e <= s) { s = dayIndex(r.fd) * 1440 + 480; e = s + 480; }
+            intervals.push({ s, e, kind: 'duty', label: code });
+            addLabel(r.fd, 'Yer dersi · ' + code + ' ' + fmt(s) + '–' + fmt(e), 'crew');
+            continue;
+          }
           if (isStandby(code)) {
             if (code === 'CFR' || s == null || e == null || e <= s) { s = dayIndex(r.fd) * 1440; e = s + 1440; }
             intervals.push({ s, e, kind: 'standby', label: code });
@@ -1053,6 +1061,13 @@
         const s = absOf(e.scheduled_departure, tz), en = absOf(e.scheduled_arrival, tz);
         const dayYmd = s != null ? at2ymd(s) : e.flight_date;
         if (OFF_CODES.has(code)) { addLabel(e.flight_date, 'Boş gün', 'muted'); continue; }
+        if (isGroundTraining(code)) {
+          let ss = s, ee = en;
+          if (ss == null || ee == null || ee <= ss) { ss = dayIndex(e.flight_date) * 1440 + 480; ee = ss + 480; }
+          intervals.push({ s: ss, e: ee, kind: 'duty', label: code });
+          addLabel(e.flight_date, 'Yer dersi · ' + code + ' ' + fmt(ss) + '–' + fmt(ee), 'crew');
+          continue;
+        }
         if (isStandby(code)) {
           let ss = s, ee = en;
           if (code === 'CFR' || ss == null || ee == null || ee <= ss) { ss = dayIndex(e.flight_date) * 1440; ee = ss + 1440; }

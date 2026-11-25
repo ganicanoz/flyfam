@@ -30,6 +30,13 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+### 2026-11-25 — REC-YERDR parse + FLYCO timed + Edge/OTA
+
+- **PDF:** `04.12.202608:00REC-YERDR` (4 haneli yıl) kaçıyordu; 3 Ara FLYCO rest → sahte 4 Ara FLYCO.
+- **Fix:** `dutyTable` `dutyGluedYyyy` + lecture Start/End; `plan` training/FLYCO timed; FLYCO etiketi/UI training; aile yer dersi.
+- **Yayın:** `parse-roster-pdf` + `import-roster` (+ admin-dashboard) deploy; production OTA; aile support deploy (main merge).
+- **Canlı veri:** Gani 4 Ara satırı `REC-YERDR` 08:00–17:50 TR.
+
 ### 2026-11-25 — THY Lifus roster ops import + push
 
 - **Ne:** Published_110080 PDF → crew roster (`admin_add_crew_to_flight`): 8 Lifus TK + görev satırları; Expo push «Roster'ınıza Lifus uçuşlarınız girilmiştir.» (1 token OK).
