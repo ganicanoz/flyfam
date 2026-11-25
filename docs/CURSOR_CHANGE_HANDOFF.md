@@ -13,6 +13,14 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+### 2026-11-25 — Saat arşivi yeniden yayın
+
+- **Sorun:** `docs/obens-watches` destek sitesine kopyalanmadığı için `/obens-watches/` 404 dönüyordu.
+- **Dosya:** `.github/workflows/deploy-support.yml`. Yayın arşivi `support/obens-watches` altına kopyalar. Ops paneli kontrolü durur.
+- **Koruma:** Seri numarası maskesi durur. `/admin/` ops paneli bu kayıtla kapanmaz.
+- **Doğrulama:** `/obens-watches/` 200, başlık `OB.W. · Oben Watches`; `app.js`, `sw.js`, manifest ve ikon 200. `/admin/` içinde `FlyFam Ops` duruyor.
+- **Canlı:** OK. PR #157 merge `5602c6b2`, deploy `45668196919`.
+
 ### 2026-11-25 — Public /admin/ ops konsolu geri
 
 - **İstek:** `app.flyfamapp.com/admin/` placeholder («This path is not available») yerine eski ops paneli.
