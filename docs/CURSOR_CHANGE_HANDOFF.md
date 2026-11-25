@@ -18,8 +18,8 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - **Sorun:** `docs/obens-watches` destek sitesine kopyalanmadığı için `/obens-watches/` 404 dönüyordu.
 - **Dosya:** `.github/workflows/deploy-support.yml`. Yayın adımı arşivi `support/obens-watches` altına kopyalar. Kaynak değişince de destek sitesi yeniden yayınlanır.
 - **Koruma:** Yönetim paneli bu yüzden geri açılmaz. Seri numarası maskesi durur.
-- **Doğrulama:** Yayın sonrası `https://app.flyfamapp.com/obens-watches/` açılışı doğrulanacak.
-- **Canlı:** Yayın sonrası doğrulanacak.
+- **Doğrulama:** `https://app.flyfamapp.com/obens-watches/` 200, başlık `OB.W. · Oben Watches`. `app.js`, `sw.js`, manifest ve ikon 200.
+- **Canlı:** OK. PR #154 merge `4db512a9`, deploy `45667383544` (3. deneme).
 
 ### 2026-11-14 — iOS binary 59 OK + OTA/EAS öğretileri kurallaştı
 
