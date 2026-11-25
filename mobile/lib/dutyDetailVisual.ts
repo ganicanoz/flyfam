@@ -6,13 +6,14 @@ import type { ImageSourcePropType } from 'react-native';
 import {
   isSimulatorOccupationCode,
   isStandbyOccupationCode,
+  isTrainingOccupationCode,
 } from './pdfRosterImport';
 import {
   rosterOccupationLabelEn,
   rosterOccupationLabelTr,
 } from './rosterOccupationLabels';
 
-export type DutyDetailKind = 'standby' | 'simulator' | 'ipt' | 'exam' | 'duty';
+export type DutyDetailKind = 'standby' | 'simulator' | 'ipt' | 'exam' | 'training' | 'duty';
 
 /** Exterior full-motion sim (v2). IPT fixed-base trainer (v2). */
 const IMG_SIM = require('../assets/duty/duty-simulator-exterior.jpg');
@@ -60,6 +61,9 @@ export function resolveDutyDetailKind(
   ) {
     return 'standby';
   }
+  if (isTrainingOccupationCode(code) || isTrainingOccupationCode(occupationCode)) {
+    return 'training';
+  }
   return 'duty';
 }
 
@@ -76,7 +80,7 @@ export function dutyDetailAccentKey(
 ): 'standby' | 'simulator' | 'training' | 'duty_off' {
   if (kind === 'standby') return 'standby';
   if (kind === 'simulator' || kind === 'ipt') return 'simulator';
-  if (kind === 'exam') return 'training';
+  if (kind === 'exam' || kind === 'training') return 'training';
   return 'duty_off';
 }
 

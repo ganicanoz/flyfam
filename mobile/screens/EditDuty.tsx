@@ -114,14 +114,14 @@ function formatRelativeAgo(iso: string, language: string): string {
 function dutyBadgeKey(kind: DutyDetailKind): string {
   if (kind === 'simulator') return 'editDuty.badgeSimulator';
   if (kind === 'ipt') return 'editDuty.badgeIpt';
-  if (kind === 'exam') return 'editDuty.badgeExam';
+  if (kind === 'exam' || kind === 'training') return 'editDuty.badgeExam';
   if (kind === 'standby') return 'editDuty.badgeStandby';
   return 'editDuty.badgeDuty';
 }
 
 function dutyBadgeIcon(kind: DutyDetailKind): React.ComponentProps<typeof Ionicons>['name'] {
   if (kind === 'simulator' || kind === 'ipt') return 'desktop-outline';
-  if (kind === 'exam') return 'school-outline';
+  if (kind === 'exam' || kind === 'training') return 'school-outline';
   if (kind === 'standby') return 'moon';
   return 'briefcase-outline';
 }

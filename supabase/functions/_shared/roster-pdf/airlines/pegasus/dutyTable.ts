@@ -60,9 +60,13 @@ export function parseFlightsFromPdfText_DutyLocalTableCore(text: string): PdfFli
     `^(\\d{1,2})\\.(\\d{1,2})\\.(\\d{2})\\s+(\\d{1,2}):(\\d{2})\\s*${dutyOcc}\\s*$`,
     'i',
   );
-  /** 07.04.202617:45OPC3-SIM veya …IPT — 4 haneli yıl + sim occupation */
-  const dutyGluedYyyySim = new RegExp(
-    `^(\\d{1,2})\\.(\\d{1,2})\\.(\\d{4})(\\d{1,2}):(\\d{2})(${PEGASUS_SIM_OR_IPT_OCC})\\s*$`,
+  /**
+   * 4 haneli yıl yapışık satır:
+   * - `07.04.202617:45OPC3-SIM` / IPT
+   * - `04.12.202608:00REC-YERDR` (yer dersi; yalnız sim regex’i kaçırıyordu)
+   */
+  const dutyGluedYyyy = new RegExp(
+    `^(\\d{1,2})\\.(\\d{1,2})\\.(\\d{4})(\\d{1,2}):(\\d{2})\\s*${dutyOcc}\\s*$`,
     'i',
   );
   const flightLine = /^([A-Z]{2,3})\s*(\d{2,4})$/i;
@@ -180,6 +184,12 @@ export function parseFlightsFromPdfText_DutyLocalTableCore(text: string): PdfFli
     const code = pendingOccupationCode;
     if (isSimulatorOccupationCode(code)) return;
     if (isStandbyOccupationCode(code)) return;
+    // Lecture / yer dersi tablosu: 1. çift = Duty Start, 2. = Duty End (Resting End yok).
+    // FLYCO/FSF tablosu: 1. = Duty End, 2. = Resting End.
+    const looksLikeDutyStartEnd =
+      !!pendingDutyStartTime &&
+      p0.ymd === pendingDate &&
+      p0.hhmm === pendingDutyStartTime;
     out.push({
       roster_entry_kind: 'duty_off',
       flight_number: code,
@@ -189,10 +199,19 @@ export function parseFlightsFromPdfText_DutyLocalTableCore(text: string): PdfFli
       duty_occupation_label_en: rosterOccupationLabelEn(code),
       duty_clock_basis: dutyClockBasis,
       duty_start_time_local: pendingDutyStartTime,
-      duty_end_date_iso: p0.ymd,
-      duty_end_time_local: p0.hhmm,
-      duty_rest_end_date_iso: p1.ymd,
-      duty_rest_end_time_local: p1.hhmm,
+      ...(looksLikeDutyStartEnd
+        ? {
+            duty_slash_start_date_iso: p0.ymd,
+            duty_slash_start_time_local: p0.hhmm,
+            duty_end_date_iso: p1.ymd,
+            duty_end_time_local: p1.hhmm,
+          }
+        : {
+            duty_end_date_iso: p0.ymd,
+            duty_end_time_local: p0.hhmm,
+            duty_rest_end_date_iso: p1.ymd,
+            duty_rest_end_time_local: p1.hhmm,
+          }),
     });
   };
 
@@ -208,31 +227,23 @@ export function parseFlightsFromPdfText_DutyLocalTableCore(text: string): PdfFli
     if (i < skipUntil) continue;
     const line = lines[i]!;
 
-    let dm = dutyGluedYyyySim.exec(line);
+    let dm = dutyGluedYyyy.exec(line);
+    let fromYyyy = false;
     if (dm) {
-      const d = dm[1]!.padStart(2, '0');
-      const mo = dm[2]!.padStart(2, '0');
-      const yyyy = dm[3]!;
-      pendingDate = `${yyyy}-${mo}-${d}`;
-      pendingDutyStartTime = `${dm[4]!.padStart(2, '0')}:${dm[5]}`;
-      pendingOccupationCode = dm[6]!.replace(/\s/g, '').toUpperCase();
-      clearPendingSlashFlight();
-
-      const slash = tryReadTwoSlashPairs(lines, i + 1);
-      if (slash) {
-        skipUntil = Math.max(skipUntil, i + 1 + slash.consume);
-        const [p0, p1] = slash.pairs;
-        const nextIdx = i + 1 + slash.consume;
-        if (!nextLineLooksLikeFlight(nextIdx)) pushSimRow(p0, p1);
-      } else {
-        skipUntil = Math.max(skipUntil, i + 1);
-      }
-      continue;
+      fromYyyy = true;
+    } else {
+      dm = dutyGlued.exec(line) ?? dutySpaced.exec(line);
     }
-
-    dm = dutyGlued.exec(line) ?? dutySpaced.exec(line);
     if (dm) {
-      setDateFromDutyYy(dm);
+      if (fromYyyy) {
+        const d = dm[1]!.padStart(2, '0');
+        const mo = dm[2]!.padStart(2, '0');
+        const yyyy = dm[3]!;
+        pendingDate = `${yyyy}-${mo}-${d}`;
+        pendingOccupationCode = dm[6]!.replace(/\s/g, '').toUpperCase();
+      } else {
+        setDateFromDutyYy(dm);
+      }
       pendingDutyStartTime = `${dm[4]!.padStart(2, '0')}:${dm[5]}`;
       clearPendingSlashFlight();
 
