@@ -30,6 +30,13 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+### 2026-11-25 — REC-YERDR/FLYCO yayınlandı
+
+- **PR:** #162 → main `d2976ba`.
+- **Edge:** `parse-roster-pdf`, `import-roster`, `admin-dashboard` deploy OK.
+- **OTA:** production group `148b2b3d-02ec-4262-ac7e-cd4166d07fe0` (iOS `01a213f8-396e-7973-9e7a-e891b81a2f6a`, runtime `1.3.0`).
+- **Koruma:** Sonraki store build `d2976ba` veya sonrası.
+
 ### 2026-11-25 — REC-YERDR parse + FLYCO timed + Edge/OTA
 
 - **PDF:** `04.12.202608:00REC-YERDR` (4 haneli yıl) kaçıyordu; 3 Ara FLYCO rest → sahte 4 Ara FLYCO.
