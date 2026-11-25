@@ -45,6 +45,7 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - **Fix:** `skipThyLegNoise` (`Lifus_LT`, P, BUS). Ara→Oca MS sonrası GMB tekrar Ara için yıl −1 (TK1855 2027 kayması).
 - **Doğrulama:** 8 uçuş (TK118/119, 1953/1954, 172/167, 1855/1856); fixture `thy-lifus-lt`; `test-roster-pdf-parser` 8/8 OK.
 - **Dosya:** `supabase/functions/_shared/roster-pdf/airlines/thy/lineScan.ts`.
+- **Yayın:** PR #161 squash → main `95d3dcc`; `supabase functions deploy parse-roster-pdf` (slmgmcpluanezvkgkozw). Canlı Edge: Published_110080 → **8 uçuş** OK.
 
 
 ### 2026-11-11 — RTC Faz 2 PIN 6236
