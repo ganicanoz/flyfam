@@ -1,6 +1,6 @@
 /**
- * Ops console is no longer hosted on the public app.flyfamapp.com site.
- * Operators open docs/ADMIN_STATUS_DASHBOARD.html locally (or a private host).
+ * Redirect operators to the public ops console host.
+ * Auth/authorization remain enforced by admin-dashboard APIs.
  */
 Deno.serve((req) => {
   if (req.method === 'OPTIONS') {
@@ -13,19 +13,16 @@ Deno.serve((req) => {
       },
     });
   }
-  return new Response(
-    JSON.stringify({
-      ok: false,
-      code: 'admin_ui_not_public',
-      message: 'Ops console is not published on the public support host.',
-    }),
-    {
-      status: 410,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-        'Cache-Control': 'no-store',
-      },
+  const inbound = new URL(req.url);
+  const ui = inbound.searchParams.get('ui') || '64';
+  const target = new URL('https://app.flyfamapp.com/admin/');
+  target.searchParams.set('ui', ui);
+  return new Response(null, {
+    status: 302,
+    headers: {
+      Location: target.toString(),
+      'Access-Control-Allow-Origin': '*',
+      'Cache-Control': 'no-store',
     },
-  );
+  });
 });

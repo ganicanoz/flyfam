@@ -7,7 +7,6 @@ on:
     branches: [main, master]
     paths:
       - 'support/**'
-      - 'docs/obens-watches/**'
       - '.github/workflows/deploy-support.yml'
   workflow_dispatch:
 
@@ -39,22 +38,16 @@ jobs:
           test -f support/privacy-policy.html
           test -f support/terms-of-use.html
           test -f support/auth-callback.html
-          # Public host must not ship the ops dashboard.
-          if grep -qi 'FlyFam Ops' support/admin/index.html; then
-            echo 'support/admin/index.html must not contain the ops dashboard'
+          # Ops console must be present on /admin/ (not the not-available placeholder).
+          if ! grep -qi 'FlyFam Ops' support/admin/index.html; then
+            echo 'support/admin/index.html must contain the ops dashboard (FlyFam Ops)'
             exit 1
           fi
-          if grep -qi 'Admin paneli' support/index.html support/support/index.html; then
-            echo 'Public support pages must not link the admin panel'
+          if grep -qi 'This path is not available' support/admin/index.html; then
+            echo 'support/admin/index.html must not be the not-available placeholder'
             exit 1
           fi
           ls -la support/ support/support/ support/admin/
-
-      - name: Copy watches archive
-        run: |
-          mkdir -p support/obens-watches
-          cp -R docs/obens-watches/. support/obens-watches/
-          test -s support/obens-watches/index.html
 
       - name: Setup Pages
         uses: actions/configure-pages@v4

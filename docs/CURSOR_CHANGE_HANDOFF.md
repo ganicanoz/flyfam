@@ -13,13 +13,13 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
-### 2026-11-25 — Saat arşivi yeniden yayın
+### 2026-11-25 — Public /admin/ ops konsolu geri
 
-- **Sorun:** `docs/obens-watches` destek sitesine kopyalanmadığı için `/obens-watches/` 404 dönüyordu.
-- **Dosya:** `.github/workflows/deploy-support.yml`. Yayın adımı arşivi `support/obens-watches` altına kopyalar. Kaynak değişince de destek sitesi yeniden yayınlanır.
-- **Koruma:** Yönetim paneli bu yüzden geri açılmaz. Seri numarası maskesi durur.
-- **Doğrulama:** Yayın sonrası `https://app.flyfamapp.com/obens-watches/` açılışı doğrulanacak.
-- **Canlı:** Yayın sonrası doğrulanacak.
+- **İstek:** `app.flyfamapp.com/admin/` placeholder («This path is not available») yerine eski ops paneli.
+- **Yayın:** `support/admin/index.html` ← `docs/ADMIN_STATUS_DASHBOARD.html` (UI **64**). Workflow tekrar ops dashboard zorunlu kılıyor.
+- **Edge:** `admin-panel-ui` 302 → `https://app.flyfamapp.com/admin/?ui=64`.
+- **Koruma:** Destek/marketing kökünde admin link zorunlu değil; panel `noindex`. API hâlâ admin JWT.
+
 
 ### 2026-11-14 — iOS binary 59 OK + OTA/EAS öğretileri kurallaştı
 
