@@ -13,6 +13,14 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+### 2026-11-25 — Saat arşivi yeniden yayın
+
+- **Sorun:** `docs/obens-watches` destek sitesine kopyalanmadığı için `/obens-watches/` 404 dönüyordu.
+- **Dosya:** `.github/workflows/deploy-support.yml`. Yayın adımı arşivi `support/obens-watches` altına kopyalar. Kaynak değişince de destek sitesi yeniden yayınlanır.
+- **Koruma:** Yönetim paneli bu yüzden geri açılmaz. Seri numarası maskesi durur.
+- **Doğrulama:** Yayın sonrası `https://app.flyfamapp.com/obens-watches/` açılışı doğrulanacak.
+- **Canlı:** Yayın sonrası doğrulanacak.
+
 ### 2026-11-14 — iOS binary 59 OK + OTA/EAS öğretileri kurallaştı
 
 - **Build 59 (OK):** `49cc2312-97fb-4408-8a56-0aa385a9e6d3` finished ~5 dk; submit `722eb3b6-54ed-4bff-ae52-6b059cd7f9aa` finished. Commit `6928811` (worker OTA-sync skip).
