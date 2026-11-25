@@ -11,13 +11,12 @@ Markalı canlı kök: `https://app.flyfamapp.com/`
 | `/privacy-policy.html` | Gizlilik |
 | `/terms-of-use.html` | Kullanım koşulları |
 | `/auth-callback.html` | Auth deep-link köprüsü |
-| `/admin/` | Yayında değil (bilinçli 404 benzeri sayfa) |
-| `/rtc-faz2/` | RTC Faz 2 quiz (çalış + ZIP indir); ana menüde link yok |
+| `/admin/` | Ops konsolu (noindex; admin JWT ile API) |
 
 App Store:
 - Marketing URL: `https://app.flyfamapp.com/` (kök → Base44 marketing)
 - Support URL: `https://app.flyfamapp.com/support/`
 
-Ops konsolu yalnız yerel/özel: `docs/ADMIN_STATUS_DASHBOARD.html` — `app.flyfamapp.com` altında yayınlanmaz.
+Kaynak dosya: `docs/ADMIN_STATUS_DASHBOARD.html` ↔ `support/admin/index.html` (deploy öncesi senkron).
 
 `support/CNAME` GitHub Pages özel alanını `app.flyfamapp.com` olarak sabitler.

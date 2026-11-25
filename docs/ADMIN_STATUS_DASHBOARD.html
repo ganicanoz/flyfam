@@ -3,10 +3,6 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <link rel="apple-touch-icon" sizes="180x180" href="/admin/admin-icon-v2-180.png" />
-  <link rel="icon" type="image/png" href="/admin/admin-icon-v2-192.png" />
-  <link rel="manifest" href="/admin/manifest.webmanifest" />
-  <meta name="apple-mobile-web-app-title" content="FlyFam Admin" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="theme-color" content="#f4f6f8" />
@@ -98,8 +94,8 @@
     }
     .cmd-brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
     .cmd-brand img {
-      width: 44px; height: 44px; flex: none;
-      border: 0; background: transparent; object-fit: contain;
+      width: 28px; height: 28px; border-radius: 7px;
+      border: 1px solid var(--border); background: #fff; object-fit: contain;
     }
     .cmd-brand-title { font-weight: 750; font-size: 14px; letter-spacing: -0.02em; }
     .cmd-brand-sub { font-size: 10px; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; }
@@ -1077,7 +1073,7 @@
   <header class="cmd-bar">
     <div class="cmd-brand">
       <button type="button" class="btn-mobile-nav" id="btnMobileNav" aria-label="Menü" title="Menü">☰</button>
-      <img src="/admin/admin-icon-v2-192.png" width="44" height="44" alt="FlyFam Admin" />
+      <img src="./Görseller/image.png" alt="FlyFam logo" onerror="this.style.display='none'" />
       <div>
         <div class="cmd-brand-title">FlyFam Ops</div>
         <div class="cmd-brand-sub">Admin console</div>
@@ -1750,7 +1746,7 @@
             </div>
             <div>
               <label class="mini">Ara (crew / rota / status)</label>
-              <input id="historyQ" type="text" placeholder="gani, GZP, landed…" style="min-width:160px;" />
+              <input id="historyQ" type="text" placeholder="isim, GZP, landed…" style="min-width:160px;" />
             </div>
             <div style="align-self:end;">
               <button type="button" id="btnHistoryLoad" class="btnPrimary">Yükle</button>
