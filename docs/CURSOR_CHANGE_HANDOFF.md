@@ -13,6 +13,13 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+### 2026-11-25 — Saat arşivi: 23 Kasım alımı
+
+- **Kayıt:** SPB507J1, 23 Kasım 2026, Hong Kong, HK$5.980 (≈ USD 763; TMA 7,8375). Eski SPB121 hedefi listeden çıktı.
+- **Dosya:** `docs/obens-watches/index.html`; `sw.js` önbellek `obw-shell-v6`.
+- **Doğrulama:** `/obens-watches/` 200. Sayfada SPB507J1 ve HK$5.980 var; SPB121J1 yok.
+- **Canlı:** OK. PR #159 merge `5132544f`, deploy `45670457772`.
+
 ### 2026-11-25 — Saat arşivi yeniden yayın
 
 - **Sorun:** `docs/obens-watches` destek sitesine kopyalanmadığı için `/obens-watches/` 404 dönüyordu.
