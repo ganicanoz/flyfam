@@ -30,6 +30,13 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+### 2026-11-25 — THY Lifus roster ops import + push
+
+- **Ne:** Published_110080 PDF → crew roster (`admin_add_crew_to_flight`): 8 Lifus TK + görev satırları; Expo push «Roster'ınıza Lifus uçuşlarınız girilmiştir.» (1 token OK).
+- **Bağlam:** Lifus_LT parser fix (#161) + canlı `parse-roster-pdf` sonrası.
+- **Koruma:** Tek seferlik ops; script commit edilmedi.
+
+
 ### 2026-11-25 — FLYCO = yer dersi (boş gün sanılmasın)
 
 - **Belirti:** Gani Aralık’ta 2–4 Ara `FLYCO` (gündüz blok) vardı; DB’de `duty_off` + kod tanımsız → takvim yeşil boş, ajan/aile de boş sandı. Asıl yer dersi/sınıf.
