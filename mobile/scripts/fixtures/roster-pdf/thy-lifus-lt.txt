@@ -1,0 +1,1068 @@
+
+
+DUVO MUFASIBI LOKUVES - GOKEV UCUS LIMIBOSIBovesi: 01ARA - 01GOB
+824280
+DO
+ZOPOMUS NUPIB
+Tu Ni/Fo/Giv:
+P/562/P6
+Tu Da/Meb U:
+46:00/0:00
+ 
+01Vu
+02Fu
+03Po
+04Ro
+05Pu
+06La
+07To
+08Vu
+09Fu
+10Po
+11Ro
+12Pu
+13La
+14To
+15Vu
+16Fu
+17Po
+18Ro
+19Pu
+20La
+21To
+22Vu
+23Fu
+24Po
+25Ro
+26Pu
+27La
+28To
+29Vu
+30Fu
+31Po
+SFT
+
+IBB
+
+IBB
+
+IBE
+
+IBB
+
+IBB
+
+III
+
+III
+
+III
+
+III
+
+III
+
+III
+
+III
+
+III
+
+III
+
+III
+
+III
+
+III
+
+III
+
+IBB
+
+IBE
+
+VE
+
+IBE
+
+RO
+
+BE
+
+BE
+
+BE
+
+BE
+
+
+
+RO
+
+IST
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+12:30
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+18:30
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+* Mekosav zibuvamivukeve basuvukos kisa ZAVISIV DUVAVIKEBE / GOMUKOSU fipemep gopupiv.
+* Befup fofifisipapev zipof zumi basuvukos LOKAL SAATLI UCUS PROGRAMI fipemep, basuvukos kisa VOFUVIPUKIF fipemep gopupiv.
+Pekubo
+
+Pavis
+
+Sumok
+Zife
+
+
+Vavimo/KIK
+Bepa/KIK
+Dapuka
+1
+
+MB:
+01ARA 12:30
+VI:
+01ARA 18:30
+PE:
+0:00
+LA/NUK:
+6:00/12:00
+KOV:
+02ARA 06:30
+T
+
+BOS:
+01ARA 12:30
+DAV:
+01ARA 18:30
+REM:
+5:00
+SFT
+
+IST/13:30
+IST/01DEC786440:30
+FOKEK MUBE (P6), ZOPOMUS NUPIB DO (P6)
+
+
+22
+
+MB:
+22ARA 10:50
+VI:
+22ARA 21:25
+PE:
+7:10
+LA/NUK:
+10:35/14:20
+KOV:
+23ARA 11:45
+
+
+BOS:
+22ARA 10:50
+DAV:
+22ARA 21:25
+REM:
+10:05
+TK118
+Lifus_LT
+IST/12:20
+MED/22DEC948244:40
+BAKAKUS FOVUME (LU), ZOPOMUS NUPIB DO (P6)
+TK119
+Lifus_LT
+MED/17:05
+IST/22DEC182444:55
+-
+
+
+24
+
+MB:
+24ARA 10:55
+VI:
+24ARA 21:25
+PE:
+7:05
+LA/NUK:
+10:30/14:10
+KOV:
+25ARA 11:35
+
+
+BOS:
+24ARA 10:55
+DAV:
+24ARA 21:25
+REM:
+10:00
+TK1953
+Lifus_LT
+IST/12:25
+AMS/24DEC224040:05
+MAFOB VESAM (LU), ZOPOMUS NUPIB DO (P6)
+TK1954
+Lifus_LT
+AMS/17:30
+IST/24DEC182444:55
+-
+
+
+DEBEFU! HKT  RUBOPISEMEVU RABOK FAPEM RISOFIPUKOSEM! SAVES NUVI SOVUMA MUMEKAVIBUKIF GUBIPIFEMIKABIFUK.
+20486860
+
+MB:
+25ARA 21:30
+VI:
+28ARA 13:20
+PE:
+20:45
+LA/NUK:
+24:15/48:00
+KOV:
+30ARA 13:20
+T
+
+BOS:
+25ARA 21:30
+DAV:
+26ARA 09:20
+REM:
+11:20
+KO/LAF:
+HKT/39:35
+BOS:
+28ARA 00:55
+DAV:
+28ARA 13:20
+REM:
+11:55
+TK172
+Lifus_LT
+IST/23:00
+HKT/26DEC364202:50
+MAFOB VESAM (LU), MIBA BEVE TEPOV (C1), ZOPOMUS NUPIB DO (P6)
+TK167
+Lifus_LT
+HKT/1:55
+IST/28DEC202612:50
+-
+
+
+31
+
+MB:
+31ARA 11:00
+VI:
+31ARA 21:25
+PE:
+7:00
+LA/NUK:
+10:25/14:00
+KOV:
+01GOB 11:25
+T
+
+BOS:
+31ARA 11:00
+DAV:
+31ARA 21:25
+REM:
+9:55
+TK1855
+Lifus_LT
+IST/12:30
+BCN/31DEC224040:05
+LEBOMO PIMIFU (LU), ZOPOMUS NUPIB DO (P6), REKOF BOMEP (C1), MOPAM TAFI RESOP (P5)
+TK1856
+Lifus_LT
+BCN/17:30
+IST/31DEC182444:55
+-
+
+
+Sekopov 21BIF1466 zo livemu
+  1 (  4)
+
+DUVO MUFASIBI LOKUVES - GOKEV UCUS LIMIBOSIBovesi: 01ARA - 01GOB
+
+
+ZAVISIV DUVAVIKEBE / GOMUKOSU
+
+
+
+01GAVO1466 - 01GAVO4284 Kugeve Kibobobep Vipume:
+6422 disobAkubokuf  
+
+ 
+
+KAKA GUVIPIPA: 07DEC1466 00:00 - 19DEC1466 23:59
+
+
+
+
+Mupes
+Vibev
+D1Y
+9424:17
+6002:00
+B1Y
+886:50
+366:00
+B12M
+886:50
+1220:00
+
+
+Saku VokiBumamuvipok
+Zipom Kimosa
+A/C Sesu+226
+29BIF4284
+ 
+Mus Gififuv
+Zipom Kimosa
+Dapipi Gubub
+14MAS1466
+ 
+Bafemuko Ku
+Goko Nopu
+Zipom Kimosa
+U56840642
+PI
+09DEC5622
+ 
+Mekosav Rasa
+Zipom Kimosa
+Mekaves+Vufovimovep2
+31DEC5622
+Kefobo+LafafemOvav
+25POV7428
+Mekaves+KapukaMibaf
+25GIB4284
+Kefobo+PokomEbap
+01BAV1008
+
+
+VOFUVIPUKIF
+
+
+Samafiko
+Besafesu
+MB
+LEMUP NOVE
+VI
+LEMUP GOME
+NUK
+LEMUP FOMOVEVOBOFEKU
+KOV
+NAVUKOFI TIMUBASEFOV
+PE
+UCUS BAFOKA
+LA
+ZOFUM BAFOKA
+BOS
+ZOFUM LEMUP NOVE
+DAV
+ZOFUM LEMUP GOME
+KO
+RESI DUPUBOMOF
+LAF
+RESI NAVUKOFI BAFOKA
+REM
+UCUS ZOFUM BAFOKA
+ZAPEM
+DISUKU LUBOPEMEPESAK ZOFUM BAFOKA
+Vufovimovep1
+Tasibaki
+Vufovimovep2
+Fesa Gobob
+T
+Semefike RosavuVufofupub Kepifumo
+ 
+Sumok
+Besafesu
+IBB
+Pus Niv / Vob Nup
+III
+Fobusub gopi / Dapipi Mobus
+IBE
+Musovosebopabome Pus Niv / RusIku (Pivuvesakek)
+SFT
+SIPI Nifipepop 
+ 
+PukeSosumosaf
+Napa
+Rapopus
+Pobafi(Mobe)
+HKT
+DU Piso Napeso Bususa Komofa
+MUFEPOF SEBI -GEP.MUV.TUK
+1:00
+ 
+
+
+
+FUM
+
+
+SIF
+
+
+ZEP
+
+
+TEP
+
+Sekopov 21BIF1466 zo livemu
+  2 (  4)
+
+DUVO MUFASIBI LOKUVES - GOKEV UCUS LIMIBOSIBovesi: 01ARA - 01GOB
+LOKAL SAATLI UCUS PROGRAMI
+
+
+Pavis
+
+Sumok
+   Mupes / Vibev
+Zife
+
+
+Vavimo/LT
+Bepa/LT
+Dapuka
+MB:
+01ARA 15:30
+VI:
+01ARA 21:30
+PE:
+0:00
+LA/NUK:
+6:00/12:00
+KOV:
+02ARA 09:30
+T
+
+BOS:
+01ARA 15:30
+DAV:
+01ARA 21:30
+SOP:
+-
+SOM:
+IST
+REM:
+5:00/Ziku
+D7 :  
+31:30 / 60:00
+D14: 
+44:30 / 186:00
+D28: 
+95:00 / 744:00
+B28: 
+0:00 / 728:00
+SFT
+
+IST/16:30
+IST/20:30
+FOKEK MUBE (P6), ZOPOMUS NUPIB DO (P6)
+
+
+MB:
+02ARA 00:00
+VI:
+02ARA 23:59
+T
+
+BOS:
+02ARA 00:00
+DAV:
+02ARA 23:59
+SOP:
+-
+SOM:
+IST
+D7 :  
+25:30 / 60:00
+D14: 
+44:30 / 186:00
+D28: 
+95:00 / 744:00
+B28: 
+0:00 / 728:00
+IBB
+
+IST/0:00
+IST/23:59
+
+
+
+MB:
+03ARA 00:00
+VI:
+03ARA 23:59
+T
+
+BOS:
+03ARA 00:00
+DAV:
+03ARA 23:59
+SOP:
+-
+SOM:
+IST
+D7 :  
+19:30 / 60:00
+D14: 
+44:30 / 186:00
+D28: 
+89:00 / 744:00
+B28: 
+0:00 / 728:00
+IBB
+
+IST/0:00
+IST/23:59
+
+
+
+MB:
+04ARA 03:00
+VI:
+04ARA 23:59
+T
+
+BOS:
+04ARA 03:00
+DAV:
+04ARA 23:59
+SOP:
+-
+SOM:
+IST
+D7 :  
+13:00 / 60:00
+D14: 
+37:30 / 186:00
+D28: 
+83:00 / 744:00
+B28: 
+0:00 / 728:00
+IBE
+
+IST/3:00
+IST/23:59
+
+
+
+MB:
+05ARA 00:00
+VI:
+05ARA 23:59
+T
+
+BOS:
+05ARA 00:00
+DAV:
+05ARA 23:59
+SOP:
+-
+SOM:
+IST
+D7 :  
+13:00 / 60:00
+D14: 
+37:30 / 186:00
+D28: 
+83:00 / 744:00
+B28: 
+0:00 / 728:00
+IBB
+
+IST/0:00
+IST/23:59
+
+
+
+MB:
+06ARA 00:00
+VI:
+06ARA 23:59
+T
+
+BOS:
+06ARA 00:00
+DAV:
+06ARA 23:59
+SOP:
+-
+SOM:
+IST
+D7 :  
+13:00 / 60:00
+D14: 
+37:30 / 186:00
+D28: 
+77:00 / 744:00
+B28: 
+0:00 / 728:00
+IBB
+
+IST/0:00
+IST/23:59
+
+
+
+MB:
+07ARA 00:00
+VI:
+19ARA 23:59
+T
+
+BOS:
+07ARA 00:00
+DAV:
+19ARA 23:59
+SOP:
+-
+SOM:
+IST
+D7 :  
+6:00 / 60:00
+D14: 
+37:30 / 186:00
+D28: 
+70:30 / 744:00
+B28: 
+0:00 / 728:00
+III
+
+IST/0:00
+IST/23:59
+
+
+
+MB:
+20ARA 00:00
+VI:
+20ARA 23:59
+T
+
+BOS:
+20ARA 00:00
+DAV:
+20ARA 23:59
+SOP:
+-
+SOM:
+IST
+D7 :  
+0:00 / 60:00
+D14: 
+0:00 / 186:00
+D28: 
+37:30 / 744:00
+B28: 
+0:00 / 728:00
+IBB
+
+IST/0:00
+IST/23:59
+
+
+
+MB:
+21ARA 03:00
+VI:
+21ARA 23:59
+T
+
+BOS:
+21ARA 03:00
+DAV:
+21ARA 23:59
+SOP:
+-
+SOM:
+IST
+D7 :  
+0:00 / 60:00
+D14: 
+0:00 / 186:00
+D28: 
+37:30 / 744:00
+B28: 
+0:00 / 728:00
+IBE
+
+IST/3:00
+IST/23:59
+
+
+
+MB:
+22ARA 13:50
+VI:
+23ARA 00:25
+PE:
+7:10
+LA/NUK:
+10:35/14:20
+KOV:
+23ARA 14:45
+
+
+BOS:
+22ARA 13:50
+DAV:
+23ARA 00:25
+SOP:
+-
+SOM:
+IST
+KIM:
+VapEfebePepek
+REM:
+10:05/12:45
+D7 :  
+10:35 / 60:00
+D14: 
+10:35 / 186:00
+D28: 
+41:40 / 744:00
+B28: 
+7:10 / 728:00
+TK118
+Lifus_LT
+IST/15:20
+MED/18:40
+BAKAKUS FOVUME (LU), ZOPOMUS NUPIB DO (P6)
+TK119
+Lifus_LT
+MED/20:05
+IST/23:55
+-
+Lifus_LT:
+ Va suvamu Tibabo Lifus LT nabepof dosofobivem
+
+
+MB:
+23ARA 03:00
+VI:
+23ARA 23:59
+
+
+BOS:
+23ARA 03:00
+DAV:
+23ARA 23:59
+SOP:
+-
+SOM:
+IST
+D7 :  
+10:35 / 60:00
+D14: 
+10:35 / 186:00
+D28: 
+36:05 / 744:00
+B28: 
+7:10 / 728:00
+IBE
+
+IST/3:00
+IST/23:59
+
+
+
+Sekopov 21BIF1466 zo livemu
+  3 (  4)
+
+DUVO MUFASIBI LOKUVES - GOKEV UCUS LIMIBOSIBovesi: 01ARA - 01GOB
+Pavis
+
+Sumok
+   Mupes / Vibev
+Zife
+
+
+Vavimo/LT
+Bepa/LT
+Dapuka
+MB:
+24ARA 13:55
+VI:
+25ARA 00:25
+PE:
+7:05
+LA/NUK:
+10:30/14:10
+KOV:
+25ARA 14:35
+
+
+BOS:
+24ARA 13:55
+DAV:
+25ARA 00:25
+SOP:
+-
+SOM:
+IST
+KIM:
+VapEfebePepek
+REM:
+10:00/12:45
+D7 :  
+21:05 / 60:00
+D14: 
+21:05 / 186:00
+D28: 
+40:10 / 744:00
+B28: 
+14:15 / 728:00
+TK1953
+Lifus_LT
+IST/15:25
+AMS/17:05
+MAFOB VESAM (LU), ZOPOMUS NUPIB DO (P6)
+TK1954
+Lifus_LT
+AMS/18:30
+IST/23:55
+-
+Lifus_LT:
+ Va suvamu Tibabo Lifus LT nabepof dosofobivem
+
+
+DEBEFU! HKT  RUBOPISEMEVU RABOK FAPEM RISOFIPUKOSEM! SAVES NUVI SOVUMA MUMEKAVIBUKIF GUBIPIFEMIKABIFUK.
+MB:
+26ARA 00:30
+VI:
+28ARA 16:20
+PE:
+20:45
+LA/NUK:
+24:15/48:00
+KOV:
+30ARA 16:20
+T
+
+BOS:
+26ARA 00:30
+DAV:
+26ARA 16:20
+SOP:
+1:30/2:00
+SOM:
+IST
+KIM:
+KepuMobeko
+REM:
+11:20/15:00
+KO/LAF:
+HKT/39:35
+BOS:
+28ARA 07:55
+DAV:
+28ARA 16:20
+SOP:
+1:30/2:00
+SOM:
+FAB
+KIM:
+KepuMobeko
+REM:
+11:55/15:30
+D7 :  
+32:55 / 60:00
+D14: 
+32:55 / 186:00
+D28: 
+45:55 / 744:00
+B28: 
+24:05 / 728:00
+D7 :  
+45:20 / 60:00
+D14: 
+45:20 / 186:00
+D28: 
+51:20 / 744:00
+B28: 
+35:00 / 728:00
+TK172
+Lifus_LT
+IST/2:00
+HKT/15:50
+MAFOB VESAM (LU), MIBA BEVE TEPOV (C1), ZOPOMUS NUPIB DO (P6)
+TK167
+Lifus_LT
+HKT/8:55
+IST/15:50
+-
+Lifus_LT:
+ Va suvamu Tibabo Lifus LT nabepof dosofobivem
+
+
+MB:
+31ARA 14:00
+VI:
+01GOB 00:25
+PE:
+7:00
+LA/NUK:
+10:25/14:00
+KOV:
+01GOB 14:25
+T
+
+BOS:
+31ARA 14:00
+DAV:
+01GOB 00:00
+SOP:
+-
+SOM:
+IST
+KIM:
+VapEfebePepek
+REM:
+9:55/12:30
+D7 :  
+34:40 / 60:00
+D14: 
+55:20 / 186:00
+D28: 
+55:20 / 744:00
+B28: 
+42:00 / 728:00
+TK1855
+Lifus_LT
+IST/15:30
+BCN/17:05
+LEBOMO PIMIFU (LU), ZOPOMUS NUPIB DO (P6), REKOF BOMEP (C1), TOMUFIPUK RESOP (P5)
+TK1856
+Lifus_LT
+BCN/18:30
+IST/23:55
+-
+Lifus_LT:
+ Va suvamu Tibabo Lifus LT nabepof dosofobivem
+
+
+
+
+VOFUVIPUKIF
+
+
+Samafiko
+Besafesu
+VUP
+Zife Sumok Tapopi
+D7
+7 Tasesu Sumok Tapopi
+D14
+14 Tasesu Sumok Tapopi
+D28
+28 Tasesu Sumok Tapopi
+D1Y
+Gakifa Veme Lepibovavo Niseve Sumok Losam
+B28
+28 Tasesu Zife Tapopi
+B12M
+12 Befup Zife Tapopi
+B1Y
+Gakifa Veme Lepibovavo Niseve Zife Tapopi
+SOM
+Sibuvet
+SOP
+Rupipob Saku Kef Kepifumo (zes 1:30 zumi, tubo vupim bako kisa 2:00 zevobap)
+KIM
+Kesu Zife Rasa
+Sekopov 21BIF1466 zo livemu
+  4 (  4)

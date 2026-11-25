@@ -1,0 +1,205 @@
+{
+  "layout": "thy",
+  "rows": [
+    {
+      "roster_entry_kind": "duty_off",
+      "flight_number": "SFT",
+      "flight_date": "2026-12-01",
+      "duty_occupation_code": "SFT",
+      "duty_occupation_label_tr": "SFT",
+      "duty_occupation_label_en": "SFT",
+      "duty_start_time_local": "16:30",
+      "duty_end_date_iso": "2026-12-01",
+      "duty_end_time_local": "20:30",
+      "duty_clock_basis": "local"
+    },
+    {
+      "roster_entry_kind": "duty_off",
+      "flight_number": "IBB",
+      "flight_date": "2026-12-02",
+      "duty_occupation_code": "IBB",
+      "duty_occupation_label_tr": "Boş Gün",
+      "duty_occupation_label_en": "Off Day",
+      "duty_start_time_local": "00:00",
+      "duty_end_date_iso": "2026-12-02",
+      "duty_end_time_local": "23:59",
+      "duty_clock_basis": "local"
+    },
+    {
+      "roster_entry_kind": "duty_off",
+      "flight_number": "IBB",
+      "flight_date": "2026-12-03",
+      "duty_occupation_code": "IBB",
+      "duty_occupation_label_tr": "Boş Gün",
+      "duty_occupation_label_en": "Off Day",
+      "duty_start_time_local": "00:00",
+      "duty_end_date_iso": "2026-12-03",
+      "duty_end_time_local": "23:59",
+      "duty_clock_basis": "local"
+    },
+    {
+      "roster_entry_kind": "duty_off",
+      "flight_number": "IBE",
+      "flight_date": "2026-12-04",
+      "duty_occupation_code": "IBE",
+      "duty_occupation_label_tr": "Boş Gün",
+      "duty_occupation_label_en": "Replaceable Off Day",
+      "duty_start_time_local": "03:00",
+      "duty_end_date_iso": "2026-12-04",
+      "duty_end_time_local": "23:59",
+      "duty_clock_basis": "local"
+    },
+    {
+      "roster_entry_kind": "duty_off",
+      "flight_number": "IBB",
+      "flight_date": "2026-12-05",
+      "duty_occupation_code": "IBB",
+      "duty_occupation_label_tr": "Boş Gün",
+      "duty_occupation_label_en": "Off Day",
+      "duty_start_time_local": "00:00",
+      "duty_end_date_iso": "2026-12-05",
+      "duty_end_time_local": "23:59",
+      "duty_clock_basis": "local"
+    },
+    {
+      "roster_entry_kind": "duty_off",
+      "flight_number": "IBB",
+      "flight_date": "2026-12-06",
+      "duty_occupation_code": "IBB",
+      "duty_occupation_label_tr": "Boş Gün",
+      "duty_occupation_label_en": "Off Day",
+      "duty_start_time_local": "00:00",
+      "duty_end_date_iso": "2026-12-06",
+      "duty_end_time_local": "23:59",
+      "duty_clock_basis": "local"
+    },
+    {
+      "roster_entry_kind": "duty_off",
+      "flight_number": "III",
+      "flight_date": "2026-12-07",
+      "duty_occupation_code": "III",
+      "duty_occupation_label_tr": "Yıllık İzin",
+      "duty_occupation_label_en": "Annual Leave",
+      "duty_start_time_local": "00:00",
+      "duty_end_date_iso": "2026-12-07",
+      "duty_end_time_local": "23:59",
+      "duty_clock_basis": "local"
+    },
+    {
+      "roster_entry_kind": "duty_off",
+      "flight_number": "IBB",
+      "flight_date": "2026-12-20",
+      "duty_occupation_code": "IBB",
+      "duty_occupation_label_tr": "Boş Gün",
+      "duty_occupation_label_en": "Off Day",
+      "duty_start_time_local": "00:00",
+      "duty_end_date_iso": "2026-12-20",
+      "duty_end_time_local": "23:59",
+      "duty_clock_basis": "local"
+    },
+    {
+      "roster_entry_kind": "duty_off",
+      "flight_number": "IBE",
+      "flight_date": "2026-12-21",
+      "duty_occupation_code": "IBE",
+      "duty_occupation_label_tr": "Boş Gün",
+      "duty_occupation_label_en": "Replaceable Off Day",
+      "duty_start_time_local": "03:00",
+      "duty_end_date_iso": "2026-12-21",
+      "duty_end_time_local": "23:59",
+      "duty_clock_basis": "local"
+    },
+    {
+      "roster_entry_kind": "flight",
+      "flight_number": "TK118",
+      "flight_date": "2026-12-22",
+      "origin_iata": "IST",
+      "destination_iata": "MED",
+      "dep_time_local": "15:20",
+      "arr_time_local": "18:40",
+      "duty_clock_basis": "local"
+    },
+    {
+      "roster_entry_kind": "flight",
+      "flight_number": "TK119",
+      "flight_date": "2026-12-22",
+      "origin_iata": "MED",
+      "destination_iata": "IST",
+      "dep_time_local": "20:05",
+      "arr_time_local": "23:55",
+      "duty_clock_basis": "local"
+    },
+    {
+      "roster_entry_kind": "duty_off",
+      "flight_number": "IBE",
+      "flight_date": "2026-12-23",
+      "duty_occupation_code": "IBE",
+      "duty_occupation_label_tr": "Boş Gün",
+      "duty_occupation_label_en": "Replaceable Off Day",
+      "duty_start_time_local": "03:00",
+      "duty_end_date_iso": "2026-12-23",
+      "duty_end_time_local": "23:59",
+      "duty_clock_basis": "local"
+    },
+    {
+      "roster_entry_kind": "flight",
+      "flight_number": "TK1953",
+      "flight_date": "2026-12-24",
+      "origin_iata": "IST",
+      "destination_iata": "AMS",
+      "dep_time_local": "15:25",
+      "arr_time_local": "17:05",
+      "duty_clock_basis": "local"
+    },
+    {
+      "roster_entry_kind": "flight",
+      "flight_number": "TK1954",
+      "flight_date": "2026-12-24",
+      "origin_iata": "AMS",
+      "destination_iata": "IST",
+      "dep_time_local": "18:30",
+      "arr_time_local": "23:55",
+      "duty_clock_basis": "local"
+    },
+    {
+      "roster_entry_kind": "flight",
+      "flight_number": "TK172",
+      "flight_date": "2026-12-26",
+      "origin_iata": "IST",
+      "destination_iata": "HKT",
+      "dep_time_local": "02:00",
+      "arr_time_local": "15:50",
+      "duty_clock_basis": "local"
+    },
+    {
+      "roster_entry_kind": "flight",
+      "flight_number": "TK167",
+      "flight_date": "2026-12-28",
+      "origin_iata": "HKT",
+      "destination_iata": "IST",
+      "dep_time_local": "08:55",
+      "arr_time_local": "15:50",
+      "duty_clock_basis": "local"
+    },
+    {
+      "roster_entry_kind": "flight",
+      "flight_number": "TK1855",
+      "flight_date": "2026-12-31",
+      "origin_iata": "IST",
+      "destination_iata": "BCN",
+      "dep_time_local": "15:30",
+      "arr_time_local": "17:05",
+      "duty_clock_basis": "local"
+    },
+    {
+      "roster_entry_kind": "flight",
+      "flight_number": "TK1856",
+      "flight_date": "2026-12-31",
+      "origin_iata": "BCN",
+      "destination_iata": "IST",
+      "dep_time_local": "18:30",
+      "arr_time_local": "23:55",
+      "duty_clock_basis": "local"
+    }
+  ]
+}

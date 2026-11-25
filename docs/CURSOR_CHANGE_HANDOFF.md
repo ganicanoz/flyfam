@@ -2,6 +2,24 @@
 
 Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan devam etmesi için yaşayan teknik kayıttır. Yeni bir kod/dosya değişikliği tamamlandığında aynı formatla alta kayıt eklenmelidir. Gizli anahtar, parola veya kişisel kimlik bilgisi yazılmaz.
 
+## AKTİF GÖREV KİLİDİ — 2026-10-06
+
+### Cursor sahibi: RevenueCat / iOS IAP / build 52 native hazırlığı
+
+- Cursor, RevenueCat entegrasyonu ve iOS satın alma akışının tek aktif sahibidir. Özellikle `mobile/lib/revenueCat.ts`, `mobile/lib/iapRestore.ts`, `mobile/lib/iapStorePrices.ts`, `mobile/screens/Plans.tsx`, `mobile/App.tsx`, `mobile/package*.json`, `mobile/ios/Podfile*`, `mobile/ios/FlyFam.xcodeproj/project.pbxproj`, `mobile/app.config.js` ve ilgili EAS/native dosyalarda çalışabilir.
+- Hedef build **1.3.0 (52)** (51 TestFlight'ta; IAP satın alma/yükseltme/geri yükleme 51 ile doğrulandı; 52 = 51 + Ekip Odası, TestFlight `VALID`). RevenueCat değişiklikleri, aynı native dosyalara dokunan EAS Update kurulumu ile birlikte korunmalı; lockfile/pbxproj/Podfile parçaları birbirinden koparılmamalı.
+- RevenueCat satın alma, yükseltme, restore, StoreKit ürün görünürlüğü ve backend doğrulama zinciri build 51 ile gerçek cihazda tamamlandı. Cursor bundan sonra bu alanlarda yalnız doğrulanmış regresyon veya kullanıcı talebi varsa değişiklik yapmalı; build 52 QA sonucu gelmeden yeni native/IAP değişikliği başlatmamalıdır.
+- **Gönderim sınırı:** Kullanıcının ayrıca açık onayı olmadan `Submit for Review`, `Resubmit to App Review`, EAS submit veya mağaza yayını yapılmamalı.
+
+### Codex sahibi: yayın dokümanı / metadata / App Store taslak takibi
+
+- Codex bu görev kilidi kalkana kadar yukarıdaki RevenueCat/IAP/native dosyalarına dokunmayacak.
+- Codex yalnız `docs/ROUTE_TO_LIVE.html`, App Review/metadata/destek belgeleri, App Store Connect taslak kontrolü ve RevenueCat koduna temas etmeyen QA hazırlıklarını sürdürecek.
+- Build 50 eski reddedilmiş submission içinde bırakıldı. Codex, 14 aboneliğin bulunduğu yeni taslağa build 52 uygulama sürümünü ekleyecek (build 51 değil; App Review demo notları Ekip Odası sekmesine göre güncellenmeli); hedef toplam 15 öğe. Nihai gönderim yine ayrı kullanıcı onayı gerektirir.
+- Çakışma önleme: Cursor, Codex'in hazırladığı `docs/APP_REVIEW_NOTES_IOS_1.3.0.md`, `docs/APP_STORE_METADATA_IOS_1.3.0.md` ve `docs/SUPPORT_RESPONSE_TEMPLATES_TR_EN.md` dosyalarını silmemeli veya eski metinlerle değiştirmemeli.
+- Güncel karar: build 52 TestFlight'ta hazır. iPhone/iPad QA artık yapılabilir; ancak App Store submission, yayıncı kimliği kararı ve Apple Case-ID 22263788 yanıtı netleşene kadar park halinde. Kullanıcı ayrıca açık onay vermeden hiçbir gönderim/yayın yapılmayacak.
+- 6 Ekim kullanıcı kararı: finansal/yayıncı kimliği sonucu beklenirken teknik ve içerik işleri durmayacak. Bu karar iPhone/iPad QA, mağaza metni, App Review notu, privacy beyan hazırlığı ve test kanıtlarının ilerletilmesini kapsar; submit, banka/vergi/yayıncı hesabı değişikliği yetkisi vermez.
+
 ## Değişmez koruma kuralları
 
 - Kullanıcının mevcut çalışma ağacı değişiklikleri korunur; kapsam dışı dosyalar geri alınmaz.
@@ -9,154 +27,47 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - Sunucu sırları mobil uygulamaya veya EAS yükleme arşivine dahil edilmez.
 - Store ürün kimlikleri, auth callback'leri, migrationlar ve sürüm numaraları kanıt olmadan değiştirilmez.
 - Route to Live maddeleri yalnız doğrulama kanıtıyla `OK` yapılır.
-- Kullanıcı aksini söylemedikçe istenen aile planı değişikliği sorulmadan `main`'e alınır ve `https://app.flyfamapp.com/aile/` üzerinde doğrulanır. Repodaki `family-planner` kopyası canlı finans ve borç eylemlerini içermediği sürece o fonksiyon bu yüzden deploy edilmez.
 
 ## Güncel teknik kayıtlar
 
-### 2026-11-25 — Saat arşivi: 23 Kasım alımı
+### 2026-11-25 — FLYCO = yer dersi (boş gün sanılmasın)
 
-- **Kayıt:** SPB507J1, 23 Kasım 2026, Hong Kong, HK$5.980 (≈ USD 763; TMA 7,8375). Eski SPB121 hedefi listeden çıktı.
-- **Dosya:** `docs/obens-watches/index.html`; `sw.js` önbellek `obw-shell-v6`.
-- **Doğrulama:** `/obens-watches/` 200. Sayfada SPB507J1 ve HK$5.980 var; SPB121J1 yok.
-- **Canlı:** OK. PR #159 merge `5132544f`, deploy `45670457772`.
+- **Belirti:** Gani Aralık’ta 2–4 Ara `FLYCO` (gündüz blok) vardı; DB’de `duty_off` + kod tanımsız → takvim yeşil boş, ajan/aile de boş sandı. Asıl yer dersi/sınıf.
+- **Kök neden:** Import uçuş/sim dışı kodları `duty_off` yazar; UI ayrımı `isTrainingOccupationCode`. `YERDR` vardı, **`FLYCO` yoktu**.
+- **Düzeltme:** `occupationLabels.ts` FLYCO→training + Yer Dersi etiketi; `dutyDetailVisual`/`EditDuty` training; `support/aile` FLYCO/YERDR görev aralığı.
+- **Koruma:** FOF/FSF/VAV off aynı. Yeniden import gerekmez; OTA/yenileme ile kırmızı görev görünür.
+- **Doğrulama:** `isTrainingOccupationCode('FLYCO')` / `isGroundDutyOccupationCode` true, etiket «Yer Dersi».
 
-### 2026-11-25 — Saat arşivi yeniden yayın
+### 2026-11-25 — THY PDF: Lifus_LT arası uçuş kaçırma
 
-- **Sorun:** `docs/obens-watches` destek sitesine kopyalanmadığı için `/obens-watches/` 404 dönüyordu.
-- **Dosya:** `.github/workflows/deploy-support.yml`. Yayın arşivi `support/obens-watches` altına kopyalar. Ops paneli kontrolü durur.
-- **Koruma:** Seri numarası maskesi durur. `/admin/` ops paneli bu kayıtla kapanmaz.
-- **Doğrulama:** `/obens-watches/` 200, başlık `OB.W. · Oben Watches`; `app.js`, `sw.js`, manifest ve ikon 200. `/admin/` içinde `FlyFam Ops` duruyor.
-- **Canlı:** OK. PR #157 merge `5602c6b2`, deploy `45668196919`.
-
-### 2026-11-25 — Public /admin/ ops konsolu geri
-
-- **İstek:** `app.flyfamapp.com/admin/` placeholder («This path is not available») yerine eski ops paneli.
-- **Yayın:** `support/admin/index.html` ← `docs/ADMIN_STATUS_DASHBOARD.html` (UI **64**). Workflow tekrar ops dashboard zorunlu kılıyor.
-- **Edge:** `admin-panel-ui` 302 → `https://app.flyfamapp.com/admin/?ui=64`.
-- **Koruma:** Destek/marketing kökünde admin link zorunlu değil; panel `noindex`. API hâlâ admin JWT.
-
-
-### 2026-11-14 — iOS binary 59 OK + OTA/EAS öğretileri kurallaştı
-
-- **Build 59 (OK):** `49cc2312-97fb-4408-8a56-0aa385a9e6d3` finished ~5 dk; submit `722eb3b6-54ed-4bff-ae52-6b059cd7f9aa` finished. Commit `6928811` (worker OTA-sync skip).
-- **Öğreti → pratik:** `.cursor/rules/flyfam-ota-eas-build.mdc` (OTA/EAS); `flyfam-change-handoff.mdc` OTA maddesi worker no-op ile güncellendi. Worker’da `eas update:list` yasak.
-- **Koruma:** Yerel `verify:ota-sync` yetkili kapı; `EAS_BUILD=true` early exit zorunlu kalsın.
-
-
-### 2026-11-14 — Build 59 hang: EAS worker OTA sync skip
-
-- **Kök neden:** `eas-build-pre-install` → `verify-ota-build-sync.mjs` worker’da `npx eas-cli update:list` çağırıyordu; ~82 dk sonra `SERVER_ERROR` (worker drop). Build 58’de bu script yoktu (~5 dk OK).
-- **Fix:** `EAS_BUILD=true` iken script hemen exit 0 (yerel pre-upload gate yeterli).
-- **Dosya:** `mobile/scripts/verify-ota-build-sync.mjs`.
-- **Not:** 59 denemeleri `69ccf301` / `7a5aa04f` / `db4390dd` errored; `869a1825` cancel.
-
-
-### 2026-11-14 — iOS binary 59 3. deneme
-
-- 2. deneme `7a5aa04f…` yine **SERVER_ERROR** (worker drop); submit canceled.
-- 3. deneme: build `db4390dd-4e6d-46fe-b4ad-2389264aff47` + submit `ab4f505f-4e8c-4585-a4bf-c8bf7819a1ee` (1.3.0/59).
-
-
-### 2026-11-14 — iOS binary 59 retry (worker drop)
-
-- İlk build `69ccf301…` **errored** (EAS worker connection lost); submit `dc8c04d3…` canceled.
-- Retry: build `7a5aa04f-4190-4fd5-8bc4-01fc90b5a430` + auto-submit `d79361a3-da42-48ee-a75a-2aa273e35fd8` (1.3.0/59, `a0aef97`).
-
-
-### 2026-11-11 — Where-plane maps chip + binary 59
-
-- **UI:** «Uçağım nerede» uçuş kodu satırının sağına taşındı; Google Maps benzeri soft/bulanık harita gradyanı + uçak ikonu. Reg her zaman kalem düğmesiyle düzenlenir.
-- **Sürüm:** marketing `1.3.0`, iOS `buildNumber`/`CURRENT_PROJECT_VERSION` **59**, Android `versionCode` **59**.
-- **Dosyalar:** `RosterFlightCard.tsx`, locales, `app.config.js`, `project.pbxproj`, `android/app/build.gradle`, NSE ensure script.
-- **Yayın:** iOS production EAS build + ASC auto-submit (App Review submit yok).
-- **Koruma:** runtimeVersion `1.3.0` string; OTA sync gate açık.
-- **EAS (kuyruk, OK start):** build `69ccf301-a480-42d5-bdfa-3b890e201806` + auto-submit `dc8c04d3-4307-4355-b8b0-4a7aba7a019c` (1.3.0 / 59, commit `4ed770b`).
-- **Not:** Yerel `eas build` öncesi `npm run verify:ota-sync` OK; upload sırasında `FLYFAM_SKIP_OTA_SYNC=1` (app.config içindeki nested `eas update:list` takılması). Worker/pre-install + HEAD OTA ancestor kontrolü ayrıca geçti.
-
-
-
-### 2026-11-11 — Where-is-plane: aynı satır + reg her zaman düzenlenebilir
-
-- **UI:** «Uçağım nerede» artık ekstra satır değil; uçuş kodu (PC…) ile aynı `topRow` içinde kompakt chip (kalem = reg düzenle). Kart yüksekliği artmaz.
-- **Reg:** API reg varken de düzenlenebilir. Manuel override FR24 için öncelikli. Override yalnız uçak değişince (sistem A→B) veya sistem reg boşalınca temizlenir.
-- **Dosyalar:** `RosterFlightCard.tsx`, `aircraftRegOverride.ts`, `Roster.tsx`, TR/EN locale, `test-where-is-plane.ts`.
-- **Neden değiştiremiyordu:** `canEdit` API-only’de false idi + API farklı reg gelince override siliniyordu.
-- **OTA (OK):** group `979efc87-1272-41d2-b355-67eaa6f660ea` — iOS `01a1cb45-9d1a-7a56-8993-13d12270cdfb` (origin/main `374efe0`).
-
-
-
-### 2026-11-11 — OTA kurtarma: emergency skip kaldır + sync kapısı geri
-
-- **Basit özet:** Sunucu OTA’yı gönderiyordu; cihaz “acil moda” düşünce uygulama yeni OTA’yı indirmeyi bırakıyordu. Artık acil modda da indirir. Ayrıca OTA yalnız temiz `origin/main`’den, sonraki store build OTA commit’ini içermeli (verify script).
-- **Dosyalar:** `mobile/lib/applyOtaUpdate.ts`, `mobile/scripts/verify-ota-build-sync.mjs`, `mobile/scripts/publish-ota.mjs`, `mobile/package.json`, `mobile/app.config.js` (`APP_ENV=production` kapısı; CommonJS — ESM `import` Expo config’i kırıyordu).
-- **Kullanım:** `cd mobile && npm run ota:production -- "mesaj"` (temiz main). Store: `eas build --profile production` otomatik sync kontrolü.
-- **Koruma:** `FLYFAM_SKIP_OTA_SYNC=1` yalnız acil bypass. Fingerprint runtime policy yok (`1.3.0` string).
-- **PR:** #126 + #127 (`222a2ea`).
-- **OTA (OK):** group `cfe38dae-47da-4168-95ad-895f71de5131` — iOS `01a1cb33-70ab-78d6-8a95-bb17ea860b86`, Android `01a1cb33-70ab-72d6-9ec9-855cf0e7811d` (origin/main `222a2ea`, runtime `1.3.0`).
-- **Sonraki store build:** `222a2ea` veya descendant (verify:ota-sync).
-
-
-### 2026-11-11 — RTC Faz 2 PIN cache-bust (6236)
-
-- Sunucuda PIN zaten `6236` idi; HTML `pin.js?v=6236b` ile cache kırıldı. Unlock key `v3`.
+- **PDF:** Carmen `Published_*` (LOKAL SAATLI); örnekte tüm TK ayaklarında `TK118` → `Lifus_LT` → `IST/…` sırası.
+- **Neden:** Lokal/GMT leg tarayıcıları uçuş no ile rota arasında yalnız `P`/`BUS` atlıyordu; `Lifus_LT` yüzünden `parseThyLocalTimeLine` fail → 0 uçuş (yalnız IBB/IBE/III/SFT).
+- **Fix:** `skipThyLegNoise` (`Lifus_LT`, P, BUS). Ara→Oca MS sonrası GMB tekrar Ara için yıl −1 (TK1855 2027 kayması).
+- **Doğrulama:** 8 uçuş (TK118/119, 1953/1954, 172/167, 1855/1856); fixture `thy-lifus-lt`; `test-roster-pdf-parser` 8/8 OK.
+- **Dosya:** `supabase/functions/_shared/roster-pdf/airlines/thy/lineScan.ts`.
 
 
 ### 2026-11-11 — RTC Faz 2 PIN 6236
 
-- `/rtc-faz2/` ve `/rtc-faz2/quiz/` PIN `6236` olarak güncellendi (eski session key invalidate).
-
-
-### 2026-11-11 — iOS binary 58 (where-plane UX gömülü) + OTA teşhis
-
-- **İstek:** OTA cihazda görünmedi; temiz store binary 58.
-- **OTA teşhis (sunucu OK):** production channel → group `a707d35f…` (where-plane UX); runtime `1.3.0`; build 57 channel `production`, `EXUpdatesEnabled`, LaunchWaitMs 8000. Manifest iOS@1.3.0 güncel update’i sunuyor.
-- **Muhtemel cihaz nedeni:** önceki bozuk OTA sonrası **emergency/embedded**’e düşüş (handoff 2026-10-30 ile aynı desen) veya OTA indirmesine rağmen reload/kill yok. Sunucu/kanal hatası değil.
-- **Çözüm:** build **58** — `origin/main` @ where-plane UX (`036494b`+) gömülü; OTA’ya bağımlı değil.
-- **Sürüm:** marketing `1.3.0`, iOS `buildNumber`/`CURRENT_PROJECT_VERSION` **58**, Android `versionCode` **58**.
-- **Koruma:** App Review submit yok (yalnız EAS build + ASC auto-submit / TestFlight).
-- **EAS (kuyruk):** build `7f682d13-1e59-4cfe-9d98-4f0a5ce8fddc` + auto-submit `06926945-5e22-46f0-b29b-3a082b825904` (1.3.0 / 58, commit `87d189a`).
-
-
-### 2026-11-11 — Uçağım nerede: reg düzenle + buton UX (OTA)
-
-- **Davranış:** API/sistem reg gelince manuel override ezilir (önceki gibi). Uçak swap’inde sistem reg değişince/boşalınca override temizlenir → yeniden girilebilir. API yokken uzun basış / «Değiştir» ile modal.
-- **UI:** Buton kart ortasında, sky/cyan chip, `locate` ikonu.
-- **Dosyalar:** `RosterFlightCard`, `AircraftRegPromptModal`, `aircraftRegOverride`, `Roster.tsx`, TR/EN locale, `test-where-is-plane.ts`.
-- **Yayın:** JS-only → production OTA (build 58 gerekmez). `runtimeVersion` 1.3.0.
-- **Doğrulama:** `npx tsx mobile/scripts/test-where-is-plane.ts` PASS; `tsc --noEmit` OK.
-- **OTA:** group `a707d35f-c341-4f3d-9531-1832a2d42cac` — iOS `01a1cae9-0027-7c85-b52c-822bd01d9435`, Android `01a1cae9-0027-7ee3-bbdd-dfc04ac75723` (origin/main `036494b`, runtime `1.3.0`).
+- Canlı PIN `6236` (PR #124).
 
 
 ### 2026-11-11 — RTC Faz 2: phase23 reparse + filtre/UX
 
-- **phase 2-3 docx:** satır satır yeniden tarandı (inline tab/boşluk + oral Q→altı cevap); sticky header bug’ı (`Flash lights`) düzeltildi.
-- **Filtre:** sorulara `bucket=mcq|open` yazıldı; MCQ/Açık filtre artık çalışır.
-- **UX:** `Kontrol et` / doğru-yanlış kaldırıldı. MCQ doğru şık seçilince yeşil + cevap açılır. Açık sorularda `Cevabı gör`.
-- **Yayın:** `support/rtc-faz2/` + ZIP güncellendi.
+- Canlı: https://app.flyfamapp.com/rtc-faz2/quiz/ (PIN 7722). PR #119 deploy OK.
+- Filtre bucket düzeltildi; Kontrol et kaldırıldı; MCQ doğru şık yeşil.
 
 
 ### 2026-11-10 — RTC Faz 2 quiz PIN kapısı
 
-- **İstek:** `app.flyfamapp.com/rtc-faz2` için şifre; yalnız rakam klavye.
-- **PIN:** `7722` (client-side `sessionStorage`; kapak + quiz). Sayısal pad + `inputmode=numeric`.
-- **Dosya:** `support/rtc-faz2/pin.js`, `pin.css`; quiz/ZIP güncellendi.
-- **Doğrulama:** Deploy sonrası kapak/quiz PIN ister; doğru PIN içerik açılır.
+- **Canlı:** `/rtc-faz2/` ve `/rtc-faz2/quiz/` PIN `7722`; rakam pad + `inputmode=numeric`. PR #118 deploy OK.
 
 
 ### 2026-11-10 — RTC Faz 2 quiz public host (app.flyfamapp.com)
 
-- **İstek:** Offline RTC Faz 2 quiz paketini FlyFam domain altında yayınla; tarayıcıda çalıştır + ZIP indir.
-- **Yol:** `support/rtc-faz2/` → `https://app.flyfamapp.com/rtc-faz2/` (kapak), `/rtc-faz2/quiz/` (quiz), `/rtc-faz2/RTC_Faz2_Quiz_iPad.zip` (indir).
-- **İçerik:** Yalnız kullanılan `media/refs` + `media/phase23` görselleri; boş Word highlight şeritleri yok. Ana destek menüsüne link eklenmedi (`noindex`).
-- **Koruma:** Auth/privacy/terms/admin/aile yolları aynı. Ops dashboard yayına alınmadı.
-- **Doğrulama:** Deploy support site sonrası kapak/quiz/ZIP HTTP 200.
-
-
-### 2026-11-10 — App Store metadata + Support page: aviation English
-
-- **Doküman:** `docs/APP_STORE_METADATA_IOS_1.3.0.md` İngilizce birincil; en-US metin havacılık İngilizcesi (roster, departure/arrival, reserve, standby, diversion, sector, Crew Room). TR locale ASC için ayrı blokta korundu.
-- **Support URL sayfası:** `support/support/index.html` İngilizce FAQ (aviation-friendly wording).
-- **Koruma:** ASC’ye otomatik yazılmadı; kullanıcı onayıyla en-US alanlara yapıştırılmalı. Review submit yok.
+- **Canlı:** https://app.flyfamapp.com/rtc-faz2/ (kapak), `/rtc-faz2/quiz/` (çalış), `/rtc-faz2/RTC_Faz2_Quiz_iPad.zip` (~30 MB indir).
+- **Yayın:** PR #117 merge → Deploy support site success; üç URL HTTP 200.
+- **Not:** Ana menüde link yok (`noindex`). Yerel kirli `main` worktree’ye dokunulmadı; içerik `origin/main` üzerinden gitti.
 
 
 ### 2026-11-10 — Codex: Cursor sonrası site ve App Store dil kontrolü
@@ -172,383 +83,198 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - **Destek e-posta:** Kamusal yüzeyler + force-update metinleri `flyfamapp@gmail.com` (eski `support@flyfamapp.com` kaldırıldı). Production `app_release_policy.default.android_invite_email` güncellendi. Migration `20261109140000_restore_gmail_support_email.sql`.
 - **Public site:** `app.flyfamapp.com/` → `https://flyfam.base44.app/` yönlendirme. Destek SSS: `/support/` (`flyfamapp@gmail.com`). `/admin/` ops paneli yayından çıkarıldı (placeholder). Workflow artık `docs/ADMIN_STATUS_DASHBOARD.html` kopyalamıyor. `admin-panel-ui` 410 JSON.
 - **App Store metadata (doküman):** Marketing URL `https://app.flyfamapp.com/`; Support URL `https://app.flyfamapp.com/support/`.
-- **EN screenshot:** Repo’da `marketing-v4/iphone-6.3-en` İngilizce UI. Opera’da TR: ASC Türkçe locale + tarayıcı dili/ülke TR ise Türkçe sayfa/görseller gelir. EN görseller İngilizce localization slotuna ayrı yüklenmeli.
+- **EN screenshot:** Repo’da `marketing-v4/iphone-6.3-en` İngilizce UI (Abacus). Opera’da TR görünmesi: ASC’de Türkçe locale seti yüklü; mağaza tarayıcı dili/ülke TR ise Türkçe sayfa + TR görseller gelir. EN görseller İngilizce localization APP_IPHONE_65/67 slotuna ayrı yüklenmeli.
 - **Koruma:** Auth callback / privacy / terms / aile yolları aynı. Ops konsol yalnız `docs/ADMIN_STATUS_DASHBOARD.html` yerel.
 
 
-### 2026-11-09 — Offline/uçak: süresi dolmuş JWT → SignIn yerine disk oturumu
-
-- **Belirti:** Uçak/uçak modunda uygulama açılınca login/welcome; son kayıtlı program/profil gelmiyor.
-- **Kök neden:** Access token süresi dolunca (veya refresh margin) `getSession()` ağda yenilemeye çalışıyor; offline fail → `{ session: null }` → `App.tsx` SignIn. AsyncStorage’daki `refresh_token` + `sessionProfileCache` duruyor ama UI kullanmıyordu.
-- **Dosyalar:** `mobile/lib/persistedAuthSessionParse.ts`, `mobile/lib/persistedAuthSession.ts`, `mobile/contexts/SessionContext.tsx`, `mobile/scripts/test-persisted-auth-session.ts`.
-- **Davranış:** Açılışta önce disk oturumu + profil cache; `getSession` başarısızsa diskte kal. Kasıtlı olmayan `SIGNED_OUT` ve diskte hâlâ oturum varsa UI temizlenmez. Bilinçli `signOut` `intentionalSignOutRef` ile işaretlenir.
-- **Doğrulama:** `npx tsx mobile/scripts/test-persisted-auth-session.ts` PASS; `tsc --noEmit` OK.
-- **Koruma:** Gerçek çıkış / diğer cihaz kick hâlâ local session’ı temizler. Build 57 binary’sine dahil.
-- **EAS (kuyruk):** build `ee24b4e1-3915-4450-9ec3-89fae352f987` + auto-submit `3972c081-3473-47ad-970e-fdea464c134f` (1.3.0 / 57); önceki Associated Domains denemesi `987b2cb5…` iptal.
-
-
-### 2026-11-08 — Logbook: kapatma alanı bembeyaz
-
-- **İstek:** Sayfa kapatınca 7 işaretleri olmasın; kalan kutular kalksın, alan bembeyaz olsun. Basınca bu format gelsin.
-- **Dosyalar:** `support/logbook/app.js` (`voidBlockRows` → `void-blank`), `style.css`, `index.html` (`v1.5.6`), `sw.js` (`gani-logbook-v1.5.6`), `scripts/test-gani-logbook-sync.mjs`.
-- **Davranış:** Kapalı boş satırlar tek sütun birleşik beyaz bant; hücre çizgisi ve 7 işareti yok. Sayfa/defter kapatma ve toplam aktarımı aynı.
-- **Koruma:** `pageCloses` / `bookCloses`, 16 satır, senkron, Kaydet aynı. Kişisel adres yazılmadı.
-- **Doğrulama:** `node scripts/test-gani-logbook-sync.mjs` OK. `node --check support/logbook/app.js` OK. `git diff --check` temiz.
-- **Canlı:** PR #110 merge `a1009a6`, support deploy `42465634353`. https://app.flyfamapp.com/logbook/ `v1.5.6`, `void-blank`, 7 işareti yok, önbellek `gani-logbook-v1.5.6` (2026-11-08).
-
-### 2026-11-08 — Logbook: sayfa ve defter kapatma
-
-- **İstek:** Sayfa kapatınca kalan satırlar kullanılmasın, çapraz işaret konulsun, toplamlar sonraki sayfaya aktarılsın. Defter kapatınca aynı iş yeni deftere geçişte yapılsın. İşaret hücre hücre değil, kâğıt defterdeki gibi tek büyük “7” olsun.
-- **Dosyalar:** `support/logbook/app.js` (`pageCloses`, `bookCloses`, `closePage`, `closeBook`, `bookSegments`, `voidBlockRows`), `index.html` (`v1.5.5`, Sayfa/Defter kapat, defter gezinme), `style.css` (büyük void işaretleri), `sw.js` (`gani-logbook-v1.5.5`), `scripts/test-gani-logbook-sync.mjs`.
-- **Davranış:** Son sayfada Sayfa kapat, son kayıttan sonra sayfayı void satırlarla doldurur; sütun gruplarında tek büyük “7” çizilir. Yeni uçuşlar sonraki sayfada. Defter kapat, sayfayı kapatır ve TOTAL anlık görüntüsünü yeni defterin opening toplamına yazar. Kapalı defterler Defter −/+ ile gezilir. Yedek/geri yükleme `pageCloses` ve `bookCloses` taşır.
-- **Koruma:** 16 satır, HEL–SAW rezervi, PAPER_CARRY, PF, senkron, Kaydet ve yazdır aynı. `gani-logbook` fonksiyonu deploy edilmedi. Kişisel adres yazılmadı.
-- **Doğrulama:** `node scripts/test-gani-logbook-sync.mjs` OK. `node --check support/logbook/app.js` OK. `git diff --check` temiz.
-- **Canlı:** PR #109 merge `38f975d`, support deploy `42465053190`. https://app.flyfamapp.com/logbook/ `v1.5.5`, `Sayfa kapat` / `Defter kapat`, `voidBlockRows` / `void-7`, önbellek `gani-logbook-v1.5.5` (2026-11-08).
-
-### 2026-11-05 — Aile: özet yatay, takvime ekle, okul tatili
-
-- **İstek:** Özet kutusu sayfayı uzatmasın; klinikler yan yana, özet yatay dursun. Tatil giriş kutusu kalksın. Takvimde kayan + ile tatil, etkinlik veya kırmızı okul tatili eklensin ve takvime işlensin. Okul kapalı günleri bakanlık takviminden gelsin. Evde bakım kısa sürerse son çare, uzun sürerse çakışma sayılsın.
-- **Dosyalar:** `support/aile/index.html`, `support/aile/sw.js` (`aile-shell-v36`), `scripts/test-aile-eso.mjs`, `scripts/test-aile-todos.mjs`.
-- **Düzen:** Özet tüm genişlikte; klinikler yan yana, günler kısa kutular. Tatil kartı yok. Takvimde + açılır: tatil, etkinlik, kırmızı okul tatili.
-- **Okul:** 2026-2027 ara tatil, yarıyıl ve ders yılı sınırları kayda işlenir. Kar veya yağmur tatili kırmızı görünür.
-- **Bakım:** Evde bakım 120 dakikaya kadar son çare uyarısıdır ve çakışma listesine girer. Daha uzun bakım çakışmadır; önerilerde en sona düşer.
-- **Koruma:** Kayıt, finans, not, bildirim ve resmî tatil listesi durur. Kişisel ad yazılmadı.
-- **Doğrulama:** `node scripts/test-aile-todos.mjs` ve `node scripts/test-aile-eso.mjs` OK. Geniş ekranda özet kısa ve klinikler yan yana. + okul tatili formunu kırmızı düğmeyle açtı.
-- **Canlı:** PR #107 merge `c85d97c`, destek deploy `42060233257`. Canlıda özet yatay, takvimde +, `aile-shell-v36`.
-
-### 2026-11-05 — Aile: plan kartlarını sıkıştır
-
-- **İstek:** Sayfada anlamsız boşluk ve uzun kaydırma kalksın. Kartlar yan yana ve alt alta dolsun.
-- **Dosyalar:** `support/aile/index.html`, `support/aile/sw.js` (`aile-shell-v35`), `scripts/test-aile-eso.mjs`, `scripts/test-aile-todos.mjs`.
-- **Düzen:** Takvim üstte, tüm genişlikte ve daha kısa gün kutularıyla. Altında roster, çakışma ve özet aynı satırda. Tatil ve klinik kendi satırını doldurur. Bilgi kutuları da yan yana durur. Telefonda kısa kartlar iki sütun.
-- **Koruma:** Takvim, roster yükleme, çakışma, seçim, kayıt, finans, not ve bildirim aynı işi yapar.
-- **Doğrulama:** `node scripts/test-aile-todos.mjs` ve `node scripts/test-aile-eso.mjs` OK. Geniş ekranda satırlar dolu, kartlar arasında yalnız kısa aralık var. Dar ekranda takvim ilk, kısa kartlar ikişerli.
-- **Canlı:** PR #105 merge `3196ead`, destek deploy `42049969412`. Canlıda takvim üstte, kartlar aynı satırda, `aile-shell-v35`.
-
-### 2026-11-05 — Aile: takvim üstte, roster sade
-
-- **İstek:** Takvim sayfasında takvimin kendisi en önemli şey olsun ve yukarı gelsin. Roster kutusundaki gereksiz yazılar kalksın. Renkler kalsın, biraz daha elit dursun.
-- **Dosyalar:** `support/aile/index.html`, `support/aile/sw.js` (`aile-shell-v34`), `scripts/test-aile-eso.mjs`, `scripts/test-aile-todos.mjs`.
-- **Düzen:** Plan sekmesinde takvim ve yan kartlar, roster, tatil ve klinik kartlarının üstünde. Roster kutusunda başlık, Roster ve çakışma, PDF yükle ve yüklenmiş dosyayı kaldırma kalır.
-- **Renk:** Sıcak kâğıt zemin durur. Zemin yıkaması daha hafif. Düğmeler koyu yeşil mürekkep, yazı krem.
-- **Koruma:** PDF yükleme, kaldırma, çakışma, seçim, kayıt, finans, not ve bildirim aynı. Kişisel fotoğraf eklenmedi.
-- **Doğrulama:** `node scripts/test-aile-todos.mjs` ve `node scripts/test-aile-eso.mjs` OK. Geniş ekranda takvim üstte, roster kısa. Dar ekranda takvim ilk blok.
-- **Canlı:** PR #103 merge `d444037`, destek deploy `42046635193`. Canlıda takvim üstte, roster kısa, `aile-shell-v34`.
-
-### 2026-11-05 — Aile: boşlukları sıkılaştır
-
-- **İstek:** Boyut ve sayfa düzeni elden geçsin. Sayfalardaki anlamsız boşluklar kalksın.
-- **Dosyalar:** `support/aile/index.html`, `support/aile/sw.js` (`aile-shell-v33`), `scripts/test-aile-eso.mjs`, `scripts/test-aile-todos.mjs`.
-- **Düzen:** Takvim solda, çakışma, özet ve okul yolu sağda. Boş gün kutusu kısalır; gün içinde iş yoksa boş saat çizgisi çizilmez. Yapılacaklar kartının altındaki boş pay kalktı. Telefonda alt boşluk yalnız plan kaydı açıkken durur.
-- **Koruma:** Seçim, kayıt, finans, not ve bildirim aynı. Gün ayrıntısındaki üç saat satırı durur.
-- **Doğrulama:** `node scripts/test-aile-todos.mjs` ve `node scripts/test-aile-eso.mjs` OK. Geniş ekranda takvim ile yan kartlar aynı hizada. Dar ekranda kartlar takvimin altında, sayfa genişliği dolu.
-- **Canlı:** PR #101 merge `eb526cd`, destek deploy `42044412985`. Canlıda takvim solda, yan kartlar sağda, `aile-shell-v33`.
-
-### 2026-11-05 — Aile: sıcak tema ve sakin takvim
-
-- **İstek:** Not bir düğme gibi görünsün. Sayfa daha sıcak ve karakterli olsun. Takvim hem telefonda hem bilgisayarda daha sakin ve kullanışlı olsun.
-- **Dosyalar:** `support/aile/index.html`, `support/aile/sw.js` (`aile-shell-v32`), `scripts/test-aile-eso.mjs`, `scripts/test-aile-todos.mjs`.
-- **Görünüm:** Zemin sıcak kâğıt rengi, üstte küçük renk damgası, kartlar daha yumuşak. Not, çerçeveli bir düğme. Takvimde gün numarası büyük; öneri adı kutuda yazılmaz, yalnız işaret kalır. Telefonda randevu yazısı güne tıklanınca açılır.
-- **Koruma:** Plan, seçim, kayıt, finans, yapılacaklar ve bildirim aynı işi yapar. Kişisel fotoğraf eklenmedi.
-- **Doğrulama:** `node scripts/test-aile-todos.mjs` ve `node scripts/test-aile-eso.mjs` OK. Geniş ve dar ekranda takvim ve Not düğmesi görüldü.
-- **Canlı:** PR #99 merge `1011c2b`, destek deploy `42042447965`. Canlıda sıcak zemin, Not düğmesi, sade takvim ve `aile-shell-v32`.
-
-### 2026-11-05 — Aile: yapılacak tarih sütunu ve not
-
-- **İstek:** Tarih altta değil yanda, ayrı sütunda dursun. OK yerine Tamamlandı yazsın. Not basılınca alta açılsın, eklensin ve silinsin. Her değişiklik kendiliğinden kaydolsun.
-- **Dosyalar:** `support/aile/index.html`, `support/aile/sw.js` (`aile-shell-v31`), `scripts/test-aile-eso.mjs`, `scripts/test-aile-todos.mjs`.
-- **Liste:** Tarih ve saat sol sütunda. Tamamlandı sağda. Not satırın altında açılır; ekleme, silme ve metin değişikliği ayrıca bir kaydet düğmesi olmadan yazılır.
-- **Koruma:** Plan, fatura, gelir, önem zemini ve süre bildirimleri durur. Not metni bildirime yazılmaz.
-- **Doğrulama:** `node scripts/test-aile-todos.mjs` ve `node scripts/test-aile-eso.mjs` OK. Tarayıcıda tarih sol sütunda, Tamamlandı sağda. Not açıldı, yazı kendiliğinden güncellendi, silme notu kaldırdı.
-- **Canlı:** PR #97 merge `3959d8f`, destek deploy `42039909950`. Canlı sayfada tarih sütunu, Tamamlandı ve not. Önbellek `aile-shell-v31`.
-
-### 2026-11-05 — Aile: yapılacak ekleme düğmesi ve yeni iş bildirimi
-
-- **İstek:** Yeni iş eklenince bildirim gitsin. Renk şeridi kalksın, önem arka zeminde görünsün. Listede yalnız liste kalsın; ekleme yüzen artı düğmesiyle açılsın.
-- **Dosyalar:** `support/aile/index.html`, `support/aile/sw.js` (`aile-shell-v30`), `supabase/functions/family-planner/notify.ts`, `scripts/test-aile-eso.mjs`, `scripts/test-aile-todos.mjs`.
-- **Liste:** Sağ altta artı düğmesi ekleme kutusunu açar. Önem, saydam renk geçişiyle satırın zeminindedir. Geciken satırın yazısı kırmızı, OK sağda. Sıra tarih ya da önem.
-- **Bildirim:** Her yeni açık iş, ekleyen cihaz dışında bildirilir. Süre hatırlatması durur: yüksek 24, 12, 6, 3 ve 1 saat; orta 24 ve 3 saat; düşük yalnız sabah.
-- **Koruma:** Plan, fatura, gelir ve akşam özeti durur.
-- **Doğrulama:** `node scripts/test-aile-todos.mjs` ve `node scripts/test-aile-eso.mjs` OK. Tarayıcıda artı kutuyu açtı; geciken yüksek iş kırmızı geçişli zeminde, şerit yok, OK sağda.
-- **Canlı:** PR #95 merge `cf7b719`, destek deploy `42007688496`. Canlıda `aile-shell-v30`, yüzen artı ve önem zemini. `family-planner` yeni iş bildirimini gönderiyor; finans ve borç eylemleri duruyor.
-
-### 2026-11-05 — Aile: gelir ekleme ve yapılacaklar düzeni
-
-- **İstek:** Gelir ekle yazmıyordu. Yapılacaklar listesi ayrı kutu olsun, OK sağda, geciken kırmızı, önem sırası ve tarihe göre sıralama olsun. Yüksek önem süre dolmadan 24, 12, 6, 3 ve 1 saat önce; orta daha seyrek; düşük yalnız günlük bildirilsin.
-- **Dosyalar:** `support/aile/index.html`, `support/aile/sw.js` (`aile-shell-v29`), `supabase/functions/family-planner/notify.ts`, `scripts/test-aile-eso.mjs`, `scripts/test-aile-todos.mjs`.
-- **Gelir:** Tarih alanı boşsa seçili ayın günü kullanılır. Satır hemen listeye düşer. Kayıt bitmeden gelen eski yenileme satırı silmez. Hata kırmızı yazılır.
-- **Yapılacaklar:** Ekleme kutusu ve liste ayrı. Her işe yüksek, orta veya düşük önem. Sıra tarih ya da önem. Geciken satır kırmızı, OK sağda. Saat boşsa bildirim 18:00’e göre gider.
-- **Koruma:** Plan, fatura, geçmiş ay geliri ve akşam özeti durur.
-- **Doğrulama:** `node scripts/test-aile-todos.mjs` ve `node scripts/test-aile-eso.mjs` OK. Tarayıcıda boş tarihle 1.500 ₺ satırı düştü; geciken iş kırmızı, OK sağda, önem sıralaması yüksekten başladı.
-- **Canlı:** PR #93 merge `8efd6ed`, destek deploy `42006122056`. Canlıda `aile-shell-v29`, ayrı yapılacaklar kutuları ve boş tarihte gelir satırı. `family-planner` bildirimi canlıda; finans ve borç eylemleri duruyor.
-
-### 2026-11-05 — Aile: geçmiş ay geliri ve yapılacaklar
-
-- **İstek:** Kasım gelince Ekim ödemesi de girilebilsin. Finansın yanına basit bir yapılacaklar sekmesi. Tarihi gelen işler bildirilsin. İş bitince canlıya alınsın.
-- **Dosyalar:** `support/aile/index.html`, `support/aile/sw.js` (`aile-shell-v28`), `supabase/functions/family-planner/notify.ts`, `scripts/test-aile-eso.mjs`, `scripts/test-aile-todos.mjs`.
-- **Gelir:** Kartta ay okları var. Bugün ve önceki 24 ay açılır; seçilen ayın gününe gelir yazılır. Kasım’da Ekim satırı girilebilir. Günlük ciro kaynağıysa o günün fiş toplamı eskisi gibi yazılır.
-- **Yapılacaklar:** Metin, isteğe bağlı tarih ve kişi. OK yapılanlara alır, geri alınır veya silinir. Geciken ve bugünkü işler sabah 09:00’da bir kez, yarınki işler akşam 20:00 özetinde gider. Bugün veya gecikmiş yeni iş, kaydı yapan cihaz dışında bildirilir.
-- **Koruma:** Plan, fatura, ciro sorusu ve akşam özeti durur. Gelir hâlâ bugünün ayında açılır; ileri aya geçilmez.
-- **Doğrulama:** `node scripts/test-aile-todos.mjs` ve `node scripts/test-aile-eso.mjs`.
-- **Canlı:** PR #91 merge `640d432`, destek deploy `42003686127`. Canlıda To do sekmesi, ay okları ve `aile-shell-v28`. `family-planner` bildirimi canlıda; finans ve borç eylemleri duruyor.
-
-### 2026-11-02 — Logbook üst düğmeleri tek satır
-
-- **İstek:** Üst sekmede gereksiz yükseklik var. Düğmeler yan yana dursun, defter sayfası yukarı çıksın.
-- **Dosyalar:** `support/logbook/style.css`, `index.html`, `sw.js` (`gani-logbook-v1.5.3`), `scripts/test-gani-logbook-sync.mjs`.
-- **Davranış:** Sekmeler ve defter düğmeleri tek satırda, daha alçak. Sayfalama, senkron, Kaydet, yazdır, uçuş, sim ve kayıtlı defter yan yana. Gizli Durdur düğmesi görünmez.
-- **Koruma:** PF, Kaydet, yazdırma, simülatör kaydı ve uçakta son ekran aynı.
-- **Doğrulama:** `node scripts/test-gani-logbook-sync.mjs` OK. 1280 genişlikte araç çubuğu 34px, defter 215px’den başlıyor.
-- **Canlı:** PR #88 merge `843be38`, deploy `41433947435`. Canlıda v1.5.3, tek satır araç çubuğu, önbellek `gani-logbook-v1.5.3`.
-
-### 2026-11-02 — Logbook mavi düzen + simülatör kaydı
-
-- **İstek:** Önceki logbook düzeni canlıda kalsın. Simülatör ekleme de eklensin.
-- **Dosyalar:** `support/logbook/index.html`, `app.js`, `style.css`, `sw.js` (`gani-logbook-v1.5.2`), `cloud.js`, `gmail.js`, `gmail-config.js`, `scripts/test-gani-logbook-sync.mjs`.
-- **Davranış:** Mavi düğmeler, soldaki PF, Kaydet, yazdırma sayfası ve uçakta son ekran duruyor. Sim düğmesi tarih, sim kodu, tip ve süreyi 13. bölüme yazar. Blok, IFR, PIC ve iniş artmaz. İleri tarihli simülatör Gmail taramasını ötelemez.
-- **Koruma:** 11 Ekim açılış uçuşları, HEL–SAW satırı, kâğıt devir ve Kaydet seçimi aynı. Varsayılan hesap yapılandırması boşaltılmadı.
-- **Doğrulama:** `node scripts/test-gani-logbook-sync.mjs` OK. `node --check support/logbook/app.js` OK. `git diff --check` temiz.
-- **Canlı:** PR #86, merge `755c902`, support deploy `41432969620`. https://app.flyfamapp.com/logbook/ `v1.5.2`, solda PF, `printBook`, `addSim`, önbellek `gani-logbook-v1.5.2` (2026-11-02).
-
-- **İstek:** Bilgisayarda takvime gelmeden üst blok çok yer kaplıyor. Yüksekliği boyutlarla azalt.
-- **Dosyalar:** `support/aile/index.html`, `support/aile/sw.js` (`aile-shell-v27`).
-- **Davranış:** 960px ve üstünde sekme ve kart boşlukları daralır. Roster ile tatil aynı satırda, tatil ve okul kapalı yan yana, klinik kutuları altta tek sırada durur. Sığmayan günler yana kayar. Telefon düzeni aynı.
-- **Koruma:** Kayıt, roster, tatil, okul kapalı ve klinik seçimi aynı işi yapar. Metinler silinmedi.
-- **Doğrulama:** `node --check` ile sayfa betiği OK. `git diff --check` temiz. 1366×768 yerel önizlemede takvim gün satırı ilk ekranda. Telefon sorgusu duruyor.
-- **Canlı:** PR #84, merge `c1c1315`, support deploy `41428781821`. https://app.flyfamapp.com/aile/ `aile-shell-v27` ve masaüstü sıkı düzen (2026-11-02).
-
-- **İstek:** Her akşam 20:00’de ertesi günün özeti bildirimle gitsin. Timeline ve çalışan varsa onlar da yazılsın. Logbook renkleri maviye dönsün, turuncu çok az kalsın. Yazdır hâlâ çalışmıyor.
-- **Dosyalar:** `supabase/functions/family-planner/notify.ts` (20:00–20:20, yarın özeti), `index.ts`, `webpush.ts` (canlı finanslı kopya; eksik repodan deploy edilmedi). `support/logbook/app.js` (`printBook`), `style.css`, `index.html`, `sw.js` (`gani-logbook-v1.4.12`), `scripts/test-gani-logbook-sync.mjs`.
-- **Davranış:** Özet her akşam gider. Varsa uçuş sırası, iş saatleri, okul, randevu ve evde bakım satırı eklenir. İş yoksa da kısa özet gider. Kaydet ve senkron mavi; turuncu yalnız PF işaretinde. Yazdır, defteri ayrı bir sayfada açıp sistem yazdırmasını çağırır.
-- **Koruma:** Ciro, borç ve diğer zamanlı bildirimler aynı. Uçuşlar, devir, PF sütunu ve Kaydet seçimi aynı.
-- **Doğrulama:** `node scripts/test-gani-logbook-sync.mjs` OK. `git diff --check` temiz. Deploy edilen `notify.ts` içinde 20:00 penceresi ve yarın özeti var; `index.ts` finans tablosunu koruyor.
-- **Canlı:** PR #82, merge `b554a77`, support deploy `41279993648`. https://app.flyfamapp.com/logbook/ `v1.4.12`, Kaydet mavi, `printBook` var. `family-planner` bu kaynakla deploy edildi (2026-11-01).
-
-### 2026-11-01 — Logbook yazdırma, PF sola, uçakta son ekran
-
-- **İstek:** Yazdır çalışsın. PF seçimi solda olsun. Kutular tek satır. Düğmeler renkli ve ikonlu, iPad ve iPhone’da simetrik. iPad’deki üst beyaz örtü kalksın. Logo büyüsün. Gereksiz açıklamalar gitsin. Senkron kayıttan yeniyse kırmızı ünlem yanıp sönsün. Varsayılan Google hesabı yapılandırmadaki hesap olsun. Çevrimdışı, son kaydedilen defter açılsın.
-- **Dosyalar:** `support/logbook/index.html`, `app.js`, `style.css`, `sw.js` (`gani-logbook-v1.4.11`), `gmail-config.js`, `cloud.js`, `scripts/test-gani-logbook-sync.mjs`.
-- **Davranış:** PF ilk sütun. Yazdır önce defteri taşmadan açar, sonra yazdırma penceresini çağırır. Hizmet kaydı kayıtlı sayfayı önce gösterir; ağ gecikse de son cihaz kaydı gelir. Üst güvenli alan başlığın içinde. Kaydet turuncu, yazdır sarı, senkron lacivert.
-- **Koruma:** Uçuşlar, devir, son sayfa, senkron kuralı ve Kaydet’in cihaz seçimi aynı. `gani-logbook` fonksiyonu deploy edilmedi. Kişisel adres bu kayda yazılmadı.
-- **Doğrulama:** `node scripts/test-gani-logbook-sync.mjs` OK. `git diff --check` temiz.
-- **Canlı:** PR #80, merge `6843257`, deploy `41242649812`. https://app.flyfamapp.com/logbook/ `v1.4.11`. PF başlığı solda. `sw.js` `gani-logbook-v1.4.11` ve `return cached` (2026-11-01).
-
-### 2026-10-31 — Logbook Chrome yüklemesi ve gerektiğinde Google
-
-- **İstek:** Chrome penceresi sürekli yükleniyor gibi duruyor. Alttaki Google kaydı yukarı gelsin ya da Kaydet ve Senkron et gerektiğinde kendisi açılsın. Oturum aç yazısı olmasın.
-- **Dosyalar:** `support/logbook/sw.js` (`gani-logbook-v1.4.10`), `support/logbook/app.js`, `support/logbook/cloud.js`, `support/logbook/gmail.js`, `support/logbook/index.html`, `support/logbook/style.css`, `scripts/test-gani-logbook-sync.mjs`.
-- **Davranış:** Hizmet kaydı açılışta sayfayı yeniden gezmiyor; kendi dosyasını da yakalamıyor. Yeni sürüm, zaten açık sayfayı bir kez yeniler. Google sayfa açılışında yüklenmez. Kaydet ve Senkron et basılınca hesap penceresi açılır. Hesap düğmesi gerekirse araç çubuğunda, Kaydet’in yanında görünür.
-- **Koruma:** Uçuşlar, devir, son sayfa, senkron kuralı ve Kaydet’in cihaz seçimi aynı. `gani-logbook` fonksiyonu deploy edilmedi.
-- **Doğrulama:** `node scripts/test-gani-logbook-sync.mjs` OK. `git diff --check` temiz.
-- **Canlı:** PR #78, merge `f8e2ff3`, deploy `41239988403`. https://app.flyfamapp.com/logbook/ `v1.4.10`. `sw.js` içinde `navigate` yok, `gani-logbook-v1.4.10` var. Sayfada “Google ile giriş” yok (2026-10-31).
-
-### 2026-10-31 — Logbook Kaydet, başka cihazda aynı defter
-
-- **İstek:** Kayıt normal çalışsın. Nereden açılırsa son kaydedilen defterden devam etsin.
-- **Dosyalar:** `support/logbook/cloud.js` (`kaydet`, `openSaved`), `support/logbook/app.js` (`resumeChoice`), `support/logbook/index.html`, `support/logbook/sw.js` (`gani-logbook-v1.4.9`), `scripts/test-gani-logbook-sync.mjs`.
-- **Davranış:** Kaydet Google hesabını açar. Bu cihazda daha az uçuş varsa kayıtlı defteri açar. Aynıysa dokunmaz. Bu cihaz ilerideyse onu yazar. Kaydedileni aç her zaman buluttaki son kaydı getirir. `gani-logbook` servisi bu adreste açık; fonksiyon yeniden deploy edilmedi.
-- **Koruma:** Uçuş hesabı, devir, senkron ve logo aynı.
-- **Doğrulama:** `node scripts/test-gani-logbook-sync.mjs` OK. Servis GET `version:1`, yetkisiz load 401. `git diff --check` temiz.
-- **Canlı:** PR #76, merge `71bb192`, deploy `41238296670`. https://app.flyfamapp.com/logbook/ üzerinde `v1.4.9`, Kaydet, `function kaydet` ve `gani-logbook-v1.4.9` doğrulandı.
-
-### 2026-10-31 — Logbook logosu ve sürüm yeri
-
-- **İstek:** Verilen görsel logo olsun. Safari ana ekran ikonu da o olsun. Sürüm üst sağa gelsin.
-- **Dosyalar:** `support/logbook/logo.png`, `apple-touch-icon.png`, `icon-192.png`, `icon-512.png`, `index.html`, `style.css`, `sw.js` (`gani-logbook-v1.4.8`), `scripts/test-gani-logbook-sync.mjs`.
-- **Davranış:** Başlık logosu `logo.png`. Ana ekran ikonu `apple-touch-icon.png` (180) ve manifest 192/512. Sürüm başlığın sağında; bağlantı durumu onun altında.
-- **Koruma:** Uçuşlar, devir, senkron ve online uyarı aynı. `gani-logbook` fonksiyonu deploy edilmedi.
-- **Doğrulama:** `node scripts/test-gani-logbook-sync.mjs` OK. `git diff --check` temiz.
-- **Canlı:** PR #74 merge `58b17cd`. Deploy support site `41235319697` success. `https://app.flyfamapp.com/logbook/` `v1.4.8`; logo ve `apple-touch-icon.png` yayında (2026-10-31).
-
-### 2026-10-31 — Logbook üstte senkron ve online kayıt
-
-- **İstek:** En üstte son senkron günü, o günden bugüne geçen süre ve son online kayıt görünsün. Online kayıt senkrondan eskiyse ünlem ve kaydedilmedi uyarısı.
-- **Dosyalar:** `support/logbook/app.js` (`calendarDaysSince`, `sinceLabel`, `onlineBehindSync`, `renderBookStatus`), `support/logbook/cloud.js` (`storedAt`), `support/logbook/index.html`, `support/logbook/style.css`, `support/logbook/sw.js` (`gani-logbook-v1.4.7`), `scripts/test-gani-logbook-sync.mjs`.
-- **Davranış:** Son senkron `gmailSync.lastCompletedAt`. Online tarih, kayıt veya son kaydı açınca cihaz meta’sına yazılır. Online tarih yoksa veya senkrondan küçükse ünlem ve “Son değişiklikler kayıtlı değil”.
-- **Koruma:** Uçuşlar, devir toplamları, son sayfa açılışı ve kısaltılmış senkron aynı. `gani-logbook` fonksiyonu deploy edilmedi.
-- **Doğrulama:** `node scripts/test-gani-logbook-sync.mjs` OK. `git diff --check` temiz.
-- **Canlı:** PR #72 merge `682cf11`. Deploy support site `41234872403` success. `https://app.flyfamapp.com/logbook/` `v1.4.7`; `sw.js` `gani-logbook-v1.4.7`. Üst durum satırı yayında (2026-10-31).
-
-### 2026-10-31 — Logbook önceki sayfa toplamları
-
-- **İstek:** Dijital defter, kâğıt defterdeki bir önceki sayfa toplamlarından devam etsin. 13. bölüm simülatör süresi.
-- **Dosyalar:** `support/logbook/app.js` (`PAPER_CARRY`, `carriedTotal`), `support/logbook/index.html`, `support/logbook/sw.js` (`gani-logbook-v1.4.6`), `scripts/test-gani-logbook-sync.mjs`.
-- **Devir:** SE 159:35, ME 16:35, multi 2075:27, total 2223:24, gündüz iniş 818, gece iniş 349, gece 707:49, IFR 2195:33, PIC 1074:34, co-pilot 1027:58, simülatör 233:30. Yeni uçuşlar bu sütunların üstüne eklenir. SE, ME ve simülatör yeni hat uçuşuyla artmaz.
-- **Koruma:** 11 Ekim satırları, son sayfa açılışı, PF varsayılanı ve kısaltılmış senkron aynı. `gani-logbook` fonksiyonu deploy edilmedi.
-- **Doğrulama:** `node scripts/test-gani-logbook-sync.mjs` OK. `git diff --check` temiz.
-- **Canlı:** PR #70 merge `23a0115`. Deploy support site `41234179730` success. `https://app.flyfamapp.com/logbook/` `v1.4.6`; `sw.js` `gani-logbook-v1.4.6`. Önceki sayfa toplamları devrediliyor (2026-10-31).
-
-### 2026-10-31 — Logbook açılışı son sayfada
-
-- **İstek:** Ana ekranda her zaman son sayfa açılsın. Senkron, kayıtlı son hali değiştirir mi?
-- **Dosyalar:** `support/logbook/app.js` (`followLast`, `initialBookPage`), `support/logbook/index.html`, `support/logbook/sw.js` (`gani-logbook-v1.4.5`), `scripts/test-gani-logbook-sync.mjs`.
-- **Davranış:** Açılış son sayfadadır. Önceki sayfaya geçilince orada kalınır; Sonraki ile son sayfaya dönülünce yeni uçuşlar yine orada görünür. Senkron kayıtlı saati ve PF seçimini değiştirmez. Son kayıtlı günden sonraki yeni uçuşları ekler; boş kaptan veya boş kalkış/iniş dolabilir. Çelişen saat mevcut kaydı ezmez. Online yedek ayrı düğmedir.
-- **Koruma:** 11 Ekim satırları, PF varsayılanı, kısaltılmış senkron ve yenilemenin `no-store` davranışı aynı. `gani-logbook` fonksiyonu deploy edilmedi.
-- **Doğrulama:** `node scripts/test-gani-logbook-sync.mjs` OK. `git diff --check` temiz.
-- **Canlı:** PR #68 merge `bcbceb1`. Deploy support site `41233604276` success. `https://app.flyfamapp.com/logbook/` `v1.4.5`; `sw.js` `gani-logbook-v1.4.5`. Açılış son sayfada (2026-10-31).
-
-### 2026-10-31 — Logbook yenilemesi eski kopyayı bırakır
-
-- **İstek:** `https://app.flyfamapp.com/logbook/` yenilenince 11 Ekim satırları görünmüyordu.
-- **Kök:** Sayfa sunucuda `v1.4.3` ile duruyordu. Tarayıcı ve eski hizmet kaydı `cache-control: max-age=600` yüzünden on dakika önceki dosyayı yenilemede de geri veriyordu.
-- **Dosyalar:** `support/logbook/sw.js` (`gani-logbook-v1.4.4`, `cache:'no-store'`, açık sayfayı yeni sürüme alır), `support/logbook/app.js` (`updateViaCache:'none'`), `support/logbook/index.html`, `scripts/test-gani-logbook-sync.mjs`.
-- **Koruma:** Uçuş kayıtları, PF varsayılanı, kısaltılmış senkron ve 11 Ekim satırları aynı. `gani-logbook` fonksiyonu deploy edilmedi.
-- **Doğrulama:** `node scripts/test-gani-logbook-sync.mjs` OK. `git diff --check` temiz.
-- **Canlı:** PR #66 merge `45f10fb`. Deploy support site `41233162796` success. `https://app.flyfamapp.com/logbook/` `v1.4.4`; `sw.js` `gani-logbook-v1.4.4` ve `cache:'no-store'`. Açık sayfa yeni sürüme alınır (2026-10-31).
-
-### 2026-10-31 — Logbook: ilk sayfa 11 Ekim iki uçuşla başlar
-
-- **İstek:** İlk sayfadaki mevcut uçuşlar 3. satırdan başlasın. İlk iki satır fotoğraftaki 11 Ekim uçuşları.
-- **Dosyalar:** `support/logbook/app.js` (`OPENING_FLIGHTS`, `pageSlots`), `support/logbook/index.html`, `support/logbook/sw.js` (`gani-logbook-v1.4.3`), `scripts/test-gani-logbook-sync.mjs`.
-- **Kayıt:** 11 Ekim SAW–AYT 02:56–04:24 UTC, TC-NBN, A320, PF, gece 14 dk, gündüz iniş. 11 Ekim AYT–SAW 07:03–08:18 UTC, TC-RBP, A321, PM, gündüz iniş. İkisi de 12 Ekim kesitinden önce olduğu için `openingSlot` ile görünür. Kaptan adı fotoğrafta net okunamadığı için boş. HEL–SAW boş satırı öğleden sonraki yerine durur; saat uydurulmaz.
-- **Doğrulama:** `node scripts/test-gani-logbook-sync.mjs` OK. İki kayıt `valid` geçer (blok 88 ve 75 dk). Mevcut Gmail senkron testi OK.
-- **Koruma:** 12 Ekim ve sonrası kayıtlar, PF varsayılanı ve kısaltılmış senkron aynı. `gani-logbook` fonksiyonu deploy edilmedi.
-- **Canlı:** PR #64 merge `2449c23`. Deploy support site `41232177581` success. `https://app.flyfamapp.com/logbook/` `v1.4.3`; `sw.js` `gani-logbook-v1.4.3`. İlk iki satır 11 Ekim SAW–AYT ve AYT–SAW (2026-10-31). PWA açıksa bir kez yenilemek gerekir.
-
-### 2026-10-31 — Logbook: PF/PM hatırlanır, senkron son günden sonra
-
-- **İstek:** Kimin uçtuğu kaydedilince yeni uçuşlar aynı seçimle gelsin. Senkron, kayıtlı son günden önceki mailleri yeniden taramasın.
-- **Dosyalar:** `support/logbook/app.js` (`defaultFlown`, `flownForNew`, `syncAfterQuery`), `support/logbook/gmail.js`, `support/logbook/index.html`, `support/logbook/sw.js` (`gani-logbook-v1.4.2`), `scripts/test-gani-logbook-sync.mjs`.
-- **Davranış:** PF tik, düzenleme kaydı veya PF/PM penceresi `defaultFlown` yazar. Yeni Gmail ve yapıştırma kayıtları bunu kullanır; mevcut uçuşun seçimi değişmez. Defterde zaten PF işaretli kayıt varsa ilk açılışta varsayılan PF olur. Gmail sorgusu son uçuş gününün bir gün öncesinden başlar; o günün geç gelen raporu kalır, daha eskiler istenmez. Daha önce işlenen mail kimliği indirilmez.
-- **Doğrulama:** `node scripts/test-gani-logbook-sync.mjs` OK. Mevcut Gmail senkron testi bu sürümle OK.
-- **Koruma:** Gece hesabı, 12 Ekim sınırı, çakışan raporun mevcut kaydı ezmemesi ve online yedek aynı. `gani-logbook` fonksiyonu deploy edilmedi.
-- **Canlı:** PR #62 merge `ca8e1b8`. Deploy support site `41231520958` success. `https://app.flyfamapp.com/logbook/` `v1.4.2`; `sw.js` `gani-logbook-v1.4.2`. `flownForNew`, `syncAfterQuery` ve işlenmiş mail atlama canlıda (2026-10-31). PWA açıksa bir kez yenilemek gerekir.
-
-### 2026-10-29 — Build 55 OTA catch-up (SIM/duty/OTA client)
-
-- **Sorun:** TestFlight 55 gömülü JS, OTA client (`applyOtaUpdate`) ve son SIM/EditDuty JS’ini taşımıyordu; `applyOtaUpdate.ts` / `dutyDetailVisual.ts` hiç `main`’de yoktu. Son production OTA’lar build53 worktree’sinden yayınlanmıştı; 55 sonrası Admin grup push için de yeni OTA yoktu.
-- **Düzeltme:** OTA client + duty hero/SIM mavi + EditDuty başlıkları + publish-ota script `main`’e alındı; production channel OTA yayınlanacak (runtime `1.3.0`).
-- **Cihazda:** TestFlight 55’i tam kapat-aç (LaunchWait 8sn); `ota_update_id` dolmalı.
-- **Koruma:** runtimeVersion string `1.3.0`; fingerprint policy yok. Submit for Review yok.
-
-
-### 2026-10-29 — Aktif üye grup push + temiz PGS TestFlight
-
-- **Admin:** `send_group_push` artık `active_within_days` + `dry_run` destekliyor (app_open / device / last_sign_in). `AdminPanel` içinde PGT/aktif önizleme+gönder UI.
-- **TestFlight (6827960794):** `FlyFam External (migrated)` silindi. `PGS Test Group` 6 kişiyle yenilendi (eski PGS 4 + 2 @flypgs.com). Team (Expo) + Aile aynı.
-- **Deploy:** `admin-dashboard` edge function. Bildirim henüz toplu gönderilmedi — admin Önizleme sonra Grup Gönder.
-- **Koruma:** Submit for Review yok. RevenueCat yeni key hâlâ açık.
-
-### 2026-10-30 — Birleşik boş kart: günlük satırlar + süre önceki uçuştan
-
-- **İstek:** Tek yeşil kutuda her gün ayrı satır (yükseklik artsın); toplam boş süresi önceki günün uçuş inişinden başlasın. Build 56 üstüne güvenli OTA.
-- **Dosyalar:** `Roster.tsx` (`prevFlightArrivalMsBeforeOff`, `nextDutyDepartureMsAfterOff`, `offDayLines`); `RosterFlightCard` `offDayLines`; `test-off-day-windows.ts`.
-- **Davranış:** Başlık `12–14 Eki · (Boş Süresi: …)` aynı; altında `12 Eki · FOF (…)`, `13 Eki · …`. Süre = son önceki uçuş `scheduled_arrival` → span sonrası ilk görev `scheduled_departure` (yoksa off satır saatleri / gün×24s).
-- **Koruma:** SIM mavi, tek-gün off, yatı, SignIn klavye, buildNumber 56. OTA yalnız temiz `origin/main` worktree + runtime `1.3.0`.
-- **Doğrulama:** `test-off-day-windows` PASS; `tsc` OK.
-- **OTA:** group `a43cc011-5bf9-4d27-bfc4-81b234943257` — iOS `01a18d53-b887-7151-9708-04782e490fa0` (commit `3435fa6`, PR #60). Build 56 + runtime `1.3.0`.
-
-### 2026-10-30 — Build 56: gömülü JS reset + SignIn titreme (OTA zinciri terk)
-
-- **İstek:** SIM yeşil / OTA emergency karmaşası bitmez; TestFlight **56** ile SIM mavi + off-span + duty heroes + klavye düzeltmesi gömülü gelsin.
-- **Sürüm:** marketing `1.3.0` aynı; iOS `buildNumber` / tüm `CURRENT_PROJECT_VERSION` **56**; Android `versionCode` **56**. `runtimeVersion` **1.3.0** (değişmedi).
-- **Klavye:** Önceki OTA KAV’ı kapatıp `automaticallyAdjustKeyboardInsets` bırakmıştı; iOS e-posta öneri çubuğu yazarken inset’i sürekli değiştiriyordu. Build 56: SignIn/SignUp + `KeyboardSafeScroll` → inset kapalı; yalnız `keyboardWillShow`/`Hide` sabit pad; e-posta alanında `scrollInputIntoView` yok.
-- **Gömülü içerik:** origin/main @ off-merge `flight_date` (PR #57) + SIM mavi + duty assets + OTA client (`fallbackToCacheTimeout: 8000`).
-- **Dosyalar:** `mobile/screens/SignIn.tsx`, `SignUp.tsx`, `KeyboardSafeScroll.tsx`, `app.config.js`, `project.pbxproj`, `android/app/build.gradle`.
-- **Koruma:** 56 kurulunca gömülü JS kaynak. App Store submit ayrı onay. Yeni production OTA yalnız bu commit sonrası `origin/main`’den.
-- **Doğrulama:** `tsc --noEmit` OK; `test-off-day-windows` PASS; `verify-release.mjs --skip-export` ALL CHECKS PASSED.
-- **EAS iOS:** build `46123d14-499d-4ee4-a965-065f781ff720` FINISHED — appVersion `1.3.0` / buildNumber **56**. IPA: Expo artifacts. Submit `47610900-42bb-45c5-afca-98612248c0fb` → App Store Connect TestFlight (Apple processing). App Store Review submit yok.
-- **Cihaz:** 55’i sil → TestFlight **56** kur (processing bitince). SIM mavi + giriş titreme + off-merge gömülü; eski production OTA’ya güvenme.
-
-### 2026-10-30 — Off birleştirme: flight_date + takvim-gün + BDF/SOF
-
-- **Sorun:** SIM mavi (OTA OK) ama ardışık boşlar tek kartta değil. Kullanıcı: SOF/BDF fark etmez, boş kategorisi birleşsin.
-- **Kök:** (1) Birleştirme `listGroupDate` (UTC/saat) ile günleri kaydırıp zinciri bölebiliyordu. (2) Takvim-gün modunda (`calendarDayCardsOnly`) span tamamen kapalıydı.
-- **Düzeltme:** `computeOffDayWindows` yalnız `flight_date`; takvim-gün seçili günü kapsayan span’i gösterir; BDF zaten `isOffDayOccupationCode`; liste kategorisine SOF/ROF/… eklendi.
-- **Koruma:** SIM mavi / nöbet bölmesi aynı. SignIn titreme düzeltmesi aynı hatta.
-- **Doğrulama:** `test-off-day-windows` PASS (BDF+SOF+FOF+FSF, kaymış UTC saat); `tsc` OK.
-- **OTA:** group `95e2176a-6cf3-4868-8a03-fc20f29c000a` — iOS `01a18c1d-e612-7b8c-bab4-75bda5f433e0`, Android `01a18c1d-e612-7508-b40b-13317b3d4c0a` (commit `602af86`, PR #57).
-
-### 2026-10-30 — SignIn e-posta titreme + güvenli OTA (SIM koru)
-
-- **Sorun:** Girişte e-posta yazarken ekran titriyor. iOS’ta `KeyboardAvoidingView padding` + `automaticallyAdjustKeyboardInsets` + `contentInsetAdjustmentBehavior=automatic` birlikte e-posta öneri çubuğu yüksekliğiyle savaşınca layout zıplıyor.
-- **Düzeltme:** `SignIn`/`SignUp`: iOS’ta KAV kapalı, yalnız `automaticallyAdjustKeyboardInsets`, `contentInsetAdjustmentBehavior=never`. `KeyboardSafeScroll` aynı; `CompleteProfile` çift KAV kaldırıldı.
-- **Koruma:** SIM mavi / catch-up JS aynı hatta; off-span main’de duruyor. Production kanalında bozuk off OTA’lar restore edilmişti (`6cf85484…`); bu yayın restore üzerine güncel main.
-- **Doğrulama:** `tsc --noEmit` OK; `test-off-day-windows` PASS; `git diff --check` OK.
-- **OTA:** group `a10001fe-a726-4f89-8f57-7a6d3af2f490` — iOS `01a18c04-86e8-78e9-9b80-3b94ecc7340d`, Android `01a18c04-86e8-7c64-a5bd-26150ae73887` (commit `95aa73c`). SIM mavi + off-span + SignIn titreme düzeltmesi.
-
-### 2026-10-30 — Roster off span: karışık FOF/SOF/ROF + composition + takvim
-
-- **İstek:** Doğum/özel (SOF), FOF, FSF, ROF vb. yeşil boş görünen her şeyi birleştir; kartta hangi off’lar var yaz; takvimde de birleşik yeşil çubuk.
-- **Dosyalar:** `Roster.tsx` (`dayCodes`, `calendarOffSpanDateSet`); `RosterFlightCard` `offCompositionLine`; test script.
-- **Kart:** `12–14 Ekim · (Boş Süresi: …)` + alt satır `FOF · SOF (Özel Boş Gün) · ROF`.
-- **Takvim:** span günleri `dutyOff` set’ine eklenir → komşu yeşil çubuklar birleşir.
-- **Doğrulama:** `test-off-day-windows.ts` PASS (FOF+SOF+ROF+FSF); `tsc` / `diff --check` OK.
-- **Koruma:** Nöbet/SIM/uçuş hâlâ böler; tek gün ayrı kart.
-- **OTA:** group `cbe90dfa-1ca1-4dc3-8e1d-63932a0a6f79` — iOS `01a18beb-b8b6-736e-a6dd-24c21c3f21b7`, Android `01a18beb-b8b6-7028-aff8-757df78363b0` (commit `e9cacd6`, runtime `1.3.0`). PR #55.
-- **Gerileme:** Cihazda SIM yeşil + önceki OTA kaybı → emergency/embedded olası. Acil: republish catch-up → group `6cf85484-ebd5-4579-8326-1cc874346103` (SIM mavi restore). Off-birleştirme yeniden yayınlanmadı.
+### 2026-11-09 — App Store EN preview (Abacus) repo’ya alındı
+
+- **Kaynak:** `~/Downloads/flyfam_*_en_1206x2622.png` (Abacus).
+- **Hedef:** `docs/app-store-screenshots/marketing-v4/iphone-6.3-en/` → `01-flight-schedule`, `02-flight-details`, `03-crew-room` (1206×2622, alfa yok).
+- **Not:** TR marketing-v4 `iphone-6.9-tr` (1320×2868; program / aile iniş bildirimi / ekip odası). EN set farklı boyut (6.3″ slot) ve farklı anlatı (program / uçuş detayı / ekip odası; aile “landed” karesi yok). Header + search creative asset dosyası henüz Downloads’ta yok.
+- **Koruma:** ASC’ye yükleme / submit yok; kullanıcı onayı şart.
+
+### 2026-10-31 — iPhone-only (iPad destek kapalı)
+
+- **İstek:** Uygulama yalnız iPhone; iPad sonra gerekirse.
+- **Durum:** `main` zaten `supportsTablet: false` + `TARGETED_DEVICE_FAMILY = 1`. NSE ensure script’teki `"1,2"` → `1` düzeltildi (yeniden üretince iPad açılmasın).
+- **Route to Live:** `qa-ipad` → ERTELENDİ (iPhone-only ürün kararı). Tamamlanmış iPad screenshot OK maddesine dokunulmadı.
+- **Koruma:** buildNumber/sürüm/submit yok. Sonraki native store build bu ayarı taşır.
+
+### 2026-10-30 — Production OTA restore (SIM yeşil gerileme #2)
+
+- **Belirti:** Kullanıcıda SIM günleri yine yeşil; OTA zinciri karışık (`e9d740e0` → `cbe90dfa` → restore `6cf85484` → `a10001fe` → `95e2176a`).
+- **Kanal (önce):** production → `95e2176a` (off-merge `flight_date` / PR #57).
+- **Acil:** `eas update:republish --group a10001fe…` → yeni group **`ab9ec6a5-8755-42e0-b89d-0b4a6cc19432`** (iOS `01a18d27-3e27-749f-aa49-87c08ac0d826`). İçerik = son bilinen iyi: SIM mavi + SignIn klavye + off-span (BDF/`flight_date` fix yok).
+- **Manifest:** production channel `updateGroup` = `ab9ec6a5…` doğrulandı.
+- **Hipotez:** `95e2176a` uygulandıktan sonra çökme → **emergency/embedded** (gömülü JS’te SIM mavi OTA yok) → SIM yeşil görünür. Kodda SIM’i bilinçli yeşile çeviren değişiklik yok (`calendarDayKindForEntry` / `calendarMarkSets` SIM’i `flight` + mavi nokta tutuyor).
+- **Cihaz:** Uygulamayı tamamen kapat-aç (2×). Hâlâ yeşilse TestFlight 55 silip yeniden kur → restore OTA’yı alsın.
+- **Durak:** Yeni off-merge / `95e2176a` benzeri production OTA **yayınlama**; önce cihazda SIM mavi teyidi. Sonraki store binary bu restore + catch-up hattını gömmeli.
+
+### 2026-10-30 — OTA ↔ store build tutarlılık kapısı
+
+- **Kural:** Her yayınlanan production OTA, bir sonraki store build’in gömülü JS’inde zaten bulunmalı (aynı git hattı). Kullanıcının npm script bilmesi gerekmez.
+- **OTA yayın:** `ota:production` / `publish-ota.mjs` → `verify-ota-build-sync.mjs --require-clean-main` (mobile temiz + HEAD == `origin/main`); mesaja `[git:sha]` ekler; channel manifest kontrolü aynı.
+- **Store build (otomatik, bypass’sız yol):** `eas.json` production `APP_ENV=production` → her `eas build --profile production` config çözümlemesinde `app.config.js` kapıyı çalıştırır; ayrıca `eas-build-pre-install` worker’da tekrarlar. CLI tarball’da `.git` yoksa worker skip eder (yerel pre-upload kapı yeterli); GitHub clone’unda tam ata kontrolü.
+- **Kontrol:** HEAD `origin/main` gerisinde olamaz; son production OTA `gitCommitHash` build commit’inin atası/eşit olmalı.
+- **Dosyalar:** `verify-ota-build-sync.mjs`, `publish-ota.mjs`, `app.config.js`, `eas.json`, `package.json`, `.cursor/rules/flyfam-change-handoff.mdc`.
+- **Koruma:** `runtimeVersion` sabit `1.3.0`; fingerprint yok. Acil bypass yalnız `FLYFAM_SKIP_OTA_SYNC=1`.
+- **Doğrulama:** Yerel geride ağaç → `verify:ota-sync` REFUSE OK. `origin/main` @ `180c5ac` → PASS (OTA `d44e0166…`). `expo config` APP_ENV yok → OK (kapı yok); `APP_ENV=production` → REFUSE + config Error (doğrudan `eas build --profile production` da aynı).
 
 ### 2026-10-30 — Roster: ardışık boş günleri birleştir + süre (yatı gibi)
 
 - **İstek:** Ardışık boş günleri tek kartta göstermek; toplam süreyi yatı süresi formatında yazmak.
-- **Dosyalar:** `mobile/screens/Roster.tsx` (`computeOffDayWindows`, `offSpan`); `RosterFlightCard` `offDurationLabel`; TR/EN `roster.offDurationParen`; `mobile/scripts/test-off-day-windows.ts`.
-- **Davranış:** ≥2 ardışık salt-boş gün → başlangıç gününde tek yeşil kart + `(Boş Süresi: …)`; ara gün kartları düşer. Nöbet/SIM/uçuş/eğitim pencereyi böler.
-- **Doğrulama:** `npx tsx mobile/scripts/test-off-day-windows.ts` PASS; `tsc --noEmit` OK; `git diff --check` OK.
-- **Koruma:** Yatı kartı, tek günlük OFF, CFR/nöbet/SIM, `flights_only` aynı.
-- **OTA:** group `e9d740e0-57b6-402d-ae45-275b19df95ff` — iOS `01a18bd4-f0eb-7a92-a86d-779ae8020788`, Android `01a18bd4-f0eb-7ced-b342-4f992a8e8dc5` (commit `0968321`, runtime `1.3.0`, channel production). Manifest OK.
+- **Önce:** Yapılmamıştı — her OFF/FOF günü ayrı kart; yalnızca takvim yeşil çizgisi komşu günlerde birleşiyordu. Yatı zaten `computeLayoverWindows` + süre kartı vardı.
+- **Dosyalar:** `mobile/screens/Roster.tsx` (`computeOffDayWindows`, `offSpan` list entry); `RosterFlightCard` `offDurationLabel`; TR/EN `roster.offDurationParen`; birim `mobile/scripts/test-off-day-windows.ts`.
+- **Davranış:** ≥2 ardışık salt-boş gün → başlangıç gününde tek yeşil kart (`12–14 Ekim · (Boş Süresi: 2g …)`); ara gün kartları/list başlıkları düşer. Nöbet/SIM/uçuş/eğitim günü pencereyi böler. Tek gün ve takvim-gün odaklı liste eski hali. Süre: satır `scheduled_*` aralığı, yoksa gün sayısı × 24s (`formatLayoverDurationFromMs`).
+- **Doğrulama:** `npx tsx mobile/scripts/test-off-day-windows.ts` PASS; `npx tsc --noEmit` OK; `git diff --check` OK. Cihazda görsel (3+ FOF/OFF zinciri) kullanıcıya bırakıldı.
+- **Koruma:** Yatı kartı/süresi, tek günlük OFF, CFR/nöbet/SIM kartları, `flights_only` filtresi aynı.
+- **OTA:** group `e9d740e0-57b6-402d-ae45-275b19df95ff` — iOS `01a18bd4-f0eb-7a92-a86d-779ae8020788`, Android `01a18bd4-f0eb-7ced-b342-4f992a8e8dc5` (origin/main `0968321`, runtime `1.3.0`). PR #54. Sonraki store build bu commit’i içermeli.
 
-### 2026-10-29 — TestFlight tester’lar Mertcan app’ine taşındı
+### 2026-10-30 — Off birleştirme flight_date + takvim-gün (BDF/SOF)
 
-- **Kaynak:** Eski ASC app `6759844455` (FlyFam Legacy / `com.flyfam.app`) grupları: Team (Expo), Aile, PGS Test Group + adlı external tester’lar.
-- **Hedef:** Yeni app `6827960794` (`com.flyfamapp.mobile`).
-- **Oluşturulan gruplar:** Internal `Team (Expo)` (Gani + Mertcan ASC admin); External `Aile`, `PGS Test Group`, `FlyFam External (migrated)` — 23 adlı e-posta davet/atandı. Eski public-link Anonymous kayıtları e-postasız olduğu için taşınamadı.
-- **Build 55:** Internal `IN_BETA_TESTING`. External Beta App Review `WAITING_FOR_BETA_REVIEW` (lokalizasyon tr/en-US + review detay dolduruldu).
-- **Yapılmadı:** App Store Submit for Review. RevenueCat yeni bundle key hâlâ açık.
+- **OTA:** group `95e2176a-6cf3-4868-8a03-fc20f29c000a` — iOS `01a18c1d-e612-7b8c-bab4-75bda5f433e0` (PR #57). Ardışık BDF/SOF/FOF `flight_date` ile birleşir; takvim-gün modunda da span kartı var.
+
+### 2026-10-30 — SignIn e-posta titreme + OTA (SIM koru)
+
+- **Sorun:** iOS’ta KAV + `automaticallyAdjustKeyboardInsets` birlikte e-posta yazarken titreme.
+- **OTA:** group `a10001fe-a726-4f89-8f57-7a6d3af2f490` — iOS `01a18c04-86e8-78e9-9b80-3b94ecc7340d` (commit `95aa73c`, PR #56). SIM mavi + off-span + titreme düzeltmesi.
+
+### 2026-10-30 — Roster off span composition + takvim (FOF/SOF/ROF)
+
+- **İstek:** Tüm yeşil boşları (doğum/SOF, FOF, FSF, ROF…) birleştir; kartta hangi off’lar var; takvimde birleşik çubuk.
+- **OTA:** group `cbe90dfa-1ca1-4dc3-8e1d-63932a0a6f79` — iOS `01a18beb-b8b6-736e-a6dd-24c21c3f21b7`, Android `01a18beb-b8b6-7028-aff8-757df78363b0` (`e9cacd6`, PR #55).
+- **Gerileme (cihaz):** Kullanıcıda SIM yine yeşil boş + önceki OTA kayboldu → büyük olasılıkla bozuk/çökme sonrası **emergency/embedded** (build 55 gömülü JS, SIM mavi OTA yok).
+- **Acil restore:** `eas update:republish --group d44e0166…` → production group `6cf85484-ebd5-4579-8326-1cc874346103` (Build 55 catch-up: SIM mavi + duty heroes). Off-birleştirme OTA’ları geri alındı; yeniden yayın öncesi cihazda SIM doğrulanmalı. Emergency ise uygulama silinip TestFlight 55 yeniden kurulmalı.
+
+### 2026-10-29 — iOS 1.3.0 (55) Mertcan hesabı yayın hazırlığı (build yok)
+
+- **Hedef:** Marketing `1.3.0`, iOS `buildNumber`/`CURRENT_PROJECT_VERSION` **55**, Android `versionCode` **55**, Android package **`com.flyfam.app` (değişmedi)**.
+- **Kimlik (doğrulandı):** `com.flyfamapp.mobile` + `.NotificationService` + `.ShareExtension`; App Group `group.com.flyfamapp.mobile`; `eas.json` `ascAppId` `6827960794`; deep link şemaları `flyfam` / `com.flyfamapp.mobile` / legacy `com.flyfam.app`.
+- **Dosyalar:** `mobile/app.config.js`, `mobile/ios/.../project.pbxproj`, `mobile/scripts/ensure-notification-service-extension.py`, `mobile/android/app/build.gradle`, `scripts/verify-release.mjs` (platform build eşitliği artık soft NOTE).
+- **Doğrulama:** Expo config OK; `tsc --noEmit` OK; `plutil -lint` ilgili plist/entitlements OK; `verify-release.mjs --skip-export` sürüm/tsc/testler OK; pending `gitleaks --pre-commit` OK. HEAD commit’te önceden var `support/aile/index.html` gitleaks uyarısı bu işten bağımsız.
+- **RevenueCat BLOCKER:** Yerel/EAS public iOS SDK anahtarı (`appl_…`) eski bundle `com.flyfam.app` RC uygulamasına ait (handoff 2026-09-29: proje `0c6ae613`, app `appffd1743393`). Yeni `com.flyfamapp.mobile` için RC’de ayrı iOS app + yeni public key + EAS env güncellemesi gerekir; panel işlemi/anahtar uydurma yapılmadı.
+- **Apple/EAS:** Build/submit başlatılmadı. Team `ZF66PC5AN7` için EAS credential + App ID/App Group/push/extension profilleri henüz doğrulanmadı. Supabase / EAS project id / Updates URL değiştirilmedi.
+- **Sonuç:** Yerel sürüm hizası hazır; **EAS build 55 alınmaya hazır değil** (RevenueCat + imzalama blocker).
+
+### 2026-10-30 — RevenueCat yeni bundle canlı kontrolü
+
+- RevenueCat proje `0c6ae613` uygulama listesi canlı ve salt okunur kontrol edildi; yalnız eski iOS app `appffd1743393` / bundle `com.flyfam.app` mevcut.
+- Apps listesinde `You don't have permission to add app configurations.` uyarısı görünmesine rağmen hesap menüsü ve Collaborators ekranı oturumun `flyfamapp@gmail.com` Owner hesabı olduğunu gösterdi; doğrudan yeni App Store app formu başarıyla açıldı. Dolayısıyla gerçek engel RevenueCat proje rolü değil.
+- Formdaki mevcut In-app Purchase key `C5MD4RT8YT` ve App Store Connect API key `3BR495HP56`, eski `FlyFam (App Store)` / `com.flyfam.app` uygulamasına bağlı görünüyor. Mertcan Apple takımındaki yeni bundle için bu eski takım anahtarları seçilmedi; form kaydedilmedi ve yeni public SDK anahtarı oluşturulmadı.
+- Kalan: Mertcan Apple takımında yeni In-app Purchase key ve App Store Connect API key oluşturmak; bunları RevenueCat formunda `com.flyfamapp.mobile` uygulamasına bağlamak. Sonrasında yeni `appl_…` anahtarı değerini dokümana yazmadan EAS `production` ve `preview` ortamlarına aktarmak, build 55 ile sandbox satın alma/yükseltme/restore testlerini tekrar etmek.
+- Route to Live; build 55 kararı, eski TestFlight kanıtlarının yeni bundle için yeterli olmadığı ve RevenueCat yetki engeliyle eşitlendi. Build/submit yapılmadı; uygulama koduna dokunulmadı.
+
+### 2026-10-30 — Mertcan Apple anahtar hazırlığı
+
+- Kullanıcı onayıyla Mertcan App Store Connect hesabında `FlyFam RevenueCat` adlı yeni In-App Purchase key oluşturuldu. Apple anahtarı aktif ve indirilmiş gösterdi; ancak Codex uygulama içi tarayıcısının tek seferlik download alanı dosyayı macOS `Downloads` veya erişilebilir geçici klasöre aktarmadı. `.p8` dosyası bulunamadığı için RevenueCat’e yükleme yapılmadı.
+- App Store Connect API erişimi kullanıcı onayıyla talep edildi ve anında açıldı. Takımda yalnız EAS’in yönettiği Admin anahtar görünüyor; onun özel anahtar dosyası paylaşılmadığı ve görev kapsamı farklı olduğu için RevenueCat’te kullanılmadı.
+- Dedicated `FlyFam RevenueCat` App Store Connect API key formu App Manager rolüyle hazırlandı ancak oluşturulmadı. Tek seferlik indirme kaybını tekrarlamamak için Chrome’da Mertcan oturumu açılana kadar Generate kullanılmamalı.
+- Güvenli sonraki adım: erişilemeyen IAP key’i kullanıcı onayıyla revoke et → Chrome’da yenisini üretip `.p8` dosyasının gerçekten `Downloads` altında olduğunu doğrula → App Manager API key’i Chrome’da üretip indir → iki anahtarı RevenueCat yeni `com.flyfamapp.mobile` app formuna yükle. Build/submit yapılmadı; anahtar değeri repo, log veya dokümana yazılmadı.
+
+### 2026-10-30 — Mertcan RevenueCat anahtarları son durum
+
+- Erişilemeyen ilk IAP key kullanıcı onayıyla revoke edildi. Yerine `FlyFam RevenueCat 2` / key ID `BWYJ322LAR` oluşturuldu; tek kullanımlık dosya `/Users/mineoz/gani-apps/Önemliler/SubscriptionKey_BWYJ322LAR.p8` altında 257 bayt olarak doğrulandı. Özel anahtar içeriği okunmadı, loglanmadı ve repoya eklenmedi.
+- Mertcan takımında dedicated `FlyFam RevenueCat` App Store Connect API key zaten oluşturulmuş: key ID `5P58T33PZH`, erişim `Admin`. Apple ekranında henüz indirilebilir görünüyor; `.p8` dosyasının güvenli klasöre indirilmesi bekleniyor.
+- RevenueCat’e henüz hiçbir yeni anahtar yüklenmedi ve `com.flyfamapp.mobile` app kaydı kaydedilmedi. Sıradaki kontrollü adım: API `.p8` dosyasını indirip doğrula → iki `.p8` dosyasını RevenueCat yeni iOS app kaydına yükle → yeni public `appl_…` anahtarını yalnız EAS production/preview ve yerel gizli ortama aktar. Build/submit yapılmadı.
+
+### 2026-10-30 — Mertcan RevenueCat app oluşturuldu
+
+- RevenueCat proje `0c6ae613` içinde `FlyFam (Mertcan App Store)` / bundle `com.flyfamapp.mobile` oluşturuldu; RevenueCat app ID `app3e2038d56c`.
+- Mertcan takımına ait IAP key `BWYJ322LAR` ve App Store Connect API key `5P58T33PZH` yüklendi. RevenueCat her iki anahtarı da `Valid credentials` olarak doğruladı. `.p8` içerikleri repo, log veya dokümana yazılmadı.
+- Yeni `appl_…` public SDK anahtarı RevenueCat’te üretildi ve biçimi doğrulandı. Expo EAS `EXPO_PUBLIC_REVENUECAT_IOS_API_KEY` değişkeni `preview` + `production` ortamlarında güncellendi; visibility `Sensitive` olarak korundu. Yerel `mobile/.env` aynı yeni değerle güncellendi ve dosyanın `.gitignore` tarafından dışlandığı doğrulandı. Anahtar değeri dokümana yazılmadı.
+- App Store Connect’ten yeni Mertcan uygulamasına ait 14 abonelik ürünü RevenueCat’e toplu aktarıldı; RevenueCat `Import complete. 14 new products added.` sonucu verdi. Tüm yeni ürünler mevcut `premium` / `FlyFam Premium` entitlement’a bağlandı; bağlantı sonrası entitlement toplamı 30 ürün (eski uygulama 16 + yeni uygulama 14) olarak doğrulandı.
+- Mobil kod `Purchases.getProducts(...)` ile ürün kimliklerini doğrudan çağırıyor; `getOfferings` / package tabanlı akış kullanılmıyor. Bu nedenle boş offerings alanına yeni offering eklenmedi ve mevcut çalışan satın alma mimarisi değiştirilmedi.
+- Sıradaki kontrollü adımlar: Cursor’ın kesinleştireceği sonraki build numarasını (56 veya kullanıcı paralelde yükseltirse 57) tüm iOS hedeflerinde doğrula → Mertcan Team imzalama/provisioning kontrolü → gerçek cihazda sandbox satın alma/yükseltme/restore testi. Submit yapılmadı.
+
+### 2026-10-30 — Build numarası Cursor tarafından güncelleniyor
+
+- Kullanıcı, Cursor’ın sürümü önce 56’ya çıkardığını ve paralelde 57’ye yükseltebileceğini bildirdi. Bu nedenle Codex build numarasını ayrıca değiştirmeyecek; Cursor tamamladığında `app.config.js`, iOS ana uygulama, NotificationService ve ShareExtension değerlerini salt okunur doğrulayacak.
+- RevenueCat hazırlığı tamamlandı ve artık build engeli değil. Codex build veya submit başlatmayacak; kullanıcıdan Cursor işinin tamamlandığı haberi beklenecek.
+- Kullanıcının eylem anındaki açık onayıyla yeni RevenueCat app’in Apple Server Notification URL’si Mertcan App Store Connect uygulamasına uygulandı. RevenueCat paneli `Apple Server to Server Notifications configured correctly.` sonucunu gösterdi. `No notifications received` ilk sandbox/gerçek satın alma olayı gelene kadar normaldir; build 56/57 gerçek cihaz testinde ilk bildirim ayrıca doğrulanacak.
+
+### 2026-10-30 — Build 56 ve yayın kapısı canlı doğrulandı
+
+- Yerel checkout eski kaldığı için app.config.js hâlâ 55 gösteriyordu; `origin/main` canlı kontrolünde build 56’nın PR #58 ile birleştiği doğrulandı. Uzak ana dalda app.config.js ve ana uygulama/NotificationService/ShareExtension CURRENT_PROJECT_VERSION değerlerinin tamamı 56.
+- EAS build `46123d14-499d-4ee4-a965-065f781ff720` FINISHED; EAS submit `47610900-42bb-45c5-afca-98612248c0fb` FINISHED. App Store Connect canlı ekranında build 56 `Ready to Submit`, `Team (Expo)` grubuna bağlı, yükleme tarihi 30 Ekim 2026 17:48; henüz kurulum görünmüyor.
+- Build öncesi salt okunur QA: TypeScript sıfır hata, uçuş saatleri 36/36 OK, sağlayıcı fallback 19/19 OK, aile kapasite senaryoları OK. App Store Review submit yapılmadı.
+- Kritik koruma: mevcut yerel `main`, `origin/main` dalının 181 commit gerisinde ve çok sayıda Cursor/kullanıcı değişikliği içeriyor. Bu checkout’tan yeni store build alınmamalı; kullanıcı değişiklikleri kaydedilip güncel ana dalla güvenli şekilde uzlaştırılmadan pull/reset yapılmamalı. Aktif mağaza adayı 56’dır; 57 yalnız build 56 QA’da düzeltme gerektirirse düşünülmeli.
+
+### 2026-10-30 — iPhone mağaza görseli güvenli final seçimi
+
+- `marketing-v3/iphone-6.9-tr` yakın görünümde yeniden tarandı. 01-program ve 10-calendar içinde görünür kişi adı bulunduğu için mağaza yüklemesinden çıkarıldı. 05-add-options ve 06-manual-flight eski PC kodlu örnek içerik taşıdığı için güncel mağaza anlatısından çıkarıldı.
+- Yüklemeye hazır 8 anonim aday: 04-settings-live, 07-roster-import, 08-time-control, 09-manual-flight-tk, 11-terms, 12-privacy, 13-family-roster, 14-family-notification. 13 ve 14 içindeki isim alanlarının bulanık olduğu doğrulandı.
+- App Store Connect’e yükleme yapılmadı. Yükleme sırasında yalnız bu 8 dosya kullanılmalı; source/raw, marketing-v1/v2 ve dışlanan dört görsel kullanılmamalı.
+
+### 2026-10-31 — iPhone mağaza görselleri marketing-v4 ile yenilendi
+
+- Kullanıcı önceki 8 görsellik set yerine daha az ve daha güçlü bir mağaza anlatımı istedi. Yeni final set `docs/app-store-screenshots/marketing-v4/iphone-6.9-tr/` altında 1320×2868 boyutunda 3 PNG: `01-crew-program`, `02-family-landed-notification`, `03-crew-room`.
+- Görsel sırası: crew görev programı → aileye otomatik iniş bildirimi → Ekip Odası. Gerçek Apple telefon çerçevesi ve güncel simülatör ekranları kullanıldı; eski ağır yazı efektleri kaldırıldı.
+- Gizlilik: Ekip Odası ham ekranındaki gerçek adlar ve profil fotoğrafları yoğun blur ile anonimleştirildi; görünür crew/aile örnek uçuş kodları PC yerine TK olarak değiştirildi. App Store’a source/raw veya marketing-v1/v2/v3 yüklenmemeli.
+- Tekrarlanabilir üretim: `scripts/generate-app-store-marketing-v4.sh`; toplu kontrol görseli `marketing-v4/iphone-6.9-tr/preview.png`. App Store Connect’e henüz yüklenmedi.
+
+### 2026-10-30 — Kamusal repo kişisel iz temizliği
+
+- İzlenen Android tester belgesindeki gerçek ad ve e-posta listesi kaldırıldı; liste artık yalnız Play Console’daki özel tester alanında tutulacak biçimde belgelendi. Kullanıcı hesapları veya Play Console tester üyelikleri değiştirilmedi.
+- Geliştirme belgelerindeki kişisel macOS kullanıcı yolları `/path/to/FLYFAM` ve anonim PDF yolu örnekleriyle değiştirildi. PDF çıkarma yardımcı betiğinin kişisel varsayılan dosya yolu kaldırıldı; artık açıkça dosya yolu bekliyor.
+- Kişisel kullanıcı yolunu içeren izlenen Android Studio JVM çökme günlüğü repodan çıkarıldı; `hs_err_pid*.log` yeniden eklenmesin diye ignore edildi. Hedefli taramada bilinen şahsi ad/e-posta/yol eşleşmesi 0; `node --check` ve `git diff --check` geçti.
+- Redaksiyonlu Gitleaks kontrolünde Git/`origin/main` içinde izlenen Firebase servis hesabı özel anahtarı bulunmadı. `docs/` altındaki üç yerel servis hesabı JSON’u ignore altında ve origin’de yok; dosya izinleri `600` yapıldı. İstemci Supabase anon JWT’leri ve Google/Firebase istemci yapılandırması gerçek sunucu sırrı olarak sınıflandırılmadı.
 
 
-### 2026-10-29 — Build 55 finished; Android submit; iOS TestFlight ASC key bekliyor
+### 2026-10-28 — Görev detay başlığı = görev adı + düzen sadeleştirme
 
-- **iOS build:** `167104a2…` finished — 1.3.0 (55), Team `ZF66PC5AN7`, IPA hazır. Credential + push key kuruldu.
-- **Android build:** `f3b7ba0a…` finished — versionCode 55.
-- **Android submit:** Play internal track submission `63cbc866…` scheduled (App Review değil).
-- **iOS submit:** EAS non-interactive ASC API key seçemedi; Mertcan App Store Connect API key ile interaktif `eas submit` gerekli. App Store Review / Submit for Review yapılmadı.
-- **RevenueCat:** Yeni `com.flyfamapp.mobile` public key hâlâ açık.
+- **İstek:** Uçuş olmayan görev detayında üstte generic «Görev / Nöbet Görevi» yerine gerçek görev adı; sayfa biraz daha düzenli.
+- **Düzeltme:** `resolveDutyPageTitle` (katalog etiketi + kod alt başlık); `EditDuty` header title/subtitle; tekrarlayan kind rozeti gizlenir; konum rozetle aynı satır; alttaki codeHint kaldırıldı.
+- **OTA:** group `e533e0c1-c069-404f-868e-f9ed2771d4d1` — iOS `01a1814b-eb1e-706b-b068-7ce87e5b33d9`, Android `01a1814b-eb1e-7ff0-b286-668c1e89b0a5`.
+- **Koruma:** SIM/IPT hero, nöbet «uçuşa dönüştür», fetch’te `duty_occupation_code` yok.
 
+### 2026-10-28 — SIM detay boş gün + hero kaybı + kart etiketi
 
-### 2026-10-29 — Build 55: main merge + Android EAS; iOS credential bekliyor
+- **Kök neden:** `EditDuty` `duty_occupation_code` seçiyordu; kolon DB’de yok → fetch hata → `code` boş → kind=`duty` (yeşil boş gün aksanı) + hero `null`.
+- **Düzeltme:** Kolonu select’ten çıkardık; SIM kart `blockTitle` artık kısa (`Simülatör` / `SIM8A` / `IPT`), «Simülatör: Simülatör (SIM)» yok.
+- **OTA:** group `84468080-e104-4adb-bb1e-555b65c66033` — iOS `01a17f9f-1abf-788f-9d38-4132fc36fc76`, Android `01a17f9f-1abf-7509-b6c6-ac009532fdf1`.
+- **Koruma:** Hero görselleri ve mavi liste kartı aynı; nöbet akışı aynı.
 
-- **Git:** PR #48 `release/ios-1.3.0-build-55` → `main` merge `77b94aa` (yerel geride ağaçtan force-push yok).
-- **Android:** EAS production build başlatıldı `f3b7ba0a-6777-416b-acaa-3f0dec2437e2` (versionCode 55, package `com.flyfam.app`).
-- **iOS:** Non-interactive credential kurulumu yeni bundle’lar için başarısız (`com.flyfamapp.mobile` + ShareExtension + NotificationService). Apple hesabı interaktif giriş gerekli (Team `ZF66PC5AN7`).
-- **RevenueCat:** EAS production’da `EXPO_PUBLIC_REVENUECAT_IOS_API_KEY` var; yeni bundle için ayrı RC app/key hâlâ açık (IAP).
-- **Submit:** Yok.
+### 2026-10-28 — SIM dış görünüm + IPT trainer görselleri
 
-### 2026-10-29 — iOS 1.3.0 (55) Mertcan hesabı kimlik/sürüm hizası
+- **Sorun:** SIM hero iç kokpit gibiydi; IPT görseli kullanıcıda «olmamış» (yanlış/ belirsiz sahne). IPT sınıflaması `duty_occupation_code` okunmadan zayıf kalabiliyordu.
+- **Düzeltme:** `duty-simulator-exterior.jpg` (full-motion dış), `duty-ipt-trainer.jpg` (sabit IPT kabin); `dutyDetailVisual` v2 require + IPT önce; `EditDuty` `duty_occupation_code` de yükler.
+- **OTA:** group `bcf3edf3-3c29-414a-b40c-02eac5e45019` — iOS `01a17f9a-41c8-7dae-a525-0284d03057b2`, Android `01a17f9a-41c8-790b-b9d3-f13cb5eca37e`.
+- **Koruma:** Sınav/nöbet görselleri ve mavi SIM kart aynı.
 
-- **Hedef:** Marketing `1.3.0`, iOS build **55**, Android `versionCode` **55**, Android package **`com.flyfam.app` (değişmedi)**.
-- **Kimlik:** `com.flyfamapp.mobile` + `.NotificationService` + `.ShareExtension`; App Group `group.com.flyfamapp.mobile`; `ascAppId` `6827960794`; deep link `flyfam` / `com.flyfamapp.mobile` / legacy `com.flyfam.app`.
-- **Dosyalar:** `mobile/app.config.js`, native iOS/Android sürüm alanları, entitlements/Info.plist, `ForceUpdateModal`, `authSessionFromUrl`, `ensure-notification-service-extension.py`, `scripts/verify-release.mjs`, OTA LaunchWait `8000`.
-- **Kaynak:** `origin/main` üzerine cherry-pick (`release/ios-1.3.0-build-55`). Yerel geride `main` ağacından force-push yok.
-- **Açık blocker:** RevenueCat public iOS key hâlâ eski `com.flyfam.app` app’ine ait; yeni bundle için RC app + key + EAS env. Team `ZF66PC5AN7` EAS credential doğrulaması. Submit yok.
-- **Koruma:** Supabase / EAS project id / Updates URL aynı.
+### 2026-10-27 — SIM/IPT/sınav detay: nöbet değil + hero görseller
 
+- **Sorun:** Sim görev kartı doğru olsa da `EditDuty` başlığı her zaman «Nöbet Görevi», rozet/aksan nöbet turuncusu.
+- **Düzeltme:** `lib/dutyDetailVisual.ts` (kind: simulator/ipt/exam/standby/duty); `EditDuty.tsx` dinamik title/badge/accent + hero; görseller `assets/duty/duty-{simulator,ipt,exam}.jpg`; TR/EN locale anahtarları.
+- **OTA:** group `42f8a8e0-b208-4ecb-ab12-575359a60aca` — iOS `01a17caa-5ffe-7eee-b2d3-39e723d48f4c`, Android `01a17caa-5ffe-7b79-9b2a-f4c45ad8c4fe` (build53 worktree).
+- **Koruma:** Gerçek nöbet hâlâ «Nöbet» + uçuşa dönüştür. Liste kartı mavi SIM aynı.
 
-### 2026-10-25 — Aile planı: 5 Kasım vize satırı kısaldı
+### 2026-10-27 — OTA 2. açılış çökmesi: stale-tree bundle + anında reload
 
-- **Amaç:** 5 Kasım metni yalnız «vize görüşmesi». Adres ve randevu numarası planda yok. Çocuk görüşmeden sonra okula gider: gün okul kapalı değil, sabah bırakma üretilmez, akşam alma durur.
-- **Dosyalar:** `support/aile/index.html` (`visa_norway_2026_11_05_brief`, `thenSchool`), `support/aile/sw.js` (`aile-shell-v24`), `scripts/test-aile-eso.mjs`.
-- **Veri:** Üç randevunun etiketi kısaltılır, `location` silinir. Çocuk satırında `thenSchool`. `school.closedDates` içinden `2026-11-05` çıkar; 16–20 Kasım durur.
-- **Doğrulama:** `node scripts/test-aile-eso.mjs` OK; sayfa betiği `node --check` OK; `git diff --check` OK.
-- **Koruma:** Diğer randevular, salı hastane, Çekya vize, Hong Kong, evde bakım ve gelir aynı. `family-planner` deploy edilmedi.
-- **Canlı:** PR #45 merge `bebc1d4`. Deploy support site `40230426681` success. `https://app.flyfamapp.com/aile/` içinde `visa_norway_2026_11_05_brief` ve `skipDrop` var; `sw.js` `aile-shell-v24` (2026-10-25). Canlı planda 5 Kasım etiketi kısa, `location` yok, okul o gün kapalı değil, çocuk satırında `thenSchool`. PWA açıksa bir kez yenilemek gerekir.
+- **Kanıt:** `e0e15259…` OTA yerel `main`’den yayınlandı (`ahead 1, behind ~146`, commit `a0a2e87*`). İkinci açılışta o bozuk JS uygulandı → çökme. `client_error_events` boş (native hard crash, JS reporter’a gelmeden).
+- **Acil:** `eas update:rollback e0e15259…` → group `3d16176a…` (önceki SIM mavi OTA’nın republish’i).
+- **Düzeltme:** `applyOtaUpdate.ts` — emergency skip, tek reload bayrağı, `InteractionManager` + gecikmeli reload; `App.tsx` 4 sn boot sonra kontrol. `publish-ota.mjs` remote’tan ≥20 commit gerideyse yayın reddeder.
+- **Güvenli OTA (build53 ağacı `4d473c8`):** group `5efddf1e-011a-43a3-ad16-37145a285e34` — iOS `01a17ca0-40b4-75d5-8a1c-6c7ca87dcc0a`, Android `01a17ca0-40b4-79a4-96a9-430dac46a250`. SIM mavi + güvenli auto-apply.
+- **Cihazda:** Çökme döngüsündeyse uygulamayı silip TestFlight **53** yeniden kur; veya birkaç crash sonrası expo gömülüye döner. Sonra bir kez açıp ~10 sn bekle. Manifest’te yeni id görünmeli.
+- **Kural:** Production OTA yalnız son production build commit worktree’sinden; kirli/geride local `main`’den asla.
 
-### 2026-10-25 — Aile planı: Norveç vize görüşmesi
+### 2026-10-27 — OTA her JS düzeltmesinde build’siz çalışsın
 
-- **Amaç:** 5 Kasım 2026, 10:15. Üç kişi (çocuk, eş, ekip) aynı randevuda. O gün okul kapalı; okul yolu üretilmez. Bitiş saati yok (başlangıç işareti).
-- **Dosyalar:** `support/aile/index.html` (`visa_norway_2026_11_05`), `support/aile/sw.js` (`aile-shell-v23`), `scripts/test-aile-eso.mjs`.
-- **Veri:** `familyAppointments` üç satır, etiket «Norveç vize görüşmesi». Adres ve randevu numarası sayfa yamasında; kişisel ad yok. Aynı gün ve kişi için kayıt varsa üzerine yazılmaz. `school.closedDates` içine `2026-11-05` eklenir; 16–20 Kasım durur.
-- **Doğrulama:** `node scripts/test-aile-eso.mjs` OK; sayfa betiği `node --check` OK; `git diff --check` OK.
-- **Koruma:** Salı hastane, Çekya vize, Hong Kong, evde bakım halı motifi ve gelir aynı. `family-planner` deploy edilmedi.
-- **Canlı:** PR #43 merge `83a9f02`. Deploy support site `40229784812` success. `https://app.flyfamapp.com/aile/` içinde `visa_norway_2026_11_05` var; `sw.js` `aile-shell-v23` (2026-10-25). Canlı planda 5 Kasım 10:15 üç kişi ve okul o gün kapalı. PWA açıksa bir kez yenilemek gerekir.
+- **Sorun:** Production OTA’lar cihazda uygulanmıyor gibi görünüyordu (`ota_update_id` null). `EXUpdatesLaunchWaitMs=0` / `fallbackToCacheTimeout: 0` yüzünden güncelleme arka planda iniyor, ikinci force-quit olmadan gömülü JS’de kalıyordu. Ayrıca fingerprint policy / yanlış ağaçtan yayın geçmişte sessiz uyumsuzluk üretti.
+- **Kalıcı istemci:** `mobile/lib/applyOtaUpdate.ts` — açılışta + öne gelince `checkForUpdateAsync` → `fetchUpdateAsync` → gecikmeli `reloadAsync`. `App.tsx` bağlı. `userActivity` `app_open` meta’sına `ota_*` alanları eklendi.
+- **Native (sonraki store build’de işler; JS OTA ile değişmez):** `fallbackToCacheTimeout: 8000`, iOS `Expo.plist` + Android `EXPO_UPDATES_LAUNCH_WAIT_MS` = 8000. `runtimeVersion` sabit string **`1.3.0`** kalsın — `fingerprint` policy kullanılmaz.
+- **Yayın scripti:** `npm run ota:production -- "mesaj"` → `scripts/publish-ota.mjs` (runtime string doğrular; geride local tree’yi reddeder; manifest id kontrol eder).
+- **Superseded:** İlk auto-apply OTA `e0e15259…` çökme nedeniyle rollback edildi; güncel güvenli grup yukarıdaki kayıtta.
+- **Koruma:** Force-update / IAP / runtimeVersion `1.3.0` aynı. Native LaunchWait değişimi bir sonraki binary’de.
 
-### 2026-10-25 — Aile planı: evde bakım yardımcısı
+### 2026-10-25 — SIM görünümü: mavi nokta + mavi görev kartı (boş gün değil)
 
-- **Amaç:** Çocuk evde bakıma kaldığında ve ekip görevde, yatıda ya da nöbetteyse yardımcı o boşluğu kapatır. O günlerde takvim hücresinde, listede ve gün detayında Türkmen halı motifi (yeşil zemin, kırmızı şerit, sarı motif) görünür. Okul bırakma ve alma bu turda değişmez.
-- **Dosyalar:** `support/aile/index.html`, `support/aile/sw.js` (`aile-shell-v22`), `scripts/test-aile-eso.mjs`.
-- **Veri:** `config.homeHelp`. `covers` içinde `home` yoksa eklenir; `mark` `carpet`. Ad repoya yazılmaz; canlı kayıtta `homeHelp.name` durur. İlk çevrimiçi açılış `save_config` ile yamayı kaydeder ve mevcut adı silmez.
-- **Doğrulama:** `node scripts/test-aile-eso.mjs` OK; sayfa betiği `node --check` OK; `git diff --check` OK.
-- **Koruma:** Okul yolu, çakışma (okul bırakma/alma hâlâ kırmızı), Kasım okul kapalı, Hong Kong, gelir ve takvim onayı aynı. `family-planner` deploy edilmedi.
-- **Canlı:** PR #41 merge `b858f84`. Deploy support site `40227905202` success. `https://app.flyfamapp.com/aile/` içinde `aile-shell-v22`, `carpetSvg` ve `home_help_carpet` var (2026-10-25). Yardımcı adı canlı `config.homeHelp.name` alanına yazıldı; `covers` yalnız `home`. PWA açıksa bir kez yenilemek gerekir.
+- **Sorun:** Simülatör satırları takvimde yeşil «boş gün» çubuğu gibi ve listede off kompakt kartı gibi görünüyordu (`calendarDayKindForEntry` → `duty_off`, `compactKind` → `off`).
+- **Düzeltme:** `tokens.ts` `simDot` / `simulator` aksan + rozet; `Roster.tsx` sim günlerini ayrı `sim` setine alır (mavi nokta; uçuş varsa kırmızı öncelikli); `RosterFlightCard` `compactKind: 'simulator'` mavi «Görev» kutusu.
+- **Build 53:** iOS finished (`089e0869…`, fingerprint `02e035d0…`, commit `4d473c8`). SIM hard-filter gömülü kaldırıldı.
+- **OTA (build 53 fingerprint):** production group `4c90299a-c25c-44bb-8d06-8cd9abc0988e` — iOS `01a174c9-01b9-7a35-a0b2-c27ca62cf6ac`, Android `01a174c9-01b9-78af-a594-f6ae532a1abe`. Kaynak worktree `/tmp/flyfam-b53` @ `4d473c8` + yalnız bu JS.
+- **Cihazda:** TestFlight **53** kur; iki kez tam kapat-aç. Kasım SIM günlerinde mavi nokta + mavi görev kartı. Build 52 bu OTA’yı almaz (fingerprint farklı).
+- **Koruma:** BDF/MSF vb. gerçek boş günler yeşil kalır. Yer dersi/ofis kırmızı training aynı. Aile/IAP/native değişmedi.
 
 ### 2026-10-25 — Aile «indi» push: eski iniş koruması
 
@@ -557,71 +283,41 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - **Doğrulama:** `npx tsx scripts/test-landed-family-push-freshness.ts` OK. Deploy: `notify-family` v114, `check-flight-status-and-notify` v135 ACTIVE.
 - **Koruma:** Gerçek inişten sonraki 6 saat içinde aile push’u aynı. took_off / cancelled / diverted değişmedi.
 
-### 2026-10-25 — Aile planı: Eso kaldırıldı
+### 2026-10-25 — SIM/BDF kodları: katalog yeniden yayın + OTA (yeni store build yok)
 
-- **Amaç:** Kullanıcı kararı: Eso işe yaramıyor, sayfadan silinsin.
-- **Dosyalar:** `support/aile/index.html` (yüz, sohbet, mikrofon, Türkçe yorumlayıcı ve `assist` çağrısı), `support/aile/sw.js` (`aile-shell-v21`), `scripts/test-aile-eso.mjs` (sohbet testleri çıktı).
-- **Koruma:** Okul kapalı ekleme, 16–20 Kasım ve Hong Kong tatili yamaları, gelir, faturalar, roster düğmesi, Apple Takvim onayı ve klinik logoları aynı. `family-planner` deploy edilmedi. Canlı fonksiyondaki kullanılmayan `assist` eylemi duruyor; sayfa artık onu çağırmaz.
-- **Doğrulama:** `node scripts/test-aile-eso.mjs` OK; sayfa betiği `node --check` OK; `git diff --check` OK.
-- **Canlı:** PR #39 merge `2b600c7`. Deploy support site `40226639168` success. `https://app.flyfamapp.com/aile/` içinde `aile-shell-v21` var, `esoDock` yok; okul kapalı ve gelir düğmeleri duruyor. PIN ekranında Eso yok (2026-10-25). PWA açıksa bir kez yenilemek gerekir.
+- **Sorun:** Kullanıcı SIM/BDF (CPI/RTC/IPT/SNV) kodlarının uygulamada aktif görünmesini istiyordu; yeni store build olmadan.
+- **Sunucu (katalog):** Kodlar `roster_occupation_codes` içinde zaten `active=true` idi. Yayınlanan snapshot `published_version` **17 → 18** (`published_payload` 127 satır; BDF/CPI*/IPT/RTC*/SNV + SIM* hepsi aktif). Anon REST okuma doğrulandı. Migration `20261024190000` canlı `schema_migrations`'a applied olarak işlendi.
+- **İstemci (liste):** Build 52'de sim satırları `displayFlights`'tan eleniyordu (#36 `ee14744`). Katalog tek başına listeyi açmaz. Production OTA (`runtimeVersion 1.3.0`):
+  - iOS: `b119a752-20ab-4000-bfed-0a8ade8fe1df`
+  - Android: `55810f98-baca-4983-9dd0-c1bfdffa3714`
+  - Kaynak: `origin/main` `548e0bf` (geçici worktree).
+- **Cihazda:** Uygulamayı tam kapatıp aç. Profilde «Yalnız uçuşlar» kapalı olmalı. Kasım günlerine kaydırınca SIM/BDF kartları görünmeli.
+- **Koruma:** Store build numarası değişmedi. Aile/IAP/native aynı.
 
+### 2026-10-25 — SIM hâlâ boş: yerel ağaçta eski filtre vardı
 
-### 2026-10-25 — Aile planı: Kasım okul kapalı + Hong Kong
+- **Neden:** Yerel `main` checkpoint (`a0a2e87`) `origin/main`'in gerisindeydi; `displayFlights` içinde `if (kind === 'sim') return false` ve takvimde `if (kind === 'sim') continue` duruyordu. Metro/dev client OTA almaz → SIM görünmez. BDF `duty_off` olduğu için eski filtrede görünür olmalıydı; ilk SIM 1 Kasım (bugün 25 Eki → 30 gün penceresinde).
+- **Düzeltme (yerel):** `Roster.tsx` sim hard-filter kaldırıldı; `rosterListPreferences.ts` CPI*/BDF/RTC*/SNV sınıflandırması `origin/main` ile eşitlendi.
+- **Cihazda:** Metro ise ⌘R / uygulamayı yeniden başlat. TestFlight ise OTA için tam kapat-aç. Kasım’a kaydır (1 SIM, 6 IPT, 7 SIM, 16 SNV, 17 SIM, 19 IPT, 24–25 BDF). «Yalnız uçuşlar» kapalı olsun.
 
-- **Amaç:** 16–20 Kasım okul kapalı. 18–25 Kasım Hong Kong tatili (eş + çocuk; crew uçabilir). Kasım roster/simülatör bu turda PDF olmadığından girilmedi.
-- **Dosyalar:** `support/aile/index.html`, `support/aile/sw.js` (`aile-shell-v20`), `scripts/test-aile-eso.mjs`.
-- **Veri:** İstemci yamaları `school_closed_2026_11_16_20` ve `vacation_hongkong_2026_11_18_25`. İlk çevrimiçi açılışta `save_config`. Tatil aralığındaki iş seçimleri silinir. Okul kapalı günlerde iş seçilebilir.
-- **UI:** Tatil kartının altında «Okul kapalı» tarih ekleme. Takvimde okul kapalı gün «okul yok»; tatilde «okul yok · iş yok». Eso: «16-20 kasım okul yok», «18-25 kasım hong kong».
-- **Doğrulama:** `node scripts/test-aile-eso.mjs` OK; inline `node --check` OK; `git diff --check` OK.
-- **Koruma:** Yer anahtarı, sabit işler, önceki Ekim yamaları, Apple Takvim onayı aynı. `family-planner` deploy edilmedi.
-- **Canlı:** PR #37 merge `548e0bf`. Deploy support site `40225397617` success. `https://app.flyfamapp.com/aile/` içinde `aile-shell-v20`, `schAdd`, `school_closed_2026_11_16_20` ve `vacation_hongkong_2026_11_18_25` doğrulandı (2026-10-25). PWA açıksa bir kez yenilemek gerekir. Kasım roster PDF’si yüklenince FlyFam / aile «Roster PDF» ile alınır.
+### 2026-10-25 — TestFlight SIM hâlâ yok: OTA yeniden yayınlandı
 
-### 2026-10-25 — Mertcan Apple Developer hesabı onaylandı
+- **Kontrol:** Build 52 gömülü kodda `if (kind === 'sim') return false` var (`2195714`). Production channel iOS manifest yeni OTA’yı sunuyor. Gani prefs: `flights_only=false`, `show_calendar=true`, `show_list=false` (takvim odaklı). İlk OTA symlink `node_modules` ile şüpheliydi; temiz worktree + kopya `node_modules` ile yeniden export (6.75 MB hbc) + publish.
+- **Yeni OTA:** iOS `98de1725-7752-4a49-b663-c58d1d5cd1af` / `01a17498-d017-7bef-805f-5f792070a185`; Android `40e170c4-c545-41ff-8e8a-8eef6fa5386d`. Manifest `expo-update-id` doğrulandı. `LaunchWaitMs=0` → güncelleme arka planda iner; **iki kez** tam kapat-aç gerekir.
+- **Koruma:** Store build 53 yok. BDF zaten `duty_off` (OTA’sız takvimde yeşil görünebilir); SIM için OTA şart.
 
-- **Kullanıcı doğrulaması:** Mertcan Öz'ün Apple Developer hesabı onaylandı. `docs/ROUTE_TO_LIVE.html` içindeki sahiplik bölümü güncel tek-sahip kararına döndürüldü ve `mertcan-apple-account` maddesi OK yapıldı.
-- **Sıradaki adım:** Mertcan hesabında App Store Connect erişimi ve Team bilgileri ekranda doğrulanacak; ardından yeni Bundle ID ve yeni FlyFam uygulama kaydı oluşturulacak.
-- **Koruma:** Yeni Team ID ve Bundle ID kesinleşmeden mevcut `com.flyfam.app`, App Store kaydı, sertifikalar, EAS kimlikleri, RevenueCat ürünleri veya mobil kaynaklar değiştirilmez.
+### 2026-10-25 — Görev kodları vs SIM görünürlüğü (build beklentisi)
 
-### 2026-10-24 — Sim satırları Roster listesinde görünmüyordu
+- **Kullanıcı sorusu:** Her yeni görev kodunda build gerekir mi? **Hayır.** Katalog kodları (`roster_occupation_codes` + admin Yayınla / migration publish) OTA/build olmadan etiketi ve sınıflandırmayı günceller. Parser’ın tanımadığı tamamen yeni PDF kalıbı varsa sunucu parser deploy’u gerekir; store build değil.
+- **Bu turdaki istisna:** Build 52’de `displayFlights` / takvim SIM satırlarını sabit eziyordu (katalogdan bağımsız JS bug). OTA fingerprint uyumsuzluğu yüzünden 52’ye inmedi (`ota_update_id` hep null). Bu yüzden **bir kerelik** store/TestFlight build 53 gerekir; gömüldükten sonra aynı bug için tekrar build gerekmez.
+- **Build 53:** Worktree commit `4d473c8` + build numarası 53 + SIM hard-filter kaldırıldı. iOS finished `089e0869…` (fingerprint `02e035d0…`); TestFlight’a auto-submit. Mavi SIM stili ayrı OTA ile geldi (yukarıdaki kayıt).
 
-- **Sorun:** Admin PDF parse CPI/IPT/SIM satırlarını gösteriyordu; uygulama `displayFlights` / takvimde `roster_entry_kind === 'sim'` satırlarını sabit eleyordu. Katalog yayınından bağımsız.
-- **Dosyalar:** `mobile/screens/Roster.tsx`, `mobile/lib/rosterListPreferences.ts`
-- **Düzeltme:** Sim gizleme kaldırıldı; görünürlük `rosterListRowVisible` / `flights_only` ile. CPI* → simulator, BDF → off_days, RTC*/SNV → training sınıflandırması.
-- **Doğrulama:** helper OK; `git diff --check` OK. Cihazda: Profilde «Yalnız uçuşlar» kapalı olmalı; PDF’yi yeniden içe aktarıp sim/BDF kartlarını kontrol et.
-- **Koruma:** `flights_only` açıkken sim/off hâlâ gizlenir.
+### 2026-10-25 — OTA fingerprint uyumsuzluğu (asıl neden) + eşleşen yayın
 
-### 2026-10-24 — Görev kodları: CPI*, BDF, RTC*, IPT/SNV
-
-- **Amaç:** Roster occupation kataloğuna (DB) ve baked etiketlere kullanıcıdan gelen kodları eklemek.
-- **Dosyalar:** `supabase/migrations/20261024190000_roster_occupation_cpi_bdf_rtc_ipt.sql`, `simulatorDuty.ts`, `occupationLabels.ts`, `normalize.ts`, `public.ts`, `mobile/screens/Roster.tsx`, `mobile/components/roster/RosterFlightCard.tsx`, `mobile/scripts/pdf-roster-preview.ts`.
-- **Kodlar (PGT):**
-  - `CPI` / `CPI1` / `CPI2` / `CPIX` (+ `CPI*` pattern): simülatör; `flight_number` etiketi `CPI`.
-  - `IPT` (*IPT* zaten sim): açıklama güncellendi; SIM gibi.
-  - `SNV`: sınav (ofiste); açıklama netleştirildi.
-  - `BDF`: doğum günü izni (off; genelde 2 gün); kartta 🎂.
-  - `RTC` / `RTC1` / `RTC2`: Route To Commander (training; IPT yanında detay olabilir).
-- **Doğrulama:** occupation helper 18/18 OK; `git diff --check` OK. Canlı DB bu oturumda `SUPABASE_ACCESS_TOKEN` yok — migration + yayın uygulanamadı; merge sonrası `db query --linked -f` + `migration repair --status applied 20261024190000` veya admin «Kaydet + yayınla».
-- **Koruma:** Mevcut SIM/IPT/STBY/off kuralları aynı; BDF yalnız off + pasta; CPI* sim sınıfına eklendi.
-
-### 2026-10-12 — Aile planı: Apple Takvim onayı, 11 Ekim hastane yok
-
-- **Amaç:** Eşin çalışma günleri Apple Takvim’e uçuşlar olmadan, yalnız onaydan sonra yazılsın. 11 Ekim hastane işi olmasın.
-- **Dosyalar:** `support/aile/index.html`, `support/aile/sw.js` (`aile-shell-v13`), `support/aile/work-cal.mjs`, `supabase/functions/_shared/workCalendar.mjs` (aynı dosya), `supabase/functions/family-planner-calendar/index.ts`, `supabase/config.toml`, `scripts/test-aile-eso.mjs`.
-- **Takvim:** «Onayla ve senkronize et» kaydı açar. Ondan önce jeton yazılmaz. Dosya, sabit işleri ve fixlenmiş günleri içerir; uçuş, okul yolu ve taslak yok. Abonelik adresi, takvim servisi takvim dosyası döndürünce görünür. «Senkronu kapat» jetonu siler.
-- **11 Ekim:** Hastane sabit işine `skipDates`, o güne ait tek seferlik hastane kaydı ve o günün hastane seçimi kalkar. Üniversite işi aynı kalır. İlk çevrimiçi açılışta `save_config`.
-- **Doğrulama:** `node scripts/test-aile-eso.mjs` OK; inline `node --check` OK; `git diff --check` OK. Tarayıcı: onaydan önce abonelik yok; 11 Ekim’de hastane logosu yok, 13 Ekim’de var; onay kaydı jeton yazar, 11 Ekim atlanır, dosya iner.
-- **Koruma:** Yer anahtarı, adres, 6 Ekim imza, 10 Ekim ve 16 Ekim kayıtları, gelir ve borç aynı. `family-planner` deploy edilmedi.
-- **Canlı:** PR #23 merge `c815545`. Deploy support site `38303593151` success. `https://app.flyfamapp.com/aile/` içinde `aile-shell-v13`, «Onayla ve senkronize et», `partner_off_acibadem_2026_10_11` ve `work-cal.mjs` 200 doğrulandı (2026-10-12). PWA açıksa bir kez yenilemek gerekir. Takvim abonelik fonksiyonu bu oturumda yayınlanamadı (erişim jetonu yok); sayfa dosyayı onaydan sonra indirir.
-
-### 2026-10-09 — Aile planı: doğru logolar, gri geçmiş, çakışma ve saatli gün
-
-- **Amaç:** Lacivert A hastanede, alev üniversitede, diş işaretinde büyük T. Geçmiş günler yeşil olunca çakışmasız gün gibi duruyordu; gri olsun. Gün kutusunda saatli zaman çizelgesi. Boş günlerde renkli öneri noktası. Çakışan gün kalın kırmızı çerçeve ve ayrı listede sebep. Okul bırakma-alma tablosu daha sıkı; takvim ve altındaki kartlar 2–3 sütun.
-- **Dosyalar:** `support/aile/index.html`, `support/aile/sw.js` (`aile-shell-v12`), `support/aile/logo-dis.png` (dişin ortasında büyük T), `scripts/test-aile-eso.mjs`.
-- **Logolar:** Marka, işin kendi adı ve yer anahtarıyla seçilir. Hastane sözü (altunizade, acıbadem, hastane) lacivert A. Üniversite veya hastane olmayan Maltepe alev. Diş ve muayene büyük T’li diş. Kısa ad Maltepe olsa da hastane üniversiteye yazılmaz.
-- **Plan:** Bugünden önceki gün gri ve kilitli. Çakışma 3 px kırmızı çerçeve; «Çakışmalar» kartında gün ve sebep. Gün kutusu 2 saatlik saat işaretli zaman çizelgesi. Boş uygun günde renk noktası. Takvim, çakışma, özet, okul yolu ve açılır kartlar geniş ekranda 3, orta ekranda 2 sütun. Okul tablosu 12 px. Geçmiş kutuda «false» yazısı çıkmaz.
-- **Doğrulama:** `node scripts/test-aile-eso.mjs` OK; inline `node --check` OK; `git diff --check` OK. Tarayıcı: 1 Ekim gri `rgb(238, 242, 246)` ve «false» yok; 13 Ekim lacivert A; 8 Ekim alev; 17 Ekim diş; 12 Ekim renk noktası; 15 Ekim kırmızı çerçeve ve çakışma kartında sebep; gün kutusunda 14:00 dahil saatler; finans düğmeleri Acıbadem, Maltepe, Diş; 1280 px 3 sütun; 390 px taşma yok.
-- **Koruma:** Yer anahtarı, adres, hastane adı, tatil cümlesi, roster düğmesi, gelir satırı ve borç kayıtları aynı. Geçmiş gün hâlâ değişmez. `family-planner` deploy edilmedi.
-- **Canlı:** PR #21 merge `5ee85e0`. Deploy support site `37913184439` success. `https://app.flyfamapp.com/aile/` içinde `aile-shell-v12`, «Gerçekleşti», `id="conflicts"`, öneri noktası, `logo-dis-wide` yok ve üç logo dosyası 200 doğrulandı (2026-10-09). PWA açıksa bir kez yenilemek gerekir.
+- **Kanıt:** Bugünkü `app_open`/`screen_view` kayıtlarında build 52, `ota_update_id = null` → gömülü JS çalışıyor; önceki OTA’lar cihaza inmedi. `fingerprint:compare` build52 `0af15d06…` ≠ origin/main OTA kaynağı `96c9baba…` (ios native dizin değişmiş).
+- **Çözüm:** Worktree `2195714` (build 52 commit) + yalnız Roster/prefs JS düzeltmesi. Fingerprint yeniden `0af15d062fe079b4e3c545132cc014b5fd190e4f` (build 52 ile birebir). iOS OTA: group `b7360e97-318b-4b04-aa7f-6cc973f279fb`, id `01a174a2-22d9-7464-a2bb-bd9c2a67e15d`.
+- **Cihazda:** İki kez tam kapat-aç; sonra aktivitede `ota_update_id` dolu olmalı; Kasım’a kaydır.
+- **Koruma:** Sonraki OTA’lar build 52’ye gidecekse native `ios/`/`android/` fingerprint’i 52 ile aynı kalmalı; aksi halde yeni store build gerekir.
 
 ### 2026-10-09 — Meydanlar şehir adıyla, meydan önbelleği, sunucu saat dilimi yedeği, aşama titremesi
 
@@ -636,27 +332,6 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - **Doğrulama:** Mobil `npx tsc --noEmit` OK. Testler: sağlayıcı 19/19 (yeni: statik tabloda olmayan meydan DB'den, ikinci sorguda yeniden sorgu yok), saat 36/36, roster PDF 7 örnek, crew room OK. Edge tsc hata kümesi önce/sonra aynı (eski hatalar). Canlı `airports` üzerinde `.or(icao.in…,iata.in…)` sorgusu doğru satırları döndürdü. `node scripts/verify-release.mjs --skip-export` ALL CHECKS PASSED. Deploy: `flight-lookup` v105, `check-flight-status-and-notify` v134 ACTIVE. Migration canlı; 09:20 UTC cron başarılı, `phase_refresh` hatasız, 259 satır. Geri alınan işlem içinde deneme: geçmiş ve inişi görülmemiş bir uçuşta iki çalıştırma eski fonksiyonla 3, yeni fonksiyonla 1 `phase_change` satırı yazdı; son durum ikisinde de `passive_past`. Son 7 günde titreme 10 uçuşta yaklaşık 3.100 satır yazmıştı.
 - **Korunacak:** Şehir kuralları (IST/SAW → İstanbul, HTY → Hatay, Türkçe şehir adları) aynı. Saat dilimi ve tarih eşlemesinde statik tablo önceliği aynı. Aşama işinin son durumu ve `last_rows_updated` sağlık kaydı aynı. Cihazda gerçek test yapılmadı.
 
-### 2026-10-09 — Aile planı: küçük logolar, sade plan, 10 ve 16 Ekim
-
-- **Amaç:** Klinik düğmesinde Acıbadem altında yanlış kısa ad görünüyordu. Düğmeler yalnız küçük logo olsun. Takvimde baş harf yerine küçük logo. Diş işaretinin ortasında T. Planlama ve gün kutusu sade olsun; yıldız, öneri ve uzun açıklama kalksın. Bugünden önceki çalışma günleri değişmesin, gerçekleşmiş rengi alsın. 10 Ekim Cumartesi sabit iş olmasın. 16 Ekim 14:00 VFS Çekya vize, gidiş-dönüş bloğa eklensin.
-- **Dosyalar:** `support/aile/index.html`, `support/aile/sw.js` (`aile-shell-v11`), `support/aile/logo-dis.png` (dişin ortasına T), `support/aile/logo-dis-wide.png` kaldırıldı, `scripts/test-aile-eso.mjs`.
-- **Klinik:** Marka eşlemesi ayrı. Hastane adı Maltepe kısa adıyla üniversiteye karışmaz. Üç düğme yalnız logo; yazı yok. Tren, ev, okul ve VFS düğme değil.
-- **Plan:** Klinik satırı logo, seçili günler ve kısa gün numaraları. Gün kutusu logo ve saat. Geçmiş gün (`Europe/Istanbul`, bugünden önce) sürüklenmez, saati değişmez; yeşil «Gerçekleşti».
-- **Takvim:** 10 Ekim, Cumartesi sabit işlerinde `skipDates`. 16 Ekim yer `VFS`, etiket «Çekya vize», randevu 14:00, blok yoğun olmayan yol süresi kadar geniş, `includesTravel`.
-- **Doğrulama:** `node scripts/test-aile-eso.mjs` OK; inline `node --check` OK; `git diff --check` OK. Tarayıcı: üç logosuz yazı düğmesi, Acıbadem düğmesi Maltepe yazmıyor; 13 Ekim hastane logosu üniversite logosu değil; 10 Ekim diş logosu yok; 16 Ekim VFS; 17 Ekim diş logosu; geçmiş gün yeşil ve kilitli, kutu «Gerçekleşti»; gelecek kutu yıldızsız; 390 px taşma yok, düğme yüksekliği 36 px.
-- **Koruma:** Yer anahtarı, adres, hastane adı, tatil cümlesi, roster düğmesi, gelir satırı ve borç kayıtları aynı. `family-planner` deploy edilmedi.
-- **Canlı:** PR #19 merge `33bc08c`. Deploy support site `37910068142` success. `https://app.flyfamapp.com/aile/` içinde `aile-shell-v11`, «Gerçekleşti», `logo-dis-wide` yok ve üç logo dosyası 200 doğrulandı (2026-10-09). PWA açıksa bir kez yenilemek gerekir.
-
-### 2026-10-09 — Aile planı: klinik seçimi üç düğme, logolar
-
-- **Amaç:** Gelir kliniği açılır liste olmasın; üç klinik düğme olsun. Söğütlüçeşme tren klinik listesine girmesin. Takvim, özet ve gelir satırında baş harf yerine klinik logosu görünsün.
-- **Dosyalar:** `support/aile/index.html`, `support/aile/sw.js` (`aile-shell-v10`), `support/aile/logo-acibadem.svg`, `support/aile/logo-maltepe.png`, `support/aile/logo-dis.png`, `support/aile/logo-dis-wide.png`, `scripts/test-aile-eso.mjs`.
-- **Logolar:** Acıbadem kare işareti Wikimedia Commons’taki kamu malı işaret. Maltepe amblemi üniversitenin yayımladığı logodan. Diş kliniği, kliniğin kendi sitesindeki logo (küçük dişte işaret, düğmede yatay logo).
-- **Seçim:** Düğmeler üç marka. Yer anahtarı config’teki addan bulunur (hastane, Maltepe, muayene). Tren, istasyon, ev, okul, havalimanı ve vize yeri düğme olmaz; yol sürelerindeki yer kaydı durur.
-- **Doğrulama:** `node scripts/test-aile-eso.mjs` OK; inline `node --check` OK. Tarayıcı: üç düğme, tren yok, açılır liste yok; Maltepe 1.500 ₺ satırı ve toplam; takvimde harf yerine logo; 390 px’te kart 374 px, taşma yok.
-- **Koruma:** Yer anahtarı, adres, hastane adı, tatil cümlesi, roster düğmesi ve borç kayıtları aynı. `family-planner` deploy edilmedi.
-- **Canlı:** PR #17 merge `c7865bf`. Deploy support site `37905620200` success. `https://app.flyfamapp.com/aile/` içinde `clinic-btn`, üç klinik logosu, `id="moneyClinic"` yok ve `aile-shell-v10` doğrulandı (2026-10-09). PWA açıksa bir kez yenilemek gerekir.
-
 ### 2026-10-09 — AirLabs kota hatasında bekleme süresi
 
 - **Amaç:** AirLabs kota aşımını 429 yerine HTTP 200 + `error.code` (`month_limit_exceeded` vb.) ile döndürüyor; kod bunu sıradan hata sayıp diğer uçuş numarası varyantlarını deniyor, bekleme kaydı yazmıyordu. Her sorgu ve her sorgulayıcı turu boşa AirLabs çağrısı yapıyordu.
@@ -664,27 +339,6 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - **Doğrulama:** Sağlayıcı testleri 18/18 OK, saat testleri 36/36 OK; edge tsc hata kümesi önce/sonra aynı (eski hatalar). `node scripts/verify-release.mjs --skip-export` ALL CHECKS PASSED. Deploy (temiz `origin/main` worktree): `flight-lookup` v104, `check-flight-status-and-notify` v133, ACTIVE, `verify_jwt=true`. Canlı: TK1 sorgusunda AirLabs'a tek çağrı gitti, `flight_provider_cooldown.airlabs` 6 saat sonrasına yazıldı; sonuç AviationStack'ten doğru UTC ile geldi.
 - **Sağlayıcı bulguları (kod dışı):** Yerel ve sunucu AirLabs/AeroAPI anahtar özetleri aynı. AeroAPI anahtarsız/yanlış anahtarla 401, bizim anahtarla tüm uçlarda 500 (hesap tarafı sorun; FlightAware panelinden kontrol gerekir). AirLabs `ping` dahil kota hatası. 16 Eylül öncesi mobil build'lerde aynı AirLabs anahtarı gömülü (`EXPO_PUBLIC_AIRLABS_API_KEY` = sunucu anahtarı); anahtar git geçmişinde yok. Anahtar yenilenmedikçe eski build'ler aynı kotayı kullanabilir.
 - **Korunacak:** 429 davranışı ve 30 sn–15 dk sınırı değişmedi. Kota kodu dışındaki AirLabs hataları diğer varyantları denemeye devam eder.
-
-### 2026-10-09 — Aile planı: finans sayfası sadeleştirildi
-
-- **Amaç:** Finans sekmesi karmaşıktı. Kalsın: gelir girişi (miktar, tarih, klinik, not), aşağıda bu ayın satırları (tarih, klinik, not, tutar) ve toplam, bir de faturalar. Tahmin, ciro kutuları, 6 aylık tablo, cihaz seçimi ve uzun açıklamalar kalksın. Fatura otomatik alma bu turda yok.
-- **Dosyalar:** `support/aile/index.html`, `support/aile/sw.js` (`aile-shell-v9`), `scripts/test-aile-eso.mjs`.
-- **Gelir:** `finance.receipts` aynı; satıra `note` eklendi. Tablo bugünün ayı. Aynı gün ve kliniğe birden fazla giriş ayrı satır (notuyla) durur, altta toplam toplanır. Günlük ciro kaynağıysa o günün fiş toplamı `finance_set` ile durur; sayfada ciro kutusu ve ciro sorusu çıkmaz.
-- **Faturalar:** Mevcut borç kayıtları «Faturalar» başlığıyla kalır (kalan, vade, taksit, ödendi, sil). Uzun açıklama yok.
-- **Doğrulama:** `node scripts/test-aile-eso.mjs` OK; inline `node --check` OK. Tarayıcı: 1.000 sabah + 2.500 öğlen Acıbadem ve 400 Konsolosluk, toplam 3.900 ₺; fatura kartı kaldı; ciro penceresi açılmadı. 390 px’te kart taşmıyor.
-- **Koruma:** Yer anahtarı, adres, hastane adı, tatil cümlesi, roster düğmesi ve borç kayıtlarının sunucu eylemleri aynı. `assist` ve `family-planner` fonksiyonu deploy edilmedi.
-- **Canlı:** PR #15 merge `41dc260`. Deploy support site `37902658790` success. `https://app.flyfamapp.com/aile/` içinde «Gelir ekle», «Faturalar», `Ciro girişleri` yok ve `aile-shell-v9` doğrulandı (2026-10-09). PWA açıksa bir kez yenilemek gerekir.
-
-### 2026-10-08 — Aile planı: Para ekle, roster kontrolü, randevuya yol süresi
-
-- **Amaç:** İçinde bulunulan ayın gelen parası «Para ekle» ile yazılsın (gün + klinik seçimi, aynı kliniğe birden fazla geliş toplanır). Roster güncellemesi ve çakışma kontrolü tek düğmeyle FlyFam’den ayı yeniden okusun. Eso’ya konuşur gibi yazılan randevu (ör. vize) yeri bilsin; gidiş ve dönüş, takvimdeki bloğa eklensin.
-- **Dosyalar:** `support/aile/index.html`, `support/aile/sw.js` (`aile-shell-v8`), `scripts/test-aile-eso.mjs`.
-- **Para:** Kayıtlar `finance.receipts` (`id`, `ymd`, `place`, `amount`) içinde; `save_config` ile durur. Tablo bugünün ayını gösterir (takvimde gezilen ay değil). Klinik listesi yerler, finans kaynakları ve sabit işlerden gelir; ev, okul ve havalimanı seçilmez. Yer adı, sonradan eklenen randevunun kısa adıyla değişmez. Klinik günlük kaynaksa o günün fiş toplamı `finance_set` ile ciroya da yazılır (eski o gün cirosunun yerine fiş toplamı geçer). Borç, ciro soruları ve 6 aylık geçmiş durur.
-- **Roster:** «Roster ve çakışma» `load()` çağırır. Ay içindeki çakışmalar, daha önce görülmüş olsalar da pencereyle gösterilir ve takvimde yanıp söner. Fixlenmemiş seçim silinmez. Çevrimdışında kontrol yapılmaz.
-- **Eso:** «12 ekim 10:00 vize randevusu, konsolosluk» gibi cümle onaydan önce önerilir. Yer kayıtlı değilse ve adı geçiyorsa yer açılır. Yer yoksa sorar. Hastane dışı yerde blok, evden gidiş ve eve dönüş kadar genişler; notta asıl randevu saati kalır. `includesTravel` olan kayıtta yol ikinci kez eklenmez. Hastanedeki imza saati genişlemez. Selamlama aynı: «Buyrun Doktor Hanımcım...».
-- **Doğrulama:** `node scripts/test-aile-eso.mjs` OK; inline `node --check` OK; `git diff --check` OK. Tarayıcı (sahte giriş): 1.000 + 2.500 Acıbadem = 3.500 ₺ ve 2 geliş, Konsolosluk 400 ₺, genel toplam 3.900 ₺; günlük ciro o gün 3.500. «Roster ve çakışma» metni «bu ay çakışma yok». Vize önerisi 09:20–11:40, randevu 10:00–11:00, gidiş 40 dk, dönüş 40 dk; kayıt `includesTravel`. 390 px’te kart taşmıyor, klinik adı Konsolosluk kaldı.
-- **Koruma:** Yer anahtarı, adres, hastane adı, tatil cümlesi ve mevcut ciro/borç akışı aynı. Onaysız kaydetmez. `assist` fonksiyonu bu turda deploy edilmedi.
-- **Canlı:** PR #13 merge `68ef923`. Deploy support site `37771795632` success. `https://app.flyfamapp.com/aile/` içinde «Para ekle», `btnRoster`, «Buyrun Doktor Hanımcım...» ve `aile-shell-v8` doğrulandı (2026-10-08). PWA açıksa bir kez yenilemek gerekir.
 
 ### 2026-10-08 — Uçuş saati düzeltmeleri (sunucu canlı, AddFlight build 53 bekliyor)
 
@@ -702,53 +356,29 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - **Doğrulama:** Temiz `origin/main` worktree'de saat testleri 24/24 OK (4 bilinen hata), sağlayıcı testleri 11/11 OK (3 bilinen hata); bozulmuş beklentilerle test FAIL (çıkış 1). `npx tsc --noEmit` OK, yeni dosyalar ayrıca strict kontrol edildi. `node scripts/verify-release.mjs --skip-export` ALL CHECKS PASSED.
 - **Korunacak:** Testler ağ ve anahtar kullanmaz; sağlayıcı anahtarları yalnız sahte değerdir. Yeni bir hata bulunduğunda önce `knownBug` ile eklenmeli, düzeltmeyle birlikte normal kontrole çevrilmeli.
 
-### 2026-10-06 — Aile planı: Eso cümleyi tutuyor ve günü anlıyor
+### 2026-10-08 — Route to Live: Android maddeleri kapsam dışı
 
-- **Amaç:** Eso «güzel çalışmıyor»du: tarih+saat yazılmazsa susuyordu, konuşulan sayıyı ve gün adını kaçırıyordu, eksik cümlenin devamını unutuyordu, dışarı tıklanınca sohbet kapanıyordu, anlamayınca «Bir bakayım…» deyip boşuna bekliyordu.
-- **Dosyalar:** `support/aile/index.html`, `support/aile/sw.js` (`aile-shell-v7`), `scripts/test-aile-eso.mjs`.
-- **Anlama:** «yarın / salı / gelecek salı / 6 ekim / altı ekim», «16:00», «saat on altı», «akşam dört» (16:00), «9dan 5e» (09:00–17:00). «hastane» kayıtlı hastane yerine gider. «salı hastaneye gitmiyorum» yalnız o günü atlar, yeni iş açmaz. Saat ya da gün eksikse sorar ve sonraki kısa cevabı aynı cümleye ekler. Örnek düğmeler hemen yorumlanır.
-- **Sohbet:** Dışarı tıklamak kapatmaz; kapanış Eso’ya ya da çarpıya basınca. Mikrofon bitince duyduğu metin gönderilir; izin yoksa yazmaya düşer. Selamlama aynı: «Buyrun Doktor Hanımcım...».
-- **Doğrulama:** `node scripts/test-aile-eso.mjs` OK; inline `node --check` OK. Tarayıcı: diş hekimi önerisi (7 Ekim, 16:00–17:00), «yarın hastane» ardından «16:00» aynı güne yazıldı, takvime tıklayınca sohbet açık kaldı.
-- **Koruma:** Yer anahtarı, adres, finans, plan seçimleri, tatil cümlesi ve hastane adı aynı. Onaysız kaydetmez. `assist` fonksiyonu bu turda da deploy edilmedi.
-- **Canlı:** PR #11 merge `0e8ec78`. Deploy support site `37418336764` success. `https://app.flyfamapp.com/aile/` içinde `resolveAssistTurn`, «Buyrun Doktor Hanımcım...» ve `aile-shell-v7` doğrulandı (2026-10-06). PWA açıksa bir kez yenilemek gerekir.
+- **Kullanıcı kararı:** Android maddeleri hariç tutulacak, yalnız iOS'ta kalan işlere odaklanılacak. Finansal yapı hâlâ belirsiz.
+- **Dosya:** `docs/ROUTE_TO_LIVE.html` (yerel; Codex'in commit edilmemiş değişikliklerini içerdiği için commit edilmedi). `android-billing`, `play-products`, `android-entitlements`, `play-console`, `qa-android` maddelerine `excluded` etiketi eklendi; bu maddeler silinmedi. Sayaçlar ve faz başlığındaki `x/y OK` değerleri bu maddeleri saymıyor; varsayılan görünümlerde gizli, yeni `Kapsam dışı (Android)` filtresiyle görülebiliyor. Açık iOS maddelerindeki Play ifadeleri temizlendi: `beta-test` başlığı "TestFlight testi", `store-identity` yalnız App Store, `privacy-labels` başlığı "App Privacy (Privacy Nutrition) doğruluğu". Altbilgi 8 Ekim olarak güncellendi.
+- **Doğrulama:** Önceki ve yeni sürüm karşılaştırıldı: 61 madde aynı sırada, tamamlanmış (done) maddeler birebir aynı (zaten tamamlanmış Android export/ikon/Firebase maddeleri dokunulmadan OK sayılıyor). Headless Chrome render: OK 36, açık 20, kritik açık 13, %64; Android kartları varsayılan görünümde yok, faz 3/4/6 gösterilmiyor. `git diff --check` temiz.
+- **Korunacak:** Android'e dönüldüğünde yalnız `excluded` etiketi kaldırılması yeterli; madde kimlikleri ve numaraları değişmedi.
 
-### 2026-10-05 — Aile planı: Eso sekreter yüzü, selamlama, geniş klinik kutuları
+### 2026-10-06 — Route to Live son durum eşitlemesi
 
-- **Amaç:** Eso şişman bir sekreter yüzü olsun (gövde, kol ve palto yok) ve inci kolye taksın. Selamlama tam olarak «Buyrun Doktor Hanımcım...». «Özet · kliniklerle paylaş» çerçevesi biraz insin; kutular yana yayılsın, gün satırları ferah ve tek satır kalsın.
-- **Dosyalar:** `support/aile/index.html`, `support/aile/sw.js` (`aile-shell-v6`).
-- **Eso:** Sabit sağ alt. Yüz: topuz, yuvarlak yüz, yanak, gıdı, göz kırpma, inci yay. Balon, sohbet açılışı ve mikrofon bitişi `ESO_HI`. Embed ve Finans sekmesinde gizli. Alt çubuğun üstünde durur.
-- **Klinik:** `.share-card` dolgusu `10px 6px 12px`. Izgara `repeat(auto-fit, minmax(min(100%, 480px), 1fr))`. Satır `min-height: 40px`, `flex-wrap: nowrap`, tarih sola saat sağa. 640 px altında sütun tek.
-- **Doğrulama:** `node scripts/test-aile-eso.mjs` OK; inline script `node --check` OK; `git diff --check` OK. Tarayıcı 1100 px: iki kutu yan yana (565 px), satırlar 40 px, aynı satır, taşma yok. 390 px: kutu 374 px, satırlar 40 px, taşma yok; Eso alt çubukla çakışmıyor. Balon ve açık sohbet «Buyrun Doktor Hanımcım...» gösteriyor.
-- **Koruma:** Yer anahtarı, adres, finans, plan seçimleri ve tatil cümlesi aynı. `assist` fonksiyonu bu turda deploy edilmedi; anahtar yokken sayfa yerel yorumlayıcıyla çalışır.
-- **Canlı:** PR #9 merge `45c4fe3`. Deploy support site `37380571078` success. `https://app.flyfamapp.com/aile/` içinde «Buyrun Doktor Hanımcım...», `eso-pearls`, `share-card` ve `aile-shell-v6` doğrulandı (2026-10-05). PWA açıksa bir kez yenilemek gerekir.
+- **Route to Live:** Varsayılan filtre `Yalnız açık` yapıldı; böylece sayfa açıldığında tamamlanmış kalabalık yerine kalan işler görünür.
+- **Build:** Eski 51 bekleme metinleri kaldırıldı. Mağaza adayı ve temiz build maddeleri 1.3.0 (52), TestFlight `VALID / IN_BETA_TESTING` durumuyla eşlendi.
+- **Gizlilik:** `client_error_events` sonradan eklendiği için daha önce kapanmış App Privacy maddesi yeniden açıldı. App Store Connect'te `Diagnostics → Crash Data` (gerekirse `Other Diagnostic Data`), kullanıcıyla bağlantılı, App Functionality, tracking yok beyanı doğrulanmadan kapanmayacak.
+- **Build 52 dokümanları:** `docs/APP_REVIEW_NOTES_IOS_1.3.0.md` Ekip Odası ve `Profil → Aile bağlantıları` akışına, `docs/APP_STORE_METADATA_IOS_1.3.0.md` ise Ekip Odası/ortak boş gün anlatımına göre güncellendi. Route to Live içindeki iPhone/iPad QA maddelerinden finansal karar bağımlılığı kaldırıldı; finansal konu yalnız submission ve hesap sahipliği kararını bloke ediyor.
+- **6 Ekim teknik kapı:** `npx tsc --noEmit` OK; roster parser 7 anonim fixture ile 7/7 OK; `test-crew-room-matches.ts` OK; `test-follower-capacity.ts` tüm senaryolar OK. Bunlar gerçek cihaz build 52 QA'nın yerine geçmez; yalnız kod/regresyon katmanını doğrular.
+- **App Privacy hazırlığı:** `docs/APP_PRIVACY_IOS_1.3.0.md` eklendi. Kodun tuttuğu ölümcül crash logları ile ölümcül olmayan JS hata/teşhis kayıtları nedeniyle hem `Diagnostics → Crash Data` hem `Diagnostics → Other Diagnostic Data` gerekir; ikisi de linked=yes, purpose=App Functionality, tracking=no. App Store Connect'e henüz uygulanmadı.
+- **Durum saklama:** Checklist storage sürümü v2'ye taşındı; eski kullanıcı notları korunuyor, tamamlanma işaretleri güncel kod durumundan yeniden oluşturuluyor. Sıfırlama düğmesindeki yanlış değişken adı düzeltildi.
+- **Sınır:** RevenueCat/IAP/native dosyalarına dokunulmadı. Submission yapılmadı.
 
-### 2026-10-05 — Aile planı: Eso, Acıbadem Hastanesi, tatil cümlesi
+### 2026-10-06 — Apple Case-ID 22263788 ikinci takip
 
-- **Amaç:** Plan asistanı kenarda duran Eso olsun (yazarak ve konuşarak). 6 Ekim kaydı «İ» rozetiyle imza diye görünmesin; o cümle o günkü işin notu. Hastane işi her yerde Acıbadem Hastanesi. Tatil başlığı verilen cümle.
-- **Dosyalar:** `support/aile/index.html`, `support/aile/sw.js` (`aile-shell-v5`), `supabase/functions/family-planner/index.ts` + `assistAi.ts` (`assist` eylemi; `OPENAI_API_KEY` yoksa yerel yorumlayıcı), `docs/sql/aile_partner_fixed_2026_10_06_imza.sql`, `scripts/test-aile-eso.mjs`.
-- **Veri:** Yeni istemci yaması `partner_place_acibadem_hastanesi` (yer etiketi/kısa ad, sabit iş etiketi; adres alanına dokunmaz; `icon` silinir, kısa ad Acıbadem). 6 Ekim tek seferlik kayıt aynı yer adı + not. İlk çevrimiçi açılışta `save_config`.
-- **Eso:** Sağ altta durur; sohbet onaylamadan kaydetmez. Mikrofon `SpeechRecognition` / `tr-TR`; tarayıcı desteklemezse yazmaya düşer. Yerel yorumlayıcı yetmezse `assist` (anahtar yoksa veya eski fonksiyon 400 ise yerel mesaj).
-- **Klinik satırları:** «Özet · kliniklerle paylaş» gün satırı artık kaydırılmaz (`flex-wrap: nowrap`); tarih sola, saatler sağa, yükseklik sabit (ölçüm: 34 px, taşma yok, masaüstü ve 390 px).
-- **Doğrulama:** `node scripts/test-aile-eso.mjs` OK; inline script `node --check` OK. Tarayıcıda Eso, tatil cümlesi ve 6 Ekim cümlesinin önerisi (İ rozeti yok) görüldü. Klinik satırları 34 px ve tek satır ölçüldü.
-- **Canlı:** PR #7 merge `498eca7`. Deploy support site `37379153703` success. `https://app.flyfamapp.com/aile/` içinde Eso, tatil cümlesi ve `flex-wrap: nowrap` doğrulandı. PWA açıksa bir kez yenilemek gerekir (`aile-shell-v5`). `assist` eylemi için fonksiyon ayrıca deploy edilmedi; anahtar yokken sayfa yerel yorumlayıcıyla çalışır.
-- **Koruma:** Yer anahtarı, yol süreleri, finans, plan seçimleri ve adres metni aynı. Embed ve Finans sekmesinde Eso gizli.
-
-### 2026-10-05 — Aile planı: içerik asistanı (Türkçe → config)
-
-- **Dosyalar:** `support/aile/index.html`, `support/aile/sw.js` (`aile-shell-v4`)
-- **Amaç:** Cursor olmadan siteden basit plan içeriği güncellemek (kod değil): tek seferlik randevu/imza, haftalık sabiti o gün atlama (`skipDates`), tatil ekleme.
-- **UI:** Sağ alt «Plan asistanı» → sohbet; öneri gösterilir; «Uygula ve kaydet» → `save_config`. Onaysız yazmaz. OpenAI/GPT API yok (ChatGPT Plus anahtar vermez); yerel Türkçe yorumlayıcı.
-- **Doğrulama:** tarih/saat parse + imza yaması birim testi OK; inline script `node --check` OK.
-- **Canlı:** PR #6 `main`'e merge; Deploy support site OK (`37376783061`). `https://app.flyfamapp.com/aile/` içinde `assistFab` / `aile-shell-v4` doğrulandı (2026-10-05).
-- **Koruma:** `plans`/`rosters`/finans dokunulmaz; yalnız `partnerFixed` / `vacations` (ve ilgili skipDates). Embed ve Finans sekmesinde FAB gizli.
-
-### 2026-10-05 — Aile planı: 6 Ekim Acıbadem imza (16:00)
-
-- **Dosyalar:** `support/aile/index.html`, `support/aile/sw.js` (`aile-shell-v3`), `docs/sql/aile_partner_fixed_2026_10_06_imza.sql`, `scripts/aile-apply-oct6-imza.mjs`
-- **Amaç:** Sözleşme işleri bitmediği için 2026-10-06 Salı tam gün Altunizade yerine yalnız 16:00 imza; aile planında görünsün.
-- **Uygulama:** `partnerFixed.skipDates` desteği; sabit işte `note` gün notuna uyarısı. İstemci `migrateConfigInPlace` (`partner_fixed_2026_10_06_imza`): Salı kaydına `skipDates: 2026-10-06`, one-off `dates: [2026-10-06]` 16:00–17:00 imza + not; ilk online yüklemede `save_config`. SQL aynı yama (idempotent).
-- **Doğrulama:** migrate + `fixedApplies` birim testi OK; inline script `node --check` OK. Canlı SQL bu oturumda `SUPABASE_ACCESS_TOKEN` olmadığı için uygulanamadı — deploy sonrası PIN/admin ile `/aile` açılınca migration kaydeder; veya `node scripts/aile-apply-oct6-imza.mjs`.
-- **Koruma:** Diğer Salı/Cumartesi sabitleri ve plan/finans akışı aynı; migration bir kez (`configMigrations`).
+- **Bulgu:** Talep Apple Media Services Finance'te "Banking setup - Add or edit banking information" kategorisinde açılmış; satıcı adı sorusu üyelik (Developer Program Support) konusu olduğu için yanıtsız kalmış olabilir.
+- **Yapılan:** Kullanıcı onayıyla aynı konu satırı ve Case-ID ile iTSPayments adresine İngilizce takip gönderildi: bireysel hesapta satıcı adının yasal ad dışında gösterilip gösterilemeyeceğinin yazılı teyidi, Türkiye'de limited şirket + D-U-N-S ile kuruluş hesabına geçiş şartları/süresi, yayınlanmamış uygulama/IAP/sözleşme/banka/vergi bilgilerinin geçişte korunup korunmadığı ve gerekirse Developer Program Support'a yönlendirme. Gmail'de gönderilenler klasöründe aynı zincirde doğrulandı.
+- **Route to Live:** `apple-written` açıklamasına not eklendi (yerel); madde açık kalıyor. Üyelik ekibine `developer.apple.com/contact` formundan ayrıca talep açılması kullanıcıya bırakıldı (form oturum gerektiriyor).
 
 ### 2026-10-06 — Aviation Edge eski anahtar durumu
 
@@ -774,6 +404,13 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - **Gizlilik:** Gizlilik politikası hata/çökme kayıtlarını zaten kapsıyor (`support/privacy-policy.html` 3.6). App Store Connect App Privacy beyanında Diagnostics yok; bu sürüm mağazaya çıkmadan önce «Crash Data» (ve gerekirse «Other Diagnostic Data») — kullanıcıyla ilişkili, amaç App Functionality, takip yok — eklenmeli (kullanıcı/Codex; kamuya açık hukuki beyan, onaysız yayımlanmadı).
 - **Kalan:** native çökmeler yakalanmıyor; saklama süresi için otomatik temizlik yok (öneri 90 gün); admin panelinde görünüm yok (SQL ile okunur).
 
+### 2026-10-05 — Route to Live güncellemesi (build 52) + açık madde kontrolü
+
+- **Dosya:** `docs/ROUTE_TO_LIVE.html` (yalnız yerel; dosyada Codex'in commit edilmemiş değişiklikleri olduğu için commit edilmedi). Güncel durum: 61 madde; 36 tamamlandı, 25 açık, 14 kritik açık. `privacy-labels`, yeni `client_error_events` beyanı nedeniyle yeniden açıldı; script sözdizimi doğrulandı.
+- **Güncellenen:** `iap-review-attach`, `qa-ios`, `qa-ipad`, `beta-test`, `review-response`, `store-copy` → build 52 (TestFlight VALID, IN_BETA_TESTING, export compliance yanıtlandı); review notları ve mağaza metni Ekip Odası'ndan bahsetmiyor, notlar build 51'i hedefliyor. `rotate-flight-provider-secrets` → Supabase sırrı kullanıcı kararıyla korunuyor; kalan yalnız Aviation Edge sağlayıcı tarafı iptal.
+- **Kontrol sonuçları (metne eklendi):** `apple-written` — Case-ID 22263788 için 16 Eylül alındı bildiriminden sonra yanıt yok, 26 Eylül takip e-postası yanıtsız. `monitoring` — mobilde çökme/hata raporlama, global hata yakalayıcı veya ErrorBoundary yok. `api-time` / `roster-airlines` — otomatik regresyon testi ve anonim PDF fixture seti yok.
+- **Korunacak:** Hiçbir madde OK yapılmadı veya geri açılmadı.
+
 ### 2026-10-05 — Simülatörde bildirim izni (geliştirme) + yerel `.env` paket taraması
 
 - **Sorun:** `getPushTokenWithReason` simülatörde izin istemeden çıkıyordu; izin hiç verilmediği için `xcrun simctl push` ile gönderilen test bildirimleri (ör. Ekip Odası `type: crew_room` dokunma akışı) gösterilmiyordu.
@@ -796,6 +433,37 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - **Etki:** Bir sonraki iOS build'inden itibaren geçerli. Build 52 için beyan App Store Connect'te bir kez elle yanıtlanmalı («Hiçbiri / muaf»). Native Info.plist değiştiği için bu değişiklik OTA ile dağıtılamaz; `runtimeVersion` değişmedi (yalnız Info.plist anahtarı, JS/native modül değişmedi).
 - **Doğrulama:** `plutil -lint` OK; `npx expo config --type public` → `ITSAppUsesNonExemptEncryption = false`; `git diff --check` OK.
 
+### 2026-10-08 — Ekip Odası şimdilik ücretsiz (paket şartı kaldırıldı)
+
+- **Kullanıcı kararı:** Üye olan her crew, paketi olmasa da Ekip Odası'nı kullanabilir (şimdilik).
+- **Dosya:** `supabase/migrations/20261008120000_crew_room_free_access.sql` (**canlıya uygulandı**). Yeni `crew_room_has_access(p_crew_id)` = crew profili var mı (null/bilinmeyen → false; `security definer`, anon kapalı). `crew_room_days`, `crew_room_effective_level`, `crew_room_overview`, `crew_room_pending_layovers`, `crew_room_request` canlı tanımlarının birebir kopyası; yalnız `crew_has_active_subscription` → `crew_room_has_access`. `crew_has_active_subscription` ve aile/roster erişimi (`get_crew_roster_access`) değişmedi.
+- **İstemci:** Kod değişikliği yok. Uygulama `overview.me.has_access` / `people[].has_access` ile kapı ekranını ve "Aboneliği yok" etiketini gösteriyordu; sunucu artık her crew için `true` döndüğünden build 52 dahil mevcut sürümlerde kapı kalktı. `crewRoom.gate.*`, `people.noSubscription`, `errors.subscription_required` metinleri geri dönüş için duruyor.
+- **Etki:** Paketsiz crew'ler de onaylı bağlantılarına paylaşım düzeyine göre görünür; yatı bildirimi (`crew-room-notify`) `notify_layover` açık herkese gider. Yönetici paneli Ekip Odası "abonelikli" sayısı/rozeti gerçek abonelik durumunu göstermeye devam eder (bilgi amaçlı).
+- **Doğrulama (canlı):** `crew_room%` fonksiyonlarında abonelik kontrolü 0; `get_crew_roster_access` hâlâ abonelik kontrollü; 31 crew / 29 paketli / 31 Ekip Odası erişimli; `crew_room_has_access(null)` ve bilinmeyen id false; `crew_room_pending_layovers` çalışıyor. Paketsiz bir crew'in JWT'siyle (işlem geri alındı) `crew_room_overview().me.has_access = true`, `crew_room_days` 7 gün hatasız. `db push --dry-run` yalnız bu migration'ı gösterdi.
+- **Geri dönüş:** `crew_room_has_access` gövdesini `select public.crew_has_active_subscription(p_crew_id);` yapan tek fonksiyonluk migration.
+- **Mağaza:** 1.3.0 metadata/review notlarında Ekip Odası ücretli diye anılmıyor; değişiklik gerekmedi.
+
+### 2026-10-06 — Pegasus roster: 00:00–03:00 raporlu yatı dönüşleri bir gün erken yazılıyordu
+
+- **Bulgu:** Pegasus PDF günü 03:01–02:59; 08.10 01:45 raporlu dönüş görevi "07.10.26 01:45 DUTY" satırında. Parser tarihi aynen alıyordu, import `dutyFix` yalnız `duty start > kalkış` durumunu düzeltiyordu → KUF→AYT 07.10 (doğrusu 08.10), VKO→AYT 22.10 (doğrusu 23.10). Kanıt: gidiş ve dönüş farklı `duty_rest_end` taşıyor (ayrı görev), dışarıda 0,5–1,1 saat arayla — SHT-FTL'ye göre imkânsız (ana üs dışı asgari dinlenme 10 saat).
+- **Dosyalar:** `supabase/functions/_shared/roster-import/dutyDates.ts` (yeni, saf modül), `supabase/functions/_shared/roster-import/plan.ts` (`prepareImportRows` sonunda `correctPcLegDates`), `mobile/scripts/test-roster-duty-dates.ts` (yeni).
+- **Kural 1 — görev sonu çapası:** Yerel saatli PC satırları DUTY bloğuna göre gruplanır (`flight_date|duty start|duty end`); bloğun son inişi görev sonundan (~30 dk) tam gün sapıyorsa (kalan −4…+6 saat, en çok ±2 gün) blok bütün olarak kaydırılır. Son inişten sonra yer/sim görevi olan bloklar (kalan > 6 saat) dokunulmaz. UTC çiftli satırlar ve `duty_clock_basis = utc` kapsam dışı.
+- **Kural 2 — SHT-FTL yedeği (yalnız görev sonu doğrulanmamış bacaklar):** Ardışık bacaklar aynı istasyondan ve 10 saatten kısa arayla aynı UGS sayılır; UGS = ilk kalkış − 60 dk rapor → son iniş. Limit SHT-FTL Ek-1 ORO.FTL.205(b)(1) Tablo 2 (06:00–13:29 13:00 … 17:00–04:59 11:00; 3. sektörden itibaren −30 dk, en az 9:00) + uzatma (02:00–05:59 kesişimi 2 saati aşarsa 0, aksi 60 dk). Aşılırsa ana üs dışındaki en uzun aradan sonraki bacaklar +1 gün; ertesi gün sonraki uçuşla çakışırsa kaydırılmaz. Kaynak: SHGM SHT-FTL Rev02 (Madde: ana üs 12 saat / ana üs dışı 10 saat asgari dinlenme; gece görevi 02:00–04:59).
+- **Doğrulama:** `npx tsx scripts/test-roster-duty-dates.ts` OK (Tablo 2 noktaları, KUF çapa, BGW gece dönüşü değişmez, yer görevli blok değişmez, VKO FTL yedeği, SSH/4 bacak gündüz değişmez, çakışmada kaydırmaz, uçtan uca PDF metni → plan: PC5823 08.10, PC1577 23.10). Düzeltme kapatılınca aynı test eski hatayı (07.10 / 22.10) üretiyor. `pegasus` + `pegasus-mar` fixture import planı değişiklik öncesi/sonrası **birebir aynı** (78 satır). `test-roster-pdf-parser` 7/7 OK, `npx tsc --noEmit` 0.
+- **Deploy:** `import-roster` deploy edildi (yetkisiz çağrı 401, önceki gibi). `admin-dashboard` (rapor yeniden içe aktarma da `plan.ts` kullanır) bu turda deploy edilmedi; cihaz içi yedek yol sonraki store build'iyle güncellenir.
+- **Canlı etki taraması:** Aynı iz (dışarıda <10 saat ara + farklı `duty_rest_end`) yalnız 3 kayıtta: `0a3124cf` PC5823 07.10, PC1577 22.10; `7cf61867` PC1522 07.10 VKO→ADB. Hepsinde tek ekip bağı, ertesi günde aynı numara yok. Mevcut satırlar yeni import ile düzelir; doğrudan veri düzeltmesi kullanıcı onayına bırakıldı.
+- **Veri düzeltmesi (2026-10-08, kullanıcı onayı "kaydır"):** O sırada 07.10 satırları (PC5823, PC1522) `flights`'ta yoktu (07.10'da yanlış günde `active` faza girip silinmişler; arşivde de yok); asıl uçuşlar 08.10 sabahı geçmişte kaldığı için yeniden oluşturulmadı. Yalnız `38ddd52e-…` PC1577: `flight_date` 22→23.10, kalkış/varış +1 gün (23.10 01:20–05:55 TR); `duty_rest_end` (23.10 18:25) zaten doğruydu, dokunulmadı. Ekip Odası (`crew_room_days_for`, Gani görünümü): 21 uçuş+yatı VKO, 22 yatı VKO, 23 uçuş (yatı dönüşü), 24 HAM. Aynı iz taraması tekrar: 0 kayıt. Geri alma: aynı satırı −1 gün.
+- **Not (incelenmedi):** Ozan'ın 09.10 FSF satırı da `flights`'ta ve arşivde yok; silen süreç belirlenmedi.
+
+### 2026-10-02 — Ekip Odası: kişi popup'ı takvim görünümüne geçti
+
+- **Kullanıcı isteği:** Kişiye dokununca planı, kendi Program takvimi gibi takvim olarak; daha küçük alanda, yine popup.
+- **Dosya:** `mobile/components/crewRoom/CrewRoomPersonSheet.tsx` yeniden yazıldı. Tam ekran `pageSheet` yerine şeffaf `Modal` + alttan açılan kart (karartılmış arka plan, dokununca kapanır, `maxHeight 92%`). Başlık: avatar 44 + ad + "seninle paylaştığı seviye" + kapat. İçerik: aylık takvim (Pazartesi başlangıçlı, ay okları bugünün ayı ile verinin son ayı arasında) + seçili günün renkli kartı (uçuşlu günde kalkış–iniş saatleri doğrudan açık) + Paylaşım/Çıkar düğmeleri. Paylaşmayan kişide takvim yerine `person.notSharing` notu.
+- **Takvim işaretleri (Roster takvimiyle aynı `rosterMarks` / `calendarMarkSize`):** kırmızı nokta = uçuş/görev (`flying`/`duty`; yalnız müsaitlik seviyesinde `busy` gri nokta); alt çizgi önceliği yatı (pembe) > yedek (turuncu) > boş gün (yeşil); aynı türdeki komşu günler hafta satırı içinde birleşik çizgi. Veri yok / `unknown` günler soluk; bugünden önceki günler (veri çekilmiyor) seçilemez. Altta küçük lejant (mevcut `crewRoom.person.flightDuty` / `crewRoom.status.*` metinleri; yeni anahtar yok).
+- **Kaldırılanlar:** Gün kartı listesi ve "Yatılar" kartı (yatı artık takvim çizgisi + seçili gün etiketinde). `person.layoversTitle/layoversEmpty/layoverPlaceHidden` anahtarları dosyada duruyor (zararsız).
+- **Doğrulama:** `npx tsc --noEmit` OK; kullanılan TR/EN anahtarları mevcut; Metro yeniden başlatıldı, uygulama hatasız açıldı. Popup görsel olarak **görülmedi** (simülatörde dokunma izni yok, Ekip Odası için deep link yok).
+- **Sürüm notu:** Bu değişiklik yerel ağaçta; build 52'de (`origin/main` `2195714`) yok. Yeni arayüz olduğu için OTA değil, sonraki store build'inde gitmeli.
+
 ### 2026-10-05 — iOS 1.3.0 (52): Ekip Odası uygulama kodu commit + build hazırlığı
 
 - **Kapsam:** Ekip Odası (Crew Room) uygulama kodu ilk kez `main`'e alındı; build 52 bu commit'ten, `origin/main` temiz worktree'sinden üretilir (yerel ağaçtaki commit edilmemiş başka işler — aile planı vb. — build'e girmez). Arka uç zaten canlıydı.
@@ -803,8 +471,145 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - **Sürüm:** build numarası 51 → 52 (`app.config.js` `ios.buildNumber` / `android.versionCode`, `project.pbxproj` `CURRENT_PROJECT_VERSION` ×6, `android/app/build.gradle`). `runtimeVersion` **1.3.0 kaldı**: native değişiklik yok (SF Symbol ve PNG ikon JS tarafında). Build 52'nin gömülü paketi mevcut OTA'dan (`b70d7782`) yeni olduğundan o OTA build 52'ye uygulanmaz; sonraki OTA'lar `origin/main`'den üretildiği için Ekip Odası'nı içerir ve build 51'e de ulaşır.
 - **Doğrulama:** worktree'de (yalnız commit'lenecek dosyalarla) `npx tsc --noEmit` OK; `npx tsx scripts/test-crew-room-matches.ts` OK; TR/EN anahtar eşliği OK (0/0); kişi adı/e-posta taraması temiz (yalnız destek adresi ve örnek yer tutucular); migration'larda sabit kullanıcı UUID'si yok; `crew-room-notify` import'ları mevcut; `git diff --check` OK.
 - **Build düzeltmesi:** İlk build 52 denemesi (`d3833da2`) Xcode aşamasında `ios/FlyFam/Sounds/*.wav` bulunamadığı için ERRORED oldu: kök `.gitignore` sonundaki `FlyFam` ve ses dosyası adı satırları bu üç iOS kopyasını git dışında bırakıyordu (build 51 yerel ağaçtan alındığı için etkilenmemişti). Dosyalar `mobile/assets/sounds` altındaki takip edilen kopyalarla SHA-256 aynı; `git add -f` ile eklendi, `.gitignore` değiştirilmedi. Temiz worktree build'lerinde git dışı başka gerekli native dosya yok (kalanlar Xcode/yerel üretim dosyaları; Android `google-services.json` iOS build'ini etkilemez).
-- **Build 52 sonucu (5 Ekim 2026):** EAS build `594be182-2d95-499d-bb0f-787ab0092717` (commit `2195714`) FINISHED; `--auto-submit` ile TestFlight'a yüklendi (submission `b3a92eaa`). `eas submit:status`: 1.3.0 (52) `processingState: VALID`, runtime `1.3.0`; iç/dış test durumu `MISSING_EXPORT_COMPLIANCE` — şifreleme beyanı App Store Connect'te build 52 için yanıtlanmalı (build 51'de elle yanıtlanmıştı; `ITSAppUsesNonExemptEncryption` ne `Info.plist` ne `app.config.js`'te tanımlı, kullanıcı kararı olmadan eklenmedi). İlk deneme `d3833da2`'ye bağlı submission `8650df41` yükleme yapmadı (TestFlight listesinde yalnız 51 ve 52 var). `Submit for Review` yapılmadı. Ekip Odası ekranlarının cihaz kontrolü TestFlight 52'de yapılmalı.
+- **Build 52 sonucu (5 Ekim 2026):** EAS build `594be182-2d95-499d-bb0f-787ab0092717` (commit `2195714`) FINISHED; `--auto-submit` ile TestFlight'a yüklendi (submission `b3a92eaa`). `eas submit:status`: 1.3.0 (52) `processingState: VALID`, runtime `1.3.0`. İlk kontrolde görünen `MISSING_EXPORT_COMPLIANCE` sonradan App Store Connect'te yanıtlandı; build artık iç/dış teste açık. İlk deneme `d3833da2`'ye bağlı submission `8650df41` yükleme yapmadı (TestFlight listesinde yalnız 51 ve 52 var). `Submit for Review` yapılmadı. Ekip Odası ekranlarının cihaz kontrolü TestFlight 52'de yapılmalı.
 - **Review etkisi:** crew demo hesabında alt menüde Aile sekmesi yerine Ekip Odası görünür; aile bağlantıları Profil → «Aile bağlantıları»ndan açılır. App Review notlarındaki demo akışı (Codex) build 52'ye göre güncellenmeli; ASC taslağına build 51 yerine 52 bağlanmalı.
+
+### 2026-10-02 — Ekip Odası: "Boş günler" sekmesi (kullanıcı seçimi: boş günlerim + kimler de boş)
+
+- **Kullanıcı kararı:** Kendi programınla arkadaşların boş günlerinin denk gelişi için ana ekranda "Boş günlerim" görünümü (diğer seçenekler — kişi kartı, hafta vurgusu, bildirim — seçilmedi).
+- **Dosyalar:** `mobile/components/crewRoom/CrewRoomOffDays.tsx` (yeni): önümüzdeki 60 günde (mevcut `RANGE_DAYS`) kendi `off` günlerin; her satır gün kutusu + kart; o gün `off` olan kişiler avatar+ad hapı (dokununca kişi sayfası), kimse yoksa gri "Ortak boş kimse yok"; ay değişiminde ay başlığı (satırda yalnız gün no/gün adı olduğu için). Yalnız açık izin kodu (`off`) sayılır; `free` ("Bilgi yok") müsait sayılmaz. `mobile/screens/CrewRoom.tsx`: `Segment` + sekme "Bugün · Hafta · Boş günler · Kişiler". TR/EN `crewRoom.tabs.offDays`, `crewRoom.offDays.hint/nobody/empty`. Sunucu değişmedi (veri zaten `crew_room_days`'ten geliyor; görünürlük kuralları aynı).
+- **Beklenen canlı sonuç (SQL ile, Gani, 30 gün):** Alperen 21/22/23/30/31 Eki, Ozan 4/9/16 Eki, Serkan 23/30 Eki ortak boş.
+- **Doğrulama:** TR/EN `crewRoom` anahtar eşliği OK; `npx tsc --noEmit` OK; `--noUnusedLocals` temiz; uygulama yeniden başlatıldı, Metro hatasız. Sekme görsel olarak **görülmedi** (uygulama Program sekmesinde açıldı; simülatörde dokunma izni yok).
+
+
+### 2026-10-02 — Ekip Odası: hafta ayraçları, "Sen" kartı ve sayaçlar kaldırıldı
+
+- **Kullanıcı kararı:** Kişi sayfasında hafta başlığı olmasın; Bugün ekranında kendi bilgin ve "kaç kişi müsait/görevli" sayıları görünmesin.
+- **Dosyalar:** `CrewRoomPersonSheet.tsx`: hafta başlıkları ve `weekStart`/`weekLabel` kaldırıldı; mor yatı çizgisi yalnız yatı yeri değişince bölünür. `CrewRoomToday.tsx`: "Sen" kartı, sayaç kutuları ve bölüm başlığındaki sayı kaldırıldı (kişi listesi gruplu kalıyor; `people` içindeki `isMe` yalnız filtrelenir). Locale: `crewRoom.today.short.*`, `crewRoom.person.thisWeek/nextWeek` silindi (TR/EN; `crewRoom.you` Hafta görünümünde kullanıldığı için duruyor).
+- **Doğrulama:** JSON + TR/EN `crewRoom` anahtar eşliği OK; `npx tsc --noEmit` OK; `--noUnusedLocals` temiz; eşleşme testi OK; uygulama yeniden başlatıldı, Metro hatasız. Ekip Odası ekranları bu turda görsel olarak görülmedi (uygulama Program sekmesinde açıldı).
+
+
+### 2026-10-02 — Ekip Odası: kişi sayfası "renkli gün kartları" (kullanıcı seçimi C)
+
+- **Süreç:** Tek satırlı liste beğenilmedi; 3 tasarım taslağı (A Program gibi, B aylık takvim, C renkli gün kartları) gerçek veriyle HTML'de çizilip görsel olarak sunuldu (`/tmp`, repoya eklenmedi); kullanıcı **C**'yi seçti.
+- **Dosyalar:** `mobile/components/crewRoom/CrewRoomPersonSheet.tsx`: günler haftalık gruplu ("Bu hafta", "Gelecek hafta", sonra "12 Eki – 18 Eki"); her satır = solda takvim yaprağı kutusu (gün no + kısa gün adı, bugün mavi çerçeve) + duruma göre renkli kart (`crewRoomStatusMeta` rengi %9 zemin; başlık ikon + "Uçuş görevi"/durum; alt satır rota zinciri — bacaklar bağlı değilse gidilen istasyonlar; tamamen yatı gününde yer). Uçuşla yatıya gidilen/dönülen günde başlık sağında mor "Yatı · STR" etiketi. Uçuşlu kart dokununca içinde `CrewRoomFlights bare` (bacak başına kalkış/iniş) açılır. Yatı: en solda mor dikey çizgi, aynı yerdeki ardışık günleri kapsar (hafta başlığında bölünür). Paylaşım yok/roster yok durumları eski kartta. `CrewRoomParts.tsx`: `CrewRoomFlights` `bare` prop'u. TR/EN `crewRoom.person.thisWeek/nextWeek`.
+- **Doğrulama:** JSON OK; `npx tsc --noEmit` OK; `--noUnusedLocals` temiz; uygulama yeniden başlatıldı, Metro hatasız. Simülatörde kişi sayfası görüldü (haftalık gruplar, gün kutuları, renkli kartlar, mor yatı çizgisi); son düzeltmeler (bağlı olmayan bacaklarda istasyon listesi, yatı etiketi başlık sağında) görsel olarak görülmedi; kart açma dokunuşu denenmedi.
+
+
+### 2026-10-02 — Ekip Odası: kişi sayfasında her gün tek satır (dokununca uçuşlar açılır)
+
+- **Kullanıcı kararı:** Kişi rosterı kompakt olmalı; her gün tek satır, satıra dokununca o günün bacakları açılsın.
+- **Dosyalar:** `mobile/components/crewRoom/CrewRoomParts.tsx`: yeni `crewRoomFlightSpan` (günün ilk kalkışı – son inişi, yerel tarih değişirse `nextDay`). `mobile/components/crewRoom/CrewRoomPersonSheet.tsx`: gün satırı = kısa tarih ("Bugün" / "Cmt 3", 56pt) · renkli durum ikonu · uçuş varsa kalın saat aralığı (+1) yoksa durum metni ("Yatıda · VKO" yer paylaşılıyorsa; `free`/`unknown` gri) · soluk istasyonlar (ev üssü hariç, tek satır, kesilir) · uçuşla yatıya gidilen günde mor yatak ikonu · uçuş varsa aşağı/yukarı ok. Dokununca altında `CrewRoomFlights` (bacak başına hizalı satır) açılır. Ay değişiminde küçük ay başlığı ("Ekim 2026", büyük harfe çevrilmez — Türkçe İ sorunu). Durum hapları ve yatı etiket hapları gün satırlarından kaldırıldı; "Yatılar" kartı aynı kaldı.
+- **Doğrulama:** `npx tsc --noEmit` OK; `--noUnusedLocals` CrewRoom dosyalarında temiz. Uygulama yeniden başlatıldı (sıcak yenileme karışıklığı olmasın diye), Metro hatasız; iPhone 17 Pro simülatöründe kişi sayfası görüldü: her gün tek satır, saat/istasyon hizalı, yatı ikonu doğru günlerde. Satır açma (dokunma) simülatörde denenmedi.
+- **Revizyon (kullanıcı beğenmedi):** Kapalı satırda saat yok; uçuşlu günde "Uçuş görevi" (`crewRoom.person.flightDuty`, TR/EN) + soluk istasyonlar; saatler yalnız satır açılınca (`CrewRoomFlights`: bacak başına kalkış/iniş). Yatı: sağdaki yatak ikonu kaldırıldı; en solda 14pt sütunda mor dikey çizgi, aynı yatı yerindeki ardışık günleri kesintisiz kapsar (başta/sonda 8pt içeride ve yuvarlatılmış; ay başlığında bölünür). Satır ayırıcı yalnız içerik sütununda, çizgiyi kesmez. `crewRoomFlightSpan` kaldırıldı. Doğrulama: JSON OK; `tsc` OK; `--noUnusedLocals` temiz; uygulama yeniden başlatıldı, Metro hatasız. **Kişi sayfası bu revizyonda görsel olarak görülmedi** (uygulama Program sekmesinde açıldı).
+
+
+### 2026-10-02 — Ekip Odası: uçuş saatleri (kalkış – iniş) kalın ve ayrı satır
+
+- **Dosyalar:** `mobile/components/crewRoom/CrewRoomParts.tsx`: `crewRoomFlightLine` (metin) yerine `CrewRoomFlightRow` bileşeni — uçak ikonu, kalın `kalkış – iniş` saati (tabular rakam, inişte tarih değişirse soluk "+1"), soluk `FROM → TO`, sağda soluk uçuş no; `surfaceAlt` zeminli yuvarlak satır. `CrewRoomPersonSheet.tsx` ve `CrewRoomToday.tsx` bu bileşeni kullanıyor; uçuş satırı varken durum hapının yanındaki istasyon metni gizleniyor (tekrar/karışıklık olmasın), uçuş paylaşılmayan düzeylerde istasyon eskisi gibi görünür.
+- **Korunacak davranış:** Saatler cihaz saat diliminde (`toLocaleTimeString`, 24 saat), sunucu verisi ve paylaşım düzeyleri değişmedi; uçuş satırı yalnız `full` düzeyde gelir.
+- **Sığma düzeltmesi (aynı gün):** Tek satırda rota kesiliyordu ("AYT…"). Kişi sayfasında uçuşlar tarih/durum satırının altına, kart genişliğine taşındı (`dayRow` sütun, `dayHead` satır).
+- **Kompakt tasarım (son hâl):** Kullanıcı iki katlı satırı da beğenmedi. `CrewRoomFlightRow` kaldırıldı; yerine `CrewRoomFlights` — günün tüm uçuşları tek `surfaceAlt` kutuda, bacak başına tek hizalı satır: kalın kalkış saati (min 44pt) · soluk kalkış istasyonu (30pt, ortalı) · küçük mavi uçak · soluk varış istasyonu · kalın iniş saati (+1). Kullanıcı isteğiyle uçuş numarası gösterilmiyor (veri hâlâ `flights[].no` ile gelir, yalnız React key'de kullanılır); kutu içeriği kadar geniş (`alignSelf: 'flex-start'`). Sabit genişlikler sayesinde satırlar tablo gibi hizalanır.
+- **Doğrulama:** `npx tsc --noEmit` OK; `--noUnusedLocals` CrewRoom dosyalarında temiz; `git diff --check` OK. Önceki (iki katlı) sürüm simülatörde sığıyordu; **son kompakt sürüm görsel olarak kontrol edilmedi** (sıcak yenileme sırasında geçici "Element type is invalid" hatası çıktı — dosyalar sırayla güncellendiği için; uygulama yeniden yüklendi, Ekip Odası sekmesi açılamadığından son görünüm görülemedi).
+
+### 2026-10-02 — Ekip Odası: Gani'ye yönelik paylaşım "full" yapıldı (veri işlemi, kullanıcı onaylı)
+
+- **Ne:** Kullanıcı açık onayıyla (kişilerin bilgisi/onayı var ya da test için kabul) Gani'nin odasındaki 3 kişinin (Alperen, Ozan, Serkan) yalnız Gani'ye yönelik `crew_room_shares` satırı `level='full'` olarak upsert edildi. Önceki durum: override yoktu, hepsi varsayılan `availability`. Başkalarına paylaşımları ve `default_level` değişmedi.
+- **Doğrulama:** Canlıda `crew_room_effective_level(kişi, Gani)` üçü için `full`; Gani'nin görünümünde uçuş satırları geliyor (30 günde 9 / 19 / 6 uçuşlu gün).
+- **Geri alma:** Bu üç `owner_crew_id` → Gani `viewer_crew_id` satırlarını `crew_room_shares` tablosundan silmek varsayılana döndürür. Kişiler kendi Ekip Odası'nda "Paylaşım" ile de değiştirebilir.
+
+### 2026-10-02 — Ekip Odası: sekme ikonu açık kapı
+
+- **Dosyalar:** `mobile/App.tsx` (`TAB_SF.CrewRoom` `person.3` → `door.left.hand.open`; iOS 16 altında sembol olmadığı için `person.2`; web `enter`/`enter-outline`; Android `TAB_ANDROID_ICON.CrewRoom` → yeni `mobile/assets/tab-icons/door.png`, 96×96, MaterialCommunityIcons `door-open`, diğer ikonlarla aynı renk (#282828) ve benzer kapsama alanı).
+- **Doğrulama:** `npx tsc --noEmit` OK; iPhone 17 Pro simülatöründe alt menüde kapı ikonu diğer ikonlarla aynı boyda görüldü. Android cihazda görsel kontrol yapılmadı.
+
+### 2026-10-02 — Ekip Odası: kişi sayfasında yatılar + yatı tespiti Roster ile hizalandı
+
+- **Amaç:** Kişiye basınca yatı günleri net görünsün; sunucu bazı yatıları kaçırıyordu (ör. araya çakışan bir uçuş satırı girince STR yatısı hiç görünmüyordu).
+- **Dosyalar:** `supabase/migrations/20261002240000_crew_room_layover_detection.sql` (**canlıya uygulandı**): `crew_room_days_for` aynı imza/dönüş/yetkiyle `create or replace`; dönüş uçuşu = "bir sonraki satır" yerine yatı istasyonundan kalkan ilk sonraki uçuş (Roster `computeLayoverWindows` ile aynı); IST/SAW/ISL aynı ev şehri; yatı günleri giden/dönen bacağın `flight_date` aralığı (takvimle aynı); uçuşlar `p_to + 4`'e kadar okunur. Görünürlük kuralları değişmedi (yatı bayrağı her düzeyde, yatı yeri yalnız destination/full). `mobile/components/crewRoom/CrewRoomPersonSheet.tsx`: günlük listenin üstünde "Yatılar" kartı (ardışık aynı yer günleri tek satır: yer + tarih aralığı; yer paylaşılmıyorsa "Yatı" + açıklama; yatı yoksa boş metni). TR/EN `crewRoom.person.layoversTitle/layoversEmpty/layoverNoPlace/layoverPlaceHidden`.
+- **Doğrulama:** Rollback testinde ve canlıda odadaki 4 kişi için önce/sonra karşılaştırıldı: STR yatısı (önce yok) artık 07–08 Eki; JFK 31 Eki–1 Kas (önce yalnız 1 Kas); VKO/SAW/ECN aynı. `crew_room_pending_layovers` canlıda hatasız (0 bekleyen; kimse bildirimi açmamış). `npx tsc --noEmit` OK; locale eşliği OK; eşleşme testi OK; `git diff --check` OK. Cihazda görsel kontrol **yapılmadı**.
+- **Korunacak davranış:** Ev üssü olmayan kişide yatı hesaplanmaz (Roster ile aynı). Yeni yatı tespitleri, bildirimi açmış kullanıcılarda bir sonraki saatlik cron'da tek seferlik bildirim üretebilir (`crew_room_notified` tekrarları engeller).
+
+### 2026-10-02 — Ekip Odası: Bugün sayfası yeniden tasarlandı
+
+- **Amaç:** Kullanıcı Bugün sekmesini beğenmedi; daha okunur ve görsel bir özet istendi.
+- **Dosyalar:** `mobile/components/crewRoom/CrewRoomToday.tsx` (yeni): tarih satırı, "Sen" kartı (avatar + durum rozeti, detay, yarın satırı), durum sayaç kutuları (boş gün / yatıda / uçuşta / meşgul / bilgi yok), renkli noktalı bölüm başlıkları + sayı, kişi satırlarında avatar köşesinde durum rozeti, durum hapı, yatı etiketi, istasyon/uçuş satırları, "Yarın: …", ikonlu boş durum + davet düğmesi (Kişiler sekmesine geçer). `layover` bayrağı olan kişi "Yatıda" grubunda listelenir. `mobile/screens/CrewRoom.tsx`: eski `TODAY_GROUPS`/`renderToday`/`renderPersonToday` ve kullanılmayan stil/importlar kaldırıldı, yeni bileşen bağlandı. TR/EN: `crewRoom.today.tomorrow`, `crewRoom.today.short.*` eklendi. Sunucu değişmedi.
+- **Korunacak davranış:** `free` ve `unknown` aynı gri "Bilgi yok" grubunda; "Boş gün" yalnız `off`. Yatı yeri yalnız sunucu `layover_at` döndürdüğünde (destination/full) görünür.
+- **Doğrulama:** Locale anahtar eşliği ve eksik anahtar taraması OK; `npx tsc --noEmit` OK; `--noUnusedLocals` CrewRoom dosyalarında temiz; eşleşme testi OK; `git diff --check` OK. Simülatör/cihazda görsel kontrol **yapılmadı** (otomatik dokunma izni yok).
+
+### 2026-10-02 — Ekip Odası: "Boşta" → gri "Bilgi yok"
+
+- **Kullanıcı kararı:** Rosterda kayıt olmayan gün (`free`) müsait anlamına gelmez; "Boşta" yerine "Bilgi yok", gri. Resmî izin kodu olan gün (`off`) "Boş gün" olarak kalır.
+- **Dosyalar:** `mobile/components/crewRoom/CrewRoomParts.tsx` (`free` → `ellipsis-horizontal-circle`, `colors.textMuted`); `mobile/screens/CrewRoom.tsx` Bugün grupları: "Bugün boş gün" yalnız `off`, `free` artık `unknown` ile "Bilgi yok" grubunda; `mobile/lib/crewRoomMatches.ts` eşleşmede müsait yalnız `off`; `mobile/scripts/test-crew-room-matches.ts` beklenti güncellendi; TR/EN `status.free` "Bilgi yok"/"No info", `today.available` "Bugün boş gün"/"Day off today", `today.unknown` "Bilgi yok"/"No info". Sunucu değişmedi (`free` durum kodu aynı; bildirim yalnız yatı için olduğundan etkilenmez).
+- **Doğrulama:** `npx tsc --noEmit` OK; eşleşme testi OK; JSON geçerli; `git diff --check` OK.
+
+### 2026-10-02 — Ekip Odası: yatılar her düzeyde görünür, yatı yeri paylaşım düzeyine bağlı, opt-in yatı bildirimi
+
+- **Kullanıcı kararları:** (1) Kişiye basınca yatılar görünsün; yatı yeri yalnız kişi isterse görünsün. (2) Bildirim yalnız "yatıda denk gelme" için, her kullanıcı kendisi açar, **varsayılan kapalı** (soruya verilen yanıt). Ortak boş gün bildirimi yok. Bir önceki "bildirimler tamamen kaldırıldı" kaydının yatı kısmı bununla değişti.
+- **Sunucu:** `supabase/migrations/20261002230000_crew_room_layover_notify.sql` canlıya uygulandı. `crew_room_days_for` / `crew_room_days` yeniden oluşturuldu (dönüş tipine eklendi): `layover boolean` (o gün dışarıda konaklama; artık gidiş/dönüş uçuş günlerinde de, her görünür düzeyde) ve `layover_at text[]` (yatı istasyonu; yalnız `destination`/`full`). Mevcut `status` değerleri aynı. Yeni `crew_room_notified (viewer, other, day)` (RLS açık, istemciye kapalı) ve yalnız service_role `crew_room_pending_layovers(p_from, p_to)`: alıcı `notify_layover = true`, görünmez değil, aboneli; iki taraf aynı gün yatıda, ortak istasyon, iki yön de düzey ≥ `destination`; daha önce bildirilmemiş. `crew_room_overview.me.notify_layover` geri geldi. `notify_*` varsayılanları `false`. pg_cron `crew-room-notify` her saat :07.
+- **Edge:** `supabase/functions/crew-room-notify/index.ts` yeniden yazıldı ve deploy edildi (`config.toml` `verify_jwt = false`): `x-cron-secret` == `CREW_ROOM_CRON_SECRET`; 14 günlük pencere; aynı kişiyle aynı istasyondaki ardışık günler tek satır ("18 Eki – 20 Eki · Ozan ile yatı · VKO"), kişi başı tek push (en çok 4 satır), yerel 21:00–09:00 arası gönderilmez, işaretleme + 7 günden eski kayıt temizliği, `dry_run`. Yeni cron sırrı üretildi; fonksiyon ortamına ve vault `crew_room_cron_secret`'e değer yazdırılmadan kondu (geçici dosya silindi).
+- **Uygulama:** `crewRoomMatches.ts` `CrewRoomDay.layover/layover_at`; `crewRoom.ts` `CrewRoomMe.notify_layover`, `updateCrewRoomPrefs({ notifyLayover })`; `CrewRoomParts.tsx` `crewRoomLayoverTag` (durum başka olsa da "Yatıda · VKO" / yer paylaşılmıyorsa "Yatıda"); kişi sayfası ve Bugün satırlarında ek yatı etiketi; Hafta tablosunda yatı günleri yatak simgesi + istasyon; `CrewRoomSettingsSheet.tsx` "Yatıda denk gelme bildirimi" anahtarı; `mobile/lib/pushNotifications.ts` `data.type === 'crew_room'` dokunuşunda `Main → CrewRoom` (soğuk açılışta ~12 sn dener). TR/EN: düzey adları "Varış ve yatı yeri" / "Müsait / değil / yatıda", açıklama yatı yerinin hangi düzeyde göründüğünü söylüyor, `settings.notifyLayover*` eklendi.
+- **Doğrulama:** Rollback'li canlı test: yatı günleri tespit ediliyor (bir kişide önceden yalnız "Müsait değil" görünen 5 gün), `availability`'de istasyon sızıntısı 0, `destination`'da yatı yeri görünüyor; sentetik ortak yatı (ikinci kişi aynı uçuşlara geçici eklendi): yalnız `availability`/tek yön `destination` → 0, iki yön `destination` + alıcı opt-in → 18–20 Eki VKO, alıcı görünmez → 0, işaretleme sonrası 0, opt-out → 0; authenticated `crew_room_pending_layovers` ve tabloyu kullanamıyor, anon `crew_room_days`'i çalıştıramıyor — OK. Canlı: sırsız/yanlış sır 403, cron yoluyla `dry_run` 200 (`pending: 0`, push yok), cron aktif, opt-in kullanıcı 0. Edge strict `tsc` (Deno shim) + esbuild + satır birleştirme birim testi OK. Mobil `npx tsc --noEmit` OK, eşleşme testi OK, TR/EN anahtar eşliği OK, `git diff --check` OK. Cihazda görsel kontrol ve gerçek push teslimi denenmedi.
+- **Korunacak davranış:** Bildirim yalnız açıkça açan kullanıcıya gider ve odada zaten görünenden fazlasını açmaz (iki yön ≥ `destination`). Yatı yeri `availability` düzeyinde asla dönmez.
+
+### 2026-10-02 — Ekip Odası: denk gösterimi kaldırıldı, paylaşım ayarları dişliye taşındı
+
+- **Kullanıcı kararı:** "Denk" diye bir sayfa/gösterim olmayacak; paylaşım ayarları Roster listesindeki gibi sağ üstte dişli. Oda kodu ve durum notu arayüzde yok (önceki kayıtlarda sunucudan da silindi). Kullanıcı ayrıca "yalnız yatıda denk gelişleri bildirimle bildireceğiz" dedi; bu, bildirimlerin gizlilik nedeniyle tamamen kaldırıldığı önceki kararla çeliştiği için **uygulanmadı**, kullanıcıya soruldu.
+- **Dosyalar:** yeni `mobile/components/crewRoom/CrewRoomSettingsSheet.tsx` (pageSheet: varsayılan paylaşım + görünmez mod); `mobile/screens/CrewRoom.tsx` başlık satırı + sağda `settings-outline` dişli (Roster `pageIconBtn` ölçüleri), eşleşme hesabı ve "N denk" rozeti kaldırıldı; `CrewRoomPeoplePanel.tsx` ayarlar kartı ve rozet kaldırıldı (`matchCounts` prop'u yok); `CrewRoomPersonSheet.tsx` "Denk gelişleriniz" bölümü ve dipnot kaldırıldı, yalnız kimlik + paylaşım/çıkar + önümüzdeki günler. TR/EN: `crewRoom.matches.*`, `people.matchCount`, `person.matchesTitle/matchesEmpty/placeNeedsDestination` silindi; `person.today` eklendi; `subtitle`/`people.tapHint` "önümüzdeki roster" diye güncellendi. `mobile/lib/crewRoomMatches.ts` içindeki saf `computeCrewRoomMatches` ve testi duruyor (arayüzde kullanılmıyor).
+- **Simülatör:** Uygulama 16:38'de `CI=1 npx expo run:ios` ile açılmış Metro'ya bağlıydı; bu nedenle ekran eski JS'i (oda kodu, durum notu, Denk sekmesi) gösteriyordu. Metro durduruldu, `npx expo start --dev-client --port 8081` ile izleme modunda yeniden başlatıldı ve uygulama `simctl` ile yeniden açıldı; yeni bundle yüklendi.
+- **Doğrulama:** `npx tsc --noEmit` OK; eşleşme testi OK; TR/EN `crewRoom` anahtar eşliği ve koddaki anahtarların varlığı OK; `git diff --check` OK. Ekip Odası sekmesi simülatörde elle açılıp görsel olarak kontrol edilmedi.
+
+### 2026-10-02 — Ekip Odası: yalnız kişiler (gruplar, oda kodu ve durum notu kaldırıldı)
+
+- **Kullanıcı kararı:** grup yok, oda kodu yok; oda yalnız e-postayla davet edilip kabul eden kişilerden oluşur. Kişiye basınca önümüzdeki roster bilindiği kadar görünür. Aşağıdaki kayıtlarda geçen gruplar, grup kodu, `room_code` ve durum notu artık geçersiz.
+- **Sunucu:** `supabase/migrations/20261002220000_crew_room_people_only.sql` canlıya uygulandı (öncesinde canlıda 0 grup, 0 grup üyesi, 0 durum notu). Silinenler: `crew_room_groups`, `crew_room_group_members`, `crew_room_status` tabloları; `crew_room_prefs.room_code` sütunu; `crew_room_create_group/leave_group/remove_group_member/set_group_share`, `crew_room_regenerate_code`, `crew_room_set_status`, `crew_room_new_code` fonksiyonları. `crew_room_contacts` yalnız onaylı bağlantıları döner (`group_ids` yok); `crew_room_effective_level` bağlantı yoksa `hidden` (grup yolu yok); `crew_room_ensure_prefs` kodsuz. `crew_room_overview` çıktısı: `me` (`crew_id,name,has_access,default_level,invisible`), `people` (`group_ids`/`status_note` yok), `incoming`, `outgoing` (`groups` yok). `crew_room_request(p_email text)` tek parametreli (eski `(text, text)` silindi); boş e-posta `email_required`.
+- **Uygulama:** `mobile/lib/crewRoom.ts` grup tipleri/sarmalayıcıları ve grup hata kodları silindi, `requestCrewRoomContact` → `inviteCrewRoomContact(email)`; `mobile/lib/crewRoomMatches.ts` `CrewRoomPerson`'dan `group_ids`/`status_note` çıktı, `link_id` zorunlu; `CrewRoomPeoplePanel.tsx` Gruplar kartı, grup koduyla katılma ve "sadece gruptan görünenler" listesi silindi; `CrewRoomPersonSheet.tsx` "Çıkar" her kişide görünür; `mobile/screens/CrewRoom.tsx` gün aralığı 30 → 60 gün (sunucu sınırı 62), böylece kişi sayfası gelecek ay roster'ı yayınlandığında onu da gösterir (sondaki bilinmeyen günler yine gizli). TR/EN: `crewRoom.groups.*`, `add.joinedGroup`, `add.result.joined_group`, `errors.group_full/too_many_groups/invalid_name` silindi; `people.removeMessage` ve `person.matchesEmpty` gruptan / "30 gün"den bağımsız yazıldı. `mobile/scripts/test-crew-room-matches.ts` yeni tipe uyarlandı.
+- **Doğrulama:** Migration önce canlı veride rollback'li test: overview anahtarları doğru, 3 kişi, düzeyler `availability`, 61 günlük `crew_room_days` 244 satır, `availability` düzeyinde uçuş/istasyon sızıntısı 0, mevcut kişiye davet `already_connected`, bilinmeyen e-posta `not_found`, boş `email_required`, bağlantı kaldırılınca düzey `hidden` ve kişi listeden düşüyor, yeniden davet `requested`; silinen fonksiyon/tablo/sütun yok; authenticated `crew_room_request`/`overview` çalıştırır, `contacts`/`effective_level` çalıştıramaz; anon `crew_room_request` çalıştıramaz — OK. Canlı uygulama sonrası: overview 3 kişi, `crew_room_days` çalışıyor, onaylı bağlantı 3 — OK. `npx tsc --noEmit` OK; eşleşme testi OK; TR/EN `crewRoom` anahtar eşliği ve koddaki anahtarların varlığı OK; `git diff --check` OK. Cihazda görsel kontrol yapılmadı.
+- **Korunacak davranış:** Kişi ancak e-posta daveti + kabul ile odaya girer; bağlantı simetriktir. `crew_room_prefs.notify_*` sütunları yalnız `crew_room_update_prefs` imzası için duruyor, kullanılmıyor.
+
+### 2026-10-02 — Ekip Odası: bildirimler tamamen kaldırıldı (gizlilik kararı)
+
+- **Kullanıcı kararı:** Ekip Odası'nda ortak boş gün, yatı veya başka hiçbir push bildirimi olmayacak (gizlilik ihlali). Aşağıdaki "Bildirimler (kullanıcı onayıyla canlıya alındı)" maddesi artık geçersiz.
+- **Canlı:** pg_cron `crew-room-notify` hemen durduruldu (18:07 çalışmasından önce; `crew_room_notified` 0 satırdı, yani hiç bildirim gönderilmedi). Edge function `crew-room-notify` silindi (uç nokta 404), `CREW_ROOM_CRON_SECRET` fonksiyon sırrı ve vault `crew_room_cron_secret` silindi. `supabase/migrations/20261002210000_crew_room_no_notifications.sql` uygulandı: cron güvenlik için yine kaldırılır, `crew_room_pending_notifications` ve `crew_room_notified` silinir, `crew_room_prefs.notify_*` varsayılanı `false` ve tüm satırlar `false` (sütunlar overview/update_prefs imzası için duruyor, kullanılmıyor). `crew_room_days_for`'daki "son roster gününden sonrası `unknown`" düzeltmesi korunur.
+- **Repo:** `supabase/functions/crew-room-notify/` ve `config.toml` girişi silindi; `mobile/lib/pushNotifications.ts` ve `mobile/navigationRef.ts`'teki Ekip Odası push yönlendirmesi geri alındı (iki dosya HEAD ile aynı); Kişiler → Paylaşım ayarları'ndaki iki bildirim anahtarı ve TR/EN `notify*` metinleri silindi; `updateCrewRoomPrefs` artık bildirim alanı göndermez (null). `20261002190000_crew_room_notify.sql` uzak migration geçmişinde olduğu için repoda kalır; sonraki migration etkisini kaldırır.
+- **Doğrulama:** canlıda tablo/fonksiyon yok, cron işi 0, açık bildirim tercihi 0, onaylı bağlantılar 3; Gani overview 3 kişi ve `crew_room_days` çalışıyor. `npx tsc --noEmit` OK; eşleşme testi OK; `git diff --check` OK.
+- **Korunacak davranış:** Ekip Odası için push eklenmez; denk gelmeler yalnız kişi sayfasında, kullanıcı açınca görünür.
+
+### 2026-10-02 — Ekip Odası: Gani ↔ Serkan Dağlar bağlantısı (veri işlemi)
+
+- Gani'den e-postayla davet (değer yazdırılmadan); kullanıcı Serkan'ın onay verdiğini belirtince Serkan adına kabul edildi. Karşılıklı `availability`. Gani'nin odasında artık Alperen, Ozan, Serkan var. Kod değişikliği yok.
+- **Doğrulama:** iki taraflı overview ve Gani'nin `crew_room_days` çağrısında Serkan'ın 14 günü yalnız `free/busy/off` olarak geldi — OK.
+
+### 2026-10-02 — Ekip Odası: davet usulü + kişi bazlı denk gelme sayfası
+
+- **Kullanıcı kararı:** oda kodu yok, yalnız davet; "Denk" sekmesi kalkıp kişiye basınca denk gelişler; kişiye basınca önümüzdeki bilinen roster günleri (müsait / boş / yatıda vb.). Durum notu bir önceki kayıtta kaldırılmıştı.
+- **Sunucu:** `supabase/migrations/20261002200000_crew_room_invite_only.sql` canlıya uygulandı — `crew_room_request` artık kodu yalnız grup katılımı için çözer; kişisel `room_code` kişiye çözülmez (`not_found`). Kişi bağlantısı yalnız e-postayla davet. `crew_room_prefs.room_code` sütunu ve `crew_room_regenerate_code` RPC'si duruyor ama kullanılmıyor. Rollback'li canlı test: oda koduyla istek `not_found` ve link oluşmadı; grup koduyla katılım `joined_group`; e-posta daveti `requested`; bilinmeyen e-posta `not_found` — OK.
+- **Uygulama:** `mobile/screens/CrewRoom.tsx` sekmeler Bugün / Hafta / Kişiler; Bugün satırları, Hafta'daki isimler ve Kişiler listesi yeni `mobile/components/crewRoom/CrewRoomPersonSheet.tsx`'i açar (iOS pageSheet): kimlik + paylaşım düzeyi düğmesi + odadan çıkar, "Denk gelişleriniz" (30 gün, `computeCrewRoomMatches` yalnız o kişiyle), "Önümüzdeki günleri" (bugünden son bilinen güne kadar, sondaki `unknown` günler gösterilmez; düzeye göre durum/istasyon/uçuş). Satırlarda "N denk" rozeti. `CrewRoomPeoplePanel.tsx`: oda kodu kartı kalktı, e-posta davet kartı; kişi satırları dokunulabilir (düzey/çıkarma kişi sayfasına taşındı); gruplara "Grup kodu" ile katıl alanı. Tarih/saat yardımcıları `CrewRoomParts.tsx`'e taşındı. `regenerateCrewRoomCode` sarmalayıcısı silindi. TR/EN metinler: `crewRoom.code.*`, `tabs.matches`, `matches.empty*` silindi; `person.*`, davet ve grup katılım metinleri eklendi.
+- **Doğrulama:** `npx tsc --noEmit` OK; `npx tsx scripts/test-crew-room-matches.ts` OK; `git diff --check` OK. Cihazda görsel kontrol yapılmadı.
+- **Açık:** Davet edilen kişiye anlık push yok; daveti uygulamada Kişiler sekmesindeki rozetle görür.
+
+### 2026-10-02 — Ekip Odası: durum notu arayüzden kaldırıldı + Gani ↔ Ozan bağlantısı
+
+- **Kullanıcı kararı:** durum notu kullanılmayacak. `mobile/screens/CrewRoom.tsx`'ten not kartı, kişi satırındaki not balonu ve ilgili stil/state kaldırıldı; `mobile/lib/crewRoom.ts`'ten `setCrewRoomStatus` sarmalayıcısı ve TR/EN `crewRoom.note.*` metinleri silindi. Sunucu tarafı (`crew_room_status` tablosu, `crew_room_set_status` RPC, overview'deki `status_note` alanları) dokunulmadan duruyor; boş ve zararsız. İleride tamamen kaldırılacaksa ayrı migration gerekir.
+- **Veri işlemi:** Gani → Ozan Gültekin isteği (e-postayla, değer yazdırılmadan); kullanıcı Ozan'ın onay verdiğini belirtince Ozan adına onaylandı. İki taraf karşılıklı `availability`. Ozan'ın önümüzdeki 7 günde roster kaydı yok (`unknown`).
+- **Doğrulama:** `npx tsc --noEmit` OK; `npx tsx scripts/test-crew-room-matches.ts` OK; `git diff --check` OK; iki taraflı overview kontrolü OK.
+
+### 2026-10-02 — Ekip Odası: ilk canlı bağlantı (Gani ↔ Alperen, veri işlemi)
+
+- Kullanıcı (admin hesabı sahibi) isteğiyle Gani hesabından Alperen'e `crew_room_request` (e-postayla, değer yazdırılmadan) gönderildi; kullanıcı Alperen'in onay verdiğini belirtince `crew_room_respond` Alperen oturumu adına çağrıldı. Kod değişikliği yok.
+- **Doğrulama:** iki tarafın `crew_room_overview` listesinde karşılıklı görünüyorlar, iki yön de varsayılan `availability`; Gani'nin `crew_room_days` çağrısında Alperen'in günleri yalnız `off/busy` olarak geliyor (uçuş/istasyon yok) — OK.
+- **Not:** Bağlantı tek kayıt ve simetrik; onaylanınca iki taraf da birbirinin odasında görünür (ayrı "karşı odaya girme" adımı yok). Bildirim tercihi satırları oluştuğu için ortak boş gün push'ları bu ikili için cron'la başlar.
+
+### 2026-10-02 — Ekip Odası / Crew Room (backend canlı; uygulama bir sonraki mağaza build'inde)
+
+- **Amaç:** Abonelikli ekip üyeleri roster'ı takip olmadan paylaşır: bugün panosu, haftalık tablo, ortak boş gün ve aynı yerde olma eşleşmeleri, durum notu. Kişi başına paylaşım düzeyi: `full` (uçuş+saat) > `destination` (yalnız istasyon) > `availability` (müsait/değil) > `hidden`. Kişisel oda (oda kodu/e-posta ile karşılıklı onay) + isteğe bağlı gruplar (grup kodu, onaysız katılım, 200 üye, sahip başına 20 grup). Kişi sınırı yok; aile takipçi kapasitesinden tamamen ayrı.
+- **Migration:** `supabase/migrations/20261002160000_crew_room.sql` — `db push` ile canlıya uygulandı. Tablolar (`crew_room_prefs/links/shares/groups/group_members/status/notified`) RLS açık ve anon/authenticated için tamamen kapalı; istemci yalnız SECURITY DEFINER RPC'leri çağırır (`crew_room_overview`, `crew_room_days`, `crew_room_request/respond/remove`, `crew_room_set_share`, `crew_room_update_prefs`, `crew_room_regenerate_code`, `crew_room_set_status`, `crew_room_create_group/leave_group/remove_group_member/set_group_share`). Gizleme sunucuda yapılır (`availability` düzeyinde uçuş/nöbet/görev → `busy`, istasyon ve uçuş boş; `destination` düzeyinde uçuş boş). `crew_peer_links` ve flights RLS'ine dokunulmadı; Ekip Odası uçuşlara RLS yolu açmaz. İki taraftan biri abonesizse veya görünmez moddaysa düzey `hidden`.
+- **Uygulama:** `mobile/App.tsx` — crew rolünde Aile sekmesi yerine `CrewRoom` sekmesi (iOS SF `person.3`, Android `people.png`, web `people-circle`); aile rolünde Aile sekmesi aynen kaldı. Root stack'e `FamilyConnections` (Family bileşeni) eklendi. `mobile/screens/Profile.tsx` — crew için "Aile bağlantıları" kartı. `mobile/screens/Family.tsx` — `FamilyConnections` olarak açılınca geri butonu; başlığa gizli admin dokunuşu korunur ve Roster sekmesine `Main` üzerinden gider. Yeni: `mobile/screens/CrewRoom.tsx`, `mobile/components/crewRoom/CrewRoomParts.tsx`, `mobile/components/crewRoom/CrewRoomPeoplePanel.tsx`, `mobile/lib/crewRoom.ts` (RPC sarmalayıcı), `mobile/lib/crewRoomMatches.ts` (saf tipler + eşleşme), `mobile/scripts/test-crew-room-matches.ts`. Yeni `crewRoom.*`, `nav.crewRoom`, `profile.familyConnections*` metinleri TR/EN; mevcut commit edilmemiş metinlere dokunulmadı.
+- **Doğrulama:** Migration önce canlı veride rollback'li 22 adımlı test ile denendi (kod ile istek, onay öncesi 0 satır, düzeylere göre gizleme, görünmez mod, grup, durum notu, kaldırma, hata kodları, anon/authenticated tablo ve iç fonksiyon yetkileri) — OK. Canlıda tablolar boş, `authenticated` overview çağırabiliyor, anon `crew_room_days` çağıramıyor, authenticated tabloları okuyamıyor — OK. `npx tsc --noEmit` OK; `npx tsx scripts/test-crew-room-matches.ts` OK; `git diff --check` OK. Cihazda/simülatörde görsel kontrol **yapılmadı**.
+- **Korunacak davranış:** Yeni özellik olduğu için OTA ile değil mağaza build'iyle çıkar (Apple kuralı). Aile rolündeki kullanıcıların sekmeleri değişmez. Aile takip (`crew_peer_links`, aile kapasitesi) akışları değişmedi.
+- **Bildirimler (kullanıcı onayıyla canlıya alındı):** `supabase/migrations/20261002190000_crew_room_notify.sql` — (a) `crew_room_days_for` güncellendi: kişinin penceredeki son roster kaydından sonraki günler `free` değil `unknown` (yayınlanmamış ay boş gün sanılmasın; Gani verisinde 31 Eki sonrası `unknown` doğrulandı). (b) `crew_room_pending_notifications(p_from, p_to)` yalnız service_role: bildirim tercihi açık + aboneli izleyiciler için ortak boş gün (iki taraf `off/free`) ve aynı istasyonda yatı (iki taraf `layover`, karşılıklı düzey ≥ `destination`), `crew_room_notified`'da olmayanlar. (c) pg_cron `crew-room-notify` her saat :07, vault `crew_room_cron_secret` ile. Yeni Edge `supabase/functions/crew-room-notify/index.ts` (`config.toml`'da `verify_jwt = false`): `x-cron-secret` == `CREW_ROOM_CRON_SECRET`; kişi başı tek özet push (en çok 4 satır, TR/EN, `profiles.locale`), yerel saat 21:00–09:00 arası gönderilmez (sonraki saate kalır), gönderilen/geçmiş eşleşmeler `crew_room_notified`'a yazılır, 7 günden eski kayıtlar silinir; `dry_run: true` gönderim ve kayıt yapmaz. Push `data.type = 'crew_room'`; `mobile/lib/pushNotifications.ts` dokununca `Main → CrewRoom` açar (soğuk başlangıçta navigasyon hazır olana dek ~12 sn dener); `mobile/navigationRef.ts` `Main` parametresi `{ screen?: string }` oldu. Sır değeri hiçbir yere yazdırılmadı; fonksiyon ortamında ve vault'ta isimle doğrulandı.
+- **Bildirim doğrulaması:** Rollback'li canlı test (Gani + aboneli ikinci crew, sonra geri alındı): bağlantı öncesi 0; bağlantı + `full` sonrası iki yön için 4, 5, 16 Eki `shared_off` (iki roster'la elle karşılaştırıldı); işaretleme sonrası 0; bir taraf bildirimi kapatınca yalnız diğer taraf kalıyor; authenticated/anon `crew_room_pending_notifications` ve `crew_room_days_for` çalıştıramıyor, service_role çalıştırıyor — OK. Yatı eşleşmesi yolu bu veride denk gelmediği için canlı veride çalışmadı (mantık istemci eşleşmesiyle aynı). Edge: strict `tsc` (Deno shim) OK, esbuild bundle OK, deploy OK; canlı sırsız 403, yanlış sır 403, `dry_run` 200; cron komutunun aynısı pg_net ile tetiklendi → 200 (`pending: 0`, kimseye push gitmedi). `npx tsc --noEmit` (mobile) OK.
+- **Açık:** (1) Bildirim anahtarları Kişiler → Paylaşım ayarları'nda (`notify_shared_off`, `notify_layover`, varsayılan açık). Tercih satırı yalnız odayı bir kez açmış kullanıcılar için oluşur, yani bildirim de ancak o zaman başlar. (2) `avatar_url` base64 olduğundan çok kişide overview yükü büyüyebilir. (3) E-posta ile ekleme, bir e-postanın crew hesabı olup olmadığını ele verir (crew-only + günde 30 istek sınırıyla sınırlandı). (4) Uçuş saatleri cihaz saat diliminde gösterilir; yatı günleri UTC tarihine göre hesaplanır.
 
 ### 2026-10-04 — Planlar: belirgin «Satın alımları geri yükle» düğmesi (OTA)
 
@@ -1934,6 +1739,45 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - `subscription-status`, `validate-apple-subscription` ve `validate-google-subscription` yerelde dosya içermeyen eski klasörlerdir; deploy edilmedi. Aktif satın alma doğrulama fonksiyonu `verify-store-purchase` production'da mevcuttur.
 - Docker'ın çalışmıyor uyarısı deployu engellemedi; Supabase CLI varlıkları doğrudan paketleyip production'a yükledi. Route to Live `functions-prod` maddesi OK yapıldı.
 
+## 2026-09-27 — Production RLS ve ayrıcalıklı RPC güvenlik sıkılaştırması
+
+- RLS denetiminde `apply_verified_store_purchase` fonksiyonunun authenticated istemci tarafından doğrudan çağrılabildiği ve bakım/arşivleme fonksiyonlarının geniş varsayılan execute yetkileri taşıdığı tespit edildi.
+- `20260927120000_harden_privileged_rpc_access.sql` ile doğrulanmış satın alma uygulaması service-role-only `apply_verified_store_purchase_for_user` fonksiyonuna taşındı; eski apply overloadları, plan seçimi ve bakım fonksiyonları anon/authenticated erişimine kapatıldı. Aynı store transactionının farklı kullanıcıya yazılması reddediliyor.
+- `verify-store-purchase` v20 production'a deploy edildi. iOS sonucu yalnız Apple receipt doğrulamasından sonra service role ile uygulanıyor. Gerçek Google Play proof doğrulaması henüz bulunmadığı için Android istemci verisinden entitlement üretimi 501 ile güvenli biçimde kapalı.
+- İlk sıkılaştırmada flight RLS politikalarının çağırdığı salt-okunur `crew_has_active_subscription` yardımcısının authenticated execute izni de kapanmıştı. Bu durum canlı testte fark edilip `20260927200000_restore_authenticated_subscription_policy_helper.sql` ile hemen düzeltildi; anon=false, authenticated=true doğrulandı.
+- Davet kodlarının anonim listelenebildiği ayrıca tespit edildi. `20260927203000_hide_invite_codes_from_anonymous_clients.sql` ile tablo SELECT ve generate/redeem anon yetkileri kaldırıldı; authenticated generate/redeem korundu. Production anonim REST testi artık 401 döndürüyor.
+- Hassas tablolar anonim testlerde veri döndürmedi. Amaçlanan `airports`, `app_release_policy` ve `roster_occupation_catalog_meta` katalogları 200 ve veri döndürmeye devam ediyor. Route to Live `rls-review` maddesi OK yapıldı.
+- Eşzamanlı Cursor çalışması sırasında `20260927180000_remove_me_from_flight_strips_archive_card.sql` migrationı güvenlik pushuyla aynı listede production'a uygulandı. Bu migration mevcut veriyi topluca değiştirmiyor; yalnız `remove_me_from_flight` fonksiyonunu çağıranın kendi crew/arşiv bağını temizleyecek şekilde değiştiriyor. Dosya Cursor çalışma kapsamındadır ve repository commitinde kaybolmamalıdır.
+
+## 2026-09-27 — Production auth callback yeniden doğrulandı
+
+- Production Auth config salt-okunur kontrol edildi: Site URL `https://app.flyfamapp.com/auth-callback.html`; allowlist markalı HTTPS callback ile `flyfam://` ve `com.flyfam.app://` mobil callbacklerini içeriyor. OTP süresi 86400 saniye, SMTP göndereni `auth@flyfamapp.com` / `FlyFam`.
+- Markalı callback HTTPS üzerinden 200, HTTP üzerinden markalı HTTPS hedefe 301 döndürüyor.
+- Mobil `authSessionFromUrl` ağ hatalarında kontrollü tekrar deniyor ve oturum kurulmuşsa geçici ağ hatasını başarıya uzlaştırıyor. Kullanıcıya ham İngilizce `Network Request Failed` taşınmıyor; yerelleştirilmiş hata/yeniden gönderme akışı korunuyor.
+- Önceki canlı kullanıcı testlerinde signup, recovery, invite, magic-link ve email-change CTA'larının uygulamayı açtığı doğrulanmıştı. Güncel config ve kod bu zincirle uyumlu; Route to Live `auth-links` maddesi OK yapıldı.
+
+## 2026-09-27 — App Review demo hesapları yeniden kuruldu ve doğrulandı
+
+- `crewtestuser@flyfam.com` production Auth'ta bulunamadığı için kullanıcı açık onayıyla yeniden oluşturuldu. `familytestuser@flyfam.com` mevcut kullanıcı olarak güncellendi; iki hesap da email-confirmed ve parolayla giriş testi başarılı.
+- Crew/family profilleri, onaylı bağlantı ve kullanıcı onayları kuruldu. Kurulum scriptindeki pasif eski `couple` planı hatası bulundu; script ve canlı demo aboneliği aktif `circle` review planına taşındı.
+- Kişisel gerçek roster kopyalanmadı. Önümüzdeki 5 güne PC9001–PC9004 örnek bacakları, RSV, FOF ve SIM içeren toplam 7 anonim satır eklendi.
+- Son gerçek kullanıcı testi: crew login=true, family login=true, crew/family has_access=true, plan=circle, approved family connection=1, crew roster=7 ve family-visible flights=7.
+- Cursor `scripts/provision-app-review-demo-user.mjs` içindeki Circle planını eski `couple` değerine döndürmemeli. Demo hesapları App Review tamamlanana kadar silinmemeli. Route to Live `demo-account` maddesi OK yapıldı.
+
+## 2026-09-27 — App Store Connect abonelik ürünleri denetlendi
+
+- `flyfam_subscription` grubundaki 7 aylık ve 7 yıllık yeni ürünün tamamı doğru seviye, süre ve product ID ile `Prepare for Submission` durumunda.
+- Circle Monthly ayrıntı sayfasında İngilizce/Türkçe ad ve açıklamalar, fiyatlandırma, tüm bölge kullanılabilirliği ve App Review ekran görüntüsü mevcut olarak doğrulandı.
+- Eski `01` ve `02` ürünleri `ZZZ_DEPRECATED` adıyla ayrı ve `Developer Rejected` durumda; yeni paket ürünleriyle karışmıyor.
+- Ürünler henüz App Review'a eklenmedi veya gönderilmedi. Route to Live `ios-products` maddesi OK yapıldı; sıradaki kontrol uygulama/RevenueCat eşleşmesidir.
+
+## 2026-09-27 — iOS ücretsiz deneme akışı Introductory Offer'a düzeltildi
+
+- Yeni `flyfam.duo.monthly` ürününde 175 bölgede 24 Ağustos 2026–24 Ağustos 2027 tarihleri arasında geçerli, ilk 2 hafta ücretsiz Introductory Offer bulundu ve kullanıcı kararıyla korunuyor.
+- Bu kampanya ilk abonelikte bir kez kullanılacağından Promotional Offer değildir; özel `.p8` imzası gerektirmez. Uygulamanın satın alma isteğindeki `withOffer` imzalama yolu kaldırıldı; StoreKit uygun kullanıcıya denemeyi otomatik uygular.
+- StoreKit ürün yanıtındaki introductory offer varlığı ve sayısal subscription group ID `21969234` üzerinden eligibility birlikte kontrol ediliyor. “14 gün ücretsiz” CTA'sı yalnız teklif gerçekten mevcut ve kullanıcı uygun olduğunda gösteriliyor.
+- `EXPO_PUBLIC_IOS_MONTHLY_PROMO_OFFER_ID` artık build yapılandırmasına alınmıyor. TypeScript kontrolü geçti. Sandbox satın alma doğrulaması yeni development/TestFlight build ile yapılmalı; `ios-entitlements` henüz OK yapılmamalı.
+
 ## 2026-09-27 — Crew peer "kaldır" sunucuda takibi iptal ediyor
 
 - Sorun: Family ekranındaki crew peer "kaldır" işlemi yalnız `dismissDemoPeer` ile cihazda gizliyordu; `crew_peer_links` satırı `approved` kaldığı için `notify-family` takip edilen crew'un uçuş bildirimlerini göndermeye devam ediyordu.
@@ -2057,6 +1901,251 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - **Sınırlar:** Yerel olduğu için yalnız roster'ı en son yükleyen cihazda çalar; uygulama açılmadan sunucuda değişen roster (ör. başka cihazda dönüştürme) bir sonraki açılışa kadar eski hatırlatmayı tutabilir. Aynı hesap birden fazla cihazda → her cihazda çalar.
 - **Koruma:** Aile push'ları, `scheduleLocalTestNotification`, bildirim handler'ı ve kanallar aynı.
 
+## 2026-09-29 — RevenueCat iOS temel entegrasyonu
+
+- RevenueCat proje `0c6ae613`, iOS app `appffd1743393`, bundle `com.flyfam.app` oluşturuldu.
+- Apple In-App Purchase key `C5MD4RT8YT` ve App Store Connect API key `3BR495HP56` RevenueCat'te **Valid credentials**. ASC API anahtarı App Manager; özel `.p8` dosyaları koda/repo'ya eklenmedi.
+- App Store'dan 16 abonelik aktarıldı: 14 güncel paket + geriye uyumluluk için `01`/`02`. Eski tüketilebilir add-on `03` aktarılmadı. RevenueCat ilk aktarımda `flyfam.clan.yearly` için **Missing metadata** gösterdi. 29 Eylül App Store Connect denetiminde ürünün ad, açıklama, fiyat ve satış bölgesi tamam; eksik alanın **App Review Screenshot** olduğu görüldü. ASC 14 yeni ürünün tamamını `Prepare for Submission` gösteriyor; RevenueCat etiketi ürünler yenilenince tekrar kontrol edilmeli.
+- Entitlement: `premium` / `FlyFam Premium`; 16 aboneliğin tamamı bağlı. Offering bilinçli olarak henüz kaydedilmedi; 14 SKU doğrudan ürün kimliğiyle alınacak.
+- Yeni `mobile/lib/revenueCat.ts`: public platform anahtarıyla SDK yapılandırma, Supabase user UUID appUserID, ürün alma/satın alma ve restore yardımcıları.
+- `mobile/lib/iapRestore.ts`: RevenueCat anahtarı varsa iOS satın alımı RC üzerinden; işlem yine mevcut `verify-store-purchase` ile Supabase doğrulamasına gider. Eski `react-native-iap` yolu fallback ve restore doğrulaması olarak korunur.
+- Ortam: `EXPO_PUBLIC_REVENUECAT_IOS_API_KEY`; Android key henüz yok. Yeni native SDK nedeniyle entegrasyon testi için yeni development/store build gerekir.
+- Doğrulama: `npx tsc --noEmit` OK. Satın alma/restore sandbox testi ve RevenueCat webhook'u henüz yapılmadı; mevcut backend entitlement otoritesi korunuyor.
+
+## 2026-09-29 — RevenueCat ürün metadata düzeltmesi
+
+- `flyfam.clan.yearly` için App Store Connect `Review Information > Screenshot` alanına, CTA metni `14 gün ücretsiz dene` olan güncel inceleme görseli eklendi.
+- Kaynak dosya: `docs/app-review-subscriptions-14-day-1206x2622.png` (1206 × 2622). Önceki `15 gün` metinli görsel kullanılmadı.
+- RevenueCat ürün kataloğunda 14 güncel ürün ile eski `01`/`02` dahil 16 ürünün tamamı `Ready to Submit` ve bir entitlement'a bağlı görünüyor.
+- Ürünler App Review'a gönderilmedi; `Add for Review` kullanılmadı.
+
+## 2026-09-30 — Apple sunucu bildirimleri RevenueCat'e bağlandı
+
+- RevenueCat iOS app ayarındaki `Apply in App Store Connect` işlemi çalıştırıldı.
+- Apple Server Notification URL, RevenueCat'in FlyFam'e özel endpoint'ine App Store Connect API anahtarı üzerinden uygulandı.
+- RevenueCat ekranındaki `No notifications received` göstergesi ilk sandbox/gerçek App Store olayı gelene kadar normaldir; bağlantı testi satın alma/restore senaryosunda tamamlanacak.
+- `Track new purchases from server-to-server notifications` şimdilik açılmadı; mevcut uygulama satın alma doğrulaması ve Supabase entitlement otoritesi korunuyor.
+
+## 2026-09-30 — Sandbox `Store product not found` kök nedeni
+
+- iOS geliştirme sürümünde `flyfam.duo.monthly` satın alma denemesi `Store product not found` verdi; RevenueCat aynı anda mağaza ürünlerini çekemediğini bildirdi.
+- Kod denetiminde bundle ID `com.flyfam.app`, ürün ID ve RevenueCat public key eşleşiyor; projede StoreKit configuration override bulunmuyor.
+- App Store Connect `Business` ekranında **Paid Apps Agreement = Pending User Info** ve banka hesabı eksik uyarısı görüldü. Free Apps Agreement ve vergi formları Active.
+- Bu nedenle StoreKit abonelik ürünlerini döndürmüyor. Banka hesabı eklenip Paid Apps Agreement `Active` olduktan sonra Apple yayılımı beklenerek sandbox satın alma ve restore testi yeniden yapılmalı.
+
+### 2026-09-30 — Apple ödeme sözleşmesi aktive edildi
+
+- App Store Connect `Business` ekranında **Paid Apps Agreement = Active**.
+- YKB banka hesabı **Active**; banka para birimi TRY, royalty currency USD.
+- U.S. Certificate of Foreign Status ve W-8BEN **Active**.
+- Önceki `Pending User Info` engeli kalktı. Apple/StoreKit yayılımından sonra sandbox satın alma ve restore testi yeniden yapılmalı.
+- Türkiye vergi istisna hesabı hazır olduğunda banka hesabı App Store Connect'te değiştirilmelidir.
+- Aktivasyondan hemen sonra sandbox testi tekrarlandı; `flyfam.duo.monthly` hâlâ StoreKit tarafından döndürülmedi.
+- App Store Connect kontrolünde 14 yeni paket ürünü `Prepare for Submission`; ürün sayfasında `Add for Review` aktif ve Apple ilk otomatik yenilenen aboneliğin yeni bir uygulama sürümüyle birlikte gönderilmesi gerektiğini belirtiyor.
+- Kullanıcı daha önce ürünleri review'a göndermemeyi istedi. Bu nedenle ürünler/sürüm review'a eklenmedi; önce Apple yayılımı sonrası sandbox testi tekrar edilmeli.
+
+### 2026-09-30 — iOS abonelik yasal akış kontrolü
+
+- `Plans` ekranında paket başlığı, aylık/yıllık dönem, mağaza fiyatı, otomatik yenileme/iptal açıklaması ve restore bağlantısı mevcut.
+- Gizlilik/KVKK ve Kullanım Koşulları/EULA bağlantıları uygulama içi tam metin ekranlarını açıyor; dış web yedekleri `https://app.flyfamapp.com/privacy-policy.html` ve `https://app.flyfamapp.com/terms-of-use.html` HTTP 200 döndürdü.
+- Aktif mobil kod `npx tsc --noEmit` kontrolünden geçti.
+- App Store sürüm açıklaması ve metadata URL alanlarının panelden son doğrulaması yapılmadan `ios-legal-flow` OK sayılmamalı.
+
+### 2026-09-30 — Yayın önceliği iOS olarak sabitlendi
+
+- Kullanıcı kararıyla Android Billing, Play ürünleri, RevenueCat Android entitlement eşlemesi ve Play Store yayın işleri iOS canlıya çıkana kadar ertelendi.
+- Android kodunu silme veya mevcut Android davranışını bozma; yalnız iOS yayın engellerine öncelik ver.
+- 1 Ekim 2026 saat 11.00 için StoreKit sandbox satın alma/restore ve App Store metadata bağlantıları kontrolü hatırlatması planlandı.
+
+### 2026-09-30 — App Store metadata kimlik ve EULA temizliği
+
+- App Store Connect iOS 1.3.0 sürüm açıklamasındaki eski kişisel GitHub Terms/Privacy URL’leri `app.flyfamapp.com` hedeflerine taşındı.
+- Support URL ve Marketing URL `https://app.flyfamapp.com/` olarak kaydedildi.
+- Copyright alanındaki şahsi ad `2026 FlyFam` olarak değiştirildi.
+- App Privacy içindeki eski kişisel Privacy Policy URL’si `https://app.flyfamapp.com/privacy-policy.html` olarak kaydedildi.
+- Genel App Information Apple Standard License Agreement kullanıyor; önceki 3.1.2 reddini karşılamak için sürüm açıklamasına Apple Standard EULA bağlantısı ayrıca eklendi.
+- Bu değişiklikler kaydedildi, review’a gönderim yapılmadı. Review iletişim bilgileri mağazada kullanıcıya açık olmadığından değiştirilmedi.
+- App Store Connect iPad 13-inch alanında üç görselin yüklü olduğu doğrulandı: `01-program.png`, `02-roster-import.png`, `03-flight-detail.png`.
+
+### 2026-09-30 — App Privacy beyan farkı
+
+- App Store Connect yayınlanmış beyanı yalnız `Name`, `Email Address`, `Emails or Text Messages`, `Photos or Videos` gösteriyor.
+- Aktif kod ve production şema ek olarak şunları topluyor: profil telefonu, Supabase kullanıcı kimliği, Expo push/device tokenı, StoreKit/RevenueCat satın alma geçmişi, kullanıcıya bağlı app-open/roster-import/family-push olayları ve roster/PDF/görev içeriği.
+- Apple eşleme adayı: `Phone Number`, `User ID`, `Device ID`, `Purchase History`, `Product Interaction`, `Other User Content`; tamamı hesaba bağlıdır ve izleme/reklam amacı yoktur.
+- `Emails or Text Messages` yalnız gerçek mesaj/e-posta içeriği toplanıyorsa kalmalı; mevcut kod taramasında kullanıcı mesaj içeriği bulunmadı, sadece davet e-posta adresi var. Bu nedenle kaldırılması önerilir.
+- App Privacy cevapları kamuya açık ve hukuki nitelikte olduğundan amaç/linked yanıtları son kez onaylanmadan Publish yapılmadı.
+
+## 2026-09-29 — Admin: «Aile planı» sayfası (kişisel duvar takvimi)
+
+- **Dosyalar:** yeni `supabase/migrations/20260929120000_admin_planner_state.sql`; `supabase/functions/admin-dashboard/index.ts` (`planner_get`, `planner_save_config`); `docs/ADMIN_STATUS_DASHBOARD.html` (nav «Kişisel → 13 Aile planı», `#familyPlannerView`, `.fp-*` CSS, planner JS, `switchView` kancası).
+- **Amaç:** Giriş yapan adminin kendi aylık roster'ı duvar takvimi + gün içi mini timeline (crew / çocuk / eş satırları); çocuğun okul saatleri (resmi tatil hariç, arife yarım gün), eşin sabit iş günleri ve aday iş yerleri için uygun gün/saat hesabı; götürme/alma ve bakım çakışmaları; konum/adres çerçevesi (harita linki).
+- **Gizlilik:** Repo ve admin HTML herkese açık; kişi adları, adresler, okul/iş saatleri **koda/dokümana yazılmadı**. Hepsi `admin_planner_state.config` (jsonb, `owner_user_id = claims.sub`) satırında. Tablo RLS açık, `anon`/`authenticated` yetkisi yok; yalnız service role (admin-dashboard) okur/yazar. HTML'deki varsayılan config jeneriktir. Seed SQL `/tmp`'den çalıştırılıp silindi.
+- **Veri:** `planner_get` → admin'in `crew_profiles` → `flight_crew` → `flights` (ay ±3 gün) + `flights_archive`; config + güncelleme zamanı. `planner_save_config` → nesne, en fazla 64 KB, upsert.
+- **Hesap kuralları (config ile değişir):** Uçuş zinciri üsse dönene kadar tek trip; rapor = kalkış − `reportBeforeDepMin`, çıkış = iniş + `releaseAfterArrMin`, üs yolu ilk/son göreve eklenir; ≥8 sa bacak arası = yatı. STBY*/RSV*/RZV/CFR vb. = yedek (riskli, CFR tüm gün), boş kodlar serbest, diğer saatli kodlar görev. Okul günü aday (`school_hours`) = okul başı + yol + tampon … okul sonu − yol − tampon; sabit iş günleri ve arife hariç; crew müsaitse `extendedStart/End`'e genişler. Akşam aday (`evening`) sabit işten sonra yol payıyla başlar; crew yedekse «riskli», görevdeyse «bakım gerekir».
+- **Doğrulama:** HTML script `node --check` OK; edge `esbuild` transform OK; mantık Node'da sahte roster ile (trip/yatı/CFR/sabit iş çakışması/arife) OK. Migration prod'a `supabase db push` ile yalnız `20260929120000` uygulandı (dry-run önce); RLS açık + anon/authenticated SELECT yok doğrulandı. `admin-dashboard` deploy OK; OPTIONS 200, yetkisiz POST 401. Tarayıcıda yerel kopya + gerçek roster verisiyle mock `callAdminAction`: 35 hücre, KPI, detay paneli, çerçeve tablosu OK. Canlı admin oturumuyla uçtan uca test edilmedi.
+- **Yayın:** HTML değişikliği GitHub Pages'e ancak push ile çıkar (henüz push yok); yayınlanırken `UI` sürümünü artır.
+- **Sınırlar:** Okul adresi girilmedi (süre tahmini); yol süreleri sabit tahmin (trafik yok); okul ara tatilleri/kapalı günler `school.closedDates` ile elle girilmeli; resmi tatil listesi 2026–2027 gömülü.
+- **Koruma:** Diğer admin sayfaları, `check_access` ve mevcut action'lar aynı; planner action'ları yalnız admin e-posta kapısından sonra çalışır.
+
+## 2026-09-29 — Admin «Aile planı» v2: PDF roster, trafik, seç-fixle-özet akışı
+
+- **Dosyalar:** `docs/ADMIN_STATUS_DASHBOARD.html` (planner bölümü 4 adım: Bilgiler / Ulaşım süreleri / Takvim / Özet; planner JS yeniden yazıldı; `.fp-chip`, `.fp-travel-*`, `.fp-summary-*` CSS); `supabase/functions/admin-dashboard/index.ts` (`planner_save_config` sınırı 64 KB → 256 KB).
+- **Kurallar (config ile):** eş günde tek yerde çalışır (sabit iş gününde aday önerilmez, seçim de tek); okula götürme / okuldan alma yalnız crew veya eş; çocuk okul dışında crew veya eş ile. Her eş işi için crew'un karşılaması gereken götürme / alma+evde / evde bakım aralıkları hesaplanır; görev/yatı = uygun değil, yedek = riskli.
+- **Trafik:** `travel.pairs["a|b"] = [normal, yoğun]` dk + `travel.peaks` (gün + saat aralığı). Yol süresi çıkış saatine göre seçilir. UI'da her yer çifti için 0–120 dk seçim listesi + yoğun saat metin alanları; «Süreleri kaydet».
+- **Roster PDF:** Planner'dan PDF yüklenince mevcut Edge `parse-roster-pdf` (crew ICAO ile zorla parser) çağrılır; satırlar sıkıştırılıp `config.rosters[]` (en fazla 6 içe aktarım) olarak saklanır. PDF'in kapsadığı günlerde görev penceresi PDF'teki rapor / görev bitişi (home base lokal; `utc` ise çevrilir) + üs yolu; kapsamadığı günlerde uygulama verisi. Üs dışında biten görevden sonraki göreve kadar yatı. Uygulamadaki uçuşlar / aile bildirimleri **değişmez**.
+- **Akış:** «Çalışabileceği günleri bul» → hücrelerde seçenek çipleri (standart = eş götürür+alır; ↔ = crew götürür/alır, uzun mesai; akşam) → çipe tıkla (gün başına tek) → «Seçimleri fixle» (`config.plans[YYYY-MM]`) → Özet: yer bazında gün/saat listesi, toplam, çakışmalar, «Kopyala» (klinik mesajı) ve «Tüm özeti kopyala». JSON editörü `rosters`/`plans` anahtarlarını göstermez, kaydederken korur.
+- **Gizli veri:** Okul adresi, yol süreleri, isimler ve PDF roster satırları yalnız `admin_planner_state` satırında (SQL `/tmp`'den çalıştırıldı, dosyalar silindi). Kod/doküman jenerik.
+- **Doğrulama:** HTML script `node --check` OK; edge `esbuild` OK; `admin-dashboard` deploy OK (OPTIONS 200, yetkisiz 401). PDF yerelde paylaşılan Pegasus parser'ı ile parse edildi (36 satır, 2026-09-30 → 2026-10-30). Tarayıcıda yerel kopya + gerçek config/roster ile mock `callAdminAction`: Bul → 19 günde seçenek; çip seçimi / gün başına tek / Fixle kaydı (`plans`, `rosters` korunuyor) / özet + kopya metni / süre değişince yeniden hesap OK. Akşam işinde eşin okuldan alıp sonra çıkması hatası test sırasında bulundu ve düzeltildi. Canlı admin oturumuyla ve planner'dan gerçek PDF yüklemesiyle uçtan uca test edilmedi.
+- **Yayın:** HTML push ile GitHub Pages'e çıkar (henüz push yok); yayınlarken `UI` artırılmalı.
+- **Sınırlar:** Yol süreleri tahmini başlangıç değerleri (kullanıcı düzeltecek); trafik iki seviyeli (normal/yoğun), yön farkı yok; okul ara tatilleri `school.closedDates` ile elle; gece görevi sonrası dinlenme «müsait» sayılır.
+
+## 2026-09-29 — «Aile planı» v3: paylaşılabilir `/aile` sayfası, PIN girişi, yıldızlı öneri
+
+- **Dosyalar:** yeni `support/aile/index.html` (tek dosya, mobil öncelikli, `noindex`); yeni `supabase/functions/family-planner/index.ts`; yeni `supabase/migrations/20260929190000_family_planner_share.sql` (`admin_planner_state.share_pin_hash` + `family_planner_pin_attempts`, RLS açık, anon/authenticated yetkisiz); `supabase/config.toml` (`[functions.family-planner] verify_jwt = false`); `docs/ADMIN_STATUS_DASHBOARD.html` + `support/admin/index.html` (planner bölümü artık `/aile/?embed=1` iframe'i, eski planner JS/CSS kaldırıldı, `UI` 59); `support/index.html` (`adminUi` 59); `supabase/functions/admin-dashboard/index.ts` (`planner_get` / `planner_save_config` kaldırıldı; yerini `family-planner` aldı).
+- **Erişim:** Sayfa yalnız iki yolla açılır: (1) aynı origin'deki admin oturumu (`flyfam_admin_dashboard_session_v2`; gerekirse refresh) → function `auth.getUser` + `ADMIN_DASHBOARD_ALLOWED_EMAILS`; (2) 4 haneli PIN → function `sha256(owner_id:pin)` ile karşılaştırır, HMAC imzalı `fp1.` token (30 gün, PIN değişince geçersiz) döner. Deneme sınırı: IP başına 15 dk'da 5, global saatte 20 hatalı deneme (429). PIN ve hash yalnız DB'de; repo/dokümanda yok. Seed SQL `/tmp`'den çalıştırılıp silindi.
+- **Arayüz:** Hava durumu çipi (Open-Meteo, anahtarsız, 10 dk'da bir + sekmeye dönünce); yağış beklenen saatlerde (≥0,2 mm veya olasılık ≥%60) tüm yol süreleri `travel.rainExtraPct` (varsayılan %50) artar. Hedef çubuğu, «★ Öneri oluştur / ✓ Fixle / Temizle», harf ikonlu (config `icon`) ve 1–5 yıldızlı gün hücreleri (yıldız rengi kenarlık/zemin), alttan açılan gün detayı, açılır bölümler: Tatil günleri, Bilgiler (PDF/roster/çerçeve), Ulaşım süreleri (manuel), Gelişmiş JSON.
+- **Yıldız:** 5'ten başlar; crew nöbet/rezerve bağlıysa en fazla 2; crew götürme/alma yaparsa −1; aynı gün görevliyken bakım −1; nöbet/rezerv günü −1; crew görevine <90 dk −1; yağış −1; 1–5 arası.
+- **Öneri:** `config.goals` — sayılı hedefler (hafta içi / Cumartesi adedi, haftada en fazla N, en düşük yıldız) önce, aya yayılmış (en yakın seçili güne uzaklık puanı) ve diğer seçeneklerin yıldızını az bozan günler; sonra `weekdays: "all"` hedefi kalan hafta içlerini en iyi seçenekle doldurur. Tatil aralıkları (`config.vacations`) okul/iş/öneri dışı.
+- **Paylaşım:** Özet kartı başına canvas PNG (klinik rengi, harf, tarih/saat, toplam); `navigator.share({files})` destekliyse WhatsApp'a doğrudan, değilse PNG indir + `wa.me` metin. Klinik bazlı ayrı gönderim.
+- **Doğrulama:** Inline script `node --check` OK; `family-planner` + `admin-dashboard` `esbuild` OK. `family-planner` deploy: yanlış PIN 401, yetkisiz `get` 401, doğru PIN token + `session`/`get` OK, bozulmuş token red. Migration prod'a uygulandı. Yerel tarayıcı (gerçek API): PIN girişi, token ile otomatik giriş, Ekim önerisi hedefleri tuttu (3 hafta içi + 1 Cmt aynı haftada hafta içi yok; kalan hafta içleri ikinci klinik), yağış çarpanı gün aşımıyla OK, tatil ekle/sil DB'ye yazıldı ve geri alındı, PNG önizleme, 390 px mobil görünüm, admin iframe OK. `admin-dashboard` yeniden deploy (yetkisiz 401). Yayın: origin/main'e yalnız ilgili dosyalar (`9499701`), Pages run başarılı, `https://app.flyfamapp.com/aile/` 200 ve canlıda PIN girişi OK; admin `UI` 59 canlı. Canlı admin oturumuyla otomatik giriş uçtan uca denenmedi (kod yolu function tarafında aynı `getUser` kapısı).
+- **Sınırlar / risk:** 4 haneli PIN zayıf; deneme sınırı ile hafifletildi, gerekirse DB'de hash değiştirilerek (tüm tokenlar düşer) yenilenir. Hava tahmini 16 günle sınırlı; sonrası yağışsız hesaplanır. `navigator.share` dosya desteği tarayıcıya bağlı (iOS Safari/Android Chrome var; masaüstünde indir + metin).
+- **Koruma:** Uygulama verisi / aile bildirimleri değişmez; `family-planner` yalnız `admin_planner_state` sahibinin roster'ını okur ve yalnız o satıra yazar. Diğer admin sayfaları ve action'ları aynı.
+
+## 2026-09-29 — «Aile planı»: COTD ev görevi
+
+- **Dosya:** `support/aile/index.html`.
+- **Amaç:** Ev görevi kodları (`config.crewDuty.homeDutyCodes`, varsayılan `["COTD"]`) havalimanı görevi sayılmaz: üs yolu eklenmez, ayrı `home` aralığı (turkuaz, «Ev görevi»). Bu aralıkta evde bakım karşılanır (−1 yıldız «ev görevindeyken bakar»); okula götürme/alma «riskli» (en fazla 2 yıldız). Saat yoksa 08:00–16:00 varsayılır.
+- **Doğrulama:** Inline script `node --check` OK. Yerel tarayıcı (gerçek API): 10 Ekim sabit iş günü artık çakışma değil («ev görevinde, evde bakabilir»), Ekim çakışması 2 → 1; öneri sonucu değişmedi. origin/main `8264c57`, Pages run başarılı, canlı dosyada değişiklik doğrulandı.
+- **Koruma:** Diğer görev/nöbet/yatı kuralları aynı; config'te kod listesi değiştirilebilir.
+
+## 2026-09-29 — «Aile planı»: 30 dk dilim, klinik saat üst sınırları, üste varış 90 dk
+
+- **Dosya:** `support/aile/index.html`; DB config (`admin_planner_state`, kişisel değerler yalnız DB'de).
+- **30 dk dilim:** `config.slotMin` (varsayılan 30). Eşin aday iş giriş saati sonraki dilime yukarı, çıkış saati önceki dilime aşağı yuvarlanır (güvenlik payı); genişletilmiş saatler ve akşam işi dahil. En az süre kontrolü yuvarlamadan sonra.
+- **Akşam adayı gün bazlı saat:** `partnerCandidates[].dayOverrides["<haftanın günü>"] = {start, end}`. DB'de ikinci klinik hafta içi bitiş 18:30, Cumartesi 10:00–16:00 (Cumartesi başlangıcı varsayım; config'ten değişir).
+- **Üste varış:** `crewDuty.reportBeforeDepMin` varsayılan 60 → 90 (DB'de de 90). PDF'teki uçuş gruplarında home base'den kalkan bacak için görev başlangıcı = min(PDF görev başlangıcı, kalkış − 90); öncesine evden üs yolu eklenir. Uygulama verisinden gelen uçuşlar zaten kalkış − rapor süresi kullanır.
+- **Doğrulama:** Inline script `node --check` OK. Yerel tarayıcı (gerçek API): tüm seçenekler :00/:30 (ör. 10:00–14:30, 16:00–18:30, Cmt 10:00–16:00); SAW kalkışlı görevlerde evden çıkış = kalkış − 90 − yol (ör. 11:00 kalkış → 08:25, 14:15 → 12:05); öneri günleri değişmedi. origin/main `8ba1b37` ve `8b5f77c`, iki Pages run başarılı, canlı dosya doğrulandı.
+- **Koruma:** Diğer kurallar aynı; tüm değerler config'ten ayarlanabilir.
+
+## 2026-09-29 — «Aile planı»: hedef kutuları (sürükle-bırak) + «unlikely» günler
+
+- **Dosya:** `support/aile/index.html`; DB config (hedefler ve günler yalnız DB'de).
+- **Unlikely günler:** `config.unlikelyWeekdays` (DB'de Pazartesi+Cuma), `unlikelyPenalty` (varsayılan 2 yıldız). Gerekçe listesine «İstanbul trafiği çok yoğun (unlikely)»; takvimde 🚦 işareti. Varsayılan config'te boş liste.
+- **Hedefler:** DB `goals`: birinci klinik 4 hafta içi, ikinci klinik 3 hafta içi + 1 Cumartesi; her ikisi haftada en fazla 1. `weekdays: "all"` desteği korunur (kutu sayısı = seçilen + 1).
+- **Kutular:** Hedef başına grup (aday × hafta içi/Cumartesi), N boş kutu + uygun gün çipleri (yıldız rengi; öneriler sarı halka + «öneri»). Doldurma: çipi kutuya/gruba sürükle, çipe dokun, takvim hücresini sürükle ya da boş kutuya dokunup takvimden gün seç; dolu kutunun üstüne bırakınca değiştirir; ✕ çıkarır; dolu kutuya dokununca gün detayı. Yanlış gün türü / uygun olmayan gün / dolu kutular için durum mesajı.
+- **Öneri:** Artık mevcut seçimleri korur, yalnız boş kutuları doldurur (Cumartesi grupları önce; aynı aday için aya yayılım + tüm seçimlere en az 3 gün aralık puanı; diğer adayın o günkü yıldızı az düşürür). Buton «★ Önerileri kutulara koy». Veri modeli aynı (`plans[YYYY-MM]`), «✓ Fixle» değişmedi.
+- **Doğrulama:** Inline script `node --check` OK. Yerel tarayıcı (gerçek API, kaydetmeden): Ekim önerisi Pzt/Cuma kullanmadı, haftalara yayıldı (4+3+1); çipe dokunma, boş kutu + takvim seçimi, dolu kutuya bırakma ile değiştirme, yanlış tür reddi, uygun olmayan gün mesajı, «Önerileri kutulara koy» yalnız boşları doldurdu; masaüstü ve 390 px görünüm. origin/main `a3a302c`, Pages run başarılı, canlı dosya doğrulandı.
+- **Sınır:** HTML5 sürükle-bırak mobilde tarayıcıya bağlı; dokun/seç yolu her yerde çalışır.
+
+## 2026-09-29 — «Aile planı»: mobil/tablet görünüm, varsayılan ay, unlikely günler öneriden hariç
+
+- **Dosya:** `support/aile/index.html`.
+- **Varsayılan ay:** Sayfa açılışında İstanbul tarihine göre ayın 25'inden sonraysa sonraki ay, değilse mevcut ay (`defaultMonth()`).
+- **Mobil/tablet:** Takvim kartında «☰ Liste / ▦ Takvim» anahtarı (seçim `localStorage` `flyfam_family_plan_view_v1`; varsayılan ≤640 px liste, üstü takvim). Liste satırı: renkli sol şerit, tarih, zaman çizgisi, ekip satırları, sabit/plan rozetleri. Telefonda 16 px input, 40 px butonlar, alt sabit aksiyon çubuğu (embed modunda statik), kutular 2'li; tablette büyük hücreler. Web-app meta etiketleri.
+- **Unlikely günler:** `suggest()` artık `unlikelyWeekdays` günlerini hiç önermez (sert hariç; elle seçim yine mümkün). 🚦 yerine gri zemin + «unlikely» etiketi (takvim ve liste), havuz çiplerinde soluk/kesikli + «unlikely», sona sıralı. Kurallar listesine unlikely, 90 dk ve 30 dk dilim kuralları eklendi.
+- **Doğrulama:** Inline script `node --check` OK. Yerel tarayıcı (gerçek API, kaydetmeden): açılış ayı 2026-10; öneri Pzt/Cuma içermedi (0), unlikely hücreleri gri; 390 px liste görünümü + alt çubuk; 820 px yatay taşma yok. origin/main `df77472`, Pages run başarılı, canlı dosyada yeni kod doğrulandı.
+- **Koruma:** Veri modeli (`plans[YYYY-MM]`), «✓ Fixle», kutu etkileşimleri değişmedi; unlikely günler elle seçilebilir kalır.
+
+## 2026-09-30 — App Store Connect App Privacy beyanı düzeltildi ve yayımlandı
+
+- App Privacy veri türleri uygulama/veritabanı davranışıyla eşleştirildi: Name, Email Address, Phone Number, Photos or Videos, Other User Content, User ID, Device ID, Purchase History ve Product Interaction.
+- Tüm veri türleri kullanıcı kimliğiyle bağlantılı olarak işaretlendi; hiçbir veri türü takip amacıyla kullanılmıyor.
+- Product Interaction için `Analytics` + `App Functionality`; diğer sekiz veri türü için `App Functionality` seçildi.
+- Profil fotoğrafı eski `Product Personalization / not linked` beyanından `App Functionality / linked` durumuna geçirildi. Name ve Email Address de `linked` olarak düzeltildi.
+- Mesaj içeriği toplanmadığından `Emails or Text Messages` veri türü kaldırıldı.
+- App Store Connect ürün sayfası önizlemesi artık yalnız `Data Linked to You` gösteriyor; yarım kalan veri türü kurulumu uyarısı yok. Değişiklikler yayımlandı, uygulama incelemeye gönderilmedi.
+- `docs/ROUTE_TO_LIVE.html` içindeki `privacy-labels` maddesi `OK` olarak güncellendi.
+
+## 2026-10-29 — Mertcan hesabı App Store metadata ve App Privacy hazırlığı
+
+- Yeni App Store kaydı: Apple app ID `6827960794`, Bundle ID `com.flyfamapp.mobile`, sürüm `1.3.0`.
+- TR/EN sürüm metinleri, marka URL’leri ve App Review Notes kaydedildi; incelemeye gönderilmedi.
+- Uygulama alt başlıkları TR `Uçuş programını paylaş`, EN `Share your flight schedule`; kategoriler Travel + Utilities.
+- Yaş derecelendirmesi, mevcut gizlilik/kullanım metinlerindeki 18+ alt sınırla uyumlu olacak şekilde 18+ olarak kaydedildi. İçerik soruları uygulamanın mevcut davranışına göre yanıtlandı; reklam, sohbet, sosyal medya, sağlık, kumar ve benzeri içerik yok.
+- Üçüncü taraf uçuş verilerine erişim nedeniyle Content Rights `Yes, ... necessary rights` olarak kaydedildi.
+- App Privacy: TR/EN politika URL’leri girildi; Name, Email Address, Phone Number, Photos or Videos, Other User Content, User ID, Device ID, Purchase History, Product Interaction, Crash Data ve Other Diagnostic Data kuruldu. Tümü linked=yes, tracking=no; Product Interaction Analytics + App Functionality, diğerleri App Functionality.
+- App Privacy, kullanıcının açık onayıyla 29 Ekim 2026 tarihinde Mertcan Öz hesabından yayımlandı. App Store Connect sonucu `Published a few seconds ago by Mertcan Öz` olarak doğrulandı. `Add for Review` / `Submit for Review` kullanılmadı.
+- Aynı gün yapılan veri minimizasyonu düzeltmesinde `Phone Number` kaldırıldı; kayıt akışları telefon alanını `null` gönderiyor ve kullanıcıdan telefon alınmıyor. Video toplanmıyor. Kullanıcının isteğe bağlı profil fotoğrafı sunucuya kaydedildiği ve Apple fotoğraf/video için birleşik `Photos or Videos` veri türü kullandığı için bu başlık korundu. Son yayınlanan beyan 10 veri türü içeriyor; tekrar `Published a few seconds ago by Mertcan Öz` sonucu doğrulandı.
+- Business canlı kontrolü: Free Apps Agreement `Active`, Paid Apps Agreement `New`. Apple, Paid Apps Agreement öncesinde Mertcan'ın legal entity bilgilerinin güncellenmesini istiyor. Bundan sonraki sıra legal entity doğrulaması, Paid Apps Agreement, banka ve vergi formları; bu adımlar tamamlanmadan abonelikli yayın hazır sayılmamalı.
+- Kullanıcı kararıyla Türkiye vergi dairesi ve banka hesabı sonuçlanana kadar finans adımları beklemeye alındı. Finans dışı hazırlık devam ediyor.
+- Mertcan Apple Developer portalında ana uygulama `com.flyfamapp.mobile`, `com.flyfamapp.mobile.NotificationService`, `com.flyfamapp.mobile.ShareExtension` ve `group.com.flyfamapp.mobile` tanımları mevcut. Yerel iOS yapılandırması bu kimliklere ve App Store app ID `6827960794` değerine geçirildi; eski `com.flyfam.app` URL şeması mevcut e-posta/deep-link bağlantıları bozulmasın diye geriye uyumlu olarak korundu. Android `com.flyfam.app` değişmedi. Plist lint, Expo config ve diff kontrolü geçti; build/submit yapılmadı.
+- App Store Version Release, `Manually release this version` olarak kaydedildi. Review onayından sonra otomatik yayın olmayacak.
+- App Review iletişim alanları Mertcan Öz, markalı yönetim e-postası ve doğrulanmış Türkiye telefon numarasıyla doldurulup kaydedildi. Hassas iletişim değerleri bu dokümana yazılmadı. Review kullanıcı adı/parola alanları hâlâ boş; doğrulanmış demo hesabı bilgileri girilmeden review'a gönderilmemeli.
+- Production `crewtestuser@flyfam.com` demo hesabının yalnız parolası güçlü rastgele değerle güncellendi; başka kullanıcı, roster veya aile bağlantısına dokunulmadı. Supabase password grant ile aynı kullanıcı kimliğine gerçek giriş doğrulandı ve kimlik bilgileri App Store Connect review alanlarına kaydedildi. Parola repo/dokümanlara yazılmadı; geçici parola dosyası, geçici yardımcı script ve pano temizlendi.
+
+## 2026-09-30 — «Onay Gerekli» (yeniden onay) ekranı yeni temaya taşındı
+
+- **Dosyalar:** `mobile/screens/Consent.tsx`, `mobile/components/LegalConsentFields.tsx`, `mobile/App.tsx` (yalnız Consent satırı).
+- **Amaç:** Eski mavi stack header + koyu yeşil checkbox görünümünü kayıt ekranıyla aynı yeni temaya almak; ekranda görülen «This synthetic event is reused…» uyarısını gidermek.
+- **Uygulama:** `ScreenPageHeader` (başlık + alt başlık, geri yok), kalkan ikonlu hero, `FormCard` içinde iki onay satırı (ayırıcı çizgi), alt sabit `BottomActionBar` + `PrimaryButton` (iki onay yoksa pasif). Metin bağlantıları kayıt ekranı gibi `LegalTextView` sayfa modalında açılır; modaldaki «Kabul» ilgili kutuyu işaretler. `App.tsx` Consent için `headerShown: false`; `PrivacyNotice`/`TermsDisclaimer` route'ları duruyor.
+- **Uyarı kök nedeni (olası):** Bağlantı `Text onPress`'i bir `TouchableOpacity` içindeydi (iç içe press responder). Yeni `ConsentRow`: checkbox ayrı `Pressable`, metin `Text onPress` (toggle) + iç bağlantı `Text onPress`; Touchable içinde Text press yok. Props API aynı (`app/(auth)` eski çağıranlar derleniyor).
+- **Doğrulama:** `npx tsc --noEmit` OK. Simülatörde görsel/etkileşim kontrolü yapılmadı (kullanıcı hesabı onayı zaten verdi; ekran yalnız yeni sürüm onayı gerektiğinde çıkar). Uyarının kaybolduğu cihazda teyit edilmedi.
+- **Koruma:** `saveRequiredConsents(source: 'reconsent')` + `refreshProfile` akışı, hata mesajları ve `CONSENT_VERSION` aynı.
+
+## 2026-09-30 — «Aile planı»: ana ekrana eklenebilir web uygulaması (PWA, mağazasız)
+
+- **Dosyalar:** `support/aile/index.html` (head: manifest, apple-touch-icon, icon, status-bar meta), `support/aile/manifest.webmanifest` (yeni; `start_url`/`scope` `/aile/`, `display: standalone`), `support/aile/icon-180.png`, `icon-192.png`, `icon-512.png`, `icon-maskable-512.png` (yeni; teal takvim + kalp, isim/kişisel veri yok).
+- **Amaç:** Sayfayı mağazaya koymadan iOS «Ana Ekrana Ekle» / Android «Uygulamayı yükle» ile tam ekran uygulama gibi kullanmak.
+- **Bilinçli sınır:** Service worker eklenmedi (önbellek güncellemeyi geciktirmesin; sayfa zaten canlı veri istiyor). iOS'ta ana ekrandan açılan uygulamanın `localStorage`'ı Safari'den ayrıdır → ilk açılışta PIN bir kez girilir; admin oturumu otomatik taşınmaz.
+- **Doğrulama:** Manifest JSON OK; origin/main `2ddcae5`, Pages run başarılı; canlıda manifest 200 `application/manifest+json`, ikonlar 200 `image/png`, sayfada link etiketleri var. Gerçek telefonda ana ekrana ekleme denenmedi.
+- **Koruma:** Sayfa davranışı, PIN/admin girişi ve veri modeli değişmedi.
+
+## 2026-09-30 — «Aile planı»: roster PDF kartı üstte, otomatik yenileme, çevrimdışı
+
+- **Dosyalar:** `support/aile/index.html`, `support/aile/sw.js` (yeni).
+- **Roster kartı:** PDF yükleme «Bilgiler»den sayfanın en üstüne ayrı karta taşındı («PDF yükle» butonu = `label` + görünmez `input#pdf`). Son yükleme tarihi/saati (İstanbul), tarih aralığı, satır sayısı; bu ayın PDF/uygulama kapsaması ve uygulamadan gelen kayıt sayısı; yüklemeler listesi (tarihli, «kaldır»). `rosterSrc`/`pdfStatus` id'leri ve silme akışı aynı.
+- **Roster kaynağı (değişmedi, teyit):** Edge `family-planner` `get` plan sahibinin `crew_profiles` → `flight_crew` + `flights` (ay ±3 gün) ve `flights_archive` kayıtlarını döner; PDF satırları gün bazında bunları ezer.
+- **Otomatik yenileme:** 60 sn'de bir (sayfa görünürken), sekmeye dönüşte ve `online` olayında sessiz `get`. İmza (`config_updated_at` + entries) değişmediyse ekran dokunulmaz; kullanıcı düzenliyorsa (dirty bayrakları, açık gün sayfası, aktif kutu, odaklı input) ertelenir. Başkasının değişikliği gelince başlıkta 5 sn «↻ güncellendi hh:mm»; kendi kaydından sonraki 2 dk bu rozet gösterilmez.
+- **Çevrimdışı:** `sw.js` (scope `/aile/`) sayfa için network-first (4 sn zaman aşımı) + önbellek; ikon/manifest önbellekten, arka planda tazelenir. POST API önbelleğe alınmaz. Sayfa son 4 ayın `get` yanıtını ve hava durumunu `localStorage`'da tutar (`flyfam_family_plan_cache_v1`, `flyfam_family_plan_wx_v1`); ağ hatasında bunları gösterir, başlıkta «⚡ Çevrimdışı · tarih». Ağ hatasında token silinmez, PIN ekranı açılmaz. Çıkışta ve 401'de önbellek silinir. Çevrimdışı kaydetme «kaydedilemedi» mesajı verir.
+- **Doğrulama:** Inline script + `sw.js` `node --check` OK. Yerel tarayıcı (gerçek API): kart son yükleme/aralık/kapsama doğru; SW `activated`; sahte imza ile sessiz yenileme «güncellendi» rozeti; ağ kesik (CDP offline) yeniden yüklemede sayfa SW'den, veri ve hava önbellekten, PIN istenmedi; ağ gelince rozet kalktı; 390 px görünüm. origin/main `d9589eb`, Pages run başarılı, canlıda `sw.js` 200 ve yeni kod doğrulandı.
+- **Sınır/risk:** Config tek JSON; iki cihaz aynı dakika içinde farklı şeyler kaydederse son kaydeden kazanır (yenileme bu pencereyi daraltır, kaldırmaz). Gerçek iPhone ana ekran uygulamasında çevrimdışı açılış denenmedi.
+- **Koruma:** PIN/admin girişi, veri modeli, Fixle/öneri/kutu akışları değişmedi.
+
+## 2026-09-30 — «Aile planı»: tatil kartı üstte, tatil günleri kapalı, tarih doğrulama
+
+- **Dosya:** `support/aile/index.html`.
+- **Kök neden (kullanıcı şikâyeti «tatile iş konuyor»):** Kayıtlı tatil telefonda yıl kaymasıyla `2006-10-20 → 2026-09-24` girilmişti; Ekim'i kapsamadığı için kurallar uygulanmıyordu. Kurallar (okul yok, sabit iş yok, seçenek yok, plan yok sayılır) zaten vardı.
+- **Doğrulama/temizlik:** `vacationProblem()` (geçersiz tarih, bitiş < başlangıç, yıl bu yıl −1…+2 dışı, > 62 gün) → eklemede reddedilir, listede kırmızı «silip yeniden gir»; `vacationOf` hatalı kaydı yok sayar. Tatil eklenince `dropVacationPicks()` tatile denk gelen taslak + tüm aylardaki fixli planları çıkarır (mesajda sayı). Eskiden yalnız taslaktan siliniyordu; fixli `plans` kalıyordu.
+- **Görünüm:** Tatil kartı roster kartının altına (her zaman açık) taşındı; başlık config `people.partner` adıyla «… bu ay nereye gidiyoruz kankam?» (isim dosyada sabit değil), bu aya denk gelen tatil «Bu ay: … · iyi tatiller!», geçmiş tatiller soluk. Takvim hücresi/liste satırı: kum–deniz gradyanı, 🏖️ filigran, «okul yok · iş yok» etiketi, rota/ekip soluk; iş/seçenek alanı gizli.
+- **Doğrulama:** Inline script `node --check` OK. Yerel tarayıcı (gerçek API, bellekte önizleme, kaydedilmedi): hatalı eski kayıt işaretlendi; 20–24 Ekim önizlemesinde 5 gün okul/sabit/seçenek/plan yok, 21–22 fixli günler çıkarıldı (2), 5 etiket. origin/main `7170fa8`, Pages run başarılı, canlı kod doğrulandı.
+- **Açık:** DB'deki hatalı tatil kaydı kullanıcı tarafından silinip doğru tarihle girilmeli (otomatik düzeltilmedi).
+- **Koruma:** Veri modeli (`vacations`, `plans`), Fixle/öneri akışları aynı.
+
+## 2026-09-30 — «Aile planı»: izinli klinik çifti aynı gün (sameDayPairs)
+
+- **Dosya:** `support/aile/index.html`; DB `admin_planner_state.config.sameDayPairs` (tek anahtar `jsonb_set` ile yazıldı; ids yalnız DB'de).
+- **Kural:** «Günde tek iş» korunur; istisna config `sameDayPairs: [[idA, idB]]` (varsayılan `[]`). İzinli çift aynı gün seçilebilir, yalnız ilki bitip `travel(ilk→ikinci)` eklenince ikincisine yetişiliyorsa (`fitsWith`). Sabit işle aynı gün başka iş yine olmaz; izinsiz/çakışan çift gün çakışma (kırmızı) olur.
+- **Veri modeli (geri uyumlu):** `plans[YYYY-MM][ymd]` tek seçimde nesne (eski format), iki seçimde dizi. Yardımcılar `picksOf`, `setPicks`, `planOf`, `bestFit`; `evalDay` → `plans[]` (+ geriye `plan = plans[0]`).
+- **UI:** Takvim/liste gün başına tüm seçimler (renk en düşük yıldız), hedef kutusunda «+M/+T» rozeti ve ✕ yalnız o kliniği çıkarır (`data-unpick="ymd|cand"`), havuz çipleri mevcut seçimle uyumlu günleri «+İkon» ile gösterir; gün sayfasında uyumlu seçenek «(+ aynı gün eklenir)», uyumsuz seçenek diğerini değiştirir; öneri butonu mevcut seçimlerle birleştirir. Kurallar listesinde istisna yazıyor.
+- **Doğrulama:** Inline script `node --check` OK. Yerel tarayıcı (gerçek API, bellekte): ayar yokken Tolga havuzu Maltepe günlerini içermiyor; ayarla 1/8/14 Ekim «+M» ile geldi; 1 Ekim Maltepe 10:00–14:30 + Tolga 16:00–18:30, çakışma yok, dizi olarak saklandı; öneri birleştirdi. DB güncelleme `updated: true`, tatil kaydı korundu; canlı sayfa ayarı okuyor. origin/main `a6d5002`, Pages run başarılı.
+- **Koruma:** Eski tek-nesne planlar aynen okunur; Fixle/Temizle/tatil temizliği dizilerle çalışır.
+
+## 2026-09-30 — «Aile planı»: tatilde crew uçabilir (görünüm netleştirildi)
+
+- **Dosya:** `support/aile/index.html`.
+- **Kural (değişmedi, teyit):** Tatil yalnız eş + çocuk içindir (okul ve eş işi yok); crew roster'ı tatil günlerinde de aynen hesaplanır/gösterilir.
+- **Değişiklik:** Tatil hücre/satırında crew rota ve zaman çizgisi soluklaştırması kaldırıldı. Tatil kartı alt satırı: bu aya denk gelen tatilde crew'un uçuş/yatı gün sayısı («… · <crew> N gün uçuşta»); tatil yoksa «<crew> uçabilir, uçuşları takvimde görünür». Kurallar listesine tatil satırı eklendi. `renderVacations(cfg, res)`.
+- **Doğrulama:** Inline script `node --check` OK. Yerel tarayıcı (gerçek API): 21–24 Ekim tatilinde 24 Ekim uçuşu tam opaklıkta, kart «1 gün uçuşta», tatil günlerinde çakışma yok. origin/main `c68b01c`, Pages run başarılı, canlı kod doğrulandı.
+- **Koruma:** Tatil günleri okul/iş kapalı mantığı ve görsel stil (gradyan, 🏖️, etiket) aynı.
+
+## 2026-09-30 — «Aile planı»: düzenlenebilir seçim saatleri, okuldan alma payı, akşam kliniği en erken saatleri
+
+- **Dosya:** `support/aile/index.html`; DB `admin_planner_state.config` (klinik değerleri yalnız DB'de).
+- **Okuldan alma payı:** `school_hours` adayında yeni `pickupLeadMin`: standart bitiş = okul çıkışı − max(tampon + yol, `pickupLeadMin`), sonra dilime aşağı yuvarlanır. Yoksa eski hesap aynı. DB'de okul saatli klinikte 60 → bitiş 14:00 (okul 15:00).
+- **Akşam kliniği:** En erken başlangıç mevcut `start` / `dayOverrides["6"].start` alanıyla (okuldan eve dönüş + yol ile büyük olan). DB'de hafta içi 16:30, Cumartesi 14:00 (Cumartesi bitişi 16:00 aynı kaldı). Kurallar listesinde her iki kural otomatik yazılır.
+- **Düzenlenebilir saat:** Seçilen günün saatleri gün detayında (`.tedit`) ve özet kartında (gönderimden önce) `input type=time` ile değiştirilir → taslak (`st.draft`, `draftDirty`), «✓ Fixle» ile kaydedilir. `evalDay` seçimi aynı aday/varyant seçeneğiyle karşılaştırır (`plan.def`, `plan.edited`): not «(elle; varsayılan …)», varsayılan en erken saatten önce girilirse uyarı, bitiş ≤ başlangıç reddedilir (mesaj). «↺ varsayılan» (`data-timereset`) varsayılana döner. WhatsApp metni/resmi düzenlenmiş saati kullanır. Özette gün çakışmalıysa satır kırmızı.
+- **Veri:** Ekim'deki 6 fixli günün saatleri (eski varsayılanlarla kaydedilmiş, elle düzenleme yoktu) yeni varsayılanlara çekildi; `updated_at` korumalı tek SQL, tatil ve `sameDayPairs` korundu.
+- **Doğrulama:** Inline script `node --check` OK. Yerel tarayıcı (gerçek API): seçenekler Maltepe 10:00/10:30–14:00, Tolga hafta içi 16:30–18:30, Cmt 14:00–16:00; özet ve gün detayında düzenleme, uyarı, ↺, hatalı bitiş reddi; 390 px özet satırları taşmasız. Gerçek kayıtla Fixle: 7 Ekim 16:00 sunucuya yazıldı, ↺ + Fixle ile 16:30'a geri alındı (son durum özgün veriyle aynı). origin/main `d220073`, Pages run başarılı, canlı kod doğrulandı.
+- **Koruma:** Veri modeli aynı (seçim nesnesi `start`/`end` metin); öneri/kutu/aynı gün çifti akışları değişmedi; config'te `pickupLeadMin` yoksa davranış eskisiyle aynı.
+
+## 2026-10-01 — StoreKit tekrar testi ve App Review hazırlığı
+
+- iOS development build 50 ile sandbox hesabında abonelik ekranı yeniden test edildi. `flyfam.duo.monthly` seçimi hâlâ `Store product not found` verdi; RevenueCat mağaza offering'lerini çekemediğini bildirdi.
+- App Store Connect'te `FlyFam Duo Monthly` mevcut taslak incelemeye eklendi ve ürün durumu `Ready for Review` oldu. Taslak gönderilmedi; `Submit for Review` kullanılmadı.
+- iOS 1.3.0 App Store sürümüne bağlı eski build 43 kaldırıldı, en güncel build 50 seçilip kaydedildi.
+- Abonelik grubunu taslağa ekleme girişimi App Store Connect'in genel `Unable to Add for Review — Something went wrong` hatasıyla sonuçlandı. Grup hâlâ eski `01`/`02` ürünlerinden miras kalan `Developer Rejected` etiketi gösteriyor; yeni 14 ürünün yalnız Duo Monthly ürünü Ready for Review, diğer 13 ürün Prepare for Submission durumda.
+- Sonraki güvenli adım: uygulama sürümünü ve abonelik grubunu aynı taslağa ekleme akışını tamamlamak; ancak kullanıcı açıkça istemeden `Update Review` / `Submit for Review` ile gönderim yapılmamalı. Ardından Apple yayılımı sonrası sandbox purchase + restore yeniden test edilmeli.
+
 ## 2026-10-01 — Cursor değişiklikleri commit + main rebase + push
 
 - Commit `89c98b7` (rebase öncesi `b5da737`): roster scroll/swipe/clear-import düzeltmeleri, kompakt kartlar, ResetPassword/CompleteProfile tema, peer unfollow, Pegasus gece yarısı parser/import, `20260927180000` + `20260927210000` migration'ları, build 50 (`build.gradle`, `pbxproj` yalnız sürüm satırları), ilgili handoff kayıtları. Hunk düzeyinde stage edildi; `App.tsx` Consent başlığı, `pbxproj` RevenueCat bundle satırları, admin HTML (origin ile aynı) ve diğer oturumların handoff kayıtları dahil edilmedi.
@@ -2064,12 +2153,51 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - Yerel `main` `git reset --mixed 89c98b7` ile senkron; çalışma ağacı dosyalarına dokunulmadı. Kalan değişiklikler diğer oturumların (RevenueCat, Consent, handoff kayıtları; `config.toml`'da yalnız blok sırası farkı).
 - Doğrulama: "Deploy support site" success; `app.flyfamapp.com/`, `/admin/` (ui=59), `/aile/`, `/auth-callback.html` 200.
 
+## 2026-10-01 — iOS abonelik ekranında karışık para birimi engellendi
+
+- Kök neden: StoreKit yalnız `flyfam.duo.monthly` ürününü döndürürken diğer paketler yerel TRY/USD liste fiyatına düşüyordu; aynı ekranda `$1.49` ile `₺129,99` birlikte görünüyordu.
+- Native iOS'ta yerel liste fiyatına geri dönüş kaldırıldı. StoreKit'in döndürdüğü dönem yalnız Apple'ın `displayPrice` değeriyle gösterilir; dönmeyen ürün/dönem `—` ve pasif `Yakında` / `Coming soon` olarak görünür ve satın alınamaz.
+- Android ve Expo Go için mevcut liste fiyatı önizlemesi korunur; bu değişiklik yalnız gerçek iOS StoreKit akışının yanlış fiyat göstermesini önler.
+- Dosyalar: `mobile/lib/iapStorePrices.ts`, `mobile/screens/Plans.tsx`, `mobile/locales/tr.ts`, `mobile/locales/en.ts`.
+- Doğrulama: `npx tsc --noEmit` OK. iOS Simulator'da Duo Monthly `$1.49/ay` ve deneme CTA'sıyla aktif; diğer altı aylık ürün `—/ay` + pasif `Yakında`, TL/USD karışımı yok.
+- Açık konu: Diğer 13 ürün App Store Connect/StoreKit tarafından döndürülür hale geldiğinde gerçek yerel fiyatları otomatik görünür ve aktif olur. TestFlight/canlıya taşımak için yeni iOS binary veya uygun OTA yayın akışı gerekir.
+
+## 2026-10-01 — Satın alma iptali artık hata olarak gösterilmiyor
+
+- RevenueCat/StoreKit satın alma penceresi kullanıcı tarafından kapatıldığında SDK `Purchase was cancelled` döndürüyordu ve Plans ekranı bunu `Hata` popup'ı olarak gösteriyordu.
+- `userCancelled`, RevenueCat kodu `1`, yaygın cancellation kodları ve iki İngilizce iptal mesajı tanınır hale getirildi. Bu durumda akış sessizce kapanır; başarı mesajı, doğrulama veya entitlement değişikliği yapılmaz.
+- Gerçek mağaza/yapılandırma/ağ hataları popup ile gösterilmeye devam eder.
+- Dosyalar: `mobile/lib/iapRestore.ts`, `mobile/screens/Plans.tsx`. TypeScript ve `git diff --check` doğrulaması geçti.
+- İlk uygulamada kontrol yanlışlıkla Plans ekranının yükleme `catch` bloğuna eklenmişti; canlı simülatör tekrarında fark edilip satın alma `catch` bloğuna taşındı ve yeniden yüklenerek doğrulandı.
+- Satın alma işleminin kendisinin iptal olma kök nedeni ayrıca bulundu: Simulator → Ayarlar → Geliştirici → Apple Hesabı’nı Sandbox ile Koru alanı `Giriş Yap` durumundaydı. Başarılı entitlement testi için yeni sandbox tester ile bu ekranda oturum açılmalı; kullanıcı parolayı kendisi girecek.
+
 ## 2026-10-01 — "Phase Refresh Health" GitHub zamanlaması kapatıldı
 
 - Sorun: `.github/workflows/phase-refresh-health.yml` her çalıştırmada `Missing env: SUPABASE_URL/SERVICE_KEY` ile düşüyordu (repo'da hiç Actions secret yok; listedeki 200 çalıştırmanın tamamı failure). GitHub `*/5` zamanlamasını pratikte 4–6 saatte bir çalıştırdığı için 6 dk eşikli kontrol zaten güvenilir değildi; her hata kullanıcıya e-posta gönderiyordu.
 - Asıl sistem sağlıklı: pg_cron `refresh-flight-api-phases` (`*/2`) aktif; `system_health_pings.phase_refresh` son başarı 0.5 dk önce, 204 satır.
 - Kullanıcı kararıyla `schedule` kaldırıldı, yalnız `workflow_dispatch` kaldı (secret'lar eklenirse elle çalıştırılabilir). Commit `5022808` → `origin/main`.
 - Doğrulama: push OK; uzak workflow dosyasında schedule yok.
+
+## 2026-10-01 — «Aile planı»: web bildirimleri (PWA push)
+
+- **Dosyalar:** `support/aile/index.html` (başlıkta 🔔 `#bell`, bildirim paneli, `deviceId()` → `flyfam_family_plan_device_v1`, `save_config`'e `device_id`, `?month=YYYY-MM` açılışı, çıkışta abonelik silinir; embed modunda gizli), `support/aile/sw.js` (`push` → `showNotification`, `notificationclick` → açık pencereye `postMessage` / yeni pencere; önbellek `aile-shell-v2`), yeni `supabase/functions/family-planner/webpush.ts` (RFC 8291 aes128gcm + RFC 8292 VAPID, yalnız WebCrypto), yeni `supabase/functions/family-planner/notify.ts`, `supabase/functions/family-planner/index.ts`, yeni `supabase/migrations/20261001120000_family_planner_push.sql`.
+- **DB:** `family_planner_push_subs` (cihaz aboneliği, endpoint unique), `family_planner_notify_log` (zamanlı bildirim tekrar engeli), `family_planner_watch` (uygulama roster gün imzaları); hepsi RLS açık, anon/authenticated yetkisiz. pg_cron `family-planner-notify` `*/15` → `net.http_post` + `x-cron-secret` (vault `family_planner_cron_secret`).
+- **Sırlar (repoda yok):** Edge `FP_VAPID_PUBLIC`, `FP_VAPID_PRIVATE`, `FP_CRON_SECRET`; vault `family_planner_cron_secret` (= `FP_CRON_SECRET`). Mevcut `CRON_SECRET` / vault `cron_secret` kullanılmadı (eşleşmiyordu; diğer işlere dokunulmadı). VAPID subject `https://app.flyfamapp.com/aile/`.
+- **API:** `push_key`, `push_subscribe` (endpoint yalnız Apple/FCM/Mozilla/WNS push hostları — SSRF engeli; sahip başına ≤20 cihaz), `push_unsubscribe`, `push_status`, `push_test` (yalnız o cihaz), `cron` (yalnız `FP_CRON_SECRET`; `test_at` + `test_device` deneme modu: tek cihaza gönderir, tekrar kaydı ve roster izleme atlanır). `save_config` artık eski/yeni config farkından bildirim üretir ve `device_id` cihazını hariç tutar; yanıtta `notified`.
+- **Bildirimler:** Kayıtta: plan eklendi/kaldırıldı/saat değişti (bugünden itibaren), yeni roster PDF, tatil eklendi. Zamanlı (yerel saat): 20:00–22:00 yarın iş varsa (fixli seçim + sabit iş; tatil/tam gün resmi tatil hariç; crew görevleri PDF varsa PDF'ten), 06:30–09:00 iş saatlerinde yağış (Open-Meteo, ≥0,2 mm veya ≥%60), 10:00–21:00 tatilden 7 gün önce, 07:00–22:00 plan günlerinde uygulama roster'ı değişirse (PDF'in sahiplendiği günler hariç; ilk çalışma yalnız anlık görüntü alır). Geçersiz abonelik (404/410 veya 10 hata) silinir.
+- **Doğrulama:** `webpush.ts` Node'da `http_ece` referans uygulamasıyla çözüldü (birebir), VAPID imzası doğrulandı. Migration `db push` ile uygulandı, fonksiyon deploy; yetkisiz `cron` 403, `push_key` 401. Gerçek uçtan uca: ayrı profilli Chrome FCM aboneliği → `push_test` 201 ve bildirim SW'de gösterildi; başka cihazdan plan değişikliği bildirimi geldi, aynı cihazın geri alması gelmedi (veri birebir geri yüklendi); deneme modunda akşam (15 Eki ve 8 Eki) ve tatil bildirimleri gerçek veriyle geldi. pg_cron 08:30 UTC kendiliğinden çalıştı (200). Test aboneliği silindi; `notify_log` boş. Sayfa origin/main `751719b`, Pages run başarılı, canlıda `index.html` ve `sw.js` doğrulandı. Gerçek iPhone/Android'de abonelik denenmedi (kullanıcı ana ekrandan açıp 🔔 → aç → deneme bildirimi ile teyit etmeli).
+- **Sınır/risk:** iOS yalnız 16.4+ ve ana ekrandan açılan uygulamada; Safari sekmesinde izin istenemez. «Kendisi almasın» cihaz bazlıdır (aynı kişinin diğer cihazına gider). `notify.ts` içindeki `FULL_HOLIDAYS` sayfadaki `HOLIDAYS` ile elle senkron tutulmalı (2028 eklenince ikisi birden). Roster değişikliği yalnız plan günleri için ve tam kural değerlendirmesi yapmadan («kontrol et» uyarısı).
+- **Koruma:** Mevcut PIN/admin girişi, `get`/`parse_pdf`, kayıt formatı ve diğer pg_cron işleri değişmedi; bildirim hatası kaydı bozmaz.
+
+## 2026-10-01 — «Aile planı»: roster kaynağı FlyFam DB birincil, PDF yalnız boş günler
+
+- **Dosyalar:** `support/aile/index.html` (`rosterClaims(full, dbDays)`; `compute()` DB kayıt günlerini verir; roster kartı metni), `supabase/functions/family-planner/index.ts` (`get` penceresi ay ±3 → ±7 gün; takvim taşma günleri de DB'den), `supabase/functions/family-planner/notify.ts` (aynı kural; roster izleme artık tüm DB günlerini izler, gün tamamen boşalırsa da değişiklik sayılır).
+- **Kural (kullanıcı kararı):** Bir günde uygulamada (flights + flights_archive) kayıt varsa o gün yalnız DB kullanılır; PDF yalnız DB'de kaydı olmayan günleri doldurur (ör. DB 25 Kasım'a kadar, PDF 30 Kasım'a kadar). Çakışmada DB geçerli. Eskiden PDF'in kapsadığı aralıkta PDF öncelikliydi.
+- **Kök neden:** 29 Eylül PDF'i 1 Ekim (DB: STBYD) ve 3 Ekim (DB: PC283 TIA) değişikliklerini eziyordu; roster bildirimi de PDF günlerini atlıyordu.
+- **Veri:** Eski anlık görüntü PDF günleri hariç alınmıştı; yanlış «değişti» bildirimi olmasın diye `family_planner_watch` satırı silindi (sonraki cron yeni görüntü alır, bildirim göndermez).
+- **Doğrulama:** Inline script `node --check` OK; fonksiyon `esbuild` OK, deploy. Yerel tarayıcı (gerçek API): Ekim'de PDF yalnız 2 ve 19 Ekim'i dolduruyor; 1 Ekim STBYD, 3 Ekim PC283/PC284 (DB); gece dönüş bacakları DB tarihleriyle; çakışma listesi değişmedi (yalnız 6 Ekim, önceden vardı). origin/main `98e9f8b`, Pages run başarılı, canlı kod doğrulandı.
+- **Sınır:** Gün bazlı kural: DB'de o gün herhangi bir kayıt (OFF dahil) varsa PDF o gün hiç kullanılmaz. DB'den tamamen silinen bir görev günü PDF kapsamındaysa PDF'teki eski görev görünebilir (bildirim yine gider).
+- **Koruma:** PDF yükleme/kaldırma, veri modeli (`rosters`), planlama kuralları değişmedi.
 
 ## 2026-10-01 — Görev kodu önerisi onayı: `special_notes` NOT NULL hatası
 
@@ -2098,6 +2226,65 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - **Doğrulama:** `esbuild` OK, inline script derleme OK, `admin-dashboard` deploy; OPTIONS 200, yetkisiz POST 401. Yerel önizleme (sahte API): arama kirli yapmıyor, düzenleme çubuğu açıyor; «Kaydet + yayınla» sırası save → list → deploy → list, sonunda çubuk gizli; bildirim filtresi 120 ekran olayı arasında 3 push satırını başlık/mesajla gösterdi.
 - **Koruma:** Kaydet/Yayınla toolbar butonları, `save_/deploy_roster_occupation_codes` API'leri, `recent` alanı ve mevcut aktivite tabloları değişmedi.
 
+## 2026-10-01 — «Aile planı»: okul yolu (kim bırakır/alır), taksi tahmini, yeni çakışma uyarısı
+
+- **Dosya:** `support/aile/index.html` — `workNeeds` ihtiyaçlarına `slot: 'drop'|'pick'`; yeni `schoolRun`, `taxiFare`, `runWho/runWhy`, `runMini` (takvim hücresi), `runSheet` (gün detayı «🏫 Okul yolu»), `renderRuns` (yeni kart `#runs`: gün / ↓ bırakma / ↑ alma / 🚕 taksi + ay sonu toplamı + kişi sayıları). Yeni çakışma: `checkNewConflicts`, `showConfAlert` (`#confAlert`), `goToDay`, localStorage `flyfam_family_plan_conf_v1` (ay → bugün ve sonrası çakışma günleri).
+- **Kurallar (kullanıcı kararı):** Okul günü bırakma/alma: crew ve eş ikisi müsaitse «Ailece», biri müsaitse o; crew nöbet/rezervde müsait sayılır; ev görevinde yalnız eş yapamıyorsa crew (riskli); ikisi de değilse «⚠ kimse yok». Eşin müsaitliği mevcut götürme/alma hesabıyla aynı (`workNeeds`). Taksi yalnız eş tek başına yaptığında: bırakırken ev→okul, alırken okuldan istasyona toplu taşıma + istasyon→ev taksi. Ücret = max(en az, açılış + km·km ücreti + trafikte bekleme dk·dk ücreti); bekleme = max(0, yol dk − km/25 km/sa); yol dakikası mevcut `travel` (yoğun saat + yağış). Tarife varsayılanı kodda (İstanbul sarı taksi 20.07.2026: 71,94 / 47,92 / 9,98 / en az 230 TL), DB `config.taxi` ile ezilebilir.
+- **DB (yalnız config, migration yok):** `config.places` yeni istasyon yeri, `travel.pairs` ev↔istasyon [5,10], `config.taxi.drop/pick` güzergâh + km (OSRM ile ölçüldü; adres ve km repoda yok).
+- **Çakışma uyarısı:** Veri yüklenince (ilk açılış + 60 sn sessiz yenileme) ve PDF yüklenince; taslak fixlenmemişken veya çevrimdışıyken çalışmaz. Ayın ilk görülüşü sessiz taban; sonra tabanda olmayan yeni çakışma günü açılır pencere (gün + neden + «Göster») ve takvim/liste/tabloda yanıp sönen kırmızı + «YENİ ⚠». Kapatınca o cihazda görüldü sayılır (vurgu oturum boyunca kalır). «✓ Fixle» sonrası mevcut çakışmalar görüldü sayılır (kendi seçimi uyarı açmaz). Cihaz bazlı.
+- **Doğrulama:** Inline script derleme OK; `git diff --check` OK. Yerel tarayıcı (gerçek API, Ekim 2026): 18 okul günü; bırakma Ailece 14 / eş 4, alma Ailece 11 / crew 3 / eş 3 / kimse yok 1 (6 Eki, önceden bilinen çakışma); 7 taksi yolculuğu ~3.670 TL (sabah ~745 TL, istasyon→ev 230 TL). Tabanı boşaltınca pencere 6 Eki'yi gösterdi, «Göster» güne kaydırdı, vurgu göründü, kapatınca taban yeniden yazıldı. Telefon (390 px) ve masaüstü görünümü kontrol edildi. origin/main `7b54912`, «Deploy support site» success, canlı sayfada yeni kod doğrulandı.
+- **Sınır/risk:** Taksi tahminidir (gerçek güzergâh/trafik farklı olabilir); km değerleri DB'de elle güncellenir. Sunucu bildirimi çakışma hesabı yapmaz; pencere sayfa açılınca görünür. Ayın ilk görülüşündeki mevcut çakışmalar uyarı açmaz.
+- **Koruma:** Planlama/yıldız kuralları, kayıt formatı, bildirimler ve PDF akışı değişmedi; tabloda kişiler/yerler yalnız DB config'ten gelir.
+
+### 2026-10-01 — Aile planı: Finans sekmesi + ciro hatırlatmaları
+
+- **Dosyalar:** `support/aile/index.html`, `supabase/functions/family-planner/index.ts`, `supabase/functions/family-planner/notify.ts`, `supabase/migrations/20261001150000_family_planner_finance.sql` (fonksiyon/migration yerel, doğrudan deploy edildi; repoda yalnız sayfa).
+- **Amaç:** Eşin ciro bilgisini toplayıp ay sonu tahmini gelirini göstermek. Günlük kaynakta (config `finance.daily`) çalışılan gün akşamı, aylık kaynaklarda (`finance.monthly`) ayın 1–5'i önceki ay sorulur; tutar ya da «0 TL».
+- **Migration (prod'a uygulandı):** `family_planner_finance` (owner + source + period PK; period `YYYY-MM-DD` günlük / `YYYY-MM` aylık; 0 ≤ tutar < 1e8; RLS açık, anon/authenticated revoke). `family_planner_push_subs.person` (null / crew / partner, check constraint).
+- **API:** `get` artık `finance` satırlarını döner (≈ son 13 ay). `finance_set {source, period, amount|null, device_id}` — kaynak config'te değilse «Bilinmeyen kaynak», dönem biçimi yanlışsa «Geçersiz dönem»; `amount:null` siler. `push_person {device_id, person}`; `push_subscribe` `person` kaydeder.
+- **Cron:** Günlük ciro 17:00–23:00, iş bitişi + 30 dk sonra, giriş yoksa; aylık 1–5. gün 10:00–21:00, önceki ay eksikse. Yalnız `person='partner'` aboneliklerine gider; o kişiye ait abonelik yoksa tekrar anahtarı tüketilmez (kişi seçilince aynı gün yeniden denenir).
+- **Sayfa:** Üstte «📅 Plan / 💰 Finans» sekmeleri (seçim cihazda; embed'de Plan). Her cihaz bir kez «Bu cihazı kim kullanıyor?» sorar (eş / crew / hiçbiri; Finans → «değiştir»). Eş cihazında sayfa açılınca bekleyen ciro varsa açılır pencere (kaydet / 0 TL / sonra hatırlat = 2 saat). Finans: ay tahmini (girilen + ortalama × kalan planlı gün; aylıkta giriş yoksa son 3 ay ortalaması) × pay oranı = tahmini gelir; ciro girişleri, son 6 ay, pay oranları (config `finance.share`). Plan kartlarına belirgin başlık/çerçeve, bazı açıklama metinleri kısaltıldı.
+- **DB config:** `finance {daily, monthly, since:2026-10-01}`; pay oranları henüz boş (kullanıcı girecek).
+- **Doğrulama:** Inline script derleme OK; `git diff --check` OK; esbuild bundle OK; fonksiyon deploy OK. Gerçek API ile: kişi penceresi, eş seçilince aylık iki kaynak için ciro penceresi + sekme rozeti; `finance_set` kaydet/sil, bilinmeyen kaynak ve hatalı dönem reddi; Türkçe tutar ayrıştırma (12.500 / 12.500,50 / ₺ 3 000; negatif/metin reddi). Finans hesapları bellekteki örnek veriyle kontrol edildi (prod'a örnek veri yazılmadı, test satırı silindi). Cron 200 döndü. Telefon (390 px) ve masaüstü görünümü kontrol edildi. origin/main `cf72fab`, «Deploy support site» success, canlı sayfada yeni kod doğrulandı.
+- **Sınır/risk:** Kişi cihaz bazlı; push hatırlatması için eşin cihazında bildirim açık ve kişi «eş» seçilmiş olmalı. Tahmin ortalamaya dayanır; pay oranı girilmeden gelir 0 görünür. Açılır pencere yalnız sayfa açıkken/açılınca çıkar.
+- **Koruma:** Plan, bildirim, PDF ve okul yolu akışları değişmedi; kaynak/yer adları yalnız DB config'ten gelir; repoda tutar, ad veya PIN yok.
+
+### 2026-10-01 — Aile planı: vade tarihli ödemeler (borç) + net gelir
+
+- **Dosyalar:** `support/aile/index.html`, `supabase/functions/family-planner/index.ts`, `supabase/functions/family-planner/notify.ts`, `supabase/migrations/20261001170000_family_planner_debt.sql` (fonksiyon/migration yerel, doğrudan deploy; repoda yalnız sayfa).
+- **Amaç:** Eşin bir iş yeri adına yaptığı ödemeleri (taksit + vade) borç olarak tutmak; o yerin gelirinden vade ayında düşüp net rakamı ve kalan borcu göstermek.
+- **Migration (prod'a uygulandı, yalnız yeni tablo):** `family_planner_debt` (id, owner, source, label ≤80, amount > 0, due_date, paid_on, plan_id + seq/total_n taksit grubu, device_id). RLS açık, anon/authenticated revoke; index (owner, due_date).
+- **API:** `get` → `debts` (ödenmemişler + son ≈13 ayın ödenenleri). `debt_add {source, label, amount (toplam), count 1–36, first_due}` → aylık aynı gün (ay kısaysa son gün), kuruş farkı son taksitte; kaynak `config.finance.debt.sources` dışında ise «Bilinmeyen kaynak». `debt_update {id, paid_on|due_date|amount|label}`, `debt_delete {id | plan_id}`. Owner başına en çok 1000 satır.
+- **Cron:** Vade günü 10:00–21:00, ödenmemiş taksit varsa yalnız eş cihazlarına «💳 Bugün ödeme günü» (link `/aile/?tab=fin`; service worker hash'i taşımadığı için `?tab=fin` eklendi, `#finans` da çalışır).
+- **Sayfa (Finans):** Yeni «💳 <etiket> ödemeleri» kartı (açıklama, toplam, taksit, ilk vade, Ekle; satırda ✓ Ödendi / geri al / ✕ sil: tek taksit veya tüm taksitler; gecikti/bugün/yakında etiketi; ödenenler katlanır). Durum tablosuna Ödeme ve Net sütunları; ana kutu «Net gelir» (gelir − bu ay vadeli ödemeler), üçüncü kutu «Kalan borç»; Son 6 ay'a Ödeme/Net. Sekme rozeti: bekleyen ciro + vadesi gelmiş ödenmemiş taksit (eş cihazı).
+- **DB config:** `finance.debt {sources, label}` eklendi (değerler yalnız DB'de).
+- **Doğrulama:** Inline script derleme OK; `git diff --check` OK; esbuild OK; migration dry-run yalnız bu dosya, push OK; deploy OK. Gerçek API ile arayüzden 10.000/3 taksit (31 Ağu → 30 Eyl → 31 Eki; 3333,33 / 3333,33 / 3333,34), ödendi → geri al, tek taksit silme, grup silme; hatalı kaynak/tarih (2026-02-30)/taksit/tutar/yabancı id/boş silme reddi. Net hesabı bellekte örnek veriyle (gelir 4.000 − ödeme 5.000 = −1.000). Test satırları silindi; prod'da debt 0, finance 0, pay oranı boş. Telefon (390 px) görünümü kontrol edildi. origin/main `af15c46`, «Deploy support site» success, canlı sayfada yeni kod doğrulandı.
+- **Sınır/risk:** Tutarlar TL; döviz kuru yok. Ödeme, ödendiği tarihe değil vade ayına yazılır. Pay oranı girilmeden net «—» görünür. Eşzamanlı iki cihazda aynı taksit güncellenirse son yazan geçerli.
+- **Koruma:** Ciro girişleri, ciro hatırlatmaları, pay oranları, plan/okul yolu akışları değişmedi.
+
+### 2026-10-01 — Aile planı Finans: pay oranı kaldırıldı
+
+- **Dosya:** `support/aile/index.html`
+- **Amaç:** Kullanıcı kararı: girilen ciro zaten eşe yatan net tutar; pay oranı gereksiz.
+- **Uygulama:** Pay/Gelir sütunları, «Pay oranları» kartı, `saveShares` ve `finance.share` varsayılanı kaldırıldı. Net = tahmini ciro − vade ayındaki ödemeler (yer bazında ve toplam); kutular: Net gelir · Girilen ciro (tahmini ay sonu altta) · Kalan borç. Son 6 ay: yer cirosu, Ciro, Ödeme, Net. «Bu cihaz / değiştir» satırı sekmenin altında kaldı. DB'de `finance.share` hiç yazılmamıştı.
+- **Doğrulama:** Inline script derleme OK; `git diff --check` OK; bellekte örnek veriyle Tolga 10.000 − 5.000 = 5.000, aylık yerler önceki ay tahmini 60.000 / 20.000, toplam net 85.000; Son 6 ay Eylül 80.000, Ekim 10.000 − 5.000. Prod'a örnek veri yazılmadı. origin/main `c09ea2f`, «Deploy support site» success, canlıda eski pay işaretleri yok.
+- **Koruma:** Ciro soruları/hatırlatmaları, ödeme (borç) kartı ve API değişmedi.
+
+### 2026-10-01 — Aile planı Finans: günlük ciro grupları (tüm günler + toplam)
+
+- **Dosya:** `support/aile/index.html`
+- **Amaç:** Günlük kaynak (ör. haftada birkaç gün) cirolarının da aylık gibi tek blokta görünmesi, toplamının altta yazması ve sonradan düzenlenebilmesi. Önceden yalnız bugüne kadarki planlı günler listeleniyordu; ayın tüm günleri ileri tarihli olunca liste boş kalıyordu.
+- **Uygulama:** «Ciro girişleri» yer bazında gruplu: günlük kaynakta ayın tüm planlı günleri (+ plan dışı girilmiş günler); ileri tarihli ve girilmemiş gün kesik çizgili «iş günü bitince girilir» (giriş yok); geçmiş/bugün satırı tutar + Kaydet / 0 TL / ✕. Altta «Toplam X (n/N gün girildi · ay sonu tahmini Y)». Aylık kaynaklar tek grupta, altta dönem toplamı. Kayıt/silme API'si aynı (`finance_set` upsert).
+- **Doğrulama:** Inline script derleme OK; `git diff --check` OK. Gerçek API ile (sayfa tarihi geçici 31 Eki): 15 Eki 12.500 kaydet → toplam 12.500 / tahmin 37.500; 13.000'e düzelt → 13.000 / 39.000; sil → 0. Prod'da finance 0, debt 0. origin/main `759d109`, «Deploy support site» success, canlıda yeni kod doğrulandı.
+- **Koruma:** Ciro açılır penceresi, hatırlatmalar, net/ödeme hesapları değişmedi.
+
+## 2026-10-01 — «Aile planı» Finans: Invisalign ödemeleri eklendi (yalnız veri)
+
+- Kullanıcının paylaştığı 5 Align faturası `family_planner_debt`'e doğrudan SQL ile eklendi (kod değişikliği yok): kaynak `tolga` (config `finance.debt.label = Invisalign`), her biri tek taksit (`seq 1 / total_n 1`, ayrı `plan_id`), `device_id` null. Etiket: hasta adı + fatura no (yalnız service-role tablosunda; repoda/dokümanda ad yok).
+- Vadeler/tutarlar: 2026-10-16 ×2 (26.488 + 26.488), 2026-10-29 (26.488), 2026-11-26 (6.699 + 43.967) — toplam 130.130 TL. Aynı etiket varsa tekrar eklemeyen `insert … where not exists`.
+- Doğrulama: insert 5 satır / 130.130; tablo sorgusu 5 ödenmemiş satır. `get` ödenmemiş kayıtları tarihten bağımsız döndürür; vade günü hatırlatması sahibe bağlı (`notify.ts`, 10:00–21:00).
+- Not: `origin/main`'deki `family-planner/index.ts` henüz debt aksiyonlarını içermiyor; canlı fonksiyon diğer oturumun yerel (commit edilmemiş) sürümünden deploy edilmiş görünüyor.
+
 ## 2026-10-02 — «Aile planı» Finans: günlük kaynak (Tolga) her an girilebilir + elle aylık toplam
 
 - **Kullanıcı kararı:** Günlük kutular her zaman açık (gelecek günler dahil); diğer klinikler gibi bir aylık toplam kutusu; elle girilen aylık rakam o ay için günlüklerin toplamının yerine geçer. Açılır ciro sorusu eskisi gibi iş bitince.
@@ -2106,6 +2293,42 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - **Doğrulama:** inline script derleme OK; fonksiyon `esbuild --bundle` OK. Deploy öncesi canlı kaynak indirildi = yerel (index/notify/webpush birebir), deploy sonrası yine birebir; OPTIONS 200, yetkisiz `push_key`/`finance_set` 401. Yerel önizleme (sahte API/config): gelecek günlerde input var; aylık 150.000 → `finance_set 2026-10 150000`, alt toplam «elle girildi», tolga için bekleyen soru 0; 12.000'e (günlük toplam) dönünce `finance_set … null`, elle kayıt silindi.
 - **Durum:** Fonksiyon deploy edildi (geriye uyumlu). Terminal repo klasöründe takıldığı için push bir süre bekledi; kullanıcı onayıyla uzak sayfanın `759d109`'dan beri değişmediği doğrulandı, `git diff --check` OK, sayfa + bu kayıt ayrı worktree'den commit + push.
 - **Not:** Fonksiyon dosyaları (`index.ts` debt/finans eki, `notify.ts`, `webpush.ts`) ve finans/debt migration'ları diğer oturumdan commit edilmemiş; bu değişiklik de yalnız deploy edildi, commit edilmedi.
+
+## 2026-10-02 — App Store Connect: 14 güncel abonelik inceleme taslağına bağlandı
+
+- `flyfam.duo`, `trio`, `family`, `family_plus`, `extended`, `clan` ve `circle` paketlerinin aylık/yıllık toplam 14 ürünü mevcut iOS taslak gönderimine tek tek eklendi.
+- App Store Connect abonelik grubu listesinden 14 güncel ürünün tamamının durumu **Ready for Review** olarak doğrulandı.
+- Eski `01` ve `02` ürünlerine dokunulmadı; bunlar `ZZZ_DEPRECATED_*` adıyla **Developer Rejected** kalmaya devam ediyor. Bu nedenle grup başlığındaki `Developer Rejected` etiketi tek başına güncel ürünlerde sorun olduğu anlamına gelmiyor.
+- **İncelemeye gönderilmedi:** `Submit for Review` kullanılmadı. Son gönderim, uygulama sürümü/build ve inceleme notları birlikte hazırlandıktan sonra ayrıca yapılmalı.
+
+## 2026-10-02 — App Store Connect: iOS sürümünü taslağa ekleme geçici olarak engellendi
+
+- Kullanıcı onayıyla iOS 1.3.0 build 50 sürümündeki `Update Review` işlemi iki kez denendi.
+- App Store Connect iki denemede de `Unable to Add for Review — There are still screenshot uploads in progress.` uyarısı verdi.
+- Media Manager kontrolünde iPhone 6.5 alanında `01-program`, `02-roster-import`, `03-list-settings`; iPad 13 alanında `01-program`, `02-roster-import`, `03-flight-detail` eksiksiz ve silme/yükleme kontrolleri aktif göründü. Görsel silinmedi veya yeniden yüklenmedi.
+- Bu durum Apple tarafındaki geçici medya işleme kilidi olarak kaydedildi. Kilit kalkınca `Update Review` yeniden çalıştırılmalı ve Draft Submissions içinde uygulama sürümü + 14 abonelik olmak üzere toplam 15 öğe doğrulanmalı.
+- **İncelemeye gönderilmedi:** `Submit for Review` kullanılmadı.
+
+## 2026-10-02 — App Store Connect: iPad görseli düzeltildi, build 51 kararı alındı
+
+- iPad 13-inch alanında `02-roster-import.png` yükleme sonrası kaybolmuştu; yerel anonim final dosyası yeniden yüklendi ve iPad alanı tekrar 3/10 olarak doğrulandı.
+- Build 50, eski reddedilmiş iOS submission içine `Ready for Review` olarak eklendi. Yeni taslakta ise 14 güncel abonelik `Ready for Review` durumda kaldı; taslak uygulama sürümü istediği için iki grup henüz birleşmedi.
+- Kullanıcı build 50’yi eski gönderiden kaldırmamayı ve yeni aday olarak **1.3.0 (51)** build’i almayı seçti. Build 51 hazır olduğunda 14 aboneliğin bulunduğu taslağa uygulama sürümü olarak eklenmeli; hedef toplam 15 öğedir.
+- `Submit for Review` ve `Resubmit to App Review` kullanılmadı. Kullanıcı build 51 tamamlanınca haber verecek; o zamana kadar App Store submission durumuna dokunulmamalı.
+
+## 2026-10-02 — Build 51 beklenirken App Review not paketi hazırlandı
+
+- Yeni `docs/APP_REVIEW_NOTES_IOS_1.3.0.md`: İngilizce inceleme notu, Türkçe referans, crew/family demo akışı, abonelik satın alma ve restore adımları, Privacy/Terms/Apple EULA bağlantıları ve gönderim öncesi kontrol listesi.
+- Güvenlik: review parolaları dosyaya yazılmadı; App Store Connect `Sign-In Information` alanında tutulması gerektiği belirtildi.
+- Build 51 geldikten sonra aynı belgede sandbox satın alma/restore, 15 öğeli taslak ve ekran kaydı maddeleri tamamlanmalı. Bu hazırlık App Store Connect üzerinde gönderim yapmadı.
+
+## 2026-10-02 — App Store metadata ve destek cevap paketleri hazırlandı
+
+- `docs/APP_STORE_METADATA_IOS_1.3.0.md`: Türkçe/İngilizce Promotional Text, Description, Keywords, Support/Marketing/Privacy/Terms/EULA alanları ve uygulama kontrol listesi. Kişisel ad, kişisel e-posta ve kişisel URL içermez; App Store Connect'e henüz uygulanmadı.
+- `docs/SUPPORT_RESPONSE_TEMPLATES_TR_EN.md`: giriş, doğrulama, abonelik/fiyat, restore, roster PDF ve hesap silme için kısa TR/EN destek yanıtları. Kullanıcıdan parola, Apple ID parolası veya ödeme kartı bilgisi istememe ilkesi eklendi.
+- Route to Live `store-copy` maddesi hazırlık aşamasına, `support-ready` maddesi OK durumuna getirildi. Bu çalışma harici sisteme mesaj göndermedi ve App Store taslağını değiştirmedi.
+- Metadata sınır kontrolü: TR/EN Promotional Text 102/101 karakter; TR/EN Keywords 76/83 karakter. Apple'ın 170 ve 100 karakter sınırlarının içinde.
+- Güncel kirli çalışma ağacında `npx tsc --noEmit` başarıyla geçti. `npm run test:capacity` tüm senaryolarda geçti; test geçici IPC soketi için genişletilmiş yerel izinle çalıştırıldı. Dosya değiştirmedi.
 
 ## 2026-10-02 — Aile planı: Acıbadem Salı 10:00–16:00 ve kesikli yol çubukları
 
@@ -2122,22 +2345,6 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - **Doğrulama:** canlı `admin-dashboard` deploy öncesi indirildi, `origin/main` ile birebir aynıydı; temiz worktree'den deploy edildi. OPTIONS 200, oturumsuz POST 401. Modül yerelde service role ile canlıya karşı çalıştırıldı: overview 4 kişi / 3 onaylı / 3 kişiye özel; önizlemede düzey sızıntısı 0; geçersiz düzey/uuid/boş yama/aynı kişi/pending durumu 400, bağlantısız paylaşım 409, onaylı çifte yeni bağlantı `already_connected` (yazmadı); aynı değerlerle update_prefs ve set_share 200 ve durum değişmedi. Strict `tsc` + esbuild bundle OK; inline script `node --check` OK; sahte veriyle yerel önizlemede tablolar, kirli satır takibi ve dört yazma düğmesinin gönderdiği parametreler doğrulandı.
 - **Korunacak davranış:** Sabit kurallar (62 gün, günde 30 davet, yatı 10–72 saat, bildirim 14 gün / 21:00–09:00 sessiz / 4 satır, cron :07) sayfadan değiştirilmez; değişirse sayfadaki metin de güncellenmeli. Admin değişikliği kullanıcıya bildirim göndermez.
 
-### 2026-10-13 — Admin ana ekran ikonu
-
-- FlyFam ikonu ADMIN etiketiyle hazırlandı. Admin HTML, Apple touch icon ve manifest bağlantılarını kullanır. 180/192/512 px ikonlar support/admin içinde; Safari ana ekrana ekleme için 180 px PNG.
-- Doğrulama: PNG boyutları, manifest JSON ve üç HTML kopyası eşit.
-
-### 2026-10-13 — Admin ikon siyah köşeler
-- Siyah dış köşeler gerçek PNG alfa şeffaflığıyla kaldırıldı. İkonlar v2 dosyalarıyla önbellekten ayrıldı. Köşe alfa değeri 0 doğrulandı.
-
-### 2026-10-13 — Admin başlık ikonu
-- Şeffaf ADMIN ikonu üst sol başlığa 44 px boyutunda eklendi. Eksik eski logo yolu değiştirildi; UI önbellek sürümü 64. HTML kopyaları eşit, ikon dosyası mevcut.
-
-### 2026-10-27 — 5 Kasım tek vize kutusu
-
-- Takvim, liste ve detayda üç kişilik vize görüşmesi tek kutuda “10:15 · vize görüşmesi · hepimiz” gösterilir. Katılım kayıtları ve görüşme sonrası okul korunur.
-- Önbellek v25. Aile testleri ve betik sözdizimi kontrol edilir.
-
 ## 2026-10-31 — Aile planı: 8 Kasım doğum günü + 9 Kasım UK vize
 
 - **Veri (canlı DB):** `admin_planner_state.config.familyAppointments` — 8 Kasım 10:00 Alparslan doğum günü kahvaltısı (Ercan Steakhouse, Başakşehir) ve 9 Kasım 15:00 UK vize görüşmesi (VFS Astoria AVM); her biri crew/partner/child. `configMigrations` işaretleri eklendi.
@@ -2145,21 +2352,67 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - **Doğrulama:** `node scripts/test-aile-eso.mjs` all ok; `git diff --check` OK. Canlı SQL sonrası 6 satır (8+9 Kasım) doğrulandı.
 - **Korunacak:** Tek kişiye özel randevu kutuları ayrı kalır; yalnız crew+child+partner üçlüsü birleşir.
 
+## 2026-11-02 — Yayın öncesi güvenlik (auth handoff, IAP kimlik, error sanitize, log PII)
+
+- **Amaç:** Dört bulgu — (1) `flyfam://` içine ham auth token aktarılmasın; (2) satın alma kimliği yalnız Apple doğrulamasından; (3) client error report PII/sır temizliği; (4) admin/notify loglarında e-posta/UUID/push token yok.
+- **Dosyalar:** `support/auth-callback.html`, `support/.well-known/apple-app-site-association`, `supabase/functions/auth-link-handoff/`, `supabase/migrations/20261102120000_auth_link_handoffs.sql`, `supabase/migrations/20261102121000_store_purchase_original_tx_owner_guard.sql`, `supabase/config.toml` (`auth-link-handoff` verify_jwt=false), `mobile/lib/authSessionFromUrl.ts`, `mobile/lib/authRedirect.ts`, `mobile/app.config.js` (associatedDomains), `supabase/functions/verify-store-purchase/index.ts`, `supabase/functions/_shared/applePurchaseIdentity.ts`, `supabase/functions/_shared/safeLog.ts`, `mobile/lib/sanitizeErrorReport.ts`, `mobile/lib/errorReporting.ts`, `supabase/functions/admin-dashboard/index.ts`, `supabase/functions/notify-family/index.ts`, `mobile/scripts/test-sanitize-error-report.ts`, `mobile/scripts/test-auth-callback-security.ts`, `mobile/scripts/test-apple-purchase-identity.ts`, `mobile/scripts/test-safe-log-pii.ts`.
+- **Davranış:** HTTPS callback Universal Link tercih; Safari yedekte tek kullanımlık `handoff` id. Custom scheme ham token reddeder. RPC `original_transaction_id` sahipliği kullanıcıya özel. Error report sanitize. Loglarda maskEmail / anonUserRef.
+- **Koruma:** RevenueCat ürün kimlikleri, entitlement akışı, kullanıcıya giden bildirim metinleri aynı. Deploy/submit yapılmadı.
+- **Manuel kalan:** Migration + `auth-link-handoff` function deploy; AASA’nın `app.flyfamapp.com/.well-known/apple-app-site-association` üzerinde yayınlanması; Apple Associated Domains / Universal Link cihazda doğrulama; Supabase Redirect allowlist’te HTTPS callback.
+
+## 2026-11-03 — Store original_tx advisory lock + auth handoff expired cleanup
+
+- **Amaç:** (1) `platform + original_transaction_id` check–insert yarışını `pg_advisory_xact_lock` ile atomik sırala; aynı kullanıcı yenilemelerine izin ver, farklı kullanıcıyı reddet. (2) `auth_link_handoffs` süresi dolmuş kayıtları Edge Function’da await edilen temizlik + `cleanup_expired_auth_link_handoffs` RPC + pg_cron (varsa, 15 dk) ile kesin temizle.
+- **Dosyalar:** `supabase/migrations/20261103120000_store_purchase_original_tx_advisory_lock.sql`, `supabase/migrations/20261103121000_auth_link_handoffs_expired_cleanup.sql`, `supabase/functions/auth-link-handoff/index.ts`, `mobile/scripts/test-store-original-tx-advisory-lock.ts`, `mobile/scripts/test-auth-handoff-cleanup.ts`, `mobile/scripts/test-apple-purchase-identity.ts`.
+- **Doğrulama:** `npx tsx mobile/scripts/test-store-original-tx-advisory-lock.ts`; `npx tsx mobile/scripts/test-auth-handoff-cleanup.ts`; `npx tsx mobile/scripts/test-apple-purchase-identity.ts`; `git diff --check`.
+- **Koruma:** Deploy yok. pg_cron yoksa migration notice ile geçer; Edge await + doğrudan delete yedeği kalır.
+- **Manuel:** Yeni migration’ları uygula; `auth-link-handoff` yeniden deploy.
+
+## 2026-11-03 — Auth handoff: access/refresh token desteği kaldırıldı
+
+- **Amaç:** Production e-posta şablonları TokenHash kullandığı için handoff/callback’ten `access_token` / `refresh_token` kabulü ve aktarımı kaldırıldı.
+- **Dosyalar:** `support/auth-callback.html`, `supabase/functions/auth-link-handoff/index.ts`, `mobile/lib/authSessionFromUrl.ts`, `mobile/lib/authEmailLinkAlerts.ts`, `mobile/lib/authRedirect.ts`, `mobile/locales/tr.json`, `mobile/locales/en.json`, `mobile/components/AuthEmailLinkListener.tsx`, `mobile/scripts/test-auth-callback-security.ts`, `mobile/scripts/test-auth-handoff-cleanup.ts`.
+- **Davranış:** Handoff yalnız `token_hash+type`, PKCE `code` veya güvenli hata alanları. Custom scheme’de ham access/refresh → `legacy_link` + “e-postadaki güncel bağlantıyı yeniden aç”. HTTPS Universal Link’te mevcut oturum işleme (TokenHash/PKCE; gerekirse HTTPS setSession) korunur.
+- **Doğrulama:** `npx tsc --noEmit`; `test-auth-callback-security`; `test-auth-handoff-cleanup`; `git diff --check`.
+- **Koruma:** Deploy yok.
+
+## 2026-11-03 — Production deploy: güvenlik migration/function + support AASA/callback
+
+- **Migration (uygulandı):** `20261102120000_auth_link_handoffs`, `20261102121000_store_purchase_original_tx_owner_guard`, `20261103120000_store_purchase_original_tx_advisory_lock`, `20261103121000_auth_link_handoffs_expired_cleanup` (pg_cron job notice OK).
+- **Functions (deploy):** `auth-link-handoff`, `verify-store-purchase`, `admin-dashboard`, `notify-family`. Secret değişmedi.
+- **Support:** PR #90 merge → Deploy support site success. Canlı `auth-callback.html` 200; AASA 200 + doğru body; Content-Type `application/octet-stream` (GH Pages; json Transform kalan).
+- **Canlı handoff:** access/refresh-only create 400; token_hash create OK (~2 dk TTL); redeem bir kez, tekrar 404.
+- **ROUTE_TO_LIVE:** migrations-prod / functions-prod / auth-links güncellendi; build 57, Associated Domains cihaz, AASA Content-Type, submit açık bırakıldı.
+- **Koruma:** App Store build/submit yok.
+
+## 2026-11-05 — Flyco notları yerelde, repoya girmez
+
+- **Amaç:** Kişisel Flyco eğitim notları ve kesilmiş slayt görselleri repoya karışmasın.
+- **Dosya:** `.gitignore` içine `flyco-notes/` eklendi. Notlar `flyco-notes/tiktik-flyco.html` altında, yalnız yerelde.
+- **Doğrulama:** `git diff --check`.
+- **Koruma:** Uygulama kodu, sürüm, OTA ve mağaza ayarı değişmedi. Eğitim sınavlarına girilmedi.
+
+## 2026-11-09 — Auth klavye: rakamdan sonra harfe sıçrama
+
+- **Sorun:** Giriş/kayıt/şifre sıfırlamada 123 paneline geçip rakam basınca iOS yine ABC’ye dönüyordu.
+- **Kök neden:** `inputAccessoryViewID` + e-posta/şifre (`secureTextEntry`) birlikte klavye yüzeyini yeniden kuruyor.
+- **Dosyalar:** `SignIn.tsx`, `SignUp.tsx`, `ResetPassword.tsx` (accessory kaldırıldı); `FormField.tsx` (e-posta/şifrede accessory yok sayılır + `autoCorrect`/`spellCheck` kapalı); `FormKeyboardAccessory.tsx` (uyarı notu).
+- **Rakam-only:** `AddFlight` uçuş numarası zaten `keyboardType="number-pad"`.
+- **Doğrulama:** `git diff --check` ilgili dosyalarda OK. Cihazda SignIn şifre/e-posta 123 paneli kalıcılığı build 57 QA’sına bırakıldı.
+- **Koruma:** Build/submit yok; AASA `application/json` canlı (app.flyfamapp.com). Route to Live tamamlanmış maddeler değiştirilmedi.
+
 ## 2026-11-09 — Logbook: her sayfada uçuş sırası 1–16
 
 - **Dosyalar:** `support/logbook/app.js` (satır numarası `bookPage*16+i+1` → `i+1`), `index.html`/`sw.js` v1.5.7, `scripts/test-gani-logbook-sync.mjs`.
 - **Davranış:** Her sayfada 16 satır 1’den 16’ya numaralanır; defter boyunca artan sıra kalkar. Sayfa/defter kapatma ve toplam satırları aynı.
 - **Doğrulama:** `node scripts/test-gani-logbook-sync.mjs` OK; `git diff --check` OK.
 
-## 2026-11-09 — iOS store build 57 (iPhone-only) hazırlığı
+## 2026-11-09 — Tek cihaz oturumu + Uçağım nerede (crew)
 
-- **İstek:** Binary 57 production build + ASC submit.
-- **Kaynak:** temiz `origin/main` worktree `/tmp/flyfam-b57` (`release/ios-1.3.0-57`); kirli yerel `main` kullanılmadı.
-- **Değişiklik:** `buildNumber`/`CURRENT_PROJECT_VERSION`/`versionCode` → **57**; `supportsTablet: false`; `TARGETED_DEVICE_FAMILY = 1` (app + NSE ensure script); `associatedDomains` + entitlements `applinks:app.flyfamapp.com`; auth e-posta/şifre `inputAccessoryViewID` kaldırıldı (rakam→harf sıçraması).
-- **Koruma:** App Store Review gönderimi bu adımda yok; `eas submit` yalnız binary yükleme. Android Faz 2 (versionCode hizalandı, build yok).
+- **Tek cihaz:** `user_active_devices` migration; Edge `register-active-device` (`register` upsert + `signOut({ scope: 'others' })`, `assert` → 409 `other_device_active`). Mobil: SecureStore `installId`, `activeDevice.ts`; SignIn / AuthEmailLinkListener register; SessionContext register + 3dk/foreground assert + kick mesajı (`auth.otherDevice*`).
+- **Uçağım nerede:** Yalnız crew; kalkışa ≤12s, inmemiş, **Canlı Takip aktifken gizli**. Reg varsa FR24 aircraft; yoksa `AircraftRegPromptModal` ile bir kez girilir → AsyncStorage override + `flights.aircraft_registration` (sistem farklı reg yazana kadar). Uçuş kodu fallback yok.
+- **Dosyalar:** migration `20261109120000_user_active_devices.sql`, `supabase/functions/register-active-device/`, `config.toml`; `mobile/lib/{installId,activeDevice,whereIsMyPlane,aircraftRegOverride}.ts`; `AircraftRegPromptModal`; SessionContext/SignIn/AuthEmailLinkListener; Roster + RosterFlightCard; TR/EN; `scripts/test-where-is-plane.ts`.
+- **Doğrulama:** `npx tsx mobile/scripts/test-where-is-plane.ts` PASS. `git diff --check` OK.
+- **Production (9 Kasım 2026):** `db push` → `20261109120000_user_active_devices` applied; `register-active-device` deploy OK. Anon JWT ile assert → 401 (beklenen). Mobil JS (tek cihaz + Uçağım nerede + klavye) bir sonraki store build / OTA ile gelecek.
+- **Koruma:** Build/submit bu adımda yok. Family planner web dokunulmadı.
 
-## 2026-11-09 — iOS build 57 binary (tek cihaz + Uçağım nerede)
-
-- **Kaynak:** temiz `origin/main` worktree + tek cihaz / Uçağım nerede / reg prompt (backend zaten production’da).
-- **Binary:** 1.3.0 (57), iPhone-only, Associated Domains `applinks:app.flyfamapp.com`.
-- **Koruma:** Bu commit store build + ASC submit için; Review submit ayrı değilse EAS submit = binary yükleme.

@@ -117,6 +117,35 @@ function skipEmpty(from: number, lines: string[]): number {
   return j;
 }
 
+/**
+ * Uçuş no ile rota satırı arasındaki Carmen gürültüsü: P, BUS, Mobile Lifus LT etiketi.
+ * Örnek: `TK118` / `Lifus_LT` / `IST/15:20` / `MED/18:40`
+ */
+function skipThyLegNoise(from: number, lines: string[]): number {
+  let j = skipEmpty(from, lines);
+  while (j < lines.length) {
+    const t = (lines[j] ?? '').trim();
+    if (!t) {
+      j += 1;
+      continue;
+    }
+    if (t.toUpperCase() === 'P') {
+      j = skipEmpty(j + 1, lines);
+      continue;
+    }
+    if (/^BUS(?:-?\d*)?$/i.test(t)) {
+      j = skipEmpty(j + 1, lines);
+      continue;
+    }
+    if (/^Lifus_LT:?$/i.test(t)) {
+      j = skipEmpty(j + 1, lines);
+      continue;
+    }
+    break;
+  }
+  return j;
+}
+
 function pushGmtRow(
   out: PdfFlightRow[],
   fn: string,
@@ -245,21 +274,14 @@ function parseGmtFlightsFromPdfText_THY(text: string): PdfFlightRow[] {
     if (!flOnly) continue;
 
     const fn = `${flOnly[1]!.toUpperCase()}${flOnly[2]}`;
-    let j = skipEmpty(i + 1, lines);
-    if ((lines[j] ?? '').trim().toUpperCase() === 'P') {
-      j = skipEmpty(j + 1, lines);
-    }
-    // Nadiren "BUS" etiketi uçuş ile rota arasında (BUS-01 bloklarında); yoksay.
-    if (/^BUS$/i.test((lines[j] ?? '').trim())) {
-      j = skipEmpty(j + 1, lines);
-    }
+    let j = skipThyLegNoise(i + 1, lines);
 
     const depM = /^([A-Z]{3})\/(\d{1,2}):(\d{2})$/i.exec(lines[j] ?? '');
     if (!depM) continue;
     const depAp = depM[1]!;
     const depH = depM[2]!;
     const depMin = depM[3]!;
-    j = skipEmpty(j + 1, lines);
+    j = skipThyLegNoise(j + 1, lines);
 
     const parsedArr = parseArrLine(lines[j] ?? '');
     if (!parsedArr) continue;
@@ -312,7 +334,9 @@ function parseThyTrDateTime(
   const mmStr = MONTH_TR_THY[mon];
   if (!mmStr) return null;
   const mm = parseInt(mmStr, 10);
+  // Aylık Carmen: Ara→Oca yıl +1; aynı blokta MS Oca olduktan sonra GMB tekrar Ara ise yıl −1.
   if (cursor.lastMm >= 11 && mm <= 2) cursor.year += 1;
+  else if (cursor.lastMm >= 1 && cursor.lastMm <= 2 && mm >= 11) cursor.year -= 1;
   cursor.lastMm = mm;
   return {
     ymd: `${cursor.year}-${mmStr}-${pad2(m[1]!)}`,
@@ -452,16 +476,10 @@ export function parseLocalTimeProgramFromPdfText_THY(text: string): PdfFlightRow
       if (/^BUS(?:-?\d*)?$/i.test(raw)) continue;
       const fl = /^(TK|VF)(\d{2,4})$/i.exec(raw);
       if (!fl) continue;
-      let j = skipEmpty(i + 1, chunk);
-      if ((chunk[j] ?? '').trim().toUpperCase() === 'P') {
-        j = skipEmpty(j + 1, chunk);
-      }
-      if (/^BUS$/i.test((chunk[j] ?? '').trim())) {
-        j = skipEmpty(j + 1, chunk);
-      }
+      let j = skipThyLegNoise(i + 1, chunk);
       const dep = parseThyLocalTimeLine(chunk[j] ?? '');
       if (!dep?.airport) continue;
-      j = skipEmpty(j + 1, chunk);
+      j = skipThyLegNoise(j + 1, chunk);
       const arr = parseThyLocalTimeLine(chunk[j] ?? '');
       if (!arr?.airport) continue;
       legs.push({
