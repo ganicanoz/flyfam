@@ -13,7 +13,7 @@
   <meta http-equiv="Expires" content="0" />
   <script>
     (function () {
-      var UI = '64';
+      var UI = '65';
       var p = new URLSearchParams(location.search);
       if (p.get('ui') !== UI) {
         p.set('ui', UI);
@@ -1408,6 +1408,9 @@
                 <option value="family">family</option>
               </select>
             </div>
+            <div style="align-self:end;">
+              <button type="button" id="btnUsersShowCrewsOnly" class="btnSmall" title="Rol filtresini crew yap">Yalnız crew listele</button>
+            </div>
             <div>
               <label class="mini">Havayolu</label>
               <select id="airlineFilter">
@@ -1425,6 +1428,10 @@
           </div>
           <p id="usersEmailHint" class="mini" style="margin:0 0 10px;display:none;"></p>
           <p id="usersSearchHint" class="mini" style="margin:-4px 0 10px;"></p>
+          <p id="usersLegacyHint" class="mini" style="margin:-4px 0 10px;">
+            Ücretsiz geçiş: <strong>Yalnız crew listele</strong> → checkbox ile seç → <strong>Ücretsiz (süresiz)</strong>.
+            Bağlı family kullanıcılar crew erişimine bağlıdır; ayrı grant / kod gerekmez. Yayından önce kullanıcıya mesaj gönderme.
+          </p>
           <div id="usersSelectionBar" class="flights-selection-bar hidden">
             <strong id="usersSelectionCount">0 seçili</strong>
             <span class="bulk-bar-group">
@@ -1436,6 +1443,8 @@
             <span class="bulk-bar-group">
               <span class="bulk-bar-label">Abonelik</span>
               <button type="button" id="btnUsersBulkGrant" class="btnSmall" title="Yalnız crew kullanıcılara uygulanır">Geniş Sülale ver</button>
+              <button type="button" id="btnUsersBulkLegacyFree" class="btnPrimary btnSmall" title="Seçili crew’lere süresiz ücretsiz; family otomatik">Ücretsiz (süresiz)</button>
+              <button type="button" id="btnUsersBulkRevokeLegacy" class="btnSmall" title="Seçili crew ücretsiz erişimini kes">Ücretsiz erişimi kes</button>
             </span>
             <span class="bulk-bar-group">
               <span class="bulk-bar-label">Liste</span>
@@ -3195,7 +3204,10 @@
           '<div class="drawer-actions">' +
             '<button type="button" class="btnPrimary btnSmall" data-action="save-user-subscription" data-user-id="' + (u.id || '') + '">Aboneliği kaydet</button>' +
             '<button type="button" class="btnSmall" data-action="grant-base-subscription" data-user-id="' + (u.id || '') + '">Geniş Sülale ver (active)</button>' +
+            '<button type="button" class="btnSmall" data-action="grant-legacy-free" data-user-id="' + (u.id || '') + '">Ücretsiz (süresiz)</button>' +
+            '<button type="button" class="btnSmall" data-action="revoke-legacy-free" data-user-id="' + (u.id || '') + '">Ücretsiz erişimi kes</button>' +
           '</div>' +
+          '<p class="mini" style="margin:8px 0 0;">Ücretsiz (süresiz): seçili crew’ye App Store kodu olmadan circle/active verir; dönem bitişi boş (siz kesene kadar). Yeni mağaza uygulamasında aynı e-posta ile free. Kes = status canceled.</p>' +
         '</div>'
       );
     }
@@ -5307,11 +5319,19 @@
           const st = String(sub.status || 'none');
           const cls = st === 'active' || st === 'trialing' ? st : (st === 'past_due' || st === 'canceled' || st === 'cancelled' ? st : 'none');
           const ro = sub.read_only ? ' · aile' : '';
-          subHtml = '<span class="sub-badge ' + escapeAttr(cls) + '">' + escapeHtml(st) + escapeHtml(ro) + '</span>';
+          const isLegacy =
+            String(sub.grant_tag || '') === 'legacy_mertcan_transition' ||
+            (String(sub.provider || '') === 'manual_admin_grant' && !sub.current_period_ends_at && (st === 'active' || st === 'trialing'));
+          const legacyMark = isLegacy ? ' · ücretsiz' : '';
+          subHtml = '<span class="sub-badge ' + escapeAttr(cls) + '">' + escapeHtml(st) + escapeHtml(ro) + escapeHtml(legacyMark) + '</span>';
           const extra = Number(sub.extra_family_slots || 0);
           const total = Number(sub.total_family_slots || 0);
           const used = Number(sub.used_family_approved || 0) + Number(sub.used_family_pending || 0);
-          slotHtml = '<div class="mini"><strong>' + total + '</strong> toplam<br/>+' + extra + ' add-on · ' + used + ' dolu</div>';
+          const famApproved = Number(sub.used_family_approved || 0);
+          slotHtml =
+            '<div class="mini"><strong>' + total + '</strong> toplam<br/>+' + extra + ' add-on · ' + used + ' dolu' +
+            (isCrew ? '<br/>bağlı aile: ' + famApproved : '') +
+            '</div>';
         } else if (isCrew) {
           subHtml = '<span class="sub-badge none">yok</span>';
         }
@@ -6721,6 +6741,38 @@
         setStatus('Geniş Sülale verildi', 'ok');
         return;
       }
+      if (action === 'grant-legacy-free') {
+        const ok = window.confirm(
+          'Ücretsiz (süresiz): circle / active, dönem bitişi yok. Yeni App Store uygulamasında kod yok; aynı e-posta ile free. Verilsin mi?',
+        );
+        if (!ok) return;
+        setStatus('Ücretsiz erişim veriliyor…', 'warn');
+        await callAdminAction('update_user_subscription', {
+          user_id: userId,
+          plan_code: 'circle',
+          status: 'active',
+          extra_family_slots: 0,
+          current_period_ends_at: null,
+          grant_tag: 'legacy_mertcan_transition',
+        });
+        await loadDashboard();
+        if (drawerUserId === userId) await openUserDrawer(userId, drawerUserMode, false);
+        setStatus('Ücretsiz (süresiz) verildi', 'ok');
+        return;
+      }
+      if (action === 'revoke-legacy-free') {
+        const ok = window.confirm('Ücretsiz erişim kesilsin mi? (status → canceled; paywall geri gelir)');
+        if (!ok) return;
+        setStatus('Ücretsiz erişim kesiliyor…', 'warn');
+        await callAdminAction('update_user_subscription', {
+          user_id: userId,
+          status: 'canceled',
+        });
+        await loadDashboard();
+        if (drawerUserId === userId) await openUserDrawer(userId, drawerUserMode, false);
+        setStatus('Ücretsiz erişim kesildi', 'ok');
+        return;
+      }
       if (action === 'open-linked-crew-subscription') {
         await openUserDrawer(userId, 'details', false);
         return;
@@ -6756,8 +6808,9 @@
           plan_code: 'circle',
           status,
           extra_family_slots: Math.trunc(extraRaw),
+          // Empty period field clears end date (süresiz / admin-cut).
+          current_period_ends_at: periodEl && periodEl.value ? periodIso : null,
         };
-        if (periodEl && periodEl.value) payload.current_period_ends_at = periodIso;
         await callAdminAction('update_user_subscription', payload);
         await loadDashboard();
         if (drawerUserId === userId) await openUserDrawer(userId, drawerUserMode, false);
@@ -6873,6 +6926,12 @@
     document.getElementById('btnUsersBulkSignupMail')?.addEventListener('click', () => bulkAuthMail('signup'));
     document.getElementById('btnUsersBulkRecoveryMail')?.addEventListener('click', () => bulkAuthMail('recovery'));
 
+    document.getElementById('btnUsersShowCrewsOnly')?.addEventListener('click', () => {
+      if (els.userTypeFilter) els.userTypeFilter.value = 'crew';
+      renderUsers();
+      setStatus('Rol filtresi: crew. Görünenleri seç → Ücretsiz (süresiz).', 'ok');
+    });
+
     document.getElementById('btnUsersBulkGrant')?.addEventListener('click', () => {
       const crewCount = selectedUsersList().filter((u) => String(u.role || '') === 'crew').length;
       if (!crewCount) return setStatus('Seçimde crew kullanıcı yok', 'bad');
@@ -6887,6 +6946,44 @@
           status: 'active',
           extra_family_slots: 0,
           current_period_ends_at: periodEnd,
+        });
+      }, { concurrency: 3 });
+    });
+
+    document.getElementById('btnUsersBulkLegacyFree')?.addEventListener('click', () => {
+      const crews = selectedUsersList().filter((u) => String(u.role || '') === 'crew');
+      const crewCount = crews.length;
+      if (!crewCount) return setStatus('Seçimde crew kullanıcı yok (family ayrı grant almaz; crew seç)', 'bad');
+      const famHint = crews.reduce((n, u) => n + Number((u.subscription && u.subscription.used_family_approved) || 0), 0);
+      if (!window.confirm(
+        'Ücretsiz (süresiz) ' + crewCount + ' crew kullanıcıya verilsin mi?\n' +
+          'Bağlı onaylı aile (listede görünen): ~' + famHint + ' — onlar crew erişimine bağlı, ayrı işlem yok.\n' +
+          'Family satırları atlanır. Yayından önce kullanıcıya mesaj gönderme.',
+      )) return;
+      void runUsersBulk('Ücretsiz (süresiz)', async (id) => {
+        const u = userById(id);
+        if (!u || String(u.role || '') !== 'crew') return 'skip';
+        await callAdminAction('update_user_subscription', {
+          user_id: id,
+          plan_code: 'circle',
+          status: 'active',
+          extra_family_slots: 0,
+          current_period_ends_at: null,
+          grant_tag: 'legacy_mertcan_transition',
+        });
+      }, { concurrency: 3 });
+    });
+
+    document.getElementById('btnUsersBulkRevokeLegacy')?.addEventListener('click', () => {
+      const crewCount = selectedUsersList().filter((u) => String(u.role || '') === 'crew').length;
+      if (!crewCount) return setStatus('Seçimde crew kullanıcı yok', 'bad');
+      if (!window.confirm('Ücretsiz erişim ' + crewCount + ' crew için kesilsin mi? (status → canceled)\nBağlı family de roster erişimini kaybeder.')) return;
+      void runUsersBulk('Ücretsiz erişim kes', async (id) => {
+        const u = userById(id);
+        if (!u || String(u.role || '') !== 'crew') return 'skip';
+        await callAdminAction('update_user_subscription', {
+          user_id: id,
+          status: 'canceled',
         });
       }, { concurrency: 3 });
     });

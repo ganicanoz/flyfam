@@ -30,6 +30,11 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+### 2026-11-26 — Admin ücretsiz geçiş UI canlı (ui=65)
+
+- **Ne:** Seçili crew’lere **Ücretsiz (süresiz)** (yeni App Store app + aynı e-posta; kod yok). Family crew erişimine bağlı. Panel `support/admin/` ui=65; `admin-dashboard` `grant_tag`; `admin-panel-ui` default ui=65.
+- **Koruma:** Yayından önce kullanıcı mesajı yok. Submit yok.
+
 ### 2026-11-25 — REC-YERDR/FLYCO yayınlandı
 
 - **PR:** #162 → main `d2976ba`.

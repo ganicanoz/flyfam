@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { sendExpoPush } from '../_shared/expoPush.ts';
+import { anonUserRef, maskEmail } from '../_shared/safeLog.ts';
 import { handleRosterReportAction, ROSTER_REPORT_ACTIONS } from './rosterReports.ts';
 import { CREW_ROOM_ADMIN_ACTIONS, handleCrewRoomAdminAction } from './crewRoom.ts';
 
@@ -89,6 +90,7 @@ type CrewSubRow = {
   trial_ends_at: string | null;
   current_period_ends_at: string | null;
   provider: string | null;
+  provider_subscription_id?: string | null;
 };
 
 type PlanRow = {
@@ -115,6 +117,7 @@ type AdminSubscriptionSnapshot = {
   current_period_ends_at: string | null;
   premium_active: boolean | null;
   provider: string | null;
+  grant_tag?: string | null;
   read_only?: boolean;
   managed_crew_user_id?: string | null;
   managed_crew_name?: string | null;
@@ -159,6 +162,7 @@ function buildSubscriptionSnapshot(
     current_period_ends_at: sub?.current_period_ends_at ?? null,
     premium_active: premiumActive,
     provider: sub?.provider ?? null,
+    grant_tag: sub?.provider_subscription_id ?? null,
     read_only: extras?.read_only,
     managed_crew_user_id: extras?.managed_crew_user_id ?? null,
     managed_crew_name: extras?.managed_crew_name ?? null,
@@ -237,7 +241,7 @@ async function loadSubscriptionContext(
   const [{ data: subRows }, { data: ent }] = await Promise.all([
     adminClient
       .from('crew_subscriptions')
-      .select('id, crew_id, plan_code, extra_family_slots, status, trial_ends_at, current_period_ends_at, provider')
+      .select('id, crew_id, plan_code, extra_family_slots, status, trial_ends_at, current_period_ends_at, provider, provider_subscription_id')
       .eq('crew_id', crewId)
       .order('updated_at', { ascending: false })
       .limit(1),
@@ -772,9 +776,9 @@ Deno.serve(async (req) => {
         });
       }
       console.log('[admin-dashboard] confirm_user_email', {
-        user_id: userId,
-        email: updated?.user?.email ?? existing.user.email ?? null,
-        requester: requesterEmail,
+        user_ref: anonUserRef(userId),
+        email: maskEmail(updated?.user?.email ?? existing.user.email),
+        requester: maskEmail(requesterEmail),
       });
       return new Response(
         JSON.stringify({
@@ -1009,10 +1013,10 @@ Deno.serve(async (req) => {
       }
 
       console.log('[admin-dashboard] update_user_profile', {
-        user_id: userId,
-        requester: requesterEmail,
+        user_ref: anonUserRef(userId),
+        requester: maskEmail(requesterEmail),
         profile_keys: Object.keys(profilePatch),
-        email_changed: emailChanged,
+        email_changed: emailChanged ? maskEmail(emailChanged) : null,
       });
 
       return new Response(
@@ -1254,12 +1258,12 @@ Deno.serve(async (req) => {
       const dataPayload = url ? { url } : null;
       const pushResult = await sendExpoPush(tokens, title, bodyRaw, dataPayload);
       console.log('[admin-dashboard] send_push_notification', {
-        user_id: userId,
-        requester: requesterEmail,
+        user_ref: anonUserRef(userId),
+        requester: maskEmail(requesterEmail),
         token_count: tokens.length,
         sent: pushResult.sent,
         errors: pushResult.errors,
-        url: url || null,
+        has_url: Boolean(url),
       });
       if (pushResult.sent > 0) {
         await adminClient.from('user_activity_events').insert({
@@ -1355,8 +1359,9 @@ Deno.serve(async (req) => {
       }
       console.log('[admin-dashboard] send_auth_email', {
         email_type: emailType,
-        email,
-        requester: requesterEmail,
+        email: maskEmail(email),
+        requester: maskEmail(requesterEmail),
+        user_ref: anonUserRef(userId || null),
       });
       return new Response(
         JSON.stringify({
@@ -1544,7 +1549,7 @@ Deno.serve(async (req) => {
       });
       if (dryRun) {
         console.log('[admin-dashboard] send_group_push dry_run', {
-          requester: requesterEmail,
+          requester: maskEmail(requesterEmail),
           role: roleFilter,
           airline_icao: airlineFilter || null,
           platform: platformFilter,
@@ -1677,7 +1682,7 @@ Deno.serve(async (req) => {
         }
       }
       console.log('[admin-dashboard] broadcast_push_notification', {
-        requester: requesterEmail,
+        requester: maskEmail(requesterEmail),
         users_with_tokens: tokensByUser.size,
         token_count: allTokens.length,
         sent: pushResult.sent,
@@ -1802,11 +1807,33 @@ Deno.serve(async (req) => {
       const hasExtraDelta = Object.prototype.hasOwnProperty.call(body ?? {}, 'extra_family_delta');
       const hasTrialEnd = Object.prototype.hasOwnProperty.call(body ?? {}, 'trial_ends_at');
       const hasPeriodEnd = Object.prototype.hasOwnProperty.call(body ?? {}, 'current_period_ends_at');
-      if (!hasPlan && !hasStatus && !hasExtra && !hasExtraDelta && !hasTrialEnd && !hasPeriodEnd) {
+      const hasGrantTag = Object.prototype.hasOwnProperty.call(body ?? {}, 'grant_tag');
+      if (!hasPlan && !hasStatus && !hasExtra && !hasExtraDelta && !hasTrialEnd && !hasPeriodEnd && !hasGrantTag) {
         return new Response(JSON.stringify({ error: 'No subscription fields to update' }), {
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
+      }
+
+      let grantTag: string | null | undefined = undefined;
+      if (hasGrantTag) {
+        if (body?.grant_tag === null || body?.grant_tag === '') {
+          grantTag = null;
+        } else if (typeof body?.grant_tag === 'string') {
+          const cleaned = body.grant_tag.trim().slice(0, 80);
+          if (!/^[a-z0-9][a-z0-9_\-]{0,79}$/i.test(cleaned)) {
+            return new Response(JSON.stringify({ error: 'Invalid grant_tag' }), {
+              status: 400,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+          }
+          grantTag = cleaned;
+        } else {
+          return new Response(JSON.stringify({ error: 'Invalid grant_tag' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
       }
 
       const ctx = await loadSubscriptionContext(adminClient, resolved.crewId, resolved.crewUserId);
@@ -1897,20 +1924,21 @@ Deno.serve(async (req) => {
       const nextPlanCode = requestedPlanCode ?? sub?.plan_code ?? plan?.code ?? 'circle';
 
       if (!sub) {
-        const insertRow = {
+        const insertRow: Record<string, unknown> = {
           crew_id: resolved.crewId,
           plan_code: nextPlanCode,
           extra_family_slots: nextExtra,
           status: nextStatus,
           trial_started_at: nowIso,
-          trial_ends_at: hasTrialEnd ? trialEndsAt : defaultPeriodEnd,
+          trial_ends_at: hasTrialEnd ? trialEndsAt : (hasPeriodEnd && periodEndsAt === null ? null : defaultPeriodEnd),
           current_period_ends_at: hasPeriodEnd ? periodEndsAt : defaultPeriodEnd,
           provider: 'manual_admin_grant',
         };
+        if (grantTag !== undefined) insertRow.provider_subscription_id = grantTag;
         const { data: created, error: insErr } = await adminClient
           .from('crew_subscriptions')
           .insert(insertRow)
-          .select('id, crew_id, plan_code, extra_family_slots, status, trial_ends_at, current_period_ends_at, provider')
+          .select('id, crew_id, plan_code, extra_family_slots, status, trial_ends_at, current_period_ends_at, provider, provider_subscription_id')
           .single();
         if (insErr || !created) {
           return new Response(JSON.stringify({ error: insErr?.message || 'Failed to create subscription' }), {
@@ -1926,12 +1954,13 @@ Deno.serve(async (req) => {
         if (hasExtra || hasExtraDelta) patch.extra_family_slots = nextExtra;
         if (hasTrialEnd) patch.trial_ends_at = trialEndsAt;
         if (hasPeriodEnd) patch.current_period_ends_at = periodEndsAt;
+        if (grantTag !== undefined) patch.provider_subscription_id = grantTag;
         if (sub.provider !== 'manual_admin_grant') patch.provider = 'manual_admin_grant';
         const { data: updated, error: upErr } = await adminClient
           .from('crew_subscriptions')
           .update(patch)
           .eq('id', sub.id)
-          .select('id, crew_id, plan_code, extra_family_slots, status, trial_ends_at, current_period_ends_at, provider')
+          .select('id, crew_id, plan_code, extra_family_slots, status, trial_ends_at, current_period_ends_at, provider, provider_subscription_id')
           .single();
         if (upErr || !updated) {
           return new Response(JSON.stringify({ error: upErr?.message || 'Subscription update failed' }), {
@@ -1967,10 +1996,11 @@ Deno.serve(async (req) => {
         typeof ent?.premium_active === 'boolean' ? ent.premium_active : null,
       );
       console.log('[admin-dashboard] update_user_subscription', {
-        user_id: userId,
-        crew_id: resolved.crewId,
-        requester: requesterEmail,
-        subscription,
+        user_ref: anonUserRef(userId),
+        crew_ref: anonUserRef(resolved.crewId),
+        requester: maskEmail(requesterEmail),
+        plan_code: subscription?.plan_code ?? null,
+        status: subscription?.status ?? null,
       });
       return new Response(JSON.stringify({ ok: true, action, user_id: userId, subscription }), {
         status: 200,
@@ -2832,7 +2862,7 @@ Deno.serve(async (req) => {
             });
             notified = pushResult.sent > 0;
             console.log('[admin-dashboard] occupation suggestion thank-you push', {
-              user_id: suggesterId,
+              user_ref: anonUserRef(suggesterId),
               token_count: sugTokens.length,
               sent: pushResult.sent,
               errors: pushResult.errors,
@@ -3274,7 +3304,7 @@ Deno.serve(async (req) => {
       .limit(1),
     adminClient
       .from('crew_subscriptions')
-      .select('id, crew_id, plan_code, extra_family_slots, status, trial_ends_at, current_period_ends_at, provider, updated_at')
+      .select('id, crew_id, plan_code, extra_family_slots, status, trial_ends_at, current_period_ends_at, provider, provider_subscription_id, updated_at')
       .order('updated_at', { ascending: false }),
     adminClient.from('user_entitlements').select('user_id, premium_active'),
     adminClient
