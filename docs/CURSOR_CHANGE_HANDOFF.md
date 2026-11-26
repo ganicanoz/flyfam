@@ -30,6 +30,16 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 
 ## Güncel teknik kayıtlar
 
+### 2026-11-26 — PR #164 auth-security catchup (main merge + build 60)
+
+- **Branch:** `codex/auth-security-catchup-20261126` ← merge main (`581eb65` free-access ui=65) + catchup + build **60**.
+- **Korunan:** auth handoff redeem / HTTPS callback / credential-scheme reject; `sanitizeErrorReport` + `safeLog`; Apple purchase identity + original_tx lock; auth handoff expiry cleanup.
+- **OTA soy:** production OTA `d2976ba` FLYCO/REC-YERDR (`dutyGluedYyyy`, training labels) adayda mevcut (compare behind=0).
+- **Migration ledger (remote=local applied):** `20261102120000`, `20261102121000`, `20261103120000`, `20261103121000` — yeniden push gerekmez.
+- **Test:** 17× `mobile/scripts/test-*.ts` OK (auth/sanitize/purchase/roster/legacy/where-plane vb.).
+- **Build:** iOS `buildNumber` / Android `versionCode` **59 → 60**. Submit yok.
+
+
 ### 2026-11-26 — Admin ücretsiz geçiş UI canlı (ui=65)
 
 - **Ne:** Seçili crew’lere **Ücretsiz (süresiz)** (yeni App Store app + aynı e-posta; kod yok). Family crew erişimine bağlı. Panel `support/admin/` ui=65; `admin-dashboard` `grant_tag`; `admin-panel-ui` default ui=65.
