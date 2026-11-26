@@ -2438,3 +2438,12 @@ Bu dosya, Cursor ve diğer kod ajanlarının mevcut çalışmaları bozmadan dev
 - **Production (9 Kasım 2026):** `db push` → `20261109120000_user_active_devices` applied; `register-active-device` deploy OK. Anon JWT ile assert → 401 (beklenen). Mobil JS (tek cihaz + Uçağım nerede + klavye) bir sonraki store build / OTA ile gelecek.
 - **Koruma:** Build/submit bu adımda yok. Family planner web dokunulmadı.
 
+
+## 2026-11-26 — Security source catch-up after production OTA audit
+
+- Production iOS OTA group 148b2b3d-02ec-4262-ac7e-cd4166d07fe0 points at d2976ba. Its mobile auth handler lacks handoff/HTTPS callback processing and its error reporter lacks sanitization, although the live callback website already uses handoff.
+- Ported the existing locally prepared security fixes onto origin/main c592449 in an isolated checkout. Auth handoff redemption, custom-scheme raw-token rejection, HTTPS callback handling, legacy-link alerts and TR/EN text now coexist with current session behavior. Error reports are sanitized before persistence and insertion.
+- Included already deployed Edge auth/IAP/log hardening and four existing production migrations in source control so subsequent deployments retain those protections. This source catch-up does not require replaying production migrations.
+- Preserved the current landed-notification freshness logic, admin push dry-run behavior and FLYCO/REC-YERDR/THY fixes during three-way merges.
+- Validation passed: strict mobile TypeScript, 14 regression scripts, and esbuild bundling of auth-link-handoff, verify-store-purchase, admin-dashboard and notify-family. The sanitizer JWT fixture carries a targeted gitleaks allow comment because its signature is synthetic.
+- The downloaded build 59 IPA has main app and both extensions at 1.3.0 (59), UIDeviceFamily [1], production OTA channel, runtime 1.3.0 and signed Associated Domains for app.flyfamapp.com. The next final binary must embed the current source after this security catch-up and current production OTA changes.

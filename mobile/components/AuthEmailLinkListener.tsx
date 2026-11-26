@@ -40,7 +40,11 @@ async function handleAuthDeepLink(url: string | null): Promise<void> {
   }
 }
 
-/** Production: Supabase e-posta doğrulama linki (flyfam://auth/callback) ile oturum. */
+/**
+ * Production auth links:
+ * - Preferred: https://app.flyfamapp.com/auth-callback.html (Universal Link; TokenHash / PKCE)
+ * - Fallback: flyfam://auth/callback?handoff=… (token_hash/code only; never access/refresh)
+ */
 export function AuthEmailLinkListener() {
   useEffect(() => {
     if (Platform.OS === 'web') return;

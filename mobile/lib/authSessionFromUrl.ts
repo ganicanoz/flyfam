@@ -1,4 +1,5 @@
 import type { AuthError, EmailOtpType } from '@supabase/supabase-js';
+import { AUTH_EMAIL_BRIDGE_URL } from './authRedirect';
 import { supabase } from './supabase';
 
 const NETWORK_RETRY_DELAYS_MS = [0, 500, 1500] as const;
@@ -61,15 +62,18 @@ async function runAuthStepWithRetry(
   return { error: lastError, sessionEstablished: false };
 }
 
-function parseAuthParams(url: string): {
+type AuthUrlParams = {
   access_token?: string;
   refresh_token?: string;
   code?: string;
   type?: string;
   token_hash?: string;
+  handoff?: string;
   error?: string;
   error_code?: string;
-} {
+};
+
+function parseAuthParams(url: string): AuthUrlParams {
   const hashIdx = url.indexOf('#');
   const queryIdx = url.indexOf('?');
   const paramStr =
@@ -86,6 +90,7 @@ function parseAuthParams(url: string): {
     code: params.get('code') ?? undefined,
     type: params.get('type') ?? undefined,
     token_hash: params.get('token_hash') ?? undefined,
+    handoff: params.get('handoff') ?? undefined,
     error: params.get('error_description') ?? params.get('error') ?? undefined,
     error_code: params.get('error_code') ?? undefined,
   };
@@ -119,8 +124,18 @@ function isSignupOrEmailVerificationUrl(url: string): boolean {
   );
 }
 
+function isHttpsAuthBridgeUrl(url: string): boolean {
+  const lower = url.toLowerCase();
+  const bridge = AUTH_EMAIL_BRIDGE_URL.toLowerCase();
+  return (
+    lower.startsWith(bridge) ||
+    lower.startsWith('https://app.flyfamapp.com/auth-callback.html')
+  );
+}
+
 function isFlyFamAuthCallbackUrl(url: string): boolean {
   const lower = url.toLowerCase();
+  if (isHttpsAuthBridgeUrl(url)) return true;
   const okScheme =
     lower.startsWith('flyfam://') ||
     lower.startsWith('com.flyfamapp.mobile://') ||
@@ -128,6 +143,7 @@ function isFlyFamAuthCallbackUrl(url: string): boolean {
   if (!okScheme) return false;
   return (
     lower.includes('auth/callback') ||
+    lower.includes('handoff=') ||
     lower.includes('access_token') ||
     lower.includes('code=') ||
     lower.includes('token_hash') ||
@@ -168,7 +184,7 @@ export type ApplyAuthSessionResult = {
   applied: boolean;
   recovery: boolean;
   hadAuthParams: boolean;
-  errorCode?: 'expired' | 'provider_error' | 'network' | 'pkce';
+  errorCode?: 'expired' | 'provider_error' | 'network' | 'pkce' | 'legacy_link';
   errorMessage?: string;
 };
 
@@ -195,17 +211,39 @@ function authStepFailure(
   };
 }
 
-/** E-posta doğrulama / şifre sıfırlama linki uygulamayı açınca oturumu kurar. */
-export async function applySupabaseSessionFromUrl(url: string): Promise<ApplyAuthSessionResult> {
-  const recovery = isRecoveryAuthUrl(url);
-  const signupVerify = isSignupOrEmailVerificationUrl(url);
-  if (!isFlyFamAuthCallbackUrl(url)) {
-    return { applied: false, recovery, hadAuthParams: false };
-  }
+async function redeemHandoff(handoffId: string): Promise<AuthUrlParams | null> {
+  const id = handoffId.trim();
+  if (!/^[0-9a-f-]{36}$/i.test(id)) return null;
+  const { data, error } = await supabase.functions.invoke('auth-link-handoff', {
+    body: { action: 'redeem', handoff_id: id },
+  });
+  if (error || !data || typeof data !== 'object') return null;
+  const payload = (data as { payload?: AuthUrlParams }).payload;
+  if (!payload || typeof payload !== 'object') return null;
+  // Never accept access/refresh from server-side handoff.
+  return {
+    code: typeof payload.code === 'string' ? payload.code : undefined,
+    type: typeof payload.type === 'string' ? payload.type : undefined,
+    token_hash: typeof payload.token_hash === 'string' ? payload.token_hash : undefined,
+    error: typeof payload.error === 'string' ? payload.error : undefined,
+    error_code: typeof payload.error_code === 'string' ? payload.error_code : undefined,
+  };
+}
 
-  const params = parseAuthParams(url);
+async function applyParsedAuthParams(
+  params: AuthUrlParams,
+  recoveryHint: boolean,
+  signupVerify: boolean,
+  options?: { allowSessionTokens?: boolean },
+): Promise<ApplyAuthSessionResult> {
+  const recovery = recoveryHint || params.type === 'recovery';
+  const allowSessionTokens = options?.allowSessionTokens === true;
   const hadAuthParams = Boolean(
-    params.code || params.token_hash || params.access_token || params.error
+    params.code ||
+      params.token_hash ||
+      (allowSessionTokens && params.access_token) ||
+      params.error ||
+      params.error_code
   );
 
   if (params.error || params.error_code) {
@@ -242,7 +280,6 @@ export async function applySupabaseSessionFromUrl(url: string): Promise<ApplyAut
       return { applied: true, recovery, hadAuthParams: true };
     }
     if (error) {
-      // PKCE verifier sadece kayıt yapılan cihazda/uygulamada var; yoksa kullanıcıya ham İngilizce hata gösterme.
       const fail = authStepFailure(error, recovery, true);
       if (
         /pkce|code verifier|code_verifier/i.test(error.message) &&
@@ -254,7 +291,8 @@ export async function applySupabaseSessionFromUrl(url: string): Promise<ApplyAut
     }
   }
 
-  if (params.access_token && params.refresh_token) {
+  // Session tokens only on HTTPS Universal Link — never custom-scheme / handoff.
+  if (allowSessionTokens && params.access_token && params.refresh_token) {
     const { error, sessionEstablished } = await runAuthStepWithRetry(() =>
       supabase.auth.setSession({
         access_token: params.access_token!,
@@ -270,6 +308,57 @@ export async function applySupabaseSessionFromUrl(url: string): Promise<ApplyAut
   }
 
   return { applied: false, recovery, hadAuthParams };
+}
+
+/** E-posta doğrulama / şifre sıfırlama linki uygulamayı açınca oturumu kurar. */
+export async function applySupabaseSessionFromUrl(url: string): Promise<ApplyAuthSessionResult> {
+  const recovery = isRecoveryAuthUrl(url);
+  const signupVerify = isSignupOrEmailVerificationUrl(url);
+  if (!isFlyFamAuthCallbackUrl(url)) {
+    return { applied: false, recovery, hadAuthParams: false };
+  }
+
+  let params = parseAuthParams(url);
+  const viaHttpsBridge = isHttpsAuthBridgeUrl(url);
+
+  // Custom scheme must not carry raw secrets (scheme is not app-exclusive on iOS).
+  // Prefer Universal Link (HTTPS) or one-time handoff id (token_hash / code only).
+  if (!viaHttpsBridge) {
+    if (params.access_token || params.refresh_token) {
+      return {
+        applied: false,
+        recovery,
+        hadAuthParams: true,
+        errorCode: 'legacy_link',
+        errorMessage: 'Legacy custom-scheme session tokens are not accepted',
+      };
+    }
+    if (params.handoff) {
+      const redeemed = await redeemHandoff(params.handoff);
+      if (!redeemed) {
+        return {
+          applied: false,
+          recovery,
+          hadAuthParams: true,
+          errorCode: 'expired',
+          errorMessage: 'Auth handoff expired or invalid',
+        };
+      }
+      params = redeemed;
+    } else if (params.code || params.token_hash) {
+      return {
+        applied: false,
+        recovery,
+        hadAuthParams: true,
+        errorCode: 'legacy_link',
+        errorMessage: 'Auth secrets must use HTTPS Universal Link or handoff',
+      };
+    }
+  }
+
+  return applyParsedAuthParams(params, recovery, signupVerify, {
+    allowSessionTokens: viaHttpsBridge,
+  });
 }
 
 /** Alert öncesi: ağ hatası dönse bile oturum kurulmuşsa başarı say. */

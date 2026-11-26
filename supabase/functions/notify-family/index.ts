@@ -5,6 +5,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { publicNotificationArtworkUrl } from '../_shared/notificationArtwork.ts';
 import { isLandedEventFreshForFamilyPush } from '../_shared/landedFamilyPushFreshness.ts';
+import { anonUserRef } from '../_shared/safeLog.ts';
 
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
 
@@ -109,7 +110,7 @@ function sharedPlanBody(locale: NotifLocale, crewName: string): string {
   return `${crewName} shared their latest flight plan with you.`;
 }
 
-/** First name + Turkish dative: Gani'ye / Ahmet'e */
+/** First name + Turkish dative: Kaan'a / Ahmet'e */
 function standbyAssignedBody(locale: NotifLocale, crewFullName: string): string {
   const full = (crewFullName || '').trim() || 'Crew';
   const first = (full.split(/\s+/)[0] || full).trim() || 'Crew';
@@ -317,7 +318,11 @@ async function sendExpoPush(
     tickets.forEach((ticket, i) => {
       if (ticket?.status === 'error') {
         const err = ticket.details?.error ?? ticket.message ?? 'unknown';
-        console.error('[notify-family] Expo push ticket error:', { index: i, token: tokens[i]?.slice(0, 30) + '…', error: err, message: ticket.message });
+        console.error('[notify-family] Expo push ticket error:', {
+          index: i,
+          error: err,
+          // Never log any portion of a push token.
+        });
       }
     });
   } catch {
@@ -859,7 +864,7 @@ Deno.serve(async (req) => {
     // Cron can call with x-cron-secret to send took_off/landed without crew JWT (for crew-offline notifications).
     const fromCron = isCron;
     if (fromCron) {
-      console.log('[notify-family]', payload.type, 'from cron', { flightId });
+      console.log('[notify-family]', payload.type, 'from cron', { flight_ref: anonUserRef(flightId) });
     }
     if (!fromCron && cronHeader) {
       console.warn(
@@ -888,7 +893,9 @@ Deno.serve(async (req) => {
         scheduledArrivalUtc: (flight as { scheduled_arrival?: string | null }).scheduled_arrival,
       });
       if (!fresh) {
-        console.log('[notify-family] landed skipped: stale landing evidence', { flightId });
+        console.log('[notify-family] landed skipped: stale landing evidence', {
+          flight_ref: anonUserRef(flightId),
+        });
         // Alıcıları aşağıda bilmeden önce crew user ile tek satır yaz — check-flight existence check yeter.
         const crewIdForLog = (flight as { crew_id?: string | null }).crew_id;
         if (crewIdForLog) {
@@ -1016,7 +1023,10 @@ Deno.serve(async (req) => {
     }
 
     if (recipientCrewNameByUser.size === 0) {
-      console.log('[notify-family] sent=0: no approved recipients for targeted crews', { flightId, targetCrewIds });
+      console.log('[notify-family] sent=0: no approved recipients for targeted crews', {
+        flight_ref: anonUserRef(flightId),
+        target_crew_count: targetCrewIds.length,
+      });
       return new Response(JSON.stringify({ ok: true, sent: 0 }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
@@ -1036,7 +1046,9 @@ Deno.serve(async (req) => {
       const already = new Set((existingRows ?? []).map((r: { user_id: string }) => r.user_id));
       recipients = allowed2.filter((uid) => !already.has(uid));
       if (recipients.length === 0) {
-        console.log('[notify-family]', notifType, 'skipped duplicate (all recipients already notified)', { flightId });
+        console.log('[notify-family]', notifType, 'skipped duplicate (all recipients already notified)', {
+          flight_ref: anonUserRef(flightId),
+        });
         return new Response(JSON.stringify({ ok: true, sent: 0, duplicate: true }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
@@ -1088,7 +1100,11 @@ Deno.serve(async (req) => {
 
     const usersWithNoTokens = recipients.filter((uid) => !(tokensByUser2.get(uid)?.length));
     if (usersWithNoTokens.length > 0) {
-      console.log('[notify-family] some family users have no device_tokens', { user_ids: usersWithNoTokens, flightId, type: notifType });
+      console.log('[notify-family] some family users have no device_tokens', {
+        no_token_count: usersWithNoTokens.length,
+        flight_ref: anonUserRef(flightId),
+        type: notifType,
+      });
     }
     let totalSent2 = 0;
     const loggedUserIds: string[] = [];
@@ -1157,9 +1173,15 @@ Deno.serve(async (req) => {
     }
 
     if (totalSent2 === 0 && recipients.length > 0) {
-      console.log('[notify-family] sent=0: approved family users have no device_tokens', { flightId, type: notifType, family_user_ids: recipients });
+      console.log('[notify-family] sent=0: approved family users have no device_tokens', {
+        flight_ref: anonUserRef(flightId),
+        type: notifType,
+        recipient_count: recipients.length,
+      });
     } else if (totalSent2 > 0) {
-      console.log('[notify-family]', notifType, 'sent', totalSent2, { flightId });
+      console.log('[notify-family]', notifType, 'sent', totalSent2, {
+        flight_ref: anonUserRef(flightId),
+      });
     }
     return new Response(JSON.stringify({ ok: true, sent: totalSent2 }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

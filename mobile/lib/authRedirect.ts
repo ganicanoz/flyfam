@@ -1,9 +1,12 @@
 /**
  * E-posta doğrulama / şifre sıfırlama redirect.
  *
- * Mail istemcileri `flyfam://` şemasını güvenilir açmaz; önce HTTPS köprü sayfası
- * açılır, sayfa uygulamaya (`flyfam://auth/callback`) yönlendirir.
- * Supabase Dashboard → Redirect URLs listesine bu HTTPS adres de eklenmeli.
+ * Tercih: Universal Link (`https://app.flyfamapp.com/auth-callback.html`) uygulamayı
+ * doğrudan açar; PKCE `code` / OTP `token_hash` uygulama içinde çözülür.
+ * Safari yedek yolu: web sayfası `token_hash`/`code` (veya hata) bilgisini sunucu
+ * handoff’una yazar ve yalnız `flyfam://auth/callback?handoff=<uuid>` açar.
+ * access/refresh token handoff’a alınmaz; custom scheme’de reddedilir.
+ * Supabase Dashboard → Redirect URLs listesine bu HTTPS adres ekli olmalı.
  */
 export const AUTH_EMAIL_BRIDGE_URL =
   'https://app.flyfamapp.com/auth-callback.html';
