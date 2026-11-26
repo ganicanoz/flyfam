@@ -74,7 +74,8 @@
     "pkceMismatch": "Bu doğrulama bağlantısı bu cihazda tamamlanamadı. «Doğrulama mailini tekrar gönder» ile yeni bir link isteyin; link FlyFam uygulamasını açmalı.",
     "failed": "Bağlantı işlenemedi. Maildeki linke tekrar dokunun; FlyFam uygulaması açılmalı (tarayıcıda Supabase sayfası kalırsa uygulamayı manuel açın).",
     "networkTitle": "Bağlantı sorunu",
-    "networkMessage": "Doğrulama bağlantısı açılırken bağlantı kısa süre kesildi. FlyFam sizi zaten içeri aldıysa devam edebilirsiniz. Değilse birkaç saniye bekleyip maildeki linke tekrar dokunun."
+    "networkMessage": "Doğrulama bağlantısı açılırken bağlantı kısa süre kesildi. FlyFam sizi zaten içeri aldıysa devam edebilirsiniz. Değilse birkaç saniye bekleyip maildeki linke tekrar dokunun.",
+    "legacyLink": "Bu eski bağlantı artık desteklenmiyor. E-postanızdaki güncel doğrulama bağlantısına tekrar dokunun; FlyFam uygulamasının açıldığından emin olun."
   },
   "resetPassword": {
     "title": "Yeni şifre belirle",

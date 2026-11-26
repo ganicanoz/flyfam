@@ -64,7 +64,7 @@ module.exports = {
       supportsTablet: false,
       bundleIdentifier: 'com.flyfamapp.mobile',
       /** Her App Store / TestFlight yüklemesinde bir öncekinden büyük olmalı (CFBundleVersion). */
-      buildNumber: '59',
+      buildNumber: '60',
       jsEngine: 'hermes',
       /** Auth HTTPS bridge — Apple Developer Associated Domains + AASA gerekir. */
       associatedDomains: ['applinks:app.flyfamapp.com'],
@@ -86,7 +86,7 @@ module.exports = {
       },
     },
     android: {
-      versionCode: 59,
+      versionCode: 60,
       jsEngine: 'hermes',
       /** Play + adaptive foreground: iOS App Store ikonu ile aynı 1024 kaynak. */
       icon: APP_ICON_1024,

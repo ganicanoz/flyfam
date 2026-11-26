@@ -452,3 +452,6 @@ s3_secret_key = "env(S3_SECRET_KEY)"
 # Single active mobile install; JWT verified inside via getUser.
 [functions.register-active-device]
 verify_jwt = false
+
+[functions.auth-link-handoff]
+verify_jwt = false

@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { getAppleTransactionInfo } from '../_shared/appStoreServerApi.ts';
+import { checkClientPurchaseIdsAgainstApple } from '../_shared/applePurchaseIdentity.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -90,6 +91,8 @@ type VerifiedAppleTransaction = {
   purchaseDateMs: number | null;
   periodEndsAt: string | null;
   isTrial: boolean;
+  transactionId: string;
+  productId: string;
   originalTransactionId: string | null;
   promotionalOfferId: unknown;
 };
@@ -100,6 +103,11 @@ function receiptMatchToVerified(r: {
 }): VerifiedAppleTransaction {
   const purchaseMs = Number(r.matchedTx.purchase_date_ms);
   const expiresMs = Number(r.matchedTx.expires_date_ms);
+  const appleTxId = String(r.matchedTx.transaction_id ?? '').trim();
+  const appleProductId = String(r.matchedTx.product_id ?? '').trim();
+  if (!appleTxId || !appleProductId) {
+    throw new Error('Apple receipt missing transaction/product identity');
+  }
   return {
     method: 'verify_receipt',
     environment: r.environment,
@@ -108,6 +116,8 @@ function receiptMatchToVerified(r: {
     isTrial:
       String(r.matchedTx.is_trial_period ?? '').toLowerCase() === 'true' ||
       String(r.matchedTx.is_in_intro_offer_period ?? '').toLowerCase() === 'true',
+    transactionId: appleTxId,
+    productId: appleProductId,
     originalTransactionId: String(r.matchedTx.original_transaction_id ?? '').trim() || null,
     promotionalOfferId: r.matchedTx.promotional_offer_id ?? null,
   };
@@ -130,6 +140,10 @@ async function verifyAppleTransactionViaServerApiOrThrow(params: {
   }
   const txId = String(tx.transactionId ?? '').trim();
   const originalTxId = String(tx.originalTransactionId ?? '').trim();
+  const appleProductId = String(tx.productId ?? '').trim();
+  if (!txId || !appleProductId) {
+    throw new Error('Apple transaction missing transaction/product identity');
+  }
   if (txId !== params.transactionId && originalTxId !== params.transactionId) {
     throw new Error('Apple transaction id mismatch');
   }
@@ -143,6 +157,8 @@ async function verifyAppleTransactionViaServerApiOrThrow(params: {
     periodEndsAt: Number.isFinite(tx.expiresDate) ? new Date(Number(tx.expiresDate)).toISOString() : null,
     // offerType 1 = introductory offer (free trial / pay-as-you-go / pay-up-front)
     isTrial: tx.offerType === 1,
+    transactionId: txId,
+    productId: appleProductId,
     originalTransactionId: originalTxId || null,
     promotionalOfferId: tx.offerType === 2 ? (tx.offerIdentifier ?? null) : null,
   };
@@ -273,6 +289,29 @@ Deno.serve(async (req) => {
         });
       }
 
+      // Apple is the only authority for subscription identity.
+      const identity = checkClientPurchaseIdsAgainstApple(
+        {
+          transactionId,
+          productId,
+          originalTransactionId,
+        },
+        {
+          transactionId: verified.transactionId,
+          productId: verified.productId,
+          originalTransactionId: verified.originalTransactionId,
+        },
+      );
+      if (!identity.ok) {
+        return new Response(JSON.stringify({ error: identity.error }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      const appleTxId = identity.apple.transactionId;
+      const appleProductId = identity.apple.productId;
+      const appleOriginalTx = identity.apple.originalTransactionId;
+
       const purchaseDateMs = verified.purchaseDateMs ?? Number(body?.purchaseAtMs ?? Date.now());
       body.purchaseAtMs = Number.isFinite(purchaseDateMs) ? purchaseDateMs : Date.now();
       const periodEndsAt = verified.periodEndsAt;
@@ -281,15 +320,16 @@ Deno.serve(async (req) => {
       const { data, error } = await adminClient.rpc('apply_verified_store_purchase_for_user', {
         p_user_id: user.id,
         p_platform: platform,
-        p_product_id: productId,
-        p_transaction_id: transactionId,
-        p_original_transaction_id: originalTransactionId ?? verified.originalTransactionId,
+        p_product_id: appleProductId,
+        p_transaction_id: appleTxId,
+        p_original_transaction_id: appleOriginalTx,
         p_purchase_at: verified.purchaseDateMs != null ? new Date(verified.purchaseDateMs).toISOString() : purchaseAt,
         p_raw_payload: {
           platform,
-          productId,
-          transactionId,
-          originalTransactionId: originalTransactionId ?? verified.originalTransactionId,
+          productId: appleProductId,
+          transactionId: appleTxId,
+          originalTransactionId: appleOriginalTx,
+          clientIdsCompared: true,
           purchaseAtMs: body?.purchaseAtMs ?? null,
           receiptDataPresent: !!body?.receiptData,
           appleEnvironment: verified.environment,

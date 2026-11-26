@@ -5,6 +5,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Updates from 'expo-updates';
 import { supabase } from './supabase';
+import { sanitizeErrorReport } from './sanitizeErrorReport';
 import { appMeta } from './userActivity';
 import { navigationRef } from '../navigationRef';
 
@@ -58,14 +59,20 @@ function buildRow(
 ): ClientErrorRow {
   const err = error instanceof Error ? error : null;
   const meta = appMeta();
+  const cleaned = sanitizeErrorReport({
+    error_name: err?.name ?? null,
+    message: err ? err.message : error,
+    stack: err?.stack ?? null,
+    component_stack: componentStack ?? null,
+  });
   return {
     occurred_at: new Date().toISOString(),
     source,
     is_fatal: isFatal,
-    error_name: clip(err?.name, 120),
-    message: clip(err ? err.message : error, 1000) ?? '(empty error)',
-    stack: clip(err?.stack, 8000),
-    component_stack: clip(componentStack, 4000),
+    error_name: cleaned.error_name,
+    message: cleaned.message,
+    stack: cleaned.stack,
+    component_stack: cleaned.component_stack,
     screen: currentScreen(),
     platform: clip(meta.platform, 16),
     app_version: clip(meta.app_version, 40),

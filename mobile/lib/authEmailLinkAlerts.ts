@@ -36,6 +36,17 @@ export function showAuthLinkResultAlert(result: ApplyAuthSessionResult): void {
     return;
   }
 
+  if (result.errorCode === 'legacy_link') {
+    Alert.alert(i18n.t('signIn.resendConfirmationTitle'), i18n.t('authLink.legacyLink'), [
+      { text: i18n.t('common.cancel'), style: 'cancel' },
+      {
+        text: i18n.t('signIn.resendConfirmation'),
+        onPress: () => promptResendConfirmationEmail(),
+      },
+    ]);
+    return;
+  }
+
   if (result.errorCode === 'pkce') {
     Alert.alert(i18n.t('signIn.resendConfirmationTitle'), i18n.t('authLink.pkceMismatch'), [
       { text: i18n.t('common.cancel'), style: 'cancel' },

@@ -74,7 +74,8 @@
     "pkceMismatch": "This verification link could not be completed on this device. Tap «Resend verification email» for a new link; it should open the FlyFam app.",
     "failed": "We could not process this link. Tap the link again; the FlyFam app should open (if you only see a browser page, open the app manually).",
     "networkTitle": "Connection issue",
-    "networkMessage": "The connection dropped briefly while opening your verification link. If FlyFam already signed you in, you can continue. Otherwise wait a few seconds and tap the link in your email again."
+    "networkMessage": "The connection dropped briefly while opening your verification link. If FlyFam already signed you in, you can continue. Otherwise wait a few seconds and tap the link in your email again.",
+    "legacyLink": "This older link is no longer supported. Open the latest verification link in your email again and make sure the FlyFam app opens."
   },
   "resetPassword": {
     "title": "Set new password",
