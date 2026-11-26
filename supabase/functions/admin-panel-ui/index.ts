@@ -14,7 +14,7 @@ Deno.serve((req) => {
     });
   }
   const inbound = new URL(req.url);
-  const ui = inbound.searchParams.get('ui') || '64';
+  const ui = inbound.searchParams.get('ui') || '65';
   const target = new URL('https://app.flyfamapp.com/admin/');
   target.searchParams.set('ui', ui);
   return new Response(null, {
