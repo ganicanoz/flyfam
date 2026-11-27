@@ -1027,7 +1027,7 @@
             continue;
           }
           let s = toAbs(r.fd, r.ds), e = toAbs(r.ed, r.et);
-          if (isGroundTraining(code)) {
+          if (isGroundTraining(code) && !homeCodes.has(code)) {
             if (s == null || e == null || e <= s) { s = dayIndex(r.fd) * 1440 + 480; e = s + 480; }
             intervals.push({ s, e, kind: 'duty', label: code });
             addLabel(r.fd, 'Yer dersi · ' + code + ' ' + fmt(s) + '–' + fmt(e), 'crew');
@@ -1061,7 +1061,7 @@
         const s = absOf(e.scheduled_departure, tz), en = absOf(e.scheduled_arrival, tz);
         const dayYmd = s != null ? at2ymd(s) : e.flight_date;
         if (OFF_CODES.has(code)) { addLabel(e.flight_date, 'Boş gün', 'muted'); continue; }
-        if (isGroundTraining(code)) {
+        if (isGroundTraining(code) && !homeCodes.has(code)) {
           let ss = s, ee = en;
           if (ss == null || ee == null || ee <= ss) { ss = dayIndex(e.flight_date) * 1440 + 480; ee = ss + 480; }
           intervals.push({ s: ss, e: ee, kind: 'duty', label: code });
